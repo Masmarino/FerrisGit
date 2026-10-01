@@ -243,7 +243,14 @@ mod tests {
         std::fs::create_dir_all(&origin).unwrap();
         git(
             tmp.path(),
-            &["init", "--bare", "-q", origin.to_str().unwrap()],
+            &[
+                "init",
+                "--bare",
+                "-q",
+                "-b",
+                "main",
+                origin.to_str().unwrap(),
+            ],
         );
 
         let seed = tmp.path().join("seed");

@@ -1599,6 +1599,17 @@ async fn updating_a_merge_request_assigns_a_milestone_sets_labels_and_the_list_c
         .unwrap()
         .success()
     );
+    // The clone of an empty repository starts on the host's default branch name, which is `master` without git config.
+    assert!(
+        run_git(
+            vec!["branch".to_string(), "-M".to_string(), "main".to_string()],
+            repo_path.clone()
+        )
+        .await
+        .unwrap()
+        .unwrap()
+        .success()
+    );
     assert!(
         run_git(
             vec![

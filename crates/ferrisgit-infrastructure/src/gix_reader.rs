@@ -1035,7 +1035,7 @@ mod tests {
                     .success()
             )
         };
-        run(&["init", "-q"]);
+        run(&["init", "-q", "-b", "main"]);
         run(&[
             "-c",
             "user.email=t@t.com",
