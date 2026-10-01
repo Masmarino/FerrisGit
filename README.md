@@ -525,11 +525,16 @@ pull request:
 | Security scan | pull requests, `main`, `develop`, `release/**`, tags | `cargo audit` (RustSec), plus Trivy and Grype on the source tree. A HIGH or CRITICAL finding fails the job; results also go to the repository's **Security** tab as SARIF. |
 | Tag guard | every push | A `v*.*.*` tag is refused unless its commit is on `main`. |
 | Docker image | `main`, `release/**`, tags | Builds the image, scans it with Trivy and Grype, and only then pushes it. |
+| GitHub release | tags | Creates the GitHub release of the tag once the image is pushed, with the matching [`CHANGELOG.md`](CHANGELOG.md) section as its notes. |
 
 The image is pushed to Docker Hub as `masmarino/ferrisgit` (`latest` and `sha-*` from `main`, the version from a tag)
 only when the repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are set; without them the image is still
 built and scanned. There is no deploy job: FerrisGit is deployed by hand, see
 [Deploying to Kubernetes](#deploying-to-kubernetes).
+
+To publish a version, bump `version` in `[workspace.package]` of `Cargo.toml`, add a `## [X.Y.Z] - YYYY-MM-DD` section
+at the top of [`CHANGELOG.md`](CHANGELOG.md), merge to `main` and push the tag `vX.Y.Z` on that commit. A missing section
+fails only the release job; add it and rerun the job.
 
 Dependencies are kept current by Dependabot (`.github/dependabot.yml`): Cargo, npm, Docker and GitHub Actions, weekly.
 The GitHub Actions and base images are pinned by digest. The one accepted RustSec advisory and the reasoning behind it
