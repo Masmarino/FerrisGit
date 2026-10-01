@@ -1,0 +1,13 @@
+<gbt-card class="public-not-found" variant="outlined">
+  <gbt-empty-state
+    illustration="folder"
+    [headingLevel]="1"
+    heading="Ce dépôt n'existe pas ou n'est pas public"
+    message="Vérifiez l'adresse. Si vous avez accès à ce dépôt, connectez-vous pour le voir."
+  >
+    <div class="public-not-found__actions">
+      <a gbtButton variant="primary" [routerLink]="login.commands" [queryParams]="login.queryParams">Se connecter</a>
+      <a gbtButton variant="secondary" routerLink="/explore">Explorer les dépôts publics</a>
+    </div>
+  </gbt-empty-state>
+</gbt-card>

@@ -1,0 +1,267 @@
+@switch (view()) {
+  @case ('ready') {
+    @if (user(); as u) {
+      <gbt-page-header [heading]="u.username">
+        @if (header(); as h) {
+          <span header-badges class="admin-user-detail__badges">
+            @if (u.isAdmin) {
+              <gbt-badge [variant]="superAdmin.variant" [icon]="superAdmin.icon">{{ superAdmin.label }}</gbt-badge>
+            }
+            <gbt-badge [variant]="h.state.variant" [icon]="h.state.icon">{{ h.state.label }}</gbt-badge>
+            @if (h.mfa; as mfa) {
+              <gbt-badge [variant]="mfa.variant" [icon]="mfa.icon">{{ mfa.label }}</gbt-badge>
+            }
+          </span>
+        }
+        @if (header(); as h) {
+          <p header-meta class="admin-user-detail__meta">
+            <span class="admin-user-detail__email" [title]="u.email">{{ u.email }}</span>
+            <span class="admin-user-detail__segment">créé <time [attr.datetime]="h.created.iso" [title]="h.created.title">{{ h.created.label }}</time></span>
+            @if (h.expiry; as expiry) {
+              <span class="admin-user-detail__segment admin-user-detail__expiry"><time [attr.datetime]="expiry.iso" [title]="expiry.title">{{ expiry.label }}</time></span>
+            }
+          </p>
+        }
+
+        <!-- A single root element, because content projected from inside an @if needs one. -->
+        @if (actions(); as a) {
+          <div header-actions class="admin-user-detail__actions">
+            @if (busy(); as busyLabel) {
+              <span class="admin-user-detail__busy"><gbt-spinner size="sm" [label]="busyLabel" /></span>
+            } @else {
+              <gbt-menu class="admin-user-detail__menu" label="Actions" [chevron]="true" align="end">
+                @if (a.canResend) {
+                  <button gbtMenuItem icon="send" (click)="resend()">Renvoyer l'invitation</button>
+                }
+                @if (a.canResetPassword) {
+                  <button gbtMenuItem icon="key" (click)="askPasswordReset()">Réinitialiser le mot de passe</button>
+                }
+                @if (a.canResetMfa) {
+                  <button gbtMenuItem icon="shield-alert" (click)="askReset()">Réinitialiser la double authentification</button>
+                }
+                <button gbtMenuItem [icon]="a.admin.icon" (click)="toggleAdmin()">{{ a.admin.label }}</button>
+              </gbt-menu>
+            }
+            <gbt-button class="admin-user-detail__delete" variant="danger" iconName="trash-2" text="Supprimer l'utilisateur" [disabled]="!canDelete()" (clicked)="askDelete()" />
+          </div>
+        }
+      </gbt-page-header>
+
+      <gbt-page-layout width="wide" asideWidth="md">
+        <div class="admin-user-detail__main">
+          @if (deletionRefused(); as refusal) {
+            <gbt-alert class="admin-user-detail__refusal-alert" variant="error" heading="Suppression impossible" dismissible closeLabel="Fermer" (dismissed)="dismissRefusal()">
+              <p class="admin-user-detail__refusal" tabindex="-1">{{ refusal }}</p>
+            </gbt-alert>
+          }
+
+          @if (mailFailure(); as failure) {
+            <fg-link-mail-failed dismissible [kind]="failure.kind" [username]="failure.username" [emailError]="failure.emailError" [url]="failure.url" (dismissed)="dismissMailFailure()" />
+          }
+
+          <gbt-list-card
+            ariaLabel="Dépôts personnels"
+            [state]="repositoriesCard()"
+            loadingLabel="Chargement des dépôts…"
+            [skeletonRows]="3"
+            failedHeading="Impossible de charger les dépôts de cet utilisateur."
+            retryLabel="Réessayer"
+            emptyIllustration="folder"
+            emptyHeading="Aucun dépôt personnel"
+            [emptyMessage]="u.username + ' ne possède aucun dépôt en son nom. Les dépôts de groupe ne sont pas listés ici.'"
+            (retry)="retryRepositories()"
+          >
+            <div list-card-header class="admin-user-detail__band">
+              <h2 class="admin-user-detail__heading">Dépôts personnels</h2>
+              @if (repositoriesSummary(); as summary) {
+                <span class="admin-user-detail__count">{{ summary }}</span>
+              }
+            </div>
+
+            <ul class="admin-user-detail__repositories" aria-label="Dépôts personnels">
+              @for (row of repositoryRows(); track row.repository.id) {
+                <li>
+                  <gbt-list-row>
+                    <span row-leading class="admin-user-detail__kind" [title]="row.kindLabel">
+                      <gbt-icon [name]="row.icon" aria-hidden="true" />
+                      <span class="sr-only">{{ row.kindLabel }}</span>
+                    </span>
+
+                    <span class="admin-user-detail__repository-name" [title]="row.repository.name">{{ row.repository.name }}</span>
+                    <gbt-badge class="admin-user-detail__visibility" [variant]="row.visibility.variant">{{ row.visibility.label }}</gbt-badge>
+
+                    <span row-meta class="admin-user-detail__repository-meta">
+                      @if (row.repository.description) {
+                        <span class="admin-user-detail__description" [title]="row.repository.description">{{ row.repository.description }}</span>
+                      }
+                      <span class="admin-user-detail__repository-segment"
+                        >créé
+                        <time
+                          [attr.datetime]="row.repository.createdAt"
+                          [title]="row.repository.createdAt | gbtDateTime: { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }"
+                          >{{ row.repository.createdAt | gbtRelativeTime: { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time
+                        ></span
+                      >
+                      @if (row.size; as size) {
+                        <span class="admin-user-detail__repository-segment admin-user-detail__size">{{ size }}</span>
+                      } @else {
+                        <span class="admin-user-detail__repository-segment admin-user-detail__size" title="La taille de ce dépôt sur le disque n'a pas pu être calculée.">taille inconnue</span>
+                      }
+                    </span>
+                  </gbt-list-row>
+                </li>
+              }
+            </ul>
+          </gbt-list-card>
+        </div>
+
+        <div page-aside class="admin-user-detail__aside">
+          <gbt-panel heading="Dépôts personnels" [headingLevel]="2">
+            @if (repositoriesState() === 'loaded') {
+              <gbt-description-list class="admin-user-detail__facts" layout="inline" valueAlign="end" [items]="repositoryFacts()" />
+            } @else if (repositoriesState() === 'failed') {
+              <p class="admin-user-detail__help">Indisponible.</p>
+            } @else {
+              <div class="admin-user-detail__facts-loading" aria-hidden="true">
+                <gbt-skeleton width="70%" height="0.75rem" />
+                <gbt-skeleton width="55%" height="0.75rem" />
+              </div>
+            }
+          </gbt-panel>
+          <gbt-panel heading="Suppression du compte" [headingLevel]="2">
+            <p class="admin-user-detail__help">
+              Supprimer un compte supprime aussi ses dépôts personnels, sur le disque compris. Les dépôts qu'il a créés dans un groupe vous sont réattribués. Ses demandes de fusion, ses commentaires sur des demandes de fusion et ses releases restent, au nom d'un « Utilisateur supprimé » ; ses tickets, ses commentaires de tickets, ses revues et ses pipelines sont supprimés.
+            </p>
+          </gbt-panel>
+        </div>
+      </gbt-page-layout>
+
+      @if (resetOpen()) {
+        <gbt-confirm-danger-modal
+          [isOpen]="true"
+          heading="Réinitialiser la double authentification"
+          [message]="resetMessage()"
+          confirmLabel="Réinitialiser"
+          confirmIcon="refresh-cw"
+          cancelLabel="Annuler"
+          closeLabel="Fermer"
+          busyLabel="Réinitialisation en cours"
+          [busy]="resetting()"
+          (confirmed)="confirmReset()"
+          (closed)="cancelReset()"
+        />
+      }
+
+      @if (passwordResetOpen()) {
+        <gbt-confirm-danger-modal
+          [isOpen]="true"
+          heading="Réinitialiser le mot de passe"
+          [message]="passwordResetMessage()"
+          confirmLabel="Réinitialiser"
+          confirmIcon="key"
+          cancelLabel="Annuler"
+          closeLabel="Fermer"
+          busyLabel="Réinitialisation en cours"
+          [busy]="resettingPassword()"
+          (confirmed)="confirmPasswordReset()"
+          (closed)="cancelPasswordReset()"
+        />
+      }
+
+      @if (demoteOpen()) {
+        <gbt-confirm-danger-modal
+          [isOpen]="true"
+          [heading]="demoteHeading"
+          [message]="demoteMessage()"
+          confirmLabel="Retirer les droits"
+          confirmIcon="shield-off"
+          cancelLabel="Annuler"
+          closeLabel="Fermer"
+          busyLabel="Retrait en cours"
+          [busy]="demoting()"
+          (confirmed)="confirmDemote()"
+          (closed)="cancelDemote()"
+        />
+      }
+
+      @if (deleteOpen()) {
+        <gbt-confirm-danger-modal
+          class="admin-user-detail__delete-dialog"
+          [isOpen]="true"
+          heading="Supprimer l'utilisateur"
+          [message]="deleteMessage()"
+          [confirmText]="u.username"
+          confirmInputLabel="Tapez le nom d'utilisateur pour confirmer"
+          confirmLabel="Supprimer l'utilisateur"
+          confirmIcon="trash-2"
+          cancelLabel="Annuler"
+          closeLabel="Fermer"
+          busyLabel="Suppression en cours"
+          [busy]="deleting()"
+          (confirmed)="confirmDelete()"
+          (closed)="cancelDelete()"
+        />
+      }
+    }
+  }
+
+  @case ('not-found') {
+    <gbt-page-layout width="wide">
+      <gbt-card variant="outlined" [flush]="true">
+        <div class="admin-user-detail__state">
+          <gbt-empty-state illustration="checklist" heading="Utilisateur introuvable" message="Ce compte n'existe pas, ou a été supprimé.">
+            <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="usersLink">Retour aux utilisateurs</a>
+          </gbt-empty-state>
+        </div>
+      </gbt-card>
+    </gbt-page-layout>
+  }
+
+  @case ('self') {
+    <gbt-page-layout width="wide">
+      <gbt-card variant="outlined" [flush]="true">
+        <div class="admin-user-detail__state">
+          <gbt-empty-state
+            illustration="checklist"
+            heading="C'est votre propre compte"
+            message="Il ne se gère pas depuis l'administration et ne peut pas être supprimé d'ici : ses réglages sont dans « Mon compte »."
+          >
+            <span class="admin-user-detail__state-actions">
+              <a gbtButton variant="secondary" size="small" iconName="user" routerLink="/account">Mon compte</a>
+              <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="usersLink">Retour aux utilisateurs</a>
+            </span>
+          </gbt-empty-state>
+        </div>
+      </gbt-card>
+    </gbt-page-layout>
+  }
+
+  @case ('failed') {
+    <gbt-page-layout width="wide">
+      <gbt-card variant="outlined" [flush]="true">
+        <div class="admin-user-detail__state" role="alert">
+          <gbt-empty-state tone="error" heading="Impossible de charger cet utilisateur." message="Vérifiez votre connexion, puis réessayez.">
+            <gbt-button variant="secondary" size="small" text="Réessayer" (clicked)="retryLoad()" />
+          </gbt-empty-state>
+        </div>
+      </gbt-card>
+    </gbt-page-layout>
+  }
+
+  @default {
+    <div class="admin-user-detail__loading" aria-busy="true">
+      <span class="sr-only" role="status">Chargement de l'utilisateur…</span>
+      <div class="admin-user-detail__loading-header" aria-hidden="true">
+        <gbt-skeleton width="min(16rem, 70%)" height="1.75rem" />
+        <gbt-skeleton width="14rem" height="0.875rem" />
+      </div>
+      <gbt-card variant="outlined" [flush]="true" aria-hidden="true">
+        <div class="admin-user-detail__loading-card">
+          @for (width of skeletonLines; track $index) {
+            <gbt-skeleton [width]="width" height="0.875rem" />
+          }
+        </div>
+      </gbt-card>
+    </div>
+  }
+}

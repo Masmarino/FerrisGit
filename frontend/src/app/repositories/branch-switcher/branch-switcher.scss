@@ -1,0 +1,22 @@
+:host {
+  display: inline-block;
+  min-width: 0;
+  max-width: 100%;
+}
+
+// Wide enough for `main`/`develop`, capped so a long branch name truncates instead of pushing the header's actions away.
+.branch-switcher {
+  width: 11rem;
+  min-width: 8rem;
+  max-width: 100%;
+}
+
+@media (max-width: 480px) {
+  .branch-switcher {
+    width: 8.5rem;
+  }
+}
+
+.branch-switcher ::ng-deep .gbt-select__trigger {
+  font-weight: 500;
+}

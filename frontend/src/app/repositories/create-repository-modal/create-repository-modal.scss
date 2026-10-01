@@ -1,0 +1,175 @@
+@use '../../shared/layout/list-page';
+
+// Same spacing as the issue and release creation dialogs (`list-page.create-form`). The actions sit in Gabarit's modal footer.
+
+.create-repository {
+  @include list-page.create-form;
+  container: create-repository / inline-size;
+  width: min(34rem, 100%);
+}
+
+.create-repository__path {
+  display: grid;
+  grid-template-areas:
+    'location-label . name-label'
+    'location slash name';
+  grid-template-columns: minmax(0, 13rem) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 0.375rem 0.5rem;
+}
+
+.create-repository__path-label {
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+}
+
+.create-repository__path-label--location {
+  grid-area: location-label;
+}
+
+.create-repository__path-label--name {
+  grid-area: name-label;
+}
+
+.create-repository__location,
+.create-repository__name,
+.create-repository__description {
+  display: block;
+  min-width: 0;
+}
+
+.create-repository__location {
+  grid-area: location;
+}
+
+.create-repository__name {
+  grid-area: name;
+}
+
+.create-repository__slash {
+  grid-area: slash;
+  color: var(--text-secondary);
+  font-size: 1.25rem;
+  line-height: 2.375rem;
+}
+
+.create-repository__visibility-field {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.375rem;
+}
+
+.create-repository__visibility {
+  ::ng-deep .gbt-segmented-control__option {
+    min-width: 6rem;
+  }
+}
+
+.create-repository__visibility-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.4;
+
+  gbt-icon {
+    flex: none;
+    font-size: 0.75rem;
+  }
+}
+
+.create-repository__advanced {
+  border: 1px solid var(--gbt-hairline);
+  border-radius: var(--site-border-radius-sm);
+}
+
+.create-repository__advanced-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.625rem 0.875rem;
+  border: none;
+  border-radius: var(--site-border-radius-sm);
+  background: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-align: left;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+}
+
+.create-repository__chevron {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  transition: transform var(--site-transition-fast);
+}
+
+.create-repository__chevron--open {
+  transform: rotate(90deg);
+}
+
+.create-repository__advanced-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 0.875rem;
+  border-top: 1px solid var(--gbt-hairline);
+  background: var(--bg-hover);
+  border-radius: 0 0 var(--site-border-radius-sm) var(--site-border-radius-sm);
+}
+
+// Bottom-aligned so a label wrapping onto two lines does not push its field below the other one.
+.create-repository__advanced-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  align-items: end;
+  gap: 1rem;
+}
+
+.create-repository__approvals,
+.create-repository__pipeline-file {
+  display: block;
+  min-width: 0;
+}
+
+@container create-repository (max-width: 26rem) {
+  .create-repository__path {
+    grid-template-areas:
+      'location-label'
+      'location'
+      'name-label'
+      'name';
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .create-repository__path-label--name {
+    margin-top: 0.625rem;
+  }
+
+  .create-repository__slash {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .create-repository__chevron {
+    transition: none;
+  }
+}

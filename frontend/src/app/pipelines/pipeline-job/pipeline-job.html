@@ -1,0 +1,36 @@
+<section class="pipeline-job">
+  <header class="pipeline-job__header">
+    <h2>
+      <gbt-job-status [status]="job().status" [label]="statusLabel()" />
+      {{ job().name }}
+    </h2>
+    <p class="pipeline-job__meta">
+      <span>{{ statusLabel() }}</span>
+      <span class="pipeline-job__duration">{{ duration() }}</span>
+    </p>
+    @if (job().needs.length > 0) {
+      <p class="pipeline-job__needs">Dépend de : {{ job().needs.join(', ') }}</p>
+    }
+  </header>
+
+  <gbt-stepper
+    class="pipeline-job__stepper"
+    [steps]="steps()"
+    [activeIndex]="activeStageIndex()"
+    [interactive]="true"
+    [selectedIndex]="selectedIndex()"
+    (selectedIndexChange)="onStepSelected($event)"
+    completedLabel="Terminé"
+    errorLabel="En erreur"
+    selectedLabel="Sélectionné"
+  />
+
+  <pre
+    #logs
+    class="pipeline-job__logs"
+    role="region"
+    tabindex="0"
+    [attr.aria-label]="'Logs de ' + job().name"
+    (scroll)="onScroll(logs)"
+  >{{ job().logs || '(pas encore de logs)' }}</pre>
+</section>

@@ -1,0 +1,114 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, owner_id, name, group_id, description, disk_path, visibility, created_at FROM repositories WHERE id = ANY($1::uuid[]) AND search_vector @@ websearch_to_tsquery('simple', $2) ORDER BY ts_rank_cd(search_vector, websearch_to_tsquery('simple', $2)) DESC, id LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repositories",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "owner_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repositories",
+            "name": "owner_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repositories",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "group_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repositories",
+            "name": "group_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repositories",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "disk_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repositories",
+            "name": "disk_path"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "visibility",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repositories",
+            "name": "visibility"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "repositories",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Text",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "02bcc9567487633509ef9e7e48da587abcf7c2bb8b2179f0544576c723a78df7"
+}

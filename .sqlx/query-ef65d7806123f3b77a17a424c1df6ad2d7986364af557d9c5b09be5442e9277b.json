@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE pipelines SET status = $1::text, finished_at = CASE WHEN $1::text IN ('success', 'failed', 'canceled') THEN COALESCE(finished_at, now()) ELSE finished_at END WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "ef65d7806123f3b77a17a424c1df6ad2d7986364af557d9c5b09be5442e9277b"
+}

@@ -1,0 +1,32 @@
+<div class="mr-system-note">
+  <gbt-icon-marker class="mr-system-note__marker" size="sm" appearance="outline" [icon]="marker().icon" [tone]="marker().tone" />
+  <!-- Inline flow (not flex) so a long sentence wraps like text. &ngsp; keeps a real space between the pieces that Angular would otherwise drop. -->
+  <p class="mr-system-note__text">
+    @if (event().actor; as actor) {
+      <strong class="mr-system-note__actor">{{ actor.username }}</strong>&ngsp;
+    }
+    @for (segment of segments(); track $index) {
+      @switch (segment.kind) {
+        @case ('labels') {
+          @for (label of segment.labels; track $index) {
+            @if (label.color) {
+              <gbt-tag class="mr-system-note__label" [color]="label.color">{{ label.name }}</gbt-tag>&ngsp;
+            } @else {
+              <gbt-badge class="mr-system-note__label">{{ label.name }}</gbt-badge>&ngsp;
+            }
+          }
+        }
+        @case ('quote') {
+          <span class="mr-system-note__value">{{ segment.text }}</span>&ngsp;
+        }
+        @case ('sha') {
+          <gbt-badge mono>{{ segment.sha }}</gbt-badge>&ngsp;
+        }
+        @case ('text') {
+          <span>{{ segment.text }}</span>&ngsp;
+        }
+      }
+    }
+  </p>
+  <time class="mr-system-note__date" [attr.datetime]="event().createdAt" [title]="event().createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ event().createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+</div>

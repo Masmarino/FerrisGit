@@ -1,0 +1,99 @@
+// Flat content for a ~300px side panel: the hosting `gbt-panel` draws the heading and separators, so there is no card.
+
+:host {
+  display: block;
+}
+
+.mr-approvals {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// Gabarit gap: the alert is sized for a page column. In the panel it keeps its tint and icon but gets a little tighter.
+.mr-approvals__alert ::ng-deep {
+  .gbt-alert {
+    gap: 0.5rem;
+    padding: 0.5rem 0.75rem;
+  }
+
+  .gbt-alert__content {
+    font-size: 0.8125rem;
+  }
+}
+
+.mr-approvals__reviews {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mr-approvals__review {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+
+  strong {
+    color: var(--text-primary);
+    font-weight: 600;
+  }
+
+  em {
+    display: block;
+    color: var(--text-secondary);
+    font-size: 0.75rem;
+    line-height: 1.25rem;
+  }
+}
+
+.mr-approvals__avatar {
+  flex: none;
+}
+
+.mr-approvals__line {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mr-approvals__review--stale {
+  strong {
+    color: var(--text-secondary);
+  }
+
+  .mr-approvals__decision-icon {
+    opacity: 0.55;
+  }
+}
+
+.mr-approvals__decision-icon {
+  flex: none;
+}
+
+.mr-approvals__empty {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+// Side by side when they fit; in a 300px aside they wrap, and each then fills its row, so the two
+// read as a pair of equal-width actions rather than two ragged buttons.
+.mr-approvals__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+
+  gbt-button {
+    flex: 1 1 auto;
+  }
+
+  ::ng-deep .gbt-button {
+    width: 100%;
+  }
+}

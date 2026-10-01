@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            DELETE FROM groups g\n            WHERE g.id = $1\n              AND NOT EXISTS (SELECT 1 FROM groups c WHERE c.parent_group_id = g.id)\n              AND NOT EXISTS (SELECT 1 FROM repositories r WHERE r.group_id = g.id)\n            ",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c2ba9e6f3212d42d6c2fa1fd6121ec42ee97cbf9e05efe7f1f8ae4221060ef0a"
+}

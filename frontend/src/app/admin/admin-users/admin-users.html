@@ -1,0 +1,186 @@
+<gbt-page-header heading="Utilisateurs">
+  <!-- Always rendered (a blank line until the counts are known), so the page doesn't shift when they arrive. -->
+  <p header-meta class="admin-users__summary">{{ summary() ?? '\u00a0' }}</p>
+  <gbt-button header-actions class="admin-users__invite" iconName="user-plus" text="Inviter un utilisateur" (clicked)="openInvite()" />
+</gbt-page-header>
+
+<gbt-page-layout width="wide" asideWidth="sm">
+  <div class="admin-users__main">
+    @if (mailFailure(); as failure) {
+      <fg-link-mail-failed
+        class="admin-users__mail-failed"
+        dismissible
+        [kind]="failure.kind"
+        [username]="failure.username"
+        [emailError]="failure.emailError"
+        [url]="failure.url"
+        (dismissed)="dismissMailFailure()"
+      />
+    }
+
+    @if (toolbarShown()) {
+      <gbt-list-toolbar
+        class="admin-users__toolbar"
+        [class.admin-users__toolbar--idle]="!toolbarActive()"
+        [attr.inert]="toolbarActive() ? null : ''"
+        searchLabel="Rechercher un utilisateur"
+        searchPlaceholder="Nom d'utilisateur ou e-mail"
+        sortLabel="Trier par"
+        directionLabel="Inverser le sens du tri"
+        [searchValue]="search()"
+        [sortOptions]="sortOptions"
+        [sortValue]="sortValue()"
+        [sortDirection]="direction()"
+        (searchValueChange)="search.set($event)"
+        (sortValueChange)="sortValue.set($event)"
+        (sortDirectionChange)="direction.set($event)"
+      />
+    }
+
+    <gbt-list-card
+      ariaLabel="Comptes"
+      [state]="cardState()"
+      loadingLabel="Chargement des utilisateurs…"
+      failedHeading="Impossible de charger les utilisateurs."
+      retryLabel="Réessayer"
+      emptyIllustration="checklist"
+      emptyHeading="Aucun utilisateur"
+      emptyMessage="Invitez la première personne : elle recevra un lien par e-mail pour activer son compte."
+      (retry)="retryLoad()"
+    >
+      <gbt-segmented-control list-card-header class="admin-users__tabs" ariaLabel="Filtrer les comptes" tinted [options]="filterOptions()" [value]="filter()" (valueChange)="filter.set($event)" />
+
+      @if (hasNoResults()) {
+        <p list-card-message>{{ noResultsText() }}</p>
+      } @else {
+        <ul class="admin-users__rows" aria-label="Utilisateurs">
+          @for (row of rows(); track row.user.id) {
+            <li [attr.data-user-id]="row.user.id" tabindex="-1">
+              <gbt-list-row [attr.aria-busy]="row.busy ? 'true' : null">
+                @if (row.link; as link) {
+                  <a class="admin-users__user-link" [routerLink]="link"><gbt-user-chip [name]="row.user.username" /></a>
+                } @else {
+                  <gbt-user-chip [name]="row.user.username" />
+                }
+                @if (row.user.isAdmin) {
+                  <gbt-badge [variant]="superAdmin.variant" [icon]="superAdmin.icon">{{ superAdmin.label }}</gbt-badge>
+                }
+                @if (row.isSelf) {
+                  <gbt-badge variant="neutral">Vous</gbt-badge>
+                }
+
+                <span row-meta class="admin-users__meta">
+                  <span class="admin-users__email" [title]="row.user.email">{{ row.user.email }}</span>
+                  <span class="admin-users__segment admin-users__created">créé <time [attr.datetime]="row.created.iso" [title]="row.created.title">{{ row.created.label }}</time></span>
+                  @if (row.expiry; as expiry) {
+                    <span class="admin-users__segment admin-users__expiry"><time [attr.datetime]="expiry.iso" [title]="expiry.title">{{ expiry.label }}</time></span>
+                  }
+                </span>
+
+                <span row-trailing class="admin-users__trailing">
+                  <span class="admin-users__badges">
+                    <gbt-badge [variant]="row.state.variant" [icon]="row.state.icon">{{ row.state.label }}</gbt-badge>
+                    @if (row.mfa; as mfa) {
+                      <gbt-badge [variant]="mfa.variant" [icon]="mfa.icon">{{ mfa.label }}</gbt-badge>
+                    }
+                  </span>
+                  <!-- Every row keeps its actions column (a menu, or a spinner of the same width), so all
+                       rows end on the same edge. Every row has at least the administrator flag's item. -->
+                  @if (row.busy; as busyLabel) {
+                    <span class="admin-users__busy"><gbt-spinner size="sm" [label]="busyLabel" /></span>
+                  } @else {
+                    <gbt-menu class="admin-users__menu" [label]="row.menuLabel" triggerIcon="ellipsis-vertical" align="end">
+                      @if (row.canResend) {
+                        <button gbtMenuItem icon="send" (click)="resend(row.user)">Renvoyer l'invitation</button>
+                      }
+                      @if (row.canResetPassword) {
+                        <button gbtMenuItem icon="key" (click)="askPasswordReset(row.user)">Réinitialiser le mot de passe</button>
+                      }
+                      @if (row.canReset) {
+                        <button gbtMenuItem icon="shield-alert" (click)="askReset(row.user)">Réinitialiser la double authentification</button>
+                      }
+                      <button gbtMenuItem [icon]="row.adminAction.icon" (click)="toggleAdmin(row.user)">{{ row.adminAction.label }}</button>
+                    </gbt-menu>
+                  }
+                </span>
+              </gbt-list-row>
+            </li>
+          }
+        </ul>
+      }
+
+      <gbt-button list-card-empty variant="secondary" iconName="user-plus" text="Inviter un utilisateur" (clicked)="openInvite()" />
+    </gbt-list-card>
+  </div>
+
+  <div page-aside class="admin-users__aside">
+    <gbt-panel heading="Invitations" [headingLevel]="2">
+      <p class="admin-users__help">
+        Un compte invité est créé sans mot de passe. Un e-mail contient un lien d'activation valable 24 heures ; « Renvoyer l'invitation » en génère un nouveau et invalide l'ancien.
+      </p>
+    </gbt-panel>
+    <gbt-panel heading="Mot de passe" [headingLevel]="2">
+      <p class="admin-users__help">
+        Si quelqu'un a perdu son mot de passe, réinitialisez-le : l'ancien cesse aussitôt de fonctionner, et un e-mail contient un lien valable 1 heure pour en choisir un nouveau.
+      </p>
+    </gbt-panel>
+    <gbt-panel heading="Double authentification" [headingLevel]="2">
+      <p class="admin-users__help">
+        Elle est obligatoire pour tous les comptes. Si quelqu'un a perdu son appareil et ses codes de secours, réinitialisez-la : il est déconnecté partout et la configure à nouveau à sa prochaine connexion.
+      </p>
+    </gbt-panel>
+  </div>
+</gbt-page-layout>
+
+<!-- Created each time it opens and destroyed on close, so a closed dialog never keeps a draft. -->
+@if (inviteOpen()) {
+  <fg-invite-user-modal (close)="closeInvite()" (invited)="onInvited()" />
+}
+
+@if (resetTarget(); as target) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    heading="Réinitialiser la double authentification"
+    [message]="resetMessage()"
+    confirmLabel="Réinitialiser"
+    confirmIcon="refresh-cw"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    busyLabel="Réinitialisation en cours"
+    [busy]="resetting()"
+    (confirmed)="confirmReset()"
+    (closed)="cancelReset()"
+  />
+}
+
+@if (passwordResetTarget(); as target) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    heading="Réinitialiser le mot de passe"
+    [message]="passwordResetMessage()"
+    confirmLabel="Réinitialiser"
+    confirmIcon="key"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    busyLabel="Réinitialisation en cours"
+    [busy]="resettingPassword()"
+    (confirmed)="confirmPasswordReset()"
+    (closed)="cancelPasswordReset()"
+  />
+}
+
+@if (demoteTarget(); as target) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    [heading]="demoteHeading"
+    [message]="demoteMessage()"
+    confirmLabel="Retirer les droits"
+    confirmIcon="shield-off"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    busyLabel="Retrait en cours"
+    [busy]="demoting()"
+    (confirmed)="confirmDemote()"
+    (closed)="cancelDemote()"
+  />
+}

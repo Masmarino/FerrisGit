@@ -1,0 +1,244 @@
+@use '../../merge-requests/timeline-rail' as rail;
+@use '../../shared/layout/prose';
+@use '../../shared/layout/card';
+
+// Header and layout share the 1440px frame, so the h1 and its actions line up with the discussion and the aside.
+:host {
+  display: block;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.issue-detail__meta {
+  margin: 0;
+}
+
+.issue-detail__meta-author {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+// A date, "· fermé <date>" and the comment count never break inside themselves.
+.issue-detail__meta time,
+.issue-detail__meta-closed,
+.issue-detail__meta-count {
+  white-space: nowrap;
+}
+
+.issue-detail__discussion {
+  @include rail.rail;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.issue-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.issue-timeline__item {
+  min-width: 0;
+}
+
+// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+gbt-card {
+  @include card.inherit-text;
+}
+
+.issue-comment {
+  min-width: 0;
+}
+
+// Centred on the header's 24px line. The header is the host's first row, above the box, at the card's left edge.
+.issue-comment__avatar {
+  @include rail.on-rail(rail.$avatar-size, (24px - rail.$avatar-size) * 0.5);
+}
+
+.issue-comment__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+}
+
+.issue-comment__byline {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.issue-comment__author {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.issue-comment__verb {
+  color: var(--text-secondary);
+}
+
+.issue-comment__badge {
+  flex: none;
+  padding: 0 0.5rem;
+  border: 1px solid var(--gbt-card-border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.125rem;
+}
+
+.issue-comment__date {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.issue-comment__body {
+  min-width: 0;
+  padding: 0.875rem 1.25rem 1rem;
+
+  // The markdown is injected HTML: emulated encapsulation only reaches it through ::ng-deep.
+  ::ng-deep {
+    @include prose.markdown;
+  }
+
+  ::ng-deep .markdown-view {
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+}
+
+.issue-comment--description .issue-comment__body {
+  padding: 1rem 1.25rem 1.25rem;
+
+  ::ng-deep .markdown-view {
+    font-size: 0.9375rem;
+    line-height: 1.65;
+  }
+}
+
+.issue-comment__empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.issue-detail__composer {
+  position: relative;
+
+  // The rail stops at the composer's marker: mask it below.
+  &::before {
+    content: '';
+    position: absolute;
+    top: rail.$avatar-size + 4px;
+    bottom: 0;
+    left: -(rail.$gutter);
+    width: rail.$gutter;
+    background: var(--bg-panel);
+  }
+}
+
+.issue-detail__composer-marker {
+  @include rail.on-rail(rail.$avatar-size, 0);
+  z-index: 1;
+  border-radius: 50%;
+}
+
+.issue-detail__composer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem;
+}
+
+.issue-detail__comment-button {
+  align-self: flex-end;
+}
+
+// In the panel's heading row: the negative block margins keep that row at its own height.
+.issue-detail__panel-action {
+  margin-block: -0.25rem;
+}
+
+.issue-detail__person {
+  flex: none;
+  max-width: 100%;
+}
+
+.issue-detail__empty {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.issue-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.issue-detail__milestone {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+
+  gbt-icon {
+    flex: none;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+}
+
+.issue-detail__dates {
+  display: block;
+}
+
+.issue-detail__people {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    min-width: 0;
+  }
+}
+
+.issue-detail__loading {
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.issue-detail__loading-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--gbt-hairline);
+}
+
+.issue-detail__loading-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1.25rem;
+}

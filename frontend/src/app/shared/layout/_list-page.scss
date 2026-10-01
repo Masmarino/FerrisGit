@@ -1,0 +1,134 @@
+// Building blocks of the list pages (issues, merge requests, pipelines, releases…). Each page keeps its
+// own BEM selectors and includes these mixins.
+
+// Visually hidden, still read by assistive technology.
+@mixin visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+// Header and layout share the 1440px frame so the h1 and its actions line up with the list and aside.
+@mixin page-host {
+  display: block;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+// Gabarit gap: the segmented control has no tabular-nums option. It is set here so the tabs keep their
+// width when a count changes.
+@mixin segmented-counts {
+  ::ng-deep .gbt-segmented-control__option {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@mixin header-tabs {
+  flex: none;
+  max-width: 100%;
+}
+
+@mixin row-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@mixin no-results {
+  margin: 0;
+  padding: 2rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+// A flex box so the glyph centres on the title line instead of an inline baseline.
+@mixin row-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+@mixin row-author {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+// The kebab is a 32px target; its negative margins keep the row's 24px title line and right edge.
+@mixin row-menu {
+  margin: -4px -8px -4px 0;
+
+  ::ng-deep .gbt-menu__trigger--icon-only {
+    padding: 0.375rem;
+    color: var(--text-secondary);
+  }
+
+  ::ng-deep .gbt-menu__trigger--icon-only:hover,
+  ::ng-deep .gbt-menu__trigger--open {
+    color: var(--text-primary);
+  }
+}
+
+@mixin pagination {
+  display: block;
+  margin-top: 1rem;
+}
+
+@mixin skeleton-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.875rem 1rem;
+
+  & + & {
+    border-top: 1px solid var(--gbt-hairline);
+  }
+
+  > gbt-skeleton {
+    flex: none;
+    margin-top: 0.125rem;
+  }
+}
+
+@mixin skeleton-lines {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@mixin empty-card {
+  padding: 1rem 1.5rem 2rem;
+}
+
+// In the panel's heading row: the negative block margins keep that row at its own height, so the
+// search field does not jump when the button appears.
+@mixin filter-reset {
+  margin-block: -0.25rem;
+}
+
+@mixin sort-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+@mixin create-form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+// Actions row of an inline form in a card (`gbt-card` has no footer slot). Dialogs use `[modal-footer]` instead.
+@mixin create-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--gbt-hairline);
+}

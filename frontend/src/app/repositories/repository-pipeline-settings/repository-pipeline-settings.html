@@ -1,0 +1,71 @@
+@switch (loadState()) {
+  @case ('loading') {
+    <div class="repository-pipeline-settings__loading" aria-busy="true">
+      <span class="sr-only" role="status">Chargement des réglages du pipeline…</span>
+      @for (card of skeletonCards; track $index) {
+        <gbt-card class="repository-pipeline-settings__skeleton" variant="outlined" aria-hidden="true">
+          <div card-header class="repository-pipeline-settings__skeleton-header">
+            <gbt-skeleton width="2rem" height="2rem" variant="rect" />
+            <div class="repository-pipeline-settings__skeleton-lines">
+              <gbt-skeleton [width]="card.title" height="0.875rem" />
+              <gbt-skeleton [width]="card.help" height="0.75rem" />
+            </div>
+          </div>
+          <div class="repository-pipeline-settings__skeleton-body">
+            <gbt-skeleton width="9rem" height="0.75rem" />
+            <gbt-skeleton width="min(24rem, 100%)" height="2.25rem" variant="rect" />
+          </div>
+        </gbt-card>
+      }
+    </div>
+  }
+  @case ('failed') {
+    <gbt-card variant="outlined" icon="play" heading="Intégration continue">
+      <gbt-alert variant="error" appearance="subtle" live="off">
+        Les réglages du pipeline n'ont pas pu être chargés.
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="refresh()" />
+      </gbt-alert>
+    </gbt-card>
+  }
+  @default {
+    @if (settings(); as s) {
+      <gbt-card variant="outlined" icon="play" heading="Intégration continue" description="Lance un pipeline à chaque push. Chaque réglage est enregistré dès que vous le modifiez.">
+        <div class="repository-pipeline-settings__form">
+          <div class="repository-pipeline-settings__field repository-pipeline-settings__switch" data-field="ciEnabled">
+            <gbt-switch label="CI activée pour ce dépôt" [ngModel]="ciEnabledShown()" (ngModelChange)="setPipelineEnabled($event)" />
+            <div class="repository-pipeline-settings__field-footer">
+              <p class="repository-pipeline-settings__hint repository-pipeline-settings__switch-hint">
+                {{ s.ciEnabled ? 'Un pipeline est lancé à chaque push qui contient le fichier ci-dessous.' : "Aucun pipeline n'est lancé tant que la CI est désactivée." }}
+              </p>
+              <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().ciEnabled }" />
+            </div>
+          </div>
+
+          <div class="repository-pipeline-settings__field repository-pipeline-settings__path" data-field="pipelineFilePath">
+            <!-- `(committed)` rather than `(ngModelChange)`: saving on every keystroke would store every half-typed path. -->
+            <gbt-input label="Chemin du fichier pipeline" mono placeholder=".ferrisgit-ci.yml" [errorMessage]="pathError()" [ngModel]="s.pipelineFilePath" (committed)="updatePipelineFilePath($event)" />
+            <div class="repository-pipeline-settings__field-footer">
+              <p class="repository-pipeline-settings__hint">Relatif à la racine du dépôt, sur la branche poussée.</p>
+              <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().pipelineFilePath }" />
+            </div>
+          </div>
+        </div>
+      </gbt-card>
+
+      <gbt-card variant="outlined" icon="git-pull-request" heading="Demandes de fusion" description="Les conditions à remplir avant de pouvoir fusionner une demande de fusion.">
+        <div class="repository-pipeline-settings__field repository-pipeline-settings__approvals" data-field="requiredApprovals">
+          <gbt-input type="number" min="0" label="Approbations requises avant fusion" [errorMessage]="approvalsError()" [ngModel]="s.requiredApprovals.toString()" (committed)="updateRequiredApprovals($event)" />
+          <div class="repository-pipeline-settings__field-footer">
+            <p class="repository-pipeline-settings__hint">0 pour fusionner sans approbation.</p>
+            <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().requiredApprovals }" />
+          </div>
+        </div>
+      </gbt-card>
+    }
+  }
+}
+
+<!-- A field's save state: a live region always in the DOM, so each change is announced. -->
+<ng-template #saveState let-state>
+  <gbt-save-status class="repository-pipeline-settings__save-state" [state]="state ?? 'idle'" savingLabel="Enregistrement…" savedLabel="Enregistré" errorLabel="Non enregistré" />
+</ng-template>

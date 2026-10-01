@@ -1,0 +1,76 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT rc.repository_id, rc.user_id, u.username, rc.role, rc.created_at FROM repository_collaborators rc JOIN users u ON u.id = rc.user_id WHERE rc.repository_id = $1 ORDER BY rc.created_at ASC, u.username ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repository_collaborators",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repository_collaborators",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "username",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "users",
+            "name": "username"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository_collaborators",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "repository_collaborators",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "e0c469f4ed398a4f865fd744844ce8884b3a64e8e02fb59a737a410f8620cfde"
+}

@@ -1,0 +1,36 @@
+@use '../../shared/layout/settings-section';
+
+:host {
+  @include settings-section.section;
+}
+
+.repository-milestones-settings__form {
+  @include settings-section.form;
+}
+
+.repository-milestones-settings__fields {
+  @include settings-section.field-row(minmax(0, 1fr) minmax(0, 15rem));
+}
+
+.repository-milestones-settings__date {
+  display: block;
+  min-width: 0;
+}
+
+.repository-milestones-settings__actions {
+  @include settings-section.form-actions;
+}
+
+.repository-milestones-settings__rows {
+  @include settings-section.rows;
+}
+
+.repository-milestones-settings__title.repository-milestones-settings__title {
+  @include settings-section.row-title-text;
+}
+
+@container settings-card (max-width: 519px) {
+  .repository-milestones-settings__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

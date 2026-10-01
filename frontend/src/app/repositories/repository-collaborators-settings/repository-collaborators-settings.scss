@@ -1,0 +1,51 @@
+@use '../../shared/layout/settings-section';
+
+:host {
+  @include settings-section.section;
+}
+
+.repository-collaborators-settings__form {
+  @include settings-section.form;
+}
+
+.repository-collaborators-settings__fields {
+  @include settings-section.field-row(minmax(0, 1fr) minmax(0, 14rem));
+}
+
+// Gabarit gap: the select keeps a 180px minimum and an inline-block box; here it fills its grid column.
+.repository-collaborators-settings__role-input {
+  display: block;
+  min-width: 0;
+}
+
+.repository-collaborators-settings__actions {
+  @include settings-section.form-actions;
+}
+
+.repository-collaborators-settings__hint {
+  @include settings-section.hint;
+  grid-column: 1 / -1;
+  margin-top: -0.5rem;
+}
+
+.repository-collaborators-settings__rows {
+  @include settings-section.rows;
+}
+
+// The row already names the select, so its label is only for assistive technology (`hideLabel`). The control
+// is 32px tall, and negative margins keep it on the row's 24px title line.
+.repository-collaborators-settings__role {
+  width: 10rem;
+  min-width: 0;
+  margin-block: -0.25rem;
+}
+
+@container settings-card (max-width: 519px) {
+  .repository-collaborators-settings__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .repository-collaborators-settings__role {
+    width: 8.5rem;
+  }
+}

@@ -1,0 +1,16 @@
+// Extras every FerrisGit `gbt-card` needs on top of Gabarit's look. Include them inside a `gbt-card { … }`
+// rule. They reach into Gabarit's nodes, hence `::ng-deep`.
+//
+// Gabarit gap: the card styles its own root text (size, line height, colour) and tints the heading's
+// count pill at 8%, which is invisible in dark mode. Both are reset to the page's until Gabarit changes.
+@mixin inherit-text {
+  ::ng-deep .gbt-card {
+    color: inherit;
+    font-size: inherit;
+    line-height: inherit;
+  }
+
+  ::ng-deep .gbt-card__count {
+    background: color-mix(in srgb, var(--border-color) 22%, transparent);
+  }
+}

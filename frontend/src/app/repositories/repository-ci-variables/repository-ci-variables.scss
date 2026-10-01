@@ -1,0 +1,57 @@
+@use '../../shared/layout/settings-section';
+
+:host {
+  @include settings-section.section;
+}
+
+.repository-ci-variables__form {
+  @include settings-section.form;
+}
+
+.repository-ci-variables__fields {
+  @include settings-section.field-row(minmax(0, 2fr) minmax(0, 3fr));
+}
+
+.repository-ci-variables__actions {
+  @include settings-section.form-actions;
+}
+
+.repository-ci-variables__rows {
+  @include settings-section.rows;
+}
+
+.repository-ci-variables__key.repository-ci-variables__key {
+  @include settings-section.row-title-text;
+  @include settings-section.mono;
+  font-weight: 600;
+}
+
+// An unmasked value shows in the logs: the badge says so in words, and the warning tint backs it up.
+.repository-ci-variables__value {
+  max-width: 100%;
+}
+
+.repository-ci-variables__dots {
+  margin-right: 0.3125rem;
+}
+
+@container settings-card (max-width: 519px) {
+  .repository-ci-variables__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  // The chip shows only its icon (lock or eye, plus the warning tint) and leaves the words to screen readers,
+  // so the key and its actions stay on one line.
+  .repository-ci-variables__dots {
+    display: none;
+  }
+
+  .repository-ci-variables__value-text {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}

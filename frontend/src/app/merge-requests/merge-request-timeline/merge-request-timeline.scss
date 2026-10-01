@@ -1,0 +1,109 @@
+@use '../timeline-rail' as rail;
+@use '../../shared/layout/card';
+
+.mr-timeline-section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
+
+.mr-timeline__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.mr-timeline__counter {
+  margin: 0;
+}
+
+.mr-timeline__counter-badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+}
+
+// The segmented control's own track is --bg-panel, the page colour: a hairline gives it an edge.
+.mr-timeline__filter {
+  margin-left: auto;
+  border: 1px solid var(--gbt-hairline);
+  border-radius: var(--site-border-radius-sm);
+}
+
+.mr-timeline__empty {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  border: 1px dashed var(--gbt-card-border);
+  border-radius: var(--site-border-radius);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.mr-timeline__body {
+  @include rail.rail;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+
+  &:empty {
+    display: none;
+  }
+}
+
+.mr-timeline {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+}
+
+.mr-timeline__item + .mr-timeline__item {
+  margin-top: 1.25rem;
+}
+
+.mr-timeline__item--note + .mr-timeline__item--note,
+.mr-timeline__item--note + .mr-timeline__item:has(.mr-thread-collapsed),
+.mr-timeline__item:has(.mr-thread-collapsed) + .mr-timeline__item--note,
+.mr-timeline__item:has(.mr-thread-collapsed) + .mr-timeline__item:has(.mr-thread-collapsed) {
+  margin-top: 0.375rem;
+}
+
+.mr-timeline__composer {
+  position: relative;
+
+  // The rail stops at the composer's marker: mask it below.
+  &::before {
+    content: '';
+    position: absolute;
+    top: rail.$avatar-size + 4px;
+    bottom: 0;
+    left: -(rail.$gutter);
+    width: rail.$gutter;
+    background: var(--bg-panel);
+  }
+}
+
+.mr-timeline__composer-marker {
+  @include rail.on-rail(rail.$avatar-size, 0);
+  z-index: 1;
+  border-radius: 50%;
+}
+
+gbt-card {
+  @include card.inherit-text;
+}
+
+.mr-timeline__composer-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 0.75rem;
+}
+
+// Right-aligned under the field (a flex column would otherwise stretch or start-align it).
+.comment-button {
+  align-self: flex-end;
+}

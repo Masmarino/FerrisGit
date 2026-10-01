@@ -1,0 +1,152 @@
+@use '../../shared/layout/prose';
+
+:host {
+  display: block;
+}
+
+.wiki-page-editor {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wiki-page-editor__conflict {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+.wiki-page-editor__slug {
+  max-width: 28rem;
+  margin-bottom: 1rem;
+}
+
+// A fixed height tied to the viewport: each pane scrolls on its own and the actions stay within reach.
+.wiki-page-editor__panes {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  height: clamp(22rem, calc(100vh - 16rem), 48rem);
+}
+
+.wiki-page-editor__pane {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+.wiki-page-editor__preview {
+  border-left: 1px solid var(--gbt-hairline);
+}
+
+.wiki-page-editor__pane-header {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 40px;
+  box-sizing: border-box;
+  padding: 0.5rem 1rem;
+  border-bottom: 1px solid var(--gbt-hairline);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+
+  gbt-icon {
+    flex: none;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+}
+
+.wiki-page-editor__textarea {
+  flex: 1;
+  width: 100%;
+  min-height: 0;
+  box-sizing: border-box;
+  margin: 0;
+  padding: 1rem 1.125rem;
+  border: 0;
+  background: var(--bg-principal);
+  color: var(--text-primary);
+  font-family: var(--gbt-font-mono);
+  font-size: 0.8125rem;
+  line-height: 1.65;
+  resize: none;
+  tab-size: 2;
+
+  &::placeholder {
+    color: var(--text-secondary);
+    opacity: 0.8;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+}
+
+.wiki-page-editor__preview-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.25rem 1.25rem;
+
+  ::ng-deep {
+    @include prose.markdown;
+  }
+}
+
+.wiki-page-editor__preview-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+@container gbt-list-card (max-width: 768px) {
+  .wiki-page-editor__panes {
+    grid-template-columns: minmax(0, 1fr);
+    height: auto;
+  }
+
+  .wiki-page-editor__preview {
+    border-top: 1px solid var(--gbt-hairline);
+    border-left: 0;
+  }
+
+  .wiki-page-editor__textarea {
+    flex: none;
+    height: 18rem;
+    resize: vertical;
+  }
+
+  .wiki-page-editor__preview-body {
+    max-height: 24rem;
+  }
+}
+
+.wiki-page-editor__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin-top: 1rem;
+}
+
+.wiki-page-editor__message {
+  flex: 1 1 20rem;
+  max-width: 36rem;
+  min-width: 0;
+}
+
+.wiki-page-editor__actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-left: auto;
+}

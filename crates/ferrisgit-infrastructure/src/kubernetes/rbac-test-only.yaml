@@ -1,0 +1,30 @@
+# Test fixture only. `rbac_test.rs` applies it to a throwaway kind namespace to check that the
+# documented RBAC set is enough and not too broad.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ferrisgit-ci
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ferrisgit-ci
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ferrisgit-ci
+subjects:
+  - kind: ServiceAccount
+    name: ferrisgit-ci
+roleRef:
+  kind: Role
+  name: ferrisgit-ci
+  apiGroup: rbac.authorization.k8s.io

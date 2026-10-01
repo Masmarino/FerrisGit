@@ -1,0 +1,91 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO webhooks (repository_id, url, secret_ciphertext, events) VALUES ($1, $2, $3, $4) RETURNING id, repository_id, url, events, active, created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "url",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "url"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "events",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "events"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "active",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "active"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Bytea",
+        "TextArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "b60c378ae5bc434f40689562699e7110246d0811eaa3c44ae8ac6cf019910af5"
+}

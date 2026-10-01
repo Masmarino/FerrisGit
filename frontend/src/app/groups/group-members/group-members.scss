@@ -1,0 +1,113 @@
+@use '../../shared/layout/settings-section';
+@use '../../shared/layout/list-page';
+
+:host {
+  @include list-page.page-host;
+}
+
+.group-members__meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  margin: 0;
+}
+
+.group-members__count:not(:first-child)::before {
+  content: '·' / '';
+  margin-right: 0.5rem;
+}
+
+.group-members__path {
+  color: var(--text-primary);
+  font-family: var(--gbt-font-mono);
+  font-size: 0.8125rem;
+}
+
+.group-members__back {
+  max-width: 100%;
+
+  span {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+.group-members__cards {
+  @include settings-section.section;
+}
+
+.group-members__form {
+  @include settings-section.form;
+}
+
+.group-members__fields {
+  @include settings-section.field-row(minmax(0, 1fr) minmax(0, 14rem));
+}
+
+// Gabarit gap: its select keeps a 180px minimum width and an inline-block box. Here it fills its grid column.
+.group-members__role-input {
+  display: block;
+  min-width: 0;
+}
+
+.group-members__actions {
+  @include settings-section.form-actions;
+}
+
+.group-members__rows {
+  @include settings-section.rows;
+}
+
+.group-members__trailing {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+// The label is kept for assistive technology only. Negative margins keep the 32px control on the row's 24px title line.
+.group-members__role-select {
+  width: 10rem;
+  min-width: 0;
+  margin-block: -0.25rem;
+}
+
+// This sits outside the list row's own rule for icon-only actions, so it needs the same negative margins to keep the row's 24px title line.
+.group-members__remove {
+  margin-block: -0.4375rem;
+}
+
+.group-members__trailing-loading {
+  display: flex;
+  align-items: center;
+  margin-block: -0.25rem;
+}
+
+.group-members__add-loading {
+  border-radius: 0.5rem;
+  overflow: hidden;
+}
+
+.group-members__legend {
+  display: block;
+}
+
+.group-members__legend-note {
+  margin: 0.75rem 0 0;
+  padding-top: 0.625rem;
+  border-top: 1px solid var(--gbt-hairline);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+@container settings-card (max-width: 519px) {
+  .group-members__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .group-members__role-select {
+    width: 8.5rem;
+  }
+}

@@ -1,0 +1,161 @@
+<gbt-app-shell
+  navLabel="Navigation principale"
+  skipLabel="Aller au contenu principal"
+  openMenuLabel="Ouvrir le menu de navigation"
+  closeMenuLabel="Fermer le menu de navigation"
+  collapseLabel="Réduire la navigation"
+  expandLabel="Agrandir la navigation"
+  [collapsed]="sidebarCollapse.collapsed()"
+  (collapsedChange)="sidebarCollapse.set($event)"
+>
+  <img class="app-shell__logo" shell-brand [hidden]="sidebarCollapse.collapsed()" src="Logo_horizontal.png" alt="FerrisGit" />
+  <ng-container shell-nav>
+    @if (repoContext.current(); as ctx) {
+      <ul class="app-shell__nav-list">
+        <li>
+          <a routerLink="/repositories" class="gbt-app-shell__link">
+            <gbt-icon name="arrow-left" />
+            <span>Retour</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="repoLink(ctx, [])" routerLinkActive ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }" class="gbt-app-shell__link">
+            <gbt-icon name="folder-git-2" />
+            <span>Aperçu</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="repoLink(ctx, ['pipelines'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
+            <gbt-icon name="play" />
+            <span>Pipelines</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="repoLink(ctx, ['merge-requests'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
+            <gbt-icon name="git-pull-request" />
+            <span>Demandes de fusion</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="repoLink(ctx, ['issues'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
+            <gbt-icon name="circle-dot" />
+            <span>Tickets</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="repoLink(ctx, ['releases'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
+            <gbt-icon name="tag" />
+            <span>Releases</span>
+          </a>
+        </li>
+        <li>
+          <a [routerLink]="repoLink(ctx, ['wiki'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
+            <gbt-icon name="book-open" />
+            <span>Wiki</span>
+          </a>
+        </li>
+        @if (ctx.role === 'owner' || ctx.role === 'maintainer') {
+          <li>
+            <a [routerLink]="repoLink(ctx, ['settings'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
+              <gbt-icon name="settings" />
+              <span>Réglages</span>
+            </a>
+          </li>
+        }
+      </ul>
+    } @else {
+      <ul class="app-shell__nav-list">
+        @for (item of navItems(); track item.action) {
+          @if (item.children) {
+            <li>
+              <gbt-app-shell-nav-group [label]="item.text" [icon]="item.icon" [expanded]="isMenuOpen(item)" (expandedChange)="setMenuOpen(item, $event)">
+                @for (child of item.children; track child.action) {
+                  <a [routerLink]="child.link" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
+                    <gbt-icon [name]="child.icon" />
+                    <span>{{ child.text }}</span>
+                  </a>
+                }
+              </gbt-app-shell-nav-group>
+            </li>
+          } @else {
+            <li>
+              <a [routerLink]="item.link" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
+                <gbt-icon [name]="item.icon" />
+                <span>{{ item.text }}</span>
+              </a>
+            </li>
+          }
+        }
+      </ul>
+    }
+  </ng-container>
+  <div class="app-shell__header" shell-header [class.app-shell__header--search-open]="mobileSearchOpen()">
+    <gbt-breadcrumb ariaLabel="Fil d'Ariane" class="app-shell__breadcrumb">
+      <!-- Angular projects a control-flow block into a named `ng-content select` slot only when the block has exactly one
+           root element. So each projected item must be its own top-level block here, not nested in a shared `@if`/`@for`.
+           `ctx` is hoisted with `@let` so the blocks stay independent while sharing it. -->
+      @let ctx = repoContext.current();
+      @for (ancestor of ctx?.ancestors ?? []; track ancestor.link.join('/')) {
+        <li breadcrumb-ancestor><a class="gbt-breadcrumb__item" [routerLink]="ancestor.link">{{ ancestor.label }}</a></li>
+      }
+      @if (ctx && pageTitle.title()) {
+        <li breadcrumb-ancestor><ng-container *ngTemplateOutlet="repoSwitcher; context: { $implicit: ctx }" /></li>
+      }
+      @if (ctx && !pageTitle.title()) {
+        <ng-container *ngTemplateOutlet="repoSwitcher; context: { $implicit: ctx }" />
+      }
+      {{ pageTitle.title() }}
+    </gbt-breadcrumb>
+    <ng-template #repoSwitcher let-ctx>
+      <gbt-menu [label]="ctx.path[ctx.path.length - 1]" align="start" (opened)="onSwitcherOpen(ctx)">
+        @if (switcher.loading()) {
+          <!-- The menu can't be empty while loading, because an empty popup opened by keyboard leaves nothing to move focus into.
+               A disabled item stays focusable, so the menu's focus-after-render lands on it. -->
+          <a gbtMenuItem disabled>Chargement…</a>
+        } @else if (switcher.groups().length === 0 && switcher.repositories().length === 0) {
+          <a gbtMenuItem disabled>Aucun élément</a>
+        } @else {
+          @for (group of switcher.groups(); track group.id) {
+            <a gbtMenuItem [routerLink]="groupLink(ctx, group)">{{ group.name }}</a>
+          }
+          @for (repo of switcher.repositories(); track repo.id) {
+            <a gbtMenuItem [routerLink]="['/repositories', ...repo.path]">{{ repo.path[repo.path.length - 1] }}</a>
+          }
+        }
+      </gbt-menu>
+    </ng-template>
+    <gbt-search-bar
+      #searchBar
+      class="app-shell__search"
+      role="search"
+      collapsible="narrow"
+      [(expanded)]="mobileSearchOpen"
+      openLabel="Rechercher"
+      closeLabel="Fermer la recherche"
+      placeholder="Rechercher…"
+      ariaLabel="Rechercher un dépôt, un ticket, une demande de fusion ou un utilisateur"
+      noResultsMessage="Aucun résultat"
+      noResultsHint="Essayez une autre recherche."
+      clearLabel="Effacer la recherche"
+      navigateHint="Naviguer"
+      selectHint="Sélectionner"
+      closeHint="Fermer"
+      [groupedResults]="searchResults()"
+      [displayFn]="searchResultLabel"
+      [resultsAnnouncement]="resultsAnnouncement"
+      (queryChange)="onSearchInput($event)"
+      (clear)="onSearchInput('')"
+      (itemSelected)="onSelectResult($event)"
+      (keydown.enter)="onSearchSubmitEnter()"
+    />
+    <div class="app-shell__header-end">
+      <fg-notification-bell />
+      <gbt-menu [label]="me.username() || 'Compte'" align="end">
+        <a gbtMenuItem icon="user" routerLink="/account">Mon compte</a>
+        <button gbtMenuItem icon="log-out" (click)="logout()">Déconnexion</button>
+      </gbt-menu>
+    </div>
+  </div>
+  <router-outlet />
+</gbt-app-shell>
+<gbt-toaster closeLabel="Fermer" />

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT milestone_id FROM issues WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "milestone_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "milestone_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "5a246828ce58efc6b2c92219977706fb2d09314be1074fb91a2446dcfdaf034f"
+}

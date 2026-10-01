@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO merge_request_labels (merge_request_id, label_id) VALUES ($1, $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "0270885656dcc2d9207335f5f9ba8c50a11d4a8dbb83a32d40bb26836d4f8be9"
+}

@@ -1,0 +1,185 @@
+<fg-wiki-layout [repositoryId]="repositoryId()" [path]="path()" [currentSlug]="slug()">
+  <!-- The aside and the dialog follow as top-level blocks with a single root each: a block with several roots would be projected into the main column. -->
+  <div class="wiki-page-detail">
+    @if (notFound()) {
+      <gbt-card variant="outlined" [flush]="true">
+        <div class="wiki-page-detail__not-found">
+          <gbt-empty-state illustration="book" heading="Page introuvable" message="Cette page n’existe pas ou a été supprimée du wiki.">
+            <gbt-button variant="secondary" iconName="arrow-left" text="Retour au wiki" (clicked)="go(wikiLink())" />
+          </gbt-empty-state>
+        </div>
+      </gbt-card>
+    } @else if (showHistory()) {
+      <gbt-page-header [heading]="historyTitle()">
+        @if (revisionsState() === 'loaded') {
+          <span header-meta>{{ revisionCountLabel() }}</span>
+        }
+        <gbt-button header-actions variant="secondary" iconName="arrow-left" text="Retour à la page" (clicked)="go(viewLink())" />
+      </gbt-page-header>
+
+      @if (revisionsState() === 'loading') {
+        <gbt-card variant="outlined" [flush]="true">
+          <gbt-skeleton-list [rows]="historySkeletonRows" leading="circle" leadingSize="2rem" [lines]="1" loadingLabel="Chargement de l’historique…" />
+        </gbt-card>
+      } @else {
+        <gbt-card class="wiki-page-detail__card" variant="outlined" [flush]="true">
+          <!-- Gabarit gap: its own heading rather than `heading`, because the card of an opened version below carries a `[card-header]` too and the
+                    outer card would take that one. Keep this h2 as the first `[card-header]` in the card. -->
+          <h2 card-header class="wiki-page-detail__card-heading">Révisions</h2>
+          @if (historyRows().length === 0) {
+            <p class="wiki-history__empty">Aucun historique.</p>
+          } @else {
+            <ol class="wiki-history">
+              @for (row of historyRows(); track row.revision.commitSha) {
+                <li class="wiki-history__item" [class.wiki-history__item--selected]="selectedRevisionSha() === row.revision.commitSha">
+                  <gbt-avatar class="wiki-history__avatar" size="md" [name]="row.revision.authorName" aria-hidden="true" />
+                  <div class="wiki-history__row">
+                    <div class="wiki-history__text">
+                      <p class="wiki-history__message">{{ row.revision.message }}</p>
+                      <p class="wiki-history__meta">
+                        <span class="wiki-history__author">{{ row.revision.authorName }}</span>&ngsp;
+                        <time [attr.datetime]="row.revision.committedAt" [title]="row.revision.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.revision.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                        <gbt-badge mono class="wiki-history__sha" [fullText]="row.revision.commitSha">{{ row.shortSha }}</gbt-badge>
+                        @if (row.current) {
+                          <span class="wiki-history__current">Version actuelle</span>
+                        }
+                      </p>
+                    </div>
+                    <!-- One button whose label follows the state: focus stays on it. -->
+                    <gbt-button
+                      class="wiki-history__toggle"
+                      variant="secondary"
+                      size="small"
+                      [text]="selectedRevisionSha() === row.revision.commitSha ? 'Masquer cette version' : 'Voir cette version'"
+                      [loading]="loadingRevisionSha() === row.revision.commitSha"
+                      loadingLabel="Chargement de la version"
+                      (clicked)="toggleRevision(row.revision.commitSha)"
+                    />
+                  </div>
+                  @if (selectedRevisionSha() === row.revision.commitSha && selectedRevisionContent() !== null) {
+                    <article class="wiki-history__version" [attr.aria-label]="'Version ' + row.shortSha">
+                      <gbt-card variant="outlined" [flush]="true">
+                        <div card-header class="wiki-history__version-header">
+                          <span>Version <code>{{ row.shortSha }}</code></span>
+                          <time [attr.datetime]="row.revision.committedAt" [title]="row.revision.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.revision.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                        </div>
+                        <div class="wiki-history__version-body">
+                          <fg-markdown-view [content]="selectedRevisionContent()!" [headingOffset]="2" />
+                        </div>
+                      </gbt-card>
+                    </article>
+                  }
+                </li>
+              }
+            </ol>
+          }
+        </gbt-card>
+      }
+    } @else if (page(); as page) {
+      <gbt-page-header [heading]="page.title">
+        @if (latest(); as latest) {
+          <p header-meta class="wiki-page-detail__byline">
+            Dernière modification
+            <time [attr.datetime]="latest.committedAt" [title]="latest.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ latest.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+            par <span class="wiki-page-detail__author">{{ latest.authorName }}</span>
+          </p>
+        }
+        @if (canManage()) {
+          <gbt-button header-actions variant="secondary" iconName="pencil" text="Modifier" (clicked)="go(editLink())" />
+        }
+        <gbt-button header-actions variant="secondary" iconName="clock" text="Historique" (clicked)="go(historyLink())" />
+        @if (canDelete()) {
+          <gbt-button header-actions variant="danger" iconName="trash-2" text="Supprimer" (clicked)="deletePage()" />
+        }
+      </gbt-page-header>
+
+      <article class="wiki-page-detail__card" [attr.aria-label]="page.title">
+        <gbt-card variant="outlined" [flush]="true">
+          <div class="wiki-page-detail__body">
+            <fg-markdown-view [content]="page.content" [headingOffset]="1" (outline)="onOutline($event)" />
+          </div>
+        </gbt-card>
+      </article>
+    } @else {
+      <div class="wiki-page-detail__loading" aria-busy="true">
+        <span class="sr-only" role="status">Chargement de la page…</span>
+        <div class="wiki-page-detail__loading-header" aria-hidden="true">
+          <gbt-skeleton width="min(22rem, 70%)" height="1.75rem" />
+          <gbt-skeleton width="16rem" height="0.875rem" />
+        </div>
+        <gbt-card variant="outlined" [flush]="true" aria-hidden="true">
+          <div class="wiki-page-detail__loading-card">
+            @for (width of pageSkeleton; track $index) {
+              <gbt-skeleton [width]="width" height="0.875rem" />
+            }
+          </div>
+        </gbt-card>
+      </div>
+    }
+  </div>
+
+  @if (hasAside()) {
+    <div page-aside class="wiki-page-detail__aside">
+      @if (showHistory()) {
+        <gbt-panel heading="Dates" [headingLevel]="2">
+          <gbt-description-list class="wiki-page-detail__dates" layout="inline" [items]="dateEntries()" />
+        </gbt-panel>
+        <gbt-panel heading="Contributeurs" [headingLevel]="2">
+          <ul class="wiki-page-detail__people">
+            @for (person of contributors(); track person.name) {
+              <li>
+                <gbt-user-chip class="wiki-page-detail__person" [name]="person.name" />
+                <span class="wiki-page-detail__person-count">{{ person.countLabel }}</span>
+              </li>
+            }
+          </ul>
+        </gbt-panel>
+      } @else {
+        @if (showOutline()) {
+          <fg-wiki-outline [entries]="outline()" />
+        }
+        @if (recentRevisions().length > 0) {
+          <gbt-panel class="wiki-page-detail__history-panel" heading="Historique" [headingLevel]="2">
+            <ul class="wiki-page-detail__recent">
+              @for (revision of recentRevisions(); track revision.commitSha) {
+                <li>
+                  <span class="wiki-page-detail__recent-message" [title]="revision.message">{{ revision.message }}</span>
+                  <span class="wiki-page-detail__recent-meta">
+                    {{ revision.authorName }} ·
+                    <time [attr.datetime]="revision.committedAt" [title]="revision.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ revision.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                  </span>
+                </li>
+              }
+            </ul>
+            <a class="wiki-page-detail__history-link" [routerLink]="historyLink()">{{ historyLinkLabel() }}</a>
+          </gbt-panel>
+        }
+      }
+    </div>
+  }
+
+  @if (confirmingDelete()) {
+    <gbt-confirm-danger-modal
+      [isOpen]="true"
+      heading="Supprimer la page"
+      [message]="deleteMessage()"
+      [confirmText]="title()"
+      confirmInputLabel="Titre de la page"
+      confirmLabel="Supprimer"
+      cancelLabel="Annuler"
+      closeLabel="Fermer"
+      (confirmed)="confirmDelete()"
+      (closed)="cancelDelete()"
+    />
+  }
+</fg-wiki-layout>
+
+<!-- A date gets a machine-readable value and the exact time on hover, not just text. -->
+<ng-template #createdTemplate>
+  <time [attr.datetime]="created()?.committedAt" [title]="(created()?.committedAt ?? '') | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ (created()?.committedAt ?? '') | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+  par {{ created()?.authorName }}
+</ng-template>
+<ng-template #modifiedTemplate>
+  <time [attr.datetime]="latest()?.committedAt" [title]="(latest()?.committedAt ?? '') | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ (latest()?.committedAt ?? '') | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+  par {{ latest()?.authorName }}
+</ng-template>

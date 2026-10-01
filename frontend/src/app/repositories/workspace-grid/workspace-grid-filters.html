@@ -1,0 +1,25 @@
+<gbt-panel heading="Recherche" [headingLevel]="2">
+  <gbt-input
+    class="workspace-grid-filters__search"
+    [label]="grid().searchLabel()"
+    hideLabel
+    placeholder="Nom ou chemin"
+    [ngModel]="grid().search()"
+    (ngModelChange)="grid().search.set($event)"
+  />
+</gbt-panel>
+
+<gbt-panel heading="Trier" [headingLevel]="2">
+  <div class="workspace-grid-filters__sort">
+    <gbt-select label="Trier par" hideLabel fullWidth [options]="sortOptions()" [ngModel]="grid().sortValue()" (ngModelChange)="grid().sortValue.set($event)" />
+    <gbt-segmented-control
+      class="workspace-grid-filters__direction"
+      ariaLabel="Sens du tri"
+      tinted
+      fullWidth
+      [options]="directionOptions"
+      [value]="grid().direction()"
+      (valueChange)="grid().direction.set($event)"
+    />
+  </div>
+</gbt-panel>

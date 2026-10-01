@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE jobs SET status = 'pending', runner_id = NULL, started_at = NULL WHERE runner_id = $1 AND status = 'running'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f56208a915eb8712ce48102c17fa564c4c935fece39f2695652f5a3a8e594f0f"
+}

@@ -1,0 +1,287 @@
+@use '../../shared/layout/prose';
+@use '../../shared/layout/list-page';
+@use '../../shared/layout/card';
+
+// Header and layout share the 1440px frame, so the h1 and its actions line up with the main column and the aside.
+:host {
+  display: block;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.release-detail__meta {
+  margin: 0;
+}
+
+.release-detail__meta time {
+  white-space: nowrap;
+}
+
+.release-detail__meta-author {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+// The header's actions row already wraps and spaces its children; this wrapper only gives the projected `@if` block a single root.
+.release-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.release-detail__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+gbt-card {
+  @include card.inherit-text;
+}
+
+.release-detail__card {
+  min-width: 0;
+}
+
+.release-detail__notes-body {
+  padding: 1.5rem 2rem 1.75rem;
+
+  // The markdown is injected HTML: emulated encapsulation only reaches it through ::ng-deep.
+  ::ng-deep {
+    @include prose.markdown;
+  }
+}
+
+.release-detail__notes-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.release-detail__edit-form {
+  @include list-page.create-form;
+}
+
+.release-detail__edit-title,
+.release-detail__edit-notes {
+  display: block;
+}
+
+.release-detail__edit-actions {
+  @include list-page.create-actions;
+}
+
+.release-detail__assets {
+  container: release-assets / inline-size;
+}
+
+.release-detail__assets-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.release-detail__asset {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 60px;
+  box-sizing: border-box;
+  padding: 0.625rem 1.25rem;
+  transition: background-color var(--site-transition-fast);
+
+  & + & {
+    border-top: 1px solid var(--gbt-hairline);
+  }
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+}
+
+.release-detail__asset-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+// Wraps rather than truncates: `…-x86_64.tar.gz` and `…-x86_64.tar.gz.sig` differ only at the end.
+.release-detail__asset-name {
+  color: var(--text-primary);
+  font-family: var(--gbt-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.375rem;
+  overflow-wrap: anywhere;
+}
+
+.release-detail__asset-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.5rem;
+
+  time {
+    white-space: nowrap;
+  }
+}
+
+.release-detail__asset-uploader {
+  flex: 0 1 auto;
+  max-width: 12rem;
+
+  ::ng-deep .gbt-user-chip {
+    gap: 0.375rem;
+    font-size: 0.75rem;
+  }
+}
+
+.release-detail__asset-actions {
+  display: flex;
+  flex: none;
+  gap: 0.375rem;
+}
+
+.release-detail__assets-empty {
+  margin: 0;
+  padding: 1.5rem 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.release-detail__upload {
+  padding: 0.875rem 1.25rem 1rem;
+  border-top: 1px solid var(--gbt-hairline);
+
+  ::ng-deep .gbt-file-upload__label {
+    color: var(--text-secondary);
+    font-size: 0.8125rem;
+    font-weight: 600;
+  }
+}
+
+.release-detail__uploading {
+  margin: 0.5rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+@container release-assets (max-width: 479px) {
+  .release-detail__asset {
+    gap: 0.625rem;
+  }
+
+  .release-detail__asset-icon {
+    display: none;
+  }
+
+  .release-detail__asset-uploader {
+    flex: none;
+    min-width: 20px;
+
+    ::ng-deep .gbt-user-chip__name {
+      @include list-page.visually-hidden;
+    }
+  }
+}
+
+@media (max-width: 768px) {
+  .release-detail__notes-body {
+    padding: 1.25rem;
+  }
+}
+
+.release-detail__panel-link {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  width: fit-content;
+  margin-top: 0.625rem;
+  color: var(--primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+.release-detail__missing-tag {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0.5rem 0.625rem;
+  border-radius: var(--site-border-radius-sm);
+  background: var(--color-warning-bg);
+  color: var(--color-warning-text);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+
+  gbt-icon {
+    flex: none;
+    margin-top: 0.125rem;
+  }
+}
+
+.release-detail__person {
+  flex: none;
+  max-width: 100%;
+}
+
+.release-detail__empty {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.release-detail__facts {
+  display: block;
+}
+
+.release-detail__fact-none {
+  color: var(--text-secondary);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.release-detail__loading {
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.release-detail__loading-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--gbt-hairline);
+}
+
+.release-detail__loading-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1.25rem;
+}
+
+.release-detail__not-found {
+  padding: 1rem 1.5rem 2rem;
+}

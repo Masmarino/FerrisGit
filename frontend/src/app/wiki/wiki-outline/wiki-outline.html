@@ -1,0 +1,9 @@
+<gbt-panel heading="Sur cette page" [headingLevel]="2">
+  <ul class="wiki-outline__list">
+    @for (entry of entries(); track entry.id) {
+      <li class="wiki-outline__item" [attr.data-level]="entry.level">
+        <a class="wiki-outline__link" [routerLink]="here" [fragment]="entry.id" [title]="entry.text" (click)="goTo(entry.id)">{{ entry.text }}</a>
+      </li>
+    }
+  </ul>
+</gbt-panel>

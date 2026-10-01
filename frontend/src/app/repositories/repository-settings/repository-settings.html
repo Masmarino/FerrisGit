@@ -1,0 +1,36 @@
+<gbt-page-header heading="Réglages">
+  <p header-meta class="repository-settings__intro">Intégration continue, accès et organisation du dépôt</p>
+</gbt-page-header>
+
+<gbt-page-layout class="repository-settings__layout" width="wide" navLabel="Réglages du dépôt">
+  <!-- The layout already wraps [page-nav] in a labelled <nav>, so the tab nav adds no second landmark. -->
+  <gbt-nav-tabs page-nav orientation="vertical" ariaLabel="Réglages du dépôt" [landmark]="false">
+    @for (section of sections; track section.key) {
+      <a gbtNavTab [routerLink]="[]" [queryParams]="section.queryParams" [icon]="section.icon" [active]="section.key === activeSection()">{{ section.label }}</a>
+    }
+  </gbt-nav-tabs>
+
+  <!-- Only the selected section is rendered, and it loads its data when opened. -->
+  <div class="repository-settings__section">
+    @switch (activeSection()) {
+      @case ('variables') {
+        <fg-repository-ci-variables [repositoryId]="repositoryId()" />
+      }
+      @case ('webhooks') {
+        <fg-repository-webhooks [repositoryId]="repositoryId()" />
+      }
+      @case ('collaborators') {
+        <fg-repository-collaborators-settings [repositoryId]="repositoryId()" />
+      }
+      @case ('labels') {
+        <fg-repository-labels-settings [repositoryId]="repositoryId()" />
+      }
+      @case ('milestones') {
+        <fg-repository-milestones-settings [repositoryId]="repositoryId()" />
+      }
+      @default {
+        <fg-repository-pipeline-settings [repositoryId]="repositoryId()" />
+      }
+    }
+  </div>
+</gbt-page-layout>

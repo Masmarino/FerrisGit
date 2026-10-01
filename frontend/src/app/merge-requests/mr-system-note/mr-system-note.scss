@@ -1,0 +1,51 @@
+@use '../timeline-rail' as rail;
+
+:host {
+  display: block;
+}
+
+.mr-system-note {
+  position: relative;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 3px 0;
+  font-size: 0.8125rem;
+  line-height: 22px;
+  color: var(--text-secondary);
+}
+
+.mr-system-note__marker {
+  // 24px on a 22px line: centred on it, inside the 3px of padding above and below.
+  @include rail.on-rail(rail.$marker-size, 2px);
+  border-radius: 50%;
+}
+
+.mr-system-note__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mr-system-note__actor {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.mr-system-note__value {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.mr-system-note__label {
+  vertical-align: middle;
+}
+
+.mr-system-note__date {
+  flex: none;
+  margin-left: auto;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}

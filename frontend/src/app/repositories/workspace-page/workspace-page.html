@@ -1,0 +1,54 @@
+<gbt-page-header heading="Dépôts">
+  <gbt-button header-actions iconName="plus" text="Nouveau dépôt" (clicked)="createModalOpen.set(true)" />
+</gbt-page-header>
+
+<gbt-page-layout width="wide" asideWidth="sm">
+  <!-- One grid for every tab: its search and sort stay while the tabs change what it lists. -->
+  <fg-workspace-grid
+    #grid
+    [groups]="activeGroups()"
+    [repositories]="activeRepositories()"
+    [loading]="activeLoading()"
+    [failed]="activeFailed()"
+    [scope]="activeTab()"
+    [searchLabel]="texts().searchLabel"
+    [emptyHeading]="texts().emptyHeading"
+    [emptyMessage]="texts().emptyMessage"
+    (changed)="reloadLoaded()"
+    (retry)="reload(activeTab())"
+  >
+    <gbt-segmented-control grid-tabs class="workspace-page__tabs" ariaLabel="Dépôts affichés" tinted [options]="tabOptions()" [value]="activeTab()" (valueChange)="selectTab($event)" />
+  </fg-workspace-grid>
+
+  @if (showFilters() || groupShortcuts().length > 0) {
+    <div page-aside class="workspace-page__aside">
+      @if (showFilters()) {
+        <fg-workspace-grid-filters [grid]="grid" />
+      }
+      @if (groupShortcuts().length > 0) {
+        <gbt-panel heading="Groupes" [headingLevel]="2">
+          <ul class="workspace-page__groups">
+            @for (group of groupShortcuts(); track group.id) {
+              <li>
+                <a class="workspace-page__group-link" [routerLink]="group.link" [title]="group.path">
+                  <gbt-icon name="folder" aria-hidden="true" />
+                  <span class="workspace-page__group-path">{{ group.path }}</span>
+                </a>
+              </li>
+            }
+          </ul>
+          @if (activeTab() !== 'groups') {
+            <a class="workspace-page__all-groups" [routerLink]="groupsTabLink" [queryParams]="groupsTabQuery">
+              {{ groupCount() > 1 ? 'Voir les ' + groupCount() + ' groupes' : 'Voir le groupe' }}
+            </a>
+          }
+        </gbt-panel>
+      }
+    </div>
+  }
+</gbt-page-layout>
+
+<!-- Built on each opening and destroyed on close: a closed dialog never keeps a draft. -->
+@if (createModalOpen()) {
+  <fg-create-repository-modal (close)="createModalOpen.set(false)" (created)="onRepoCreated()" />
+}

@@ -1,0 +1,12 @@
+:host {
+  display: block;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.public-not-found__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.75rem;
+}

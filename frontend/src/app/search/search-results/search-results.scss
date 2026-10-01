@@ -1,0 +1,207 @@
+@use '../../shared/layout/list-page';
+@use '../../shared/layout/card';
+
+// The shared list-page vocabulary lives in `shared/layout/_list-page.scss`; this file holds the search page's own.
+
+// Header and layout share the page's 1200px frame, so the h1 lines up with the cards.
+:host {
+  display: block;
+  max-width: 1200px;
+  margin-inline: auto;
+}
+
+.search-results__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+// The options wrap inside the track on a narrow window rather than overflow it.
+.search-results__tabs {
+  @include list-page.segmented-counts;
+  align-self: flex-start;
+  max-width: 100%;
+
+  // Gabarit gap: `wrap` leaves the last row ragged, so the options of a wrapped row share it.
+  ::ng-deep .gbt-segmented-control__option {
+    flex: 1 1 auto;
+  }
+}
+
+.search-results__tabs-skeleton {
+  display: flex;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+// Gabarit sets its own text colour on the card root; hand it back to the page.
+gbt-card {
+  min-width: 0;
+
+  @include card.inherit-text;
+}
+
+// The header sits above the card's box (Gabarit gives it no padding of its own).
+.search-results__section-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+}
+
+.search-results__section-icon {
+  display: inline-flex;
+  flex: none;
+  justify-content: center;
+  width: 1.25rem;
+  color: var(--text-secondary);
+}
+
+.search-results__section-heading {
+  min-width: 0;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: inherit;
+  font-weight: 600;
+  line-height: inherit;
+}
+
+.search-results__count {
+  margin-left: -0.25rem;
+}
+
+.search-results__rows {
+  @include list-page.row-list;
+}
+
+.search-results__capped {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0.625rem 1rem;
+  border-top: 1px solid var(--gbt-hairline);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+
+  gbt-icon {
+    display: inline-flex;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    width: 1.25rem;
+    height: 1.25rem;
+    font-size: 0.8rem;
+  }
+}
+
+.search-results__leading {
+  @include list-page.row-status;
+}
+
+.search-results__namespace,
+.search-results__number {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.search-results__number {
+  font-variant-numeric: tabular-nums;
+}
+
+.search-results__description {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+}
+
+.search-results__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.5rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+// The link is the badge's box, so it truncates in a narrow row.
+.search-results__meta .search-results__repo {
+  display: inline-flex;
+  min-width: 0;
+  max-width: 100%;
+  border-radius: 6px;
+  vertical-align: middle;
+
+  &:hover {
+    outline: 1px solid var(--primary);
+    outline-offset: -1px;
+    text-decoration: none;
+  }
+}
+
+.search-results__branches {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: normal;
+}
+
+.search-results__branch {
+  min-width: 0;
+  max-width: 14rem;
+}
+
+// Short of room, the source branch gives way first; the target keeps its full name unless it takes more than 45% of the pair.
+.search-results__branch:first-of-type {
+  flex: 0 1 auto;
+  min-width: 3rem;
+}
+
+.search-results__branch:last-of-type {
+  flex: 0 0 auto;
+  max-width: 45%;
+}
+
+.search-results__arrow {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.search-results__opened {
+  white-space: nowrap;
+}
+
+// gbt-list-row lets the user chip shrink and truncate a long name; it keeps its 24px avatar.
+gbt-list-row .search-results__user {
+  min-width: 24px;
+}
+
+// The heading quotes the query, which can be one long word. `overflow-wrap` is inherited, so it reaches the heading.
+gbt-card gbt-empty-state {
+  overflow-wrap: anywhere;
+}
+
+.search-results__suggestions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  max-width: 32rem;
+  margin: 0.75rem 0 0;
+  padding: 0 0 0 1.125rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+  text-align: left;
+
+  li::marker {
+    color: color-mix(in srgb, var(--text-secondary) 60%, transparent);
+  }
+}
+

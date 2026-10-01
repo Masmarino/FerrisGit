@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO wikis (repository_id, disk_path) VALUES ($1, $2) ON CONFLICT (repository_id) DO UPDATE SET repository_id = wikis.repository_id RETURNING id, repository_id, disk_path, created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "wikis",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "wikis",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "disk_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "wikis",
+            "name": "disk_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "wikis",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "32a9def33135b3c560f1c6f31c6f2d84af2c01ed428bbc1aae97908593e12f5e"
+}

@@ -1,0 +1,178 @@
+<gbt-page-header heading="Tickets">
+  <gbt-button header-actions variant="secondary" iconName="kanban" text="Vue kanban" (clicked)="openKanban()" />
+  @if (canWrite()) {
+    <gbt-button header-actions iconName="plus" text="Nouveau ticket" (clicked)="openCreate()" />
+  }
+</gbt-page-header>
+
+<gbt-page-layout width="wide" asideWidth="sm">
+  <gbt-list-card
+    ariaLabel="Tickets"
+    [state]="cardState()"
+    loadingLabel="Chargement des tickets…"
+    [skeletonRows]="5"
+    failedHeading="Les tickets n'ont pas pu être chargés."
+    retryLabel="Réessayer"
+    (retry)="load()"
+    emptyIllustration="checklist"
+    emptyHeading="Aucun ticket pour l'instant"
+    [emptyMessage]="canWrite() ? 'Signalez un bug, proposez une fonctionnalité ou notez une tâche : chaque ticket se suit ici.' : 'Les tickets de ce dépôt apparaîtront ici.'"
+  >
+    <gbt-segmented-control list-card-header class="issue-list__tabs" ariaLabel="État des tickets" tinted [options]="tabOptions()" [value]="tab()" (valueChange)="tab.set($event)" />
+
+    @if (rows().length === 0) {
+      <p list-card-message>
+        {{ tab() === 'open' ? 'Aucun ticket ouvert' : 'Aucun ticket fermé' }}{{ hasActiveFilters() ? ' ne correspond à ces filtres' : '' }}
+      </p>
+    } @else {
+      <ul>
+        @for (row of rows(); track row.issue.id) {
+          <li>
+            <gbt-list-row [tone]="row.status.variant">
+              <span row-leading class="issue-list__status" [title]="row.status.label">
+                <gbt-icon [name]="row.status.icon" aria-hidden="true" />
+                <span class="sr-only">{{ row.status.label }}</span>
+              </span>
+
+              <a [routerLink]="row.link" [title]="row.issue.title"><span class="issue-list__number">#{{ row.issue.number }}</span> {{ row.issue.title }}</a>
+              <gbt-badge class="issue-list__kind" variant="neutral" [icon]="row.kind.icon">{{ row.kind.label }}</gbt-badge>
+              @for (label of row.issue.labels; track label.id) {
+                <gbt-tag [color]="label.color">{{ label.name }}</gbt-tag>
+              }
+              @if (row.milestoneTitle; as milestone) {
+                <gbt-badge class="issue-list__milestone" variant="neutral" icon="flag" [title]="'Milestone ' + milestone">{{ milestone }}</gbt-badge>
+              }
+
+              <span row-meta class="issue-list__meta">
+                <span>
+                  ouvert
+                  <time [attr.datetime]="row.issue.createdAt" [title]="row.issue.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.issue.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                  @if (row.issue.author; as author) {
+                    par <span class="issue-list__author">{{ author.username }}</span>
+                  }
+                </span>
+                <!-- Each separator belongs to the segment after it, so a wrapped line does not end on a dangling "·". -->
+                @if (row.issue.closedAt; as closedAt) {
+                  <span>
+                    <span aria-hidden="true"> · </span>fermé
+                    <time [attr.datetime]="closedAt" [title]="closedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ closedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                  </span>
+                }
+                @if (row.issue.commentCount > 0) {
+                  <span class="issue-list__comments">
+                    <span aria-hidden="true"> · </span>{{ row.issue.commentCount }} {{ row.issue.commentCount === 1 ? 'commentaire' : 'commentaires' }}
+                  </span>
+                }
+              </span>
+
+              <span row-trailing class="issue-list__trailing">
+                @if (row.issue.assignee; as assignee) {
+                  <span class="issue-list__assignee">
+                    <span class="sr-only">Assigné à</span>
+                    <gbt-user-chip [name]="assignee.username" />
+                  </span>
+                }
+                @if (canWrite()) {
+                  <gbt-menu class="issue-list__menu" [label]="'Actions du ticket #' + row.issue.number" triggerIcon="ellipsis-vertical" align="end">
+                    <button gbtMenuItem (click)="toggleClosed(row.issue)">{{ row.closed ? 'Rouvrir' : 'Fermer' }}</button>
+                    <button gbtMenuItem (click)="assignToMe(row.issue)">M'assigner</button>
+                  </gbt-menu>
+                }
+              </span>
+            </gbt-list-row>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (canWrite()) {
+      <gbt-button list-card-empty variant="secondary" iconName="plus" text="Créer un ticket" (clicked)="openCreate()" />
+    }
+  </gbt-list-card>
+
+  @if (cardState() === 'ready' && tabIssues().length > pageSize) {
+    <gbt-pagination
+      class="issue-list__pagination"
+      ariaLabel="Pages de tickets"
+      previousLabel="Page précédente"
+      nextLabel="Page suivante"
+      [pageLabel]="pageLabel"
+      [page]="currentPage()"
+      [pageSize]="pageSize"
+      [totalItems]="tabIssues().length"
+      (pageChange)="page.set($event)"
+    />
+  }
+
+  @if (!isEmptyRepository()) {
+    <div page-aside class="issue-list__filters">
+      <gbt-panel heading="Recherche" [headingLevel]="2">
+        @if (hasActiveFilters()) {
+          <gbt-button panel-actions class="issue-list__reset" variant="secondary" size="small" iconName="x" text="Réinitialiser" ariaLabel="Réinitialiser les filtres" (clicked)="resetFilters()" />
+        }
+        <gbt-input class="issue-list__search" label="Rechercher un ticket" hideLabel placeholder="Titre du ticket" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      </gbt-panel>
+
+      <gbt-panel heading="Trier" [headingLevel]="2">
+        <div class="issue-list__sort">
+          <gbt-select label="Trier par" hideLabel fullWidth [options]="sortOptions" [ngModel]="sortValue()" (ngModelChange)="sortValue.set($event)" />
+          <gbt-segmented-control class="issue-list__direction" ariaLabel="Sens du tri" tinted fullWidth [options]="directionOptions" [value]="direction()" (valueChange)="direction.set($event)" />
+        </div>
+      </gbt-panel>
+
+      <gbt-panel heading="Labels" [headingLevel]="2">
+        <gbt-select
+          label="Filtrer par label"
+          hideLabel
+          fullWidth
+          [options]="labelOptions()"
+          [multiple]="true"
+          [chips]="true"
+          [ngModel]="selectedLabelIds()"
+          (ngModelChange)="onLabelFilterChange($event)"
+          placeholder="Tous les labels"
+        />
+      </gbt-panel>
+
+      <gbt-panel heading="Milestone" [headingLevel]="2">
+        <gbt-select label="Filtrer par milestone" hideLabel fullWidth [options]="milestoneOptions()" [ngModel]="selectedMilestoneId()" (ngModelChange)="onMilestoneFilterChange($event)" placeholder="Tous les milestones" />
+      </gbt-panel>
+    </div>
+  }
+</gbt-page-layout>
+
+<!-- Closing it drops the draft, and a failed creation keeps it open with the draft. The form is rebuilt each time it opens. -->
+@if (createOpen()) {
+  <!-- The form wraps the whole dialog because the submit button sits in the footer slot, outside the body. -->
+  <form (submit)="$event.preventDefault(); createIssue()">
+    <gbt-modal [isOpen]="true" heading="Nouveau ticket" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="closeCreate()">
+      <div class="issue-list__create-form">
+        <gbt-input
+          class="issue-list__create-title"
+          name="newIssueTitle"
+          label="Titre"
+          placeholder="Résumez le problème ou le besoin"
+          required
+          [errorMessage]="titleError()"
+          [ngModel]="newTitle()"
+          (ngModelChange)="newTitle.set($event)"
+          (committed)="titleTouched.set(true)"
+        />
+        <gbt-textarea
+          class="issue-list__create-description"
+          name="newDescription"
+          label="Description"
+          placeholder="Contexte, étapes pour reproduire, résultat attendu (optionnel)"
+          [rows]="5"
+          [ngModel]="newDescription()"
+          (ngModelChange)="newDescription.set($event)"
+        />
+        <gbt-select class="issue-list__create-kind" name="newIssueKind" label="Type" [options]="kindOptions" [ngModel]="newKind()" (ngModelChange)="newKind.set($event)" />
+      </div>
+      <div modal-footer>
+        <gbt-button variant="secondary" text="Annuler" [disabled]="creating()" (clicked)="closeCreate()" />
+        <gbt-button type="submit" text="Créer le ticket" [disabled]="!canSubmit()" [loading]="creating()" loadingLabel="Création en cours" />
+      </div>
+    </gbt-modal>
+  </form>
+}

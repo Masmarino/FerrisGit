@@ -1,0 +1,91 @@
+<gbt-page-header heading="Santé">
+  @if (overall(); as status) {
+    <gbt-badge header-badges [variant]="status.variant" [icon]="status.icon">{{ status.label }}</gbt-badge>
+  }
+  <p header-meta class="admin-health__intro">
+    État des services de l'instance
+    <!-- Shown only when the check answered. After a failed check, an older time would look current. -->
+    @if (loadError() ? null : checkedAtLabel(); as time) {
+      <span class="admin-health__checked">· vérifié à <time>{{ time }}</time></span>
+    }
+  </p>
+  <gbt-button header-actions variant="secondary" iconName="refresh-cw" text="Actualiser" loadingLabel="Vérification en cours" [loading]="checking()" (clicked)="refresh()" />
+</gbt-page-header>
+
+<gbt-page-layout width="wide" asideWidth="sm">
+  @if (loadError()) {
+    <gbt-alert variant="error" appearance="subtle" live="off" heading="API ou base de données injoignable.">
+      L'état des services n'a pas pu être vérifié. Actualisez une fois le serveur rétabli.
+    </gbt-alert>
+  } @else if (health()) {
+    <div class="admin-health__cards-frame">
+      <div class="admin-health__cards" [attr.aria-busy]="checking() ? 'true' : null">
+        @for (card of cards(); track card.key) {
+          <gbt-card
+            class="admin-health__card"
+            variant="outlined"
+            [icon]="card.icon"
+            [heading]="card.heading"
+            [tone]="card.status.variant === 'error' ? 'error' : 'default'"
+            [attr.data-status]="card.status.variant"
+          >
+            <gbt-badge card-header-actions class="admin-health__card-status" [variant]="card.status.variant" [icon]="card.status.icon">{{ card.status.label }}</gbt-badge>
+            <div class="admin-health__card-body">
+              @if (card.detail) {
+                <p class="admin-health__detail" [class.admin-health__detail--down]="card.status.variant === 'error'">{{ card.detail }}</p>
+              }
+              @if (card.gauge; as gauge) {
+                <gbt-gauge-bar
+                  class="admin-health__gauge"
+                  [label]="gauge.label"
+                  [value]="gauge.value"
+                  [max]="gauge.max"
+                  [formattedValue]="gauge.formatted"
+                  [thresholds]="gaugeThresholds"
+                  warningLabel="presque plein"
+                  criticalLabel="saturé"
+                />
+              }
+              @if (card.facts.length > 0) {
+                <gbt-description-list class="admin-health__facts" layout="inline" [items]="card.facts" />
+              }
+            </div>
+          </gbt-card>
+        }
+      </div>
+    </div>
+  } @else {
+    <div class="admin-health__cards-frame" aria-busy="true">
+      <span class="sr-only" role="status">Vérification des services…</span>
+      <div class="admin-health__cards" aria-hidden="true">
+        @for (i of skeletonCards; track i) {
+          <gbt-card class="admin-health__skeleton" variant="outlined">
+            <div card-header class="admin-health__skeleton-header">
+              <gbt-skeleton width="2rem" height="2rem" variant="rect" />
+              <gbt-skeleton width="8rem" height="0.875rem" />
+            </div>
+            <div class="admin-health__card-body">
+              <gbt-skeleton width="100%" height="0.5rem" variant="rect" />
+              <gbt-skeleton width="60%" height="0.75rem" />
+              <gbt-skeleton width="45%" height="0.75rem" />
+            </div>
+          </gbt-card>
+        }
+      </div>
+    </div>
+  }
+
+  @if (loadError() ? null : uptime(); as u) {
+    <div page-aside class="admin-health__aside">
+      <gbt-panel heading="Disponibilité" [headingLevel]="2">
+        <div class="admin-health__uptime">
+          <p class="admin-health__uptime-value"><gbt-icon name="clock" aria-hidden="true" />{{ u.value }}</p>
+          <p class="admin-health__uptime-since">Démarré le {{ u.startedAt }}</p>
+        </div>
+      </gbt-panel>
+      <gbt-panel heading="Vérifications" [headingLevel]="2">
+        <p class="admin-health__note">Cette page ne se met pas à jour seule : « Actualiser » interroge à nouveau la base de données et le stockage.</p>
+      </gbt-panel>
+    </div>
+  }
+</gbt-page-layout>

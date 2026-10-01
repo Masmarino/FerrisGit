@@ -1,0 +1,35 @@
+pub mod api_token_repository;
+pub mod backup_code_store;
+pub mod event_publisher;
+pub mod group_store;
+pub mod health_check;
+pub mod issue_store;
+pub mod job_store;
+pub mod label_store;
+pub mod merge_request_event_store;
+pub mod merge_request_store;
+pub mod metrics_snapshot_store;
+pub mod milestone_store;
+pub mod notification_store;
+pub mod password_reset_store;
+pub mod pipeline_store;
+pub mod public_catalog_store;
+pub mod public_pages_settings_store;
+pub mod registration_settings_store;
+pub mod release_store;
+pub mod repository_collaborator_store;
+pub mod repository_settings_store;
+pub mod repository_star_store;
+pub mod repository_store;
+pub mod runner_repository;
+pub mod smtp_settings_store;
+pub mod system_settings_store;
+pub mod totp_credential_store;
+pub mod user_invitation_store;
+pub mod user_repository;
+pub mod webauthn_credential_store;
+pub mod webhook_store;
+pub mod wiki_store;
+
+#[cfg(test)]
+pub(crate) mod test_support;

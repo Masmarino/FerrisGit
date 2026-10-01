@@ -1,0 +1,179 @@
+import { Component, OnInit, computed, inject, input, linkedSignal, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  CardHeader,
+  EmptyState,
+  GbtDateTimePipe,
+  GbtInput,
+  GbtRelativeTimePipe,
+  GbtToastService,
+  ListToolbarSortOption,
+  PageHeader,
+  PageLayout,
+  Pagination,
+  Panel,
+  SegmentedControl,
+  SegmentedControlOption,
+  Select,
+  SelectOption,
+  Skeleton,
+  UserChip,
+  createListToolbarState,
+} from '@masmarino/gabarit';
+import { ReleaseStatus, ReleaseSummary, ReleasesService, releaseStatus } from '../releases.service';
+import { plainExcerpt } from '../release-excerpt';
+import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { PageTitleService } from '../../shell/page-title.service';
+import { CreateReleaseModal } from '../create-release-modal/create-release-modal';
+import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
+
+type SortKey = 'date' | 'title';
+
+/** Client-side pagination: the API returns every release of the repository at once. */
+export const RELEASES_PAGE_SIZE = 20;
+
+const SORT_OPTIONS: ListToolbarSortOption<SortKey>[] = [
+  { value: 'date', label: 'Date' },
+  { value: 'title', label: 'Titre' },
+];
+
+const DIRECTION_OPTIONS: SegmentedControlOption<'asc' | 'desc'>[] = [
+  { value: 'asc', label: 'Croissant' },
+  { value: 'desc', label: 'Décroissant' },
+];
+
+interface ReleaseCard {
+  release: ReleaseSummary;
+  link: string[];
+  status: ReleaseStatus;
+  excerpt: string;
+  dateVerb: 'publiée' | 'créée';
+  date: string;
+  assets: string | null;
+}
+
+function assetLabel(count: number): string | null {
+  if (count <= 0) return null;
+  return count === 1 ? '1 fichier' : `${count} fichiers`;
+}
+
+@Component({
+  selector: 'fg-release-list',
+  standalone: true,
+  imports: [
+    FormsModule,
+    RouterLink,
+    GbtDateTimePipe,
+    GbtRelativeTimePipe,
+    PageLayout,
+    PageHeader,
+    Panel,
+    StatusBadge,
+    UserChip,
+    Alert,
+    Badge,
+    Button,
+    Card,
+    CardHeader,
+    EmptyState,
+    GbtInput,
+    Pagination,
+    SegmentedControl,
+    Select,
+    Skeleton,
+    CreateReleaseModal,
+  ],
+  templateUrl: './release-list.html',
+  styleUrl: './release-list.scss',
+})
+export class ReleaseList implements OnInit {
+  repositoryId = input.required<string>();
+  path = input.required<string[]>();
+
+  private releases = inject(ReleasesService);
+  private repositoryContext = inject(RepositoryContextService);
+  private pageTitle = inject(PageTitleService);
+  private toast = inject(GbtToastService);
+
+  protected items = signal<ReleaseSummary[]>([]);
+  protected loading = signal(true);
+  protected loadFailed = signal(false);
+  protected role = computed(() => this.repositoryContext.current()?.role ?? null);
+  // Not `protected` because the spec calls it directly.
+  canManage = computed(() => this.role() === 'owner' || this.role() === 'maintainer');
+  protected createModalOpen = signal(false);
+
+  private readonly searchSort = createListToolbarState<SortKey>({ sortOptions: SORT_OPTIONS, defaultSort: 'date' });
+  protected search = this.searchSort.search;
+  protected sortValue = this.searchSort.sortValue;
+  protected direction = this.searchSort.direction;
+  protected readonly sortOptions = this.searchSort.sortOptions as SelectOption<SortKey>[];
+  protected readonly directionOptions = DIRECTION_OPTIONS;
+  // By the date each card shows: the publication once published, the creation for a draft.
+  protected filteredItems = this.searchSort.filtered(() => this.items(), {
+    text: (release) => [release.title, release.tagName],
+    sortBy: { title: (release) => release.title, date: (release) => release.publishedAt ?? release.createdAt },
+    locale: 'fr',
+  });
+
+  protected readonly pageSize = RELEASES_PAGE_SIZE;
+  protected page = linkedSignal<unknown, number>({
+    source: () => [this.search(), this.sortValue(), this.direction()],
+    computation: () => 1,
+  });
+  /** The page actually shown: `page` clamped to the page count (a refresh can shrink the list under it). */
+  protected currentPage = computed(() => Math.min(this.page(), Math.max(1, Math.ceil(this.filteredItems().length / RELEASES_PAGE_SIZE))));
+  protected cards = computed<ReleaseCard[]>(() => {
+    const start = (this.currentPage() - 1) * RELEASES_PAGE_SIZE;
+    return this.filteredItems()
+      .slice(start, start + RELEASES_PAGE_SIZE)
+      .map((release) => ({
+        release,
+        link: ['/repositories', ...this.path(), '-', 'releases', release.tagName],
+        status: releaseStatus(release),
+        excerpt: plainExcerpt(release.notesExcerpt),
+        dateVerb: release.publishedAt ? 'publiée' : 'créée',
+        date: release.publishedAt ?? release.createdAt,
+        assets: assetLabel(release.assetCount),
+      }));
+  });
+  protected readonly pageLabel = (page: number) => `Page ${page}`;
+
+  protected isEmptyRepository = computed(() => !this.loading() && !this.loadFailed() && this.items().length === 0);
+  protected readonly skeletonCards = ['58%', '44%', '66%'];
+
+  constructor() {
+    // Newest first: the release a visitor looks for is almost always the latest one.
+    this.direction.set('desc');
+  }
+
+  ngOnInit(): void {
+    this.pageTitle.set('Releases');
+    this.refresh();
+  }
+
+  refresh(): void {
+    this.releases.list(this.repositoryId()).subscribe({
+      next: (items) => {
+        this.items.set(items);
+        this.loading.set(false);
+        this.loadFailed.set(false);
+      },
+      error: () => {
+        this.loading.set(false);
+        this.loadFailed.set(true);
+        this.toast.show('Impossible de charger les releases. Réessayez plus tard.', 'error');
+      },
+    });
+  }
+
+  onCreated(): void {
+    this.createModalOpen.set(false);
+    this.refresh();
+  }
+}

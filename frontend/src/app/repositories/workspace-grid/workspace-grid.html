@@ -1,0 +1,131 @@
+<!-- The card's states render inside its body and the card stays `ready`. Its own states would remove the header that holds the tabs or heading, and focus would be lost when tabs switch. -->
+<gbt-list-card [ariaLabel]="heading() ?? 'Dépôts et groupes'">
+  <div list-card-header class="workspace-grid__band">
+    @if (heading(); as title) {
+      <h2 class="workspace-grid__heading">{{ title }}</h2>
+    }
+    <ng-content select="[grid-tabs]" />
+  </div>
+
+  @if (loading()) {
+    <gbt-skeleton-list [rows]="5" loadingLabel="Chargement…" />
+  } @else if (failed()) {
+    <!-- The page's error toast announces it, so this alert stays silent (one announcement, not two). -->
+    <gbt-alert class="workspace-grid__failed" variant="error" appearance="subtle" live="off">
+      Cette liste n'a pas pu être chargée.
+      <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry.emit()" />
+    </gbt-alert>
+  } @else if (isEmpty()) {
+    <div class="workspace-grid__empty">
+      <gbt-empty-state illustration="folder" [heading]="emptyHeading()" [message]="emptyMessage()" />
+    </div>
+  } @else if (hasNoResults()) {
+    <p list-card-message>Aucun résultat pour cette recherche</p>
+  } @else {
+    <ul class="workspace-grid__items">
+      @for (row of rows(); track row.key) {
+        <li>
+          <gbt-list-row>
+            <span row-leading class="workspace-grid__kind" [attr.data-kind]="row.kind" [title]="row.kindLabel">
+              <gbt-icon [name]="row.icon" aria-hidden="true" />
+              <span class="sr-only">{{ row.kindLabel }}</span>
+            </span>
+
+            <a [routerLink]="row.link" [title]="row.fullPath">{{ row.title }}</a>
+            @if (row.visibility; as visibility) {
+              <gbt-badge class="workspace-grid__visibility" [variant]="visibility.variant">{{ visibility.label }}</gbt-badge>
+            }
+
+            <span row-meta class="workspace-grid__meta">
+              @if (row.description) {
+                <span class="workspace-grid__description" [title]="row.description">{{ row.description }}</span>
+              }
+              @if (row.kind === 'group') {
+                <span class="workspace-grid__segment">Groupe</span>
+              }
+              @if (row.createdAt; as createdAt) {
+                <span class="workspace-grid__segment">créé <time [attr.datetime]="createdAt" [title]="createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time></span>
+              }
+              @if (row.size; as size) {
+                <span class="workspace-grid__segment workspace-grid__size">{{ size }}</span>
+              }
+              @if (row.stars !== null) {
+                <span class="workspace-grid__segment workspace-grid__stars" [title]="row.stars + ' ' + starsWord(row.stars)"
+                  ><gbt-icon name="star" aria-hidden="true" />{{ row.stars }}<span class="sr-only"> {{ starsWord(row.stars) }}</span></span
+                >
+              }
+              @if (row.role; as role) {
+                <gbt-badge class="workspace-grid__role">{{ role }}</gbt-badge>
+              }
+            </span>
+
+            <!-- Every row keeps its trailing column (a menu or an empty slot of the same width) so all rows end on the same edge. -->
+            <span row-trailing class="workspace-grid__trailing">
+              @if (row.hasMenu) {
+                <gbt-menu class="workspace-grid__menu" [label]="row.menuLabel" triggerIcon="ellipsis-vertical" align="end">
+                  @if (row.repository; as repo) {
+                    <button gbtMenuItem (click)="copyPath(repo.path)">Copier le chemin</button>
+                    <button gbtMenuItem (click)="copyCloneUrl(repo)">Copier l'URL de clonage</button>
+                    @if (row.canDelete) {
+                      <button gbtMenuItem variant="danger" (click)="confirmDeleteRepo(repo)">Supprimer</button>
+                    }
+                  } @else if (row.group; as group) {
+                    <button gbtMenuItem (click)="copyPath(group.path)">Copier le chemin</button>
+                    @if (row.canDelete) {
+                      <button gbtMenuItem variant="danger" (click)="confirmDeleteGroup(group)">Supprimer</button>
+                    }
+                  }
+                </gbt-menu>
+              } @else {
+                <span class="workspace-grid__menu-slot" aria-hidden="true"></span>
+              }
+            </span>
+          </gbt-list-row>
+        </li>
+      }
+    </ul>
+  }
+</gbt-list-card>
+
+@if (!loading() && !failed() && allRowCount() > pageSize) {
+  <gbt-pagination
+    class="workspace-grid__pagination"
+    ariaLabel="Pages de la liste"
+    previousLabel="Page précédente"
+    nextLabel="Page suivante"
+    [pageLabel]="pageLabel"
+    [page]="currentPage()"
+    [pageSize]="pageSize"
+    [totalItems]="allRowCount()"
+    (pageChange)="page.set($event)"
+  />
+}
+
+@if (deleteRepoTarget(); as repo) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    heading="Supprimer le dépôt"
+    message="Cette action supprimera définitivement le dépôt et tout son contenu (tickets, demandes de fusion, releases, wiki). Cette action est irréversible."
+    [confirmText]="repo.name"
+    confirmInputLabel="Tapez le nom du dépôt pour confirmer"
+    confirmLabel="Supprimer"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    (confirmed)="deleteRepoConfirmed()"
+    (closed)="cancelDelete()"
+  />
+}
+@if (deleteGroupTarget(); as group) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    heading="Supprimer le groupe"
+    message="Cette action est irréversible. Le groupe doit être vide (aucun sous-groupe, aucun dépôt)."
+    [confirmText]="group.name"
+    confirmInputLabel="Tapez le nom du groupe pour confirmer"
+    confirmLabel="Supprimer"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    (confirmed)="deleteGroupConfirmed()"
+    (closed)="cancelDelete()"
+  />
+}

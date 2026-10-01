@@ -1,0 +1,366 @@
+
+// The side-by-side diff of one file inside its card (`.mr-diff__file`). One fixed-layout table for the whole file: a
+// line-number gutter and a code column per side, the same for every hunk. A long line wraps inside its own half
+// (continuation lines align under the code, not the +/- prefix), so both sides stay in view without horizontal scrolling.
+
+$code-font-size: 0.8125rem;
+$code-line-height: 1.25rem;
+$gutter-width: 3.5rem;
+$gutter-padding: 0.5rem;
+$code-padding: 0.75rem;
+$prefix-width: 2ch;
+
+:host {
+  display: block;
+  container: file-diff / inline-size;
+}
+
+.file-diff-view__table {
+  width: 100%;
+  table-layout: fixed;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+.file-diff-view__col-gutter {
+  width: $gutter-width;
+}
+
+.file-diff-view__head th {
+  height: 0;
+  padding: 0;
+  border: 0;
+}
+
+.file-diff-view__hunk-header td {
+  padding: 0.25rem $code-padding;
+  overflow: hidden;
+  border-block: 1px solid var(--gbt-hairline);
+  background: color-mix(in srgb, var(--primary) 6%, var(--bg-principal));
+  color: var(--text-secondary);
+  font-family: var(--gbt-font-mono);
+  font-size: 0.75rem;
+  line-height: $code-line-height;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  user-select: none;
+}
+
+.file-diff-view__hunk:first-of-type .file-diff-view__hunk-header td {
+  border-top: 0;
+}
+
+.file-diff-view__gutter,
+.file-diff-view__content {
+  padding-block: 0;
+  font-family: var(--gbt-font-mono);
+  font-size: $code-font-size;
+  line-height: $code-line-height;
+  vertical-align: top;
+}
+
+.file-diff-view__gutter {
+  position: relative;
+  padding-inline: $gutter-padding;
+  overflow: visible;
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  white-space: nowrap;
+  user-select: none;
+}
+
+.file-diff-view__gutter--new-side {
+  border-left: 1px solid var(--gbt-hairline);
+}
+
+.file-diff-view__table--single .file-diff-view__gutter--new-side {
+  border-left: 0;
+}
+
+// The +/- prefix hangs in the left padding (negative text indent), so wrapped continuation lines line
+// up with the code rather than with the prefix.
+.file-diff-view__content {
+  padding-right: $code-padding;
+  padding-left: calc(#{$code-padding} + #{$prefix-width});
+  color: var(--text-primary);
+  text-indent: calc(-1 * #{$prefix-width});
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  tab-size: 4;
+}
+
+.file-diff-view__prefix {
+  display: inline-block;
+  width: $prefix-width;
+  text-indent: 0;
+  user-select: none;
+}
+
+// Added and removed halves: the code on the status background, its gutter a step stronger. A half that exists only on the other side is greyed.
+.file-diff-view__content--added {
+  background: color-mix(in srgb, var(--color-success-bg) 55%, transparent);
+
+  .file-diff-view__prefix {
+    color: var(--color-success-text);
+  }
+}
+
+.file-diff-view__gutter--added {
+  background: var(--color-success-bg);
+  color: var(--color-success-text);
+}
+
+.file-diff-view__content--removed {
+  background: color-mix(in srgb, var(--color-error-bg) 55%, transparent);
+
+  .file-diff-view__prefix {
+    color: var(--color-error-text);
+  }
+}
+
+.file-diff-view__gutter--removed {
+  background: var(--color-error-bg);
+  color: var(--color-error-text);
+}
+
+.file-diff-view__content--empty,
+.file-diff-view__gutter--empty {
+  background: var(--bg-hover);
+}
+
+.file-diff-view__row--selecting .file-diff-view__content {
+  background: color-mix(in srgb, var(--primary) 15%, transparent);
+}
+
+.file-diff-view__row--selecting .file-diff-view__gutter {
+  background: color-mix(in srgb, var(--primary) 22%, transparent);
+}
+
+// The add-comment button covers the gutter's right padding and the code's left padding, not the number or the code.
+.file-diff-view__add-comment {
+  position: absolute;
+  top: 0;
+  right: -$code-padding;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: var(--primary);
+  box-shadow: var(--site-shadow-sm);
+  color: var(--text-on-primary);
+  font-family: var(--font-family);
+  font-size: 0.875rem;
+  font-weight: 700;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--site-transition-fast), transform var(--site-transition-fast);
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    opacity: 1;
+  }
+}
+
+.file-diff-view__gutter:hover .file-diff-view__add-comment,
+.file-diff-view__gutter:has(+ .file-diff-view__content:hover) .file-diff-view__add-comment {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .file-diff-view__add-comment {
+    opacity: 0.6;
+  }
+}
+
+.file-diff-view__compose-row > td,
+.file-diff-view__thread-row > td {
+  padding: 0.75rem 1rem;
+  border-block: 1px solid var(--gbt-hairline);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: var(--font-family);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.file-diff-view__thread {
+  max-width: 52rem;
+  box-sizing: border-box;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--gbt-card-border);
+  border-radius: 8px;
+  background: var(--bg-principal);
+}
+
+.file-diff-view__thread p {
+  margin: 0.25rem 0;
+}
+
+.file-diff-view__reply {
+  margin-left: 1rem;
+  color: var(--text-secondary);
+}
+
+.file-diff-view__outdated-badge,
+.file-diff-view__resolved-badge {
+  margin-right: 0.25rem;
+  margin-bottom: 0.25rem;
+}
+
+.file-diff-view__thread-actions,
+.file-diff-view__compose-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.file-diff-view__suggestion {
+  margin: 0.25rem 0;
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--color-success-bg) 75%, transparent);
+  font-family: var(--gbt-font-mono);
+  font-size: 0.75rem;
+  line-height: $code-line-height;
+  white-space: pre;
+}
+
+.file-diff-view__applied {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+// Two halves of about 15 characters would break every line into fragments, so a narrow card shows a unified
+// diff, in CSS only. An unchanged line shows its two numbers and its code once, and a removed and an added
+// half each take their own line. Added and deleted files keep their single side.
+
+$narrow-gutter: 2.75rem;
+$narrow-gutter-padding: 0.375rem;
+
+@container file-diff (max-width: 599px) {
+  .file-diff-view__col-gutter {
+    width: $narrow-gutter;
+  }
+
+  .file-diff-view__gutter {
+    padding-inline: $narrow-gutter-padding;
+  }
+
+  .file-diff-view__gutter,
+  .file-diff-view__content {
+    font-size: 0.75rem;
+  }
+
+  .file-diff-view__content {
+    padding-right: 0.5rem;
+    padding-left: calc(0.5rem + #{$prefix-width});
+  }
+
+  .file-diff-view__compose-row > td,
+  .file-diff-view__thread-row > td {
+    padding: 0.5rem 0.75rem;
+  }
+
+  .file-diff-view__add-comment {
+    top: 0.1875rem;
+    right: -0.5rem;
+    width: 0.875rem;
+    height: 0.875rem;
+    border-radius: 4px;
+    font-size: 0.75rem;
+
+    // The glyph stays small, but the touch target is at least 24x24px.
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -5px;
+    }
+  }
+
+  .file-diff-view__table:not(.file-diff-view__table--single) {
+    display: block;
+
+    colgroup {
+      display: none;
+    }
+
+    // Still read by assistive technology, out of the layout.
+    thead {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    tbody {
+      display: block;
+    }
+
+    tr {
+      display: grid;
+      grid-template-columns: $narrow-gutter $narrow-gutter minmax(0, 1fr);
+    }
+
+    .file-diff-view__hunk-header > td,
+    .file-diff-view__compose-row > td,
+    .file-diff-view__thread-row > td {
+      grid-column: 1 / -1;
+    }
+
+    // Consecutive full-width rows would draw a doubled hairline outside the collapsed table model.
+    .file-diff-view__thread-row + .file-diff-view__thread-row > td,
+    .file-diff-view__compose-row + .file-diff-view__thread-row > td {
+      border-top: 0;
+    }
+
+    .file-diff-view__gutter--old-side {
+      grid-column: 1;
+    }
+
+    .file-diff-view__gutter--new-side {
+      grid-column: 2;
+      border-left: 0;
+    }
+
+    .file-diff-view__content {
+      grid-column: 3;
+    }
+
+    .file-diff-view__gutter--removed {
+      grid-column: 1 / 3;
+      padding-right: calc(#{$narrow-gutter} + #{$narrow-gutter-padding});
+    }
+
+    .file-diff-view__gutter--added {
+      grid-column: 1 / 3;
+    }
+
+    // An unchanged line's code shows once (the new side), and a half with nothing in it not at all.
+    // The old number of an unchanged line stays, without its comment button: commenting goes through
+    // the new side's.
+    .file-diff-view__content--old-side:not(.file-diff-view__content--removed),
+    .file-diff-view__content--empty,
+    .file-diff-view__gutter--empty {
+      display: none;
+    }
+
+    .file-diff-view__gutter--old-side:not(.file-diff-view__gutter--removed) .file-diff-view__add-comment {
+      display: none;
+    }
+  }
+}

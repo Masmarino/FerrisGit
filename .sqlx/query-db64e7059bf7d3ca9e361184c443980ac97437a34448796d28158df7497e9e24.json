@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE repository_collaborators SET role = $1 WHERE repository_id = $2 AND user_id = $3",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "db64e7059bf7d3ca9e361184c443980ac97437a34448796d28158df7497e9e24"
+}

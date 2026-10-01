@@ -1,0 +1,214 @@
+@use '../../../shared/layout/list-page';
+
+:host {
+  @include list-page.page-host;
+}
+
+.admin-user-detail__badges {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem;
+}
+
+.admin-user-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.875rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.admin-user-detail__email {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.admin-user-detail__segment {
+  white-space: nowrap;
+}
+
+.admin-user-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+// Gabarit gap: `gbt-menu` has no button variant for its trigger; reuse `gbt-button--secondary`'s tokens.
+.admin-user-detail__menu ::ng-deep .gbt-menu__trigger {
+  border-color: var(--border-color);
+  background: var(--bg-panel);
+  font-weight: 600;
+}
+
+.admin-user-detail__menu ::ng-deep .gbt-menu__trigger:hover,
+.admin-user-detail__menu ::ng-deep .gbt-menu__trigger--open {
+  background: var(--bg-hover);
+}
+
+.admin-user-detail__menu ::ng-deep .gbt-menu__list {
+  max-width: min(20rem, calc(100vw - 2rem));
+}
+
+.admin-user-detail__busy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 2.25rem;
+  min-height: 2.25rem;
+}
+
+.admin-user-detail__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.admin-user-detail__refusal {
+  margin: 0;
+
+  &:focus {
+    outline: none;
+  }
+}
+
+.admin-user-detail__band {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.25rem 0.75rem;
+  min-width: 0;
+}
+
+.admin-user-detail__heading {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+}
+
+.admin-user-detail__count {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.admin-user-detail__repositories {
+  @include list-page.row-list;
+}
+
+.admin-user-detail__kind {
+  @include list-page.row-status;
+  color: var(--text-secondary);
+}
+
+// !important because Gabarit's title slot sets `flex: none` on every direct child except links, and wins on specificity.
+.admin-user-detail__repository-name {
+  flex: 0 1 auto !important;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.admin-user-detail__visibility {
+  flex: none;
+}
+
+.admin-user-detail__repository-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.375rem;
+  min-width: 0;
+}
+
+.admin-user-detail__description {
+  flex: 1 0 100%;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+// The dot belongs to the segment after it, so a wrapped line never ends on a dangling "·".
+.admin-user-detail__repository-segment {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  white-space: nowrap;
+}
+
+.admin-user-detail__repository-segment + .admin-user-detail__repository-segment::before {
+  content: '·' / '';
+  margin-right: 0.125rem;
+}
+
+.admin-user-detail__size {
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-user-detail__facts {
+  display: block;
+}
+
+.admin-user-detail__facts-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.admin-user-detail__help {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.admin-user-detail__delete-dialog ::ng-deep .gbt-confirm-danger-modal__message {
+  white-space: pre-line;
+}
+
+.admin-user-detail__state {
+  @include list-page.empty-card;
+}
+
+.admin-user-detail__state-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.5rem;
+}
+
+.admin-user-detail__loading {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.admin-user-detail__loading-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-top: 0.5rem;
+}
+
+.admin-user-detail__loading-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+}
+
+@media (max-width: 599px) {
+  .admin-user-detail__actions ::ng-deep .gbt-button,
+  .admin-user-detail__menu ::ng-deep .gbt-menu__trigger {
+    min-height: 44px;
+  }
+}

@@ -1,0 +1,128 @@
+<gbt-page-header [heading]="name()">
+  @if (!loading() && !loadFailed()) {
+    <p header-meta class="group-detail__summary">{{ summary() }}</p>
+  }
+  @if (role()) {
+    <a header-actions gbtButton variant="secondary" iconName="user" [routerLink]="membersLink()">Membres</a>
+  }
+  <!-- One root per projected block, because a conditional block is only projected through its single root element. -->
+  @if (canWrite()) {
+    <span header-actions class="group-detail__write-actions">
+      <gbt-button variant="secondary" iconName="folder" text="Nouveau sous-groupe" (clicked)="openCreateGroup()" />
+      <gbt-button iconName="plus" text="Nouveau dépôt" (clicked)="createRepoOpen.set(true)" />
+    </span>
+  }
+</gbt-page-header>
+
+<gbt-page-layout width="wide" asideWidth="md">
+  <fg-workspace-grid
+    #grid
+    heading="Sous-groupes et dépôts"
+    [groups]="workspaceGroups()"
+    [repositories]="repos()"
+    [loading]="loading()"
+    [failed]="loadFailed()"
+    [scope]="groupId()"
+    [basePath]="fullPath()"
+    searchLabel="Rechercher un sous-groupe ou un dépôt"
+    emptyHeading="Ce groupe est vide"
+    [emptyMessage]="canWrite() ? 'Créez un sous-groupe ou un dépôt pour commencer.' : 'Ses sous-groupes et ses dépôts apparaîtront ici.'"
+    (changed)="refresh()"
+    (retry)="refresh()"
+  />
+
+  <div page-aside class="group-detail__aside">
+    @if (showFilters()) {
+      <fg-workspace-grid-filters [grid]="grid" />
+    }
+
+    <gbt-panel heading="À propos" [headingLevel]="2">
+      <gbt-description-list class="group-detail__facts" layout="inline" valueAlign="end" [items]="facts()" />
+    </gbt-panel>
+
+    @if (role()) {
+      <gbt-panel heading="Membres" [headingLevel]="2">
+        @switch (membersState()) {
+          @case ('loading') {
+            <div class="group-detail__members-loading" aria-busy="true">
+              <span class="sr-only" role="status">Chargement des membres…</span>
+              @for (width of memberSkeletons; track $index) {
+                <div class="group-detail__member-skeleton" aria-hidden="true">
+                  <gbt-skeleton variant="circle" width="1.5rem" height="1.5rem" />
+                  <gbt-skeleton [width]="width" height="0.75rem" />
+                </div>
+              }
+            </div>
+          }
+          @case ('failed') {
+            <gbt-alert variant="error" appearance="subtle" size="sm">Les membres n'ont pas pu être chargés.</gbt-alert>
+          }
+          @default {
+            @if (members().length === 0) {
+              <p class="group-detail__muted">Aucun membre direct.</p>
+            } @else {
+              <ul class="group-detail__members">
+                @for (member of memberPreview(); track member.userId) {
+                  <li class="group-detail__member">
+                    <gbt-user-chip class="group-detail__member-chip" [name]="member.username" />
+                    <span class="group-detail__member-role">{{ roleName(member.role) }}</span>
+                  </li>
+                }
+              </ul>
+            }
+            <a class="group-detail__all-members" [routerLink]="membersLink()">{{ members().length > 1 ? 'Voir les ' + members().length + ' membres' : (canWrite() ? 'Gérer les membres' : 'Voir les membres') }}</a>
+          }
+        }
+      </gbt-panel>
+    }
+  </div>
+</gbt-page-layout>
+
+<!-- New subgroup dialog. Closing it drops the draft, a failed creation keeps it open, and `busy` blocks every way of
+     closing it. The form wraps the whole dialog (the submit button is in the footer slot) and is rebuilt each time it opens. -->
+@if (createGroupOpen()) {
+  <form (submit)="$event.preventDefault(); createSubgroup()">
+    <gbt-modal [isOpen]="true" heading="Nouveau sous-groupe" closeLabel="Fermer" [busy]="creatingGroup()" busyLabel="Création en cours" (closed)="closeCreateGroup()">
+      <div class="group-detail__create">
+        <p class="group-detail__create-parent">
+          <gbt-icon name="folder" aria-hidden="true" />
+          <span>Dans <code>{{ fullPath() }}</code></span>
+        </p>
+        <gbt-input
+          class="group-detail__create-name"
+          name="newGroupName"
+          label="Nom du sous-groupe"
+          placeholder="infra"
+          hint="Lettres, chiffres, - et _ uniquement ; il fera partie du chemin de ses dépôts."
+          required
+          [ngModel]="newGroupName()"
+          (ngModelChange)="newGroupName.set($event)"
+        />
+        <gbt-textarea
+          class="group-detail__create-description"
+          name="newGroupDescription"
+          label="Description"
+          placeholder="À quoi sert ce sous-groupe (optionnel)"
+          [rows]="3"
+          [ngModel]="newGroupDescription()"
+          (ngModelChange)="newGroupDescription.set($event)"
+        />
+        @if (createGroupError(); as message) {
+          <gbt-alert variant="error">{{ message }}</gbt-alert>
+        }
+      </div>
+      <div modal-footer>
+        <gbt-button variant="secondary" text="Annuler" [disabled]="creatingGroup()" (clicked)="closeCreateGroup()" />
+        <gbt-button type="submit" iconName="plus" text="Créer le sous-groupe" [disabled]="!newGroupName().trim()" [loading]="creatingGroup()" loadingLabel="Création en cours" />
+      </div>
+    </gbt-modal>
+  </form>
+}
+
+<!-- Created each time it opens and destroyed on close, so a closed dialog never keeps a draft. -->
+@if (createRepoOpen()) {
+  <fg-create-repository-modal [defaultLocation]="fullPath()" (close)="createRepoOpen.set(false)" (created)="onRepoCreated()" />
+}
+
+<ng-template #pathTemplate><code class="group-detail__path" [title]="fullPath()">{{ fullPath() }}</code></ng-template>
+<ng-template #roleTemplate><gbt-badge class="group-detail__role">{{ roleLabel() }}</gbt-badge></ng-template>

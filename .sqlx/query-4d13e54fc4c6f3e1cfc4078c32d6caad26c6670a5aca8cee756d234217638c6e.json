@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, release_id, filename, content_type, size_bytes, disk_path, uploaded_by, created_at FROM release_assets WHERE release_id = $1 ORDER BY created_at ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "release_assets",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "release_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "release_assets",
+            "name": "release_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "filename",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "release_assets",
+            "name": "filename"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "content_type",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "release_assets",
+            "name": "content_type"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "size_bytes",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "release_assets",
+            "name": "size_bytes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "disk_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "release_assets",
+            "name": "disk_path"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "uploaded_by",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "release_assets",
+            "name": "uploaded_by"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "release_assets",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "4d13e54fc4c6f3e1cfc4078c32d6caad26c6670a5aca8cee756d234217638c6e"
+}

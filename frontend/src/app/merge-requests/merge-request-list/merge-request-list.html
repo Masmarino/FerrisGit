@@ -1,0 +1,234 @@
+<gbt-page-header heading="Demandes de fusion">
+  @if (canWrite()) {
+    <gbt-button header-actions iconName="plus" text="Nouvelle demande de fusion" (clicked)="openCreate()" />
+  }
+</gbt-page-header>
+
+<gbt-page-layout width="wide" asideWidth="sm">
+  <gbt-list-card
+    ariaLabel="Demandes de fusion"
+    [state]="cardState()"
+    loadingLabel="Chargement des demandes de fusion…"
+    [skeletonRows]="5"
+    failedHeading="Les demandes de fusion n'ont pas pu être chargées."
+    retryLabel="Réessayer"
+    (retry)="reload()"
+    emptyIllustration="merge"
+    emptyHeading="Aucune demande de fusion pour l'instant"
+    [emptyMessage]="
+      canWrite()
+        ? 'Proposez les changements d’une branche : la revue, les commentaires et la fusion se suivent ici.'
+        : 'Les demandes de fusion de ce dépôt apparaîtront ici.'
+    "
+  >
+    <gbt-segmented-control
+      list-card-header
+      class="merge-request-list__tabs"
+      ariaLabel="État des demandes de fusion"
+      tinted
+      [options]="tabOptions()"
+      [value]="tab()"
+      (valueChange)="tab.set($event)"
+    />
+
+    @if (rows().length === 0) {
+      <p list-card-message>{{ emptyTabMessage() }}</p>
+    } @else {
+      <ul>
+        @for (row of rows(); track row.mergeRequest.id) {
+          <li>
+            <gbt-list-row [tone]="row.status.variant">
+              <span row-leading class="merge-request-list__status" [title]="row.status.label">
+                <gbt-icon [name]="row.status.icon" aria-hidden="true" />
+                <span class="sr-only">{{ row.status.label }}</span>
+              </span>
+
+              <a [routerLink]="row.link" [title]="row.mergeRequest.title">{{ row.mergeRequest.title }}</a>
+              @for (label of row.mergeRequest.labels; track label.id) {
+                <gbt-tag [color]="label.color">{{ label.name }}</gbt-tag>
+              }
+              @if (row.milestoneTitle; as milestone) {
+                <gbt-badge class="merge-request-list__milestone" variant="neutral" icon="flag" [title]="'Milestone ' + milestone">{{ milestone }}</gbt-badge>
+              }
+
+              <span row-meta class="merge-request-list__meta">
+                <span class="merge-request-list__branches" [title]="row.branchesTitle">
+                  <span class="sr-only">Branche </span>
+                  <gbt-badge mono maxWidth="16rem">{{ row.mergeRequest.sourceBranch }}</gbt-badge>
+                  <span class="merge-request-list__arrow" aria-hidden="true">→</span>
+                  <span class="sr-only"> vers </span>
+                  <gbt-badge mono maxWidth="16rem">{{ row.mergeRequest.targetBranch }}</gbt-badge>
+                </span>
+                <span class="merge-request-list__opened">
+                  <span class="merge-request-list__when">ouverte <time [attr.datetime]="row.mergeRequest.createdAt" [title]="row.mergeRequest.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.mergeRequest.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time></span>
+                  @if (row.mergeRequest.author; as author) {
+                    par <span class="merge-request-list__author">{{ author.username }}</span>
+                  } @else {
+                    par <span class="merge-request-list__author">Utilisateur supprimé</span>
+                  }
+                </span>
+                <!-- Each separator belongs to the segment after it, so a wrapped line does not end on a dangling "·". -->
+                @if (row.ended; as ended) {
+                  <span class="merge-request-list__when">
+                    <span aria-hidden="true"> · </span>{{ ended.verb }} <time [attr.datetime]="ended.at" [title]="ended.at | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ ended.at | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                  </span>
+                }
+                @if (row.mergeRequest.commentCount > 0) {
+                  <span class="merge-request-list__comments">
+                    <span aria-hidden="true"> · </span>{{ row.mergeRequest.commentCount }} {{ row.mergeRequest.commentCount === 1 ? 'commentaire' : 'commentaires' }}
+                  </span>
+                }
+              </span>
+
+              <!-- Only open merge requests can be closed or merged, so all rows in a tab share the same trailing actions. -->
+              @if (canWrite() && row.mergeRequest.status === 'open') {
+                <span row-trailing class="merge-request-list__trailing">
+                  <gbt-menu class="merge-request-list__menu" [label]="row.menuLabel" triggerIcon="ellipsis-vertical" align="end">
+                    <button gbtMenuItem (click)="closeMr(row.mergeRequest)">Fermer</button>
+                    <button gbtMenuItem (click)="mergeMr(row.mergeRequest)">Fusionner</button>
+                  </gbt-menu>
+                </span>
+              }
+            </gbt-list-row>
+          </li>
+        }
+      </ul>
+    }
+
+    @if (canWrite()) {
+      <gbt-button list-card-empty variant="secondary" iconName="plus" text="Créer une demande de fusion" (clicked)="openCreate()" />
+    }
+  </gbt-list-card>
+
+  @if (cardState() === 'ready' && tabList().length > pageSize) {
+    <gbt-pagination
+      class="merge-request-list__pagination"
+      ariaLabel="Pages de demandes de fusion"
+      previousLabel="Page précédente"
+      nextLabel="Page suivante"
+      [pageLabel]="pageLabel"
+      [page]="currentPage()"
+      [pageSize]="pageSize"
+      [totalItems]="tabList().length"
+      (pageChange)="page.set($event)"
+    />
+  }
+
+  @if (!isEmptyRepository()) {
+    <div page-aside class="merge-request-list__filters">
+      <gbt-panel heading="Recherche" [headingLevel]="2">
+        @if (hasActiveFilters()) {
+          <gbt-button
+            panel-actions
+            class="merge-request-list__reset"
+            variant="secondary"
+            size="small"
+            iconName="x"
+            text="Réinitialiser"
+            ariaLabel="Réinitialiser les filtres"
+            (clicked)="resetFilters()"
+          />
+        }
+        <gbt-input
+          class="merge-request-list__search"
+          label="Rechercher une demande de fusion" hideLabel
+          placeholder="Titre de la demande"
+          [ngModel]="search()"
+          (ngModelChange)="search.set($event)"
+        />
+      </gbt-panel>
+
+      <gbt-panel heading="Trier" [headingLevel]="2">
+        <div class="merge-request-list__sort">
+          <gbt-select label="Trier par" hideLabel fullWidth [options]="sortOptions" [ngModel]="sortValue()" (ngModelChange)="sortValue.set($event)" />
+          <gbt-segmented-control class="merge-request-list__direction" ariaLabel="Sens du tri" tinted fullWidth [options]="directionOptions" [value]="direction()" (valueChange)="direction.set($event)" />
+        </div>
+      </gbt-panel>
+
+      <gbt-panel heading="Labels" [headingLevel]="2">
+        <gbt-select
+          label="Filtrer par label"
+          hideLabel
+          fullWidth
+          [options]="labelOptions()"
+          [multiple]="true"
+          [chips]="true"
+          [ngModel]="selectedLabelIds()"
+          (ngModelChange)="onLabelFilterChange($event)"
+          placeholder="Tous les labels"
+        />
+      </gbt-panel>
+
+      <gbt-panel heading="Milestone" [headingLevel]="2">
+        <gbt-select
+          label="Filtrer par milestone"
+          hideLabel
+          fullWidth
+          [options]="milestoneOptions()"
+          [ngModel]="selectedMilestoneId()"
+          (ngModelChange)="onMilestoneFilterChange($event)"
+          placeholder="Tous les milestones"
+        />
+      </gbt-panel>
+    </div>
+  }
+</gbt-page-layout>
+
+<!-- Closing it drops the draft, and a failed creation keeps it open with the draft. The form is rebuilt each time it opens. -->
+@if (createOpen()) {
+  <!-- The form wraps the whole dialog because the submit button sits in the footer slot, outside the body. -->
+  <form (submit)="$event.preventDefault(); createMergeRequest()">
+    <gbt-modal [isOpen]="true" heading="Nouvelle demande de fusion" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="closeCreate()">
+      <div class="merge-request-list__create-form">
+        <div class="merge-request-list__create-branches">
+          <gbt-select
+            class="merge-request-list__create-source"
+            name="sourceBranch"
+            label="Branche source"
+            placeholder="Choisir une branche"
+            required
+            [options]="branchOptions()"
+            [ngModel]="sourceBranch()"
+            (ngModelChange)="sourceBranch.set($event)"
+          />
+          <span class="merge-request-list__create-arrow" aria-hidden="true">→</span>
+          <gbt-select
+            class="merge-request-list__create-target"
+            name="targetBranch"
+            label="Branche cible"
+            placeholder="Choisir une branche"
+            required
+            [options]="branchOptions()"
+            [errorMessage]="targetError()"
+            [ngModel]="targetBranch()"
+            (ngModelChange)="targetBranch.set($event)"
+          />
+        </div>
+        <gbt-input
+          class="merge-request-list__create-title"
+          name="title"
+          label="Titre"
+          placeholder="Résumez le changement proposé"
+          required
+          [errorMessage]="titleError()"
+          [ngModel]="title()"
+          (ngModelChange)="title.set($event)"
+          (committed)="titleTouched.set(true)"
+        />
+        <gbt-textarea
+          class="merge-request-list__create-description"
+          name="description"
+          label="Description"
+          placeholder="Ce que change la demande, comment la tester (optionnel)"
+          [rows]="5"
+          [ngModel]="description()"
+          (ngModelChange)="description.set($event)"
+        />
+      </div>
+      <div modal-footer class="merge-request-list__create-actions">
+        <gbt-button variant="secondary" text="Annuler" [disabled]="creating()" (clicked)="closeCreate()" />
+        <gbt-button type="submit" text="Créer la demande de fusion" [disabled]="!canSubmit()" [loading]="creating()" loadingLabel="Création en cours" />
+      </div>
+    </gbt-modal>
+  </form>
+}

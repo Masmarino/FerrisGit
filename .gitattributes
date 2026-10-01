@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+# Generated files: collapsed in diffs and left out of language statistics.
+.sqlx/** linguist-generated=true
+frontend/package-lock.json linguist-generated=true
+Cargo.lock linguist-generated=true
+
+# Binary assets.
+*.png binary
+*.ico binary
+*.woff2 binary

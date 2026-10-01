@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE issues SET status = $1, closed_at = CASE WHEN $1 = 'done' THEN COALESCE(closed_at, now()) ELSE NULL END WHERE id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fb590b2849a8817301e8e980da57704ff516d0ad00725c99c66c5a8320455743"
+}

@@ -1,0 +1,28 @@
+@if (repo(); as r) {
+  <gbt-page-header class="repository-header" [heading]="r.name">
+    <gbt-badge header-badges [variant]="r.visibility === 'public' ? 'info' : 'neutral'" [icon]="r.visibility === 'public' ? 'globe' : 'lock'">{{ r.visibility === 'public' ? 'Public' : 'Privé' }}</gbt-badge>
+
+    <fg-branch-switcher header-actions class="repository-header__ref" [repositoryId]="r.id" [path]="r.path" [currentRef]="ref()" />
+    @if (!readOnly) {
+      <gbt-button
+        header-actions
+        class="repository-header__star"
+        [class.repository-header__star--on]="isStarred()"
+        variant="secondary"
+        size="small"
+        iconName="star"
+        [text]="starText()"
+        [ariaLabel]="starLabel()"
+        [pressed]="isStarred()"
+        (clicked)="toggleStar()"
+      />
+    }
+    <gbt-button header-actions class="repository-header__clone" variant="primary" size="small" iconName="download" text="Cloner" (clicked)="showClonePanel()" />
+  </gbt-page-header>
+} @else {
+  <!-- Same footprint as the header, so nothing jumps when the repository arrives. -->
+  <div class="repository-header-placeholder" aria-hidden="true">
+    <gbt-skeleton width="12rem" height="1.625rem" />
+    <gbt-skeleton width="4rem" height="1.25rem" />
+  </div>
+}

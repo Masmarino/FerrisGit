@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT version FROM domain_events WHERE aggregate_type = 'Security' AND aggregate_id = $1 ORDER BY version DESC LIMIT 1 FOR UPDATE",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "version",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "domain_events",
+            "name": "version"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "a3d95c4b207c5c108a332caac2d9ceb25c97ab6e065db1a420c75daa0a5e1cb2"
+}

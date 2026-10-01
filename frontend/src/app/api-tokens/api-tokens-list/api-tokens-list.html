@@ -1,0 +1,119 @@
+<gbt-card variant="outlined" icon="plus" heading="Nouveau jeton" description="Un jeton remplace votre mot de passe pour l'API et pour Git en HTTPS. Nommez-le d'après l'outil qui s'en sert.">
+  <!-- ngNoForm keeps this a plain form, so Enter submits. Its field is a standalone ngModel. -->
+  <form ngNoForm class="api-tokens-list__form" (submit)="$event.preventDefault(); create()">
+    <gbt-input
+      #nameField
+      class="api-tokens-list__name"
+      label="Nom du jeton"
+      mono
+      placeholder="ex. ci-github-actions"
+      autocomplete="off"
+      [ngModel]="newTokenName()"
+      (ngModelChange)="newTokenName.set($event)"
+    />
+    <gbt-button class="api-tokens-list__submit" type="submit" iconName="key" text="Générer" loadingLabel="Génération en cours" [disabled]="!newTokenName().trim()" [loading]="creating()" />
+  </form>
+</gbt-card>
+
+@if (revealed(); as token) {
+  <gbt-card
+    #revealCard
+    class="api-tokens-list__revealed"
+    variant="outlined"
+    tone="success"
+    icon="check"
+    [heading]="'Jeton « ' + token.name + ' » généré'"
+    description="Copiez-le maintenant et rangez-le en lieu sûr : un gestionnaire de secrets, une variable de CI masquée."
+  >
+    <div class="api-tokens-list__reveal">
+      <gbt-copy-field class="api-tokens-list__token" [value]="token.token" copyLabel="Copier le jeton" copiedText="Copié" failedText="Copie impossible, jeton sélectionné" />
+      <div class="api-tokens-list__reveal-footer">
+        <gbt-alert class="api-tokens-list__warning" variant="warning">Ce jeton ne sera plus jamais affiché. Perdu, il faudra le révoquer et en générer un autre.</gbt-alert>
+        <gbt-button variant="secondary" size="small" iconName="check" text="J'ai copié le jeton" (clicked)="dismissReveal()" />
+      </div>
+    </div>
+  </gbt-card>
+}
+
+<gbt-card
+  #listCard
+  variant="outlined"
+  icon="key"
+  heading="Jetons actifs"
+  description="Chacun donne accès à votre compte : révoquez ceux dont vous ne vous servez plus."
+  [count]="listState() === 'loaded' ? list().length : null"
+  [flush]="listState() !== 'failed'"
+>
+  @switch (listState()) {
+    @case ('loading') {
+      <gbt-skeleton-list [rows]="2" leadingSize="1rem" loadingLabel="Chargement des jetons…" />
+    }
+    @case ('failed') {
+      <gbt-alert variant="error" appearance="subtle" live="off">
+        Les jetons n'ont pas pu être chargés.
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+      </gbt-alert>
+    }
+    @default {
+      @if (list().length === 0) {
+        <gbt-empty-state
+          size="compact"
+          icon="key"
+          heading="Aucun jeton"
+          message="Générez-en un pour appeler l'API ou cloner en HTTPS depuis un script, une CI ou un autre outil."
+        />
+      } @else {
+        <ul class="api-tokens-list__rows" aria-label="Jetons actifs">
+          @for (token of list(); track token.id) {
+            <li>
+              <gbt-list-row>
+                <gbt-icon row-leading name="key" aria-hidden="true" />
+                <span class="api-tokens-list__token-name" [title]="token.name">{{ token.name }}</span>
+                @if (token.id === revealed()?.id) {
+                  <gbt-badge variant="info" icon="sparkles">Nouveau</gbt-badge>
+                }
+                <span row-meta class="api-tokens-list__meta">
+                  <span class="api-tokens-list__created">Créé {{ on(token.createdAt) }}<time [attr.datetime]="token.createdAt" [title]="token.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ token.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time></span>
+                  <span class="api-tokens-list__last-used" [class.api-tokens-list__last-used--never]="!token.lastUsedAt">
+                    @if (token.lastUsedAt; as lastUsed) {
+                      Utilisé {{ on(lastUsed) }}<time [attr.datetime]="lastUsed" [title]="lastUsed | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ lastUsed | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                    } @else {
+                      Jamais utilisé
+                    }
+                  </span>
+                </span>
+                <gbt-button
+                  row-trailing
+                  class="api-tokens-list__revoke"
+                  variant="ghost-danger"
+                  size="medium"
+                  [iconOnly]="true"
+                  iconName="trash-2"
+                  title="Révoquer"
+                  [ariaLabel]="'Révoquer le jeton ' + token.name"
+                  (clicked)="confirmRevoke(token)"
+                />
+              </gbt-list-row>
+            </li>
+          }
+        </ul>
+      }
+    }
+  }
+</gbt-card>
+
+@if (tokenPendingRevoke(); as token) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    heading="Révoquer le jeton"
+    [message]="'Les outils et scripts qui utilisent « ' + token.name + ' » ne pourront plus accéder à FerrisGit. Un jeton révoqué ne peut pas être réactivé.'"
+    confirmLabel="Révoquer"
+    confirmIcon="trash-2"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    busyLabel="Révocation en cours"
+    [busy]="revoking()"
+    (confirmed)="revoke(token.id)"
+    (closed)="tokenPendingRevoke.set(null)"
+  />
+}

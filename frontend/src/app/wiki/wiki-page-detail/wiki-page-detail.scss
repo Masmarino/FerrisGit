@@ -1,0 +1,338 @@
+@use '../../merge-requests/timeline-rail' as rail;
+@use '../../shared/layout/prose';
+@use '../../shared/layout/list-page';
+@use '../../shared/layout/card';
+
+// A wiki page and its history, in the wiki shell's main and aside columns; revisions hang on the merge request timeline's rail.
+
+:host {
+  display: block;
+}
+
+.wiki-page-detail {
+  min-width: 0;
+}
+
+// The page and history cards are size containers. `gbt-card` is not one, so its host (or the article
+// around it) declares it for the `@container wiki-page-card` rules below.
+.wiki-page-detail__card {
+  container: wiki-page-card / inline-size;
+  min-width: 0;
+}
+
+// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+gbt-card {
+  @include card.inherit-text;
+}
+
+.wiki-page-detail__card-heading {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+}
+
+.wiki-page-detail__byline {
+  margin: 0;
+
+  time {
+    white-space: nowrap;
+  }
+}
+
+.wiki-page-detail__author {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.wiki-page-detail__body {
+  padding: 1.5rem 2rem 1.75rem;
+
+  ::ng-deep {
+    @include prose.markdown;
+
+    // An outline link lands the heading just under the viewport's top edge, not glued to it.
+    h2,
+    h3,
+    h4,
+    h5 {
+      scroll-margin-top: 1rem;
+    }
+
+    // Reached from the outline (focused programmatically): no ring around a whole heading.
+    [tabindex='-1']:focus {
+      outline: none;
+    }
+  }
+}
+
+@container wiki-page-card (max-width: 559px) {
+  .wiki-page-detail__body {
+    padding: 1rem 1.125rem 1.25rem;
+  }
+}
+
+$history-pad: 12px;
+$history-avatar-top: 6px;
+$history-line-start: $history-pad + $history-avatar-top + rail.$avatar-size * 0.5;
+
+.wiki-history {
+  @include rail.rail;
+
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 0 0 0 $history-pad;
+  padding-top: $history-pad;
+  padding-right: $history-pad;
+  padding-bottom: $history-pad;
+  list-style: none;
+  background-position: (rail.$axis - rail.$line-width * 0.5) $history-line-start;
+  background-size: rail.$line-width calc(100% - #{$history-line-start});
+}
+
+.wiki-history__item {
+  position: relative;
+  min-width: 0;
+
+  &:last-child::before {
+    content: '';
+    position: absolute;
+    top: $history-avatar-top + rail.$avatar-size;
+    bottom: -$history-pad;
+    left: -(rail.$gutter);
+    width: rail.$gutter;
+    background: var(--bg-principal);
+  }
+}
+
+// Centred on the row's first line, with a ring in the card's background colour (not the page's) that the rail passes behind.
+.wiki-history__avatar {
+  @include rail.on-rail(rail.$avatar-size, $history-avatar-top);
+
+  z-index: 1;
+  border-radius: 50%;
+  box-shadow: 0 0 0 4px var(--bg-principal);
+}
+
+.wiki-history__row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem 1rem;
+  min-width: 0;
+  padding: 0.5rem 0.75rem;
+  border-radius: var(--site-border-radius-sm);
+  transition: background-color var(--site-transition-fast);
+}
+
+.wiki-history__item:hover > .wiki-history__row {
+  background: var(--bg-hover);
+}
+
+.wiki-history__item--selected > .wiki-history__row,
+.wiki-history__item--selected:hover > .wiki-history__row {
+  background: color-mix(in srgb, var(--primary) 8%, transparent);
+}
+
+.wiki-history__text {
+  flex: 1;
+  min-width: 0;
+}
+
+.wiki-history__message {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.wiki-history__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  margin: 0.125rem 0 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+
+  time {
+    white-space: nowrap;
+  }
+}
+
+.wiki-history__author {
+  @include list-page.row-author;
+}
+
+.wiki-history__current {
+  padding: 0 0.5rem;
+  border: 1px solid color-mix(in srgb, var(--primary) 45%, transparent);
+  border-radius: 999px;
+  color: var(--primary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.125rem;
+  white-space: nowrap;
+}
+
+.wiki-history__toggle {
+  flex: none;
+}
+
+.wiki-history__version {
+  margin: 0.5rem 0 0.75rem 0.75rem;
+}
+
+.wiki-history__version-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+
+  code {
+    color: var(--text-primary);
+    font-family: var(--gbt-font-mono);
+  }
+}
+
+.wiki-history__version-body {
+  padding: 1rem 1.25rem 1.25rem;
+
+  ::ng-deep {
+    @include prose.markdown;
+  }
+
+  ::ng-deep .markdown-view {
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+}
+
+.wiki-history__empty {
+  @include list-page.no-results;
+}
+
+@container wiki-page-card (max-width: 559px) {
+  .wiki-history__row {
+    flex-wrap: wrap;
+  }
+
+  .wiki-history__text {
+    flex-basis: 100%;
+  }
+
+  .wiki-history__version {
+    margin-left: 0;
+  }
+}
+
+// gbt-panel draws the hairline between two consecutive panels (`gbt-panel + gbt-panel`); the outline's
+// panel is wrapped in its own element, so the panel after it gets the same separation here.
+.wiki-page-detail__aside > fg-wiki-outline + gbt-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--gbt-hairline);
+}
+
+.wiki-page-detail__recent {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+}
+
+.wiki-page-detail__recent-message {
+  overflow: hidden;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wiki-page-detail__recent-meta {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+
+  time {
+    white-space: nowrap;
+  }
+}
+
+.wiki-page-detail__history-link {
+  color: var(--primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 2px;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+.wiki-page-detail__dates {
+  display: block;
+}
+
+.wiki-page-detail__people {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    min-width: 0;
+  }
+}
+
+.wiki-page-detail__person {
+  flex: 0 1 auto;
+  min-width: 0;
+}
+
+.wiki-page-detail__person-count {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.wiki-page-detail__loading-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--gbt-hairline);
+}
+
+.wiki-page-detail__loading-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1.25rem;
+}
+
+.wiki-page-detail__not-found {
+  @include list-page.empty-card;
+}

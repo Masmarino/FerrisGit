@@ -1,0 +1,159 @@
+@use '../../shared/layout/settings-section';
+
+:host {
+  @include settings-section.section;
+}
+
+.repository-webhooks__form {
+  @include settings-section.form;
+}
+
+.repository-webhooks__fields {
+  @include settings-section.field-row(minmax(0, 3fr) minmax(0, 2fr));
+}
+
+// The events, grouped by subject, on a quiet inset panel. `gbt-checkbox-group` lays the groups out as columns.
+.repository-webhooks__webhook-events {
+  min-width: 0;
+  padding: 1rem;
+  border: 1px solid var(--gbt-hairline);
+  border-radius: var(--site-border-radius-sm);
+  background: color-mix(in srgb, var(--bg-panel) 60%, var(--bg-principal));
+
+  // Gabarit gap: the group's `gap` skips a fieldset's legend, so it sits right on the first group label.
+  ::ng-deep .gbt-checkbox-group__legend {
+    margin-bottom: 0.75rem;
+  }
+}
+
+.repository-webhooks__actions {
+  @include settings-section.form-actions;
+}
+
+.repository-webhooks__summary {
+  @include settings-section.form-summary;
+}
+
+.repository-webhooks__rows {
+  @include settings-section.rows;
+}
+
+.repository-webhooks__url.repository-webhooks__url {
+  @include settings-section.row-title-text;
+  @include settings-section.mono;
+  font-weight: 600;
+}
+
+.repository-webhooks__meta {
+  display: contents;
+}
+
+.repository-webhooks__events {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+}
+
+.repository-webhooks__event {
+  @include settings-section.chip;
+  display: inline-block; // A text-only chip, displayed as a block so a chip too long for the row ends in an ellipsis.
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.repository-webhooks__event--more {
+  cursor: help;
+}
+
+.repository-webhooks__created time {
+  white-space: nowrap;
+}
+
+.repository-webhooks__webhook-deliveries {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.repository-webhooks__delivery {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.75rem 0;
+
+  & + & {
+    border-top: 1px solid var(--gbt-hairline);
+  }
+
+  gbt-badge {
+    flex: none;
+    width: 5.5rem;
+  }
+}
+
+.repository-webhooks__delivery-text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+
+.repository-webhooks__delivery-event {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  line-height: 1.375rem;
+}
+
+.repository-webhooks__delivery-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  overflow-wrap: anywhere;
+
+  > * + *::before {
+    content: '·';
+    margin-right: 0.5rem;
+  }
+}
+
+.repository-webhooks__delivery-error {
+  color: var(--color-error-text);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+  overflow-wrap: anywhere;
+}
+
+.repository-webhooks__delivery-status {
+  font-family: var(--gbt-font-mono);
+  font-size: 0.75rem;
+}
+
+.repository-webhooks__deliveries-empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.repository-webhooks__deliveries-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+@container settings-card (max-width: 519px) {
+  .repository-webhooks__fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .repository-webhooks__webhook-events {
+    padding: 0.75rem;
+  }
+}

@@ -1,0 +1,72 @@
+:host {
+  display: block;
+}
+
+// Hairline gaps keep neighbouring colours apart. Each segment keeps a few pixels so a 0.1 % language stays visible.
+.language-bar__segments {
+  display: flex;
+  gap: 2px;
+  height: 0.5rem;
+  overflow: hidden;
+  border-radius: 999px;
+}
+
+.language-bar__segment {
+  display: block;
+  flex: 0 1 auto;
+  min-width: 3px;
+  height: 100%;
+}
+
+.language-bar__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+  margin: 0.75rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+
+  li {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    min-width: 0;
+  }
+}
+
+.language-bar__dot {
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+}
+
+.language-bar__name {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.language-bar__percent {
+  color: var(--text-secondary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.language-bar__empty {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+
+.language-bar__loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding-top: 0.125rem;
+
+  gbt-skeleton:first-child {
+    border-radius: 999px;
+  }
+}

@@ -1,0 +1,49 @@
+
+:host {
+  display: block;
+}
+
+.wiki-outline__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-left: 1px solid var(--gbt-hairline);
+}
+
+.wiki-outline__link {
+  display: block;
+  margin-left: -1px; // over the track, so a hover bar replaces it
+  padding: 0.25rem 0.5rem 0.25rem 0.75rem;
+  border-left: 2px solid transparent;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.45;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition:
+    border-color var(--site-transition-fast),
+    color var(--site-transition-fast);
+
+  &:hover {
+    border-left-color: var(--primary);
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    border-radius: var(--site-border-radius-sm);
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+}
+
+.wiki-outline__item[data-level='2'] .wiki-outline__link {
+  color: var(--text-primary);
+}
+
+.wiki-outline__item[data-level='3'] .wiki-outline__link {
+  padding-left: 1.5rem;
+}
+
+.wiki-outline__item[data-level='4'] .wiki-outline__link {
+  padding-left: 2.25rem;
+}

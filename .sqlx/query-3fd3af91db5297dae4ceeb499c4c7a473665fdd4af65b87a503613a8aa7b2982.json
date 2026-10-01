@@ -1,0 +1,110 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO system_settings (id) VALUES (true) ON CONFLICT (id) DO UPDATE SET id = true RETURNING execution_engine, k8s_namespace, k8s_cache_storage_class, runner_registration_token, log_retention_days, max_concurrent_jobs, jwt_ttl_hours, max_push_size_mb",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "execution_engine",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "execution_engine"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "k8s_namespace",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "k8s_namespace"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "k8s_cache_storage_class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "k8s_cache_storage_class"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "runner_registration_token",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "runner_registration_token"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "log_retention_days",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "log_retention_days"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "max_concurrent_jobs",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "max_concurrent_jobs"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "jwt_ttl_hours",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "jwt_ttl_hours"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "max_push_size_mb",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "max_push_size_mb"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": []
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "3fd3af91db5297dae4ceeb499c4c7a473665fdd4af65b87a503613a8aa7b2982"
+}

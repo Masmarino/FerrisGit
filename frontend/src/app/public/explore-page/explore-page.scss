@@ -1,0 +1,165 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  max-width: 960px;
+  margin: 0 auto;
+}
+
+.explore-page__header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.explore-page__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.explore-page__intro {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.explore-page__toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.explore-page__search {
+  flex: 1 1 16rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.explore-page__sort {
+  flex: none;
+  max-width: 100%;
+}
+
+.explore-page__results-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.explore-page__summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+}
+
+.explore-page__heading {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  overflow-wrap: anywhere;
+}
+
+.explore-page__count {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+
+.explore-page__loading,
+.explore-page__results {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.explore-page__skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.repository-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.repository-card__name {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  min-width: 0;
+
+  gbt-icon {
+    flex: none;
+    color: var(--text-secondary);
+  }
+
+  a {
+    color: var(--text-primary);
+    text-decoration: none;
+    overflow-wrap: anywhere;
+
+    &:hover {
+      text-decoration: underline;
+    }
+  }
+}
+
+.repository-card__description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+.repository-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 1rem;
+  margin: 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+
+.repository-card__stars {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-variant-numeric: tabular-nums;
+
+  gbt-icon {
+    color: var(--color-warning-text);
+    font-size: 0.75rem;
+  }
+}
+
+.explore-page__pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 0.5rem;
+}
+
+.explore-page__page {
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}

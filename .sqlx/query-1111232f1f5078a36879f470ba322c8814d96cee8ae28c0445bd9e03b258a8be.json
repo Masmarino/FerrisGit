@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM release_assets WHERE id = $1 AND release_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "1111232f1f5078a36879f470ba322c8814d96cee8ae28c0445bd9e03b258a8be"
+}

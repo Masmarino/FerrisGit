@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO repository_collaborators (repository_id, user_id, role) VALUES ($1, $2, $3)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "edcb3cc6c47194d4ed7969775d316abc2f637c1cc352b9ee2912c3a5f6d3f3d9"
+}

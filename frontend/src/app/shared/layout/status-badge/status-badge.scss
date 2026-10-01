@@ -1,0 +1,6 @@
+// Inline like the badge it wraps, and it does not shrink when squeezed in a header or a row.
+:host {
+  display: inline-flex;
+  flex: none;
+  vertical-align: middle;
+}

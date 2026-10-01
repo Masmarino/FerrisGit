@@ -1,0 +1,103 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "ferrisgit-web": {
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "fg",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "outputPath": "dist/ferrisgit-web",
+            "index": "src/index.html",
+            "browser": "src/main.ts",
+            "tsConfig": "tsconfig.app.json",
+            "allowedCommonJsDependencies": ["qrcode", "dijkstrajs"],
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "public"
+              }
+            ],
+            "styles": [
+              "src/styles.scss",
+              "node_modules/highlight.js/styles/github.css"
+            ]
+          },
+          "configurations": {
+            "production": {
+              "optimization": {
+                "scripts": true,
+                "fonts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                }
+              },
+              "outputHashing": "all"
+            },
+            "development": {
+              "optimization": false,
+              "sourceMap": true
+            }
+          },
+          "defaultConfiguration": "production"
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "proxyConfig": "proxy.conf.json"
+          },
+          "configurations": {
+            "production": {
+              "buildTarget": "ferrisgit-web:build:production"
+            },
+            "development": {
+              "buildTarget": "ferrisgit-web:build:development"
+            }
+          },
+          "defaultConfiguration": "development"
+        },
+        "test": {
+          "builder": "@angular/build:unit-test",
+          "options": {
+            "tsConfig": "tsconfig.spec.json",
+            "runner": "vitest",
+            "buildTarget": "::development",
+            "setupFiles": [
+              "src/test-setup.ts"
+            ]
+          }
+        },
+        "storybook": {
+          "builder": "@storybook/angular-vite:start-storybook",
+          "options": {
+            "styles": [
+              "src/styles.scss",
+              "node_modules/highlight.js/styles/github.css"
+            ],
+            "configDir": ".storybook",
+            "browserTarget": "ferrisgit-web:build",
+            "port": 6007
+          }
+        },
+        "build-storybook": {
+          "builder": "@storybook/angular-vite:build-storybook",
+          "options": {
+            "styles": [
+              "src/styles.scss",
+              "node_modules/highlight.js/styles/github.css"
+            ],
+            "configDir": ".storybook",
+            "browserTarget": "ferrisgit-web:build",
+            "outputDir": "dist/storybook"
+          }
+        }
+      }
+    }
+  }
+}

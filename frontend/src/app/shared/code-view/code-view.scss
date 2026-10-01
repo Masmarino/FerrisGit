@@ -1,0 +1,154 @@
+
+:host {
+  display: block;
+}
+
+// Gutter and code share one font size and line height, so each number sits level with its line.
+// Only the code column scrolls sideways, and the gutter stays put.
+
+$code-font-size: 0.8125rem;
+$code-line-height: 1.25rem;
+$code-padding-block: 0.75rem;
+
+.code-view--numbered {
+  display: flex;
+  align-items: flex-start;
+  min-width: 0;
+}
+
+.code-view__line-numbers,
+.code-view__code {
+  margin: 0;
+  font-family: var(--gbt-font-mono);
+  font-size: $code-font-size;
+  line-height: $code-line-height;
+}
+
+.code-view__line-numbers {
+  flex: none;
+  min-width: 2.5rem;
+  box-sizing: border-box;
+  padding: $code-padding-block 0.75rem $code-padding-block 1rem;
+  border-right: 1px solid var(--gbt-hairline);
+  color: var(--text-discret);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  user-select: none;
+}
+
+.code-view__code {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  tab-size: 4;
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+
+  // The highlighted block grows to its longest line (so the right padding survives the scroll) and
+  // takes the card's colours rather than the theme's white box.
+  code.hljs {
+    display: block;
+    box-sizing: border-box;
+    width: max-content;
+    min-width: 100%;
+    padding: $code-padding-block 1rem;
+    overflow: visible;
+    background: transparent;
+    color: var(--text-primary);
+  }
+}
+
+// The global highlight.js theme (`github.css`) is light only: dark-on-white tokens would be
+// unreadable on the dark card. Same hues as GitHub's dark theme.
+
+@media (prefers-color-scheme: dark) {
+  :host ::ng-deep {
+    code.hljs {
+      background: var(--bg-principal);
+      color: var(--text-primary);
+    }
+
+    .code-view__code code.hljs {
+      background: transparent;
+    }
+
+    .hljs-doctag,
+    .hljs-keyword,
+    .hljs-meta .hljs-keyword,
+    .hljs-template-tag,
+    .hljs-template-variable,
+    .hljs-type,
+    .hljs-variable.language_ {
+      color: #ff7b72;
+    }
+
+    .hljs-title,
+    .hljs-title.class_,
+    .hljs-title.class_.inherited__,
+    .hljs-title.function_ {
+      color: #d2a8ff;
+    }
+
+    .hljs-attr,
+    .hljs-attribute,
+    .hljs-literal,
+    .hljs-meta,
+    .hljs-number,
+    .hljs-operator,
+    .hljs-variable,
+    .hljs-selector-attr,
+    .hljs-selector-class,
+    .hljs-selector-id {
+      color: #79c0ff;
+    }
+
+    .hljs-regexp,
+    .hljs-string,
+    .hljs-meta .hljs-string {
+      color: #a5d6ff;
+    }
+
+    .hljs-built_in,
+    .hljs-symbol {
+      color: #ffa657;
+    }
+
+    .hljs-comment,
+    .hljs-code,
+    .hljs-formula {
+      color: #8b949e;
+    }
+
+    .hljs-name,
+    .hljs-quote,
+    .hljs-selector-tag,
+    .hljs-selector-pseudo {
+      color: #7ee787;
+    }
+
+    .hljs-subst {
+      color: #c9d1d9;
+    }
+
+    .hljs-section {
+      color: #79c0ff;
+    }
+
+    .hljs-bullet {
+      color: #f2cc60;
+    }
+
+    .hljs-addition {
+      background-color: #033a16;
+      color: #aff5b4;
+    }
+
+    .hljs-deletion {
+      background-color: #67060c;
+      color: #ffdcd7;
+    }
+  }
+}

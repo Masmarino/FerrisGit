@@ -1,0 +1,64 @@
+@use '../../shared/layout/settings-section';
+@use '../../shared/layout/list-page';
+
+:host {
+  @include settings-section.section;
+}
+
+.repository-pipeline-settings__form {
+  @include settings-section.form;
+}
+
+.repository-pipeline-settings__field {
+  @include settings-section.field;
+}
+
+.repository-pipeline-settings__field-footer {
+  @include settings-section.field-footer;
+}
+
+.repository-pipeline-settings__hint {
+  @include settings-section.hint;
+}
+
+.repository-pipeline-settings__path {
+  max-width: 32rem;
+}
+
+.repository-pipeline-settings__approvals {
+  max-width: 32rem;
+
+  ::ng-deep .gbt-input__wrapper {
+    max-width: 8rem;
+  }
+}
+
+// The switch, then what it does: the hint lines up with the switch's label, past its track.
+.repository-pipeline-settings__switch {
+  max-width: 32rem;
+
+  .repository-pipeline-settings__field-footer {
+    padding-left: 2.75rem; // gbt-switch's 2.25rem track and 0.5rem gap
+  }
+}
+
+.repository-pipeline-settings__loading {
+  @include settings-section.section;
+}
+
+.repository-pipeline-settings__skeleton-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.repository-pipeline-settings__skeleton-lines {
+  @include settings-section.skeleton-lines;
+  padding-top: 0.25rem;
+}
+
+.repository-pipeline-settings__skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}

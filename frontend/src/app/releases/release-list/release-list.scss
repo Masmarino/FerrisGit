@@ -1,0 +1,201 @@
+@use '../../shared/layout/list-page';
+@use '../../shared/layout/card';
+
+// One card per release: a release reads by its notes, so each card keeps a few lines of them under its header.
+
+:host {
+  @include list-page.page-host;
+}
+
+.release-list__count {
+  margin: 0;
+}
+
+.release-list__items,
+.release-list__loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.release-card,
+.release-list__skeleton {
+  container: release-card / inline-size;
+  min-width: 0;
+}
+
+// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+gbt-card {
+  @include card.inherit-text;
+}
+
+.release-card__header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+// The tag chip keeps its size (the title takes the room): up to 40% of the header, then it truncates.
+.release-card__tag {
+  flex: none;
+  max-width: 40%;
+}
+
+.release-card__title {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+
+  a {
+    display: block;
+    overflow: hidden;
+    color: var(--text-primary);
+    text-decoration: none;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+
+    &:hover {
+      color: var(--primary);
+      text-decoration: underline;
+      text-underline-offset: 2px;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--primary);
+      outline-offset: 2px;
+      border-radius: 2px;
+    }
+  }
+}
+
+.release-card__status {
+  flex: none;
+}
+
+.release-card__body {
+  padding: 0.875rem 1.25rem 0.875rem;
+}
+
+.release-card__excerpt {
+  display: -webkit-box;
+  margin: 0 0 0.625rem;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+}
+
+.release-card__excerpt--empty {
+  font-style: italic;
+}
+
+.release-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+}
+
+.release-card__when time,
+.release-card__assets {
+  white-space: nowrap;
+}
+
+// A flex item drops its leading space: the separator keeps both of its own.
+.release-card__sep {
+  white-space: pre;
+}
+
+// Inline in the sentence ("… par (A) alice"). Caps a very long name so the file count keeps its room.
+.release-card__author {
+  max-width: 14rem;
+  margin-left: 0.125rem;
+}
+
+// Narrow card (phone, or a squeezed main column): tag and status on the first line, the title
+// under them with the full width (two lines at most instead of a truncated one).
+@container release-card (max-width: 519px) {
+  .release-card__header {
+    display: grid;
+    grid-template-areas:
+      'tag status'
+      'title title';
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 0.375rem 0.75rem;
+  }
+
+  .release-card__tag {
+    grid-area: tag;
+    justify-self: start;
+    max-width: 100%;
+  }
+
+  .release-card__status {
+    grid-area: status;
+  }
+
+  .release-card__title {
+    grid-area: title;
+
+    a {
+      display: -webkit-box;
+      white-space: normal;
+      overflow-wrap: anywhere;
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+      line-clamp: 2;
+    }
+  }
+
+  // Short enough to stay on the date's line ("publiée il y a 2 h par (A) Maximilien…").
+  .release-card__author {
+    max-width: 8.5rem;
+  }
+}
+
+.release-list__pagination {
+  @include list-page.pagination;
+}
+
+.release-list__skeleton .release-card__header gbt-skeleton:first-child {
+  flex: none;
+}
+
+.release-list__skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 1rem;
+}
+
+.release-list__no-results {
+  margin: 0;
+  padding: 2rem 1rem;
+  border: 1px dashed var(--gbt-card-border);
+  border-radius: var(--site-border-radius);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.release-list__empty {
+  @include list-page.empty-card;
+}
+
+.release-list__sort {
+  @include list-page.sort-stack;
+}
+

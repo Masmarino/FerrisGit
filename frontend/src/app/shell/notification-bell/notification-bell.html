@@ -1,0 +1,31 @@
+<gbt-popover align="end" #bell="gbtPopover" class="notification-bell">
+  <gbt-notification-dot [count]="unreadCount()">
+    <gbt-button
+      variant="ghost"
+      [iconOnly]="true"
+      iconName="bell"
+      [ariaLabel]="'Notifications' + (unreadCount() > 0 ? ' (' + unreadCount() + ' non lues)' : '')"
+      [ariaHaspopup]="true"
+      [ariaExpanded]="bell.open()"
+      [ariaControls]="bell.panelId"
+      (clicked)="onTriggerClick()"
+    />
+  </gbt-notification-dot>
+  <div popover-content class="notification-bell__dropdown">
+    <div class="notification-bell__header">
+      <span>Notifications</span>
+      <gbt-button variant="link" size="small" text="Tout marquer comme lu" (clicked)="markAllRead()" />
+    </div>
+    <ul class="notification-bell__list">
+      @for (n of items(); track n.id) {
+        <li>
+          <button type="button" class="notification-bell__item" [class.notification-bell__item--unread]="!n.read" (click)="select(n)">
+            {{ sentence(n) }}
+          </button>
+        </li>
+      } @empty {
+        <li class="notification-bell__empty">Aucune notification.</li>
+      }
+    </ul>
+  </div>
+</gbt-popover>

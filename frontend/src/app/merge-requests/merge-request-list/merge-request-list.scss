@@ -1,0 +1,142 @@
+@use '../../shared/layout/list-page';
+
+// The card is Gabarit's `gbt-list-card`. Row bits, aside filters and the creation dialog come from
+// `shared/layout/_list-page.scss`.
+
+:host {
+  @include list-page.page-host;
+}
+
+.merge-request-list__tabs {
+  @include list-page.segmented-counts;
+  @include list-page.header-tabs;
+}
+
+.merge-request-list__status {
+  @include list-page.row-status;
+}
+
+// Source and target branches: two quiet monospace chips, as in the detail header. A long branch name truncates at 16rem and both
+// chips shrink (the longer one more) when the meta line is narrower than the pair.
+.merge-request-list__branches {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: normal;
+}
+
+.merge-request-list__arrow {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+// The meta segments are flex items so each wraps as a unit and the branch pair can be held to the line's width (an inline
+// box cannot: its percentage max-width resolves against the intrinsic width).
+.merge-request-list__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.25rem;
+  min-width: 0;
+}
+
+.merge-request-list__author {
+  @include list-page.row-author;
+}
+
+// "ouverte il y a 2 j", "fusionnée hier" or a comment count never breaks inside itself; the author's
+// name may (a very long one).
+.merge-request-list__when,
+.merge-request-list__comments {
+  white-space: nowrap;
+}
+
+.merge-request-list__trailing {
+  display: flex;
+  align-items: center;
+}
+
+.merge-request-list__menu {
+  @include list-page.row-menu;
+}
+
+// Three tabs with counts barely fit on one line in a phone-width card: tighter padding, and a label wraps its count under it.
+@container gbt-list-card (max-width: 419px) {
+  .merge-request-list__tabs {
+    flex: 1 1 auto;
+    min-width: 0;
+
+    ::ng-deep .gbt-segmented-control {
+      display: flex;
+    }
+
+    ::ng-deep .gbt-segmented-control__option {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding-inline: 0.375rem;
+      line-height: 1.2;
+      text-align: center;
+    }
+  }
+}
+
+.merge-request-list__pagination {
+  @include list-page.pagination;
+}
+
+.merge-request-list__reset {
+  @include list-page.filter-reset;
+}
+
+.merge-request-list__sort {
+  @include list-page.sort-stack;
+}
+
+.merge-request-list__create-form {
+  container: merge-request-create / inline-size;
+  @include list-page.create-form;
+}
+
+.merge-request-list__create-branches {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: start;
+  gap: 1rem 0.5rem;
+
+  > gbt-select {
+    min-width: 0;
+  }
+}
+
+.merge-request-list__create-arrow {
+  display: flex;
+  align-items: center;
+  height: 2.375rem;
+  margin-top: 1.375rem;
+  color: var(--text-secondary);
+}
+
+@container merge-request-create (max-width: 379px) {
+  .merge-request-list__create-branches {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .merge-request-list__create-arrow {
+    display: none;
+  }
+}
+
+// The buttons no longer fit side by side, so they go full width with the primary on top. The footer is
+// Gabarit's and sits outside the form's size container, and the dialog is 90vw wide below 533px.
+@media (max-width: 466px) {
+  .merge-request-list__create-actions {
+    flex-direction: column-reverse;
+
+    > gbt-button,
+    ::ng-deep .gbt-button {
+      width: 100%;
+    }
+  }
+}

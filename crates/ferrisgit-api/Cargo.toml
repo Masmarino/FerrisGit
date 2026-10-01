@@ -1,0 +1,53 @@
+[package]
+name = "ferrisgit-api"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+repository.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "ferrisgit-api"
+path = "src/main.rs"
+
+[lib]
+name = "ferrisgit_api"
+path = "src/lib.rs"
+
+[dependencies]
+ferrisgit-domain = { path = "../ferrisgit-domain" }
+ferrisgit-application = { path = "../ferrisgit-application" }
+ferrisgit-infrastructure = { path = "../ferrisgit-infrastructure" }
+chrono.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+sqlx.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+uuid.workspace = true
+axum = { version = "0.8", features = ["multipart"] }
+tower = "0.5"
+tower-http = { version = "0.7", features = ["fs", "trace", "set-header"] }
+base64 = "0.23"
+kube = { workspace = true, features = ["client"] }
+url.workspace = true
+# The route types (challenge responses, credentials) come from webauthn-rs; same version as the application crate.
+webauthn-rs.workspace = true
+tokio-util = { version = "0.7", features = ["io"] }
+
+[dev-dependencies]
+async-trait.workspace = true
+tempfile.workspace = true
+reqwest = { workspace = true, features = ["multipart", "query"] }
+# NOTE: a plain `ferrisgit-runner = { path = "../ferrisgit-runner" }` dev-dependency does NOT
+# expose `CARGO_BIN_EXE_ferrisgit-runner` here: Cargo (verified on 1.96) only populates
+# `CARGO_BIN_EXE_<name>` for binary targets of the *same* package as the test, not for
+# dependencies' binaries — a path dependency on a lib-less crate is silently pruned
+# ("ignoring invalid dependency ... missing a lib target") and the env var is never set.
+# `escargot` is the standard workaround: it shells out to `cargo build` for the named
+# package/bin and hands back the resulting executable's path at test runtime.
+escargot = "0.5"
+# A real (software) authenticator for the passkey flow tests. 0.5.x matches webauthn-rs 0.5 (0.6.x would hand
+# over incompatible proto types), see the application crate.
+webauthn-authenticator-rs.workspace = true

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO labels (id, name, color, repository_id) VALUES ($1, 'Urgent', '#f97316', $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "88a42d38dfa3e7131ca3a83cff8bdccf8efca06429f0af6a59a0dd2772553926"
+}

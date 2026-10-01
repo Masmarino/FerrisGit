@@ -1,0 +1,158 @@
+<gbt-card variant="outlined" icon="plus" heading="Ajouter un webhook" description="FerrisGit envoie une requête POST signée avec le secret à cette URL quand un des événements choisis se produit.">
+  <form class="repository-webhooks__form" (submit)="$event.preventDefault(); addWebhook()">
+    <div class="repository-webhooks__fields">
+      <gbt-input name="url" label="URL" mono placeholder="https://exemple.fr/hooks/ferrisgit" autocomplete="off" [ngModel]="newWebhookUrl()" (ngModelChange)="newWebhookUrl.set($event)" />
+      <gbt-input
+        name="secret"
+        label="Secret"
+        type="password"
+        autocomplete="new-password"
+        showPasswordLabel="Afficher le secret"
+        hidePasswordLabel="Masquer le secret"
+        [ngModel]="newWebhookSecret()"
+        (ngModelChange)="newWebhookSecret.set($event)"
+      />
+    </div>
+
+    <gbt-checkbox-group
+      class="repository-webhooks__webhook-events"
+      legend="Événements"
+      columns="auto"
+      [groups]="eventSections"
+      [value]="newWebhookEvents()"
+      (valueChange)="newWebhookEvents.set($event)"
+    />
+
+    <div class="repository-webhooks__actions">
+      <p class="repository-webhooks__summary" aria-live="polite">{{ selectionSummary() }}</p>
+      <gbt-button type="submit" iconName="plus" text="Ajouter le webhook" [disabled]="!newWebhookUrl().trim() || !newWebhookSecret() || newWebhookEvents().length === 0" />
+    </div>
+  </form>
+</gbt-card>
+
+<gbt-card variant="outlined" icon="globe" heading="Webhooks" description="Les adresses prévenues des événements de ce dépôt." [count]="listState() === 'loaded' ? webhooks().length : null" [flush]="listState() !== 'failed'">
+  @switch (listState()) {
+    @case ('loading') {
+      <gbt-skeleton-list [rows]="2" leadingSize="1rem" loadingLabel="Chargement des webhooks…" />
+    }
+    @case ('failed') {
+      <gbt-alert variant="error" appearance="subtle" live="off">
+        Les webhooks n'ont pas pu être chargés.
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+      </gbt-alert>
+    }
+    @default {
+      @if (rows().length === 0) {
+        <gbt-empty-state
+          size="compact"
+          icon="globe"
+          heading="Aucun webhook configuré"
+          message="Prévenez un chat, une CI externe ou un outil d'audit quand une demande de fusion est fusionnée, un pipeline échoue…"
+        />
+      } @else {
+        <ul class="repository-webhooks__rows" aria-label="Webhooks">
+          @for (row of rows(); track row.webhook.id) {
+            <li>
+              <gbt-list-row>
+                <gbt-icon row-leading name="globe" aria-hidden="true" />
+                <span class="repository-webhooks__url" [title]="row.webhook.url">{{ row.webhook.url }}</span>
+                <gbt-badge [variant]="row.webhook.active ? 'success' : 'neutral'" [icon]="row.webhook.active ? 'circle-check' : 'circle-slash'">{{ row.webhook.active ? 'Actif' : 'Inactif' }}</gbt-badge>
+                <span row-meta class="repository-webhooks__meta">
+                  <!-- Gabarit gap: a badge that truncates with an ellipsis inside a row (`gbt-badge`'s inner box cannot shrink), with an outline look. -->
+                  <span class="repository-webhooks__events">
+                    @for (event of row.events; track $index) {
+                      <span class="repository-webhooks__event" [title]="event">{{ event }}</span>
+                    }
+                    @if (row.more > 0) {
+                      <span class="repository-webhooks__event repository-webhooks__event--more" [title]="row.moreTitle">+{{ row.more }}</span>
+                    }
+                  </span>
+                  <span class="repository-webhooks__created">
+                    ajouté <time [attr.datetime]="row.webhook.createdAt" [title]="row.webhook.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.webhook.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                  </span>
+                </span>
+                <gbt-button
+                  row-trailing
+                  class="repository-webhooks__history"
+                  variant="ghost"
+                  size="medium"
+                  [iconOnly]="true"
+                  iconName="clock"
+                  title="Historique des livraisons"
+                  [ariaLabel]="'Historique des livraisons de ' + row.webhook.url"
+                  (clicked)="toggleDeliveries(row.webhook.id)"
+                />
+                <gbt-button
+                  row-trailing
+                  class="repository-webhooks__delete"
+                  variant="ghost-danger"
+                  size="medium"
+                  [iconOnly]="true"
+                  iconName="trash-2"
+                  title="Supprimer"
+                  [ariaLabel]="'Supprimer le webhook ' + row.webhook.url"
+                  (clicked)="confirmDeleteWebhook(row.webhook)"
+                />
+              </gbt-list-row>
+            </li>
+          }
+        </ul>
+      }
+    }
+  }
+</gbt-card>
+
+<gbt-drawer [isOpen]="expandedWebhookId() !== null" [heading]="expandedWebhookHeading()" closeLabel="Fermer" (closed)="closeDeliveries()">
+  @if (expandedWebhookId() !== null) {
+    @if (expandedDeliveries(); as deliveries) {
+      @if (deliveries.length === 0) {
+        <p class="repository-webhooks__deliveries-empty">Aucune livraison pour l'instant.</p>
+      } @else {
+        <ul class="repository-webhooks__webhook-deliveries" aria-label="Livraisons">
+          @for (delivery of deliveries; track delivery.id) {
+            <li class="repository-webhooks__delivery">
+              <gbt-badge [variant]="delivery.success ? 'success' : 'error'" [icon]="delivery.success ? 'circle-check' : 'circle-x'">{{ delivery.success ? 'Succès' : 'Échec' }}</gbt-badge>
+              <div class="repository-webhooks__delivery-text">
+                <span class="repository-webhooks__delivery-event">{{ eventLabel(delivery.eventKind) }}</span>
+                <span class="repository-webhooks__delivery-meta">
+                  @if (delivery.httpStatus !== null) {
+                    <span class="repository-webhooks__delivery-status">HTTP {{ delivery.httpStatus }}</span>
+                  }
+                  <time [attr.datetime]="delivery.createdAt" [title]="delivery.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ delivery.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                </span>
+                @if (delivery.errorMessage) {
+                  <span class="repository-webhooks__delivery-error">{{ delivery.errorMessage }}</span>
+                }
+              </div>
+            </li>
+          }
+        </ul>
+      }
+    } @else if (deliveriesFailedFor() === expandedWebhookId()) {
+      <gbt-alert variant="error" appearance="subtle" live="off" size="sm">L'historique n'a pas pu être chargé.</gbt-alert>
+    } @else {
+      <div class="repository-webhooks__deliveries-loading" aria-busy="true">
+        <span class="sr-only" role="status">Chargement de l'historique…</span>
+        @for (width of skeletonRows; track $index) {
+          <gbt-skeleton [width]="width" height="0.875rem" aria-hidden="true" />
+        }
+      </div>
+    }
+  }
+</gbt-drawer>
+
+@if (webhookPendingDelete(); as webhook) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    heading="Supprimer le webhook"
+    [message]="'FerrisGit ne préviendra plus « ' + webhook.url + ' » et son historique de livraisons sera perdu.'"
+    confirmLabel="Supprimer"
+    confirmIcon="trash-2"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    busyLabel="Suppression en cours"
+    [busy]="deleting()"
+    (confirmed)="deleteWebhook(webhook.id)"
+    (closed)="webhookPendingDelete.set(null)"
+  />
+}

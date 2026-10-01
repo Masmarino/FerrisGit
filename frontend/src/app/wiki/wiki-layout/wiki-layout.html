@@ -1,0 +1,71 @@
+<gbt-page-layout width="wide" navLabel="Pages du wiki" stickyNav>
+  <div page-nav class="wiki-nav" [class.wiki-nav--open]="navOpen()">
+    <div class="wiki-nav__header">
+      <h2 class="wiki-nav__heading">
+        Pages
+        @if (state() === 'loaded') {
+          <gbt-badge [value]="pages().length" />
+        }
+      </h2>
+      <gbt-button
+        class="wiki-nav__toggle"
+        variant="secondary"
+        size="small"
+        iconName="list"
+        [text]="navOpen() ? 'Masquer les pages' : 'Afficher les pages'"
+        (clicked)="navOpen.set(!navOpen())"
+      />
+      @if (canCreate() && offerCreate()) {
+        <gbt-button class="wiki-nav__new" variant="secondary" size="small" iconName="plus" text="Nouvelle page" (clicked)="createPage()" />
+      }
+    </div>
+
+    @if (state() === 'failed') {
+      <gbt-alert class="wiki-nav__failed" variant="error" appearance="subtle" size="sm">Les pages n’ont pas pu être chargées.</gbt-alert>
+    }
+
+    <div class="wiki-nav__body">
+      @switch (state()) {
+        @case ('loading') {
+          <div class="wiki-nav__loading" aria-busy="true">
+            <span class="sr-only" role="status">Chargement des pages…</span>
+            @for (width of skeletonRows; track $index) {
+              <gbt-skeleton [width]="width" height="0.875rem" aria-hidden="true" />
+            }
+          </div>
+        }
+        @case ('failed') {
+          <!-- Announced from outside the body (above): on narrow layouts the body is folded away. -->
+        }
+        @default {
+          @if (pages().length === 0) {
+            <p class="wiki-nav__empty">Aucune page pour l’instant.</p>
+          } @else {
+            <gbt-input class="wiki-nav__search" label="Rechercher une page" hideLabel leadingIcon="search" placeholder="Rechercher…" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+            @if (rows().length === 0) {
+              <p class="wiki-nav__empty">Aucune page ne correspond à « {{ search().trim() }} ».</p>
+            } @else {
+              <ul class="wiki-nav__list">
+                @for (row of rows(); track row.page.slug) {
+                  <li>
+                    <a
+                      class="wiki-nav__link"
+                      [routerLink]="row.link"
+                      [attr.aria-current]="row.page.slug === currentSlug() ? 'page' : null"
+                      [title]="row.page.title"
+                      ><gbt-icon class="wiki-nav__link-icon" name="file" aria-hidden="true" /><span class="wiki-nav__link-text">{{ row.page.title }}</span></a
+                    >
+                  </li>
+                }
+              </ul>
+            }
+          }
+        }
+      }
+    </div>
+  </div>
+
+  <ng-content />
+
+  <ng-container ngProjectAs="[page-aside]"><ng-content select="[page-aside]" /></ng-container>
+</gbt-page-layout>

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT repository_id FROM repository_stars WHERE user_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repository_stars",
+            "name": "repository_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "647a4d1c44c2f81fb0192f7951c25b3bba934a73d4bd4353a63e4d47c0cf47cd"
+}

@@ -1,0 +1,60 @@
+@if (header(); as h) {
+  <div class="public-repository-page__top">
+    <gbt-breadcrumb class="public-repository-page__breadcrumb" ariaLabel="Fil d'Ariane">
+      @for (owner of h.owners; track $index) {
+        <li breadcrumb-ancestor><span class="gbt-breadcrumb__item">{{ owner }}</span></li>
+      }
+      @if (pageTitle.title()) {
+        <li breadcrumb-ancestor><a class="gbt-breadcrumb__item" [routerLink]="h.overviewLink">{{ h.name }}</a></li>
+      }
+      {{ pageTitle.title() || h.name }}
+    </gbt-breadcrumb>
+
+    <gbt-nav-tabs class="public-repository-page__tabs" ariaLabel="Sections du dépôt">
+      <a gbtNavTab icon="folder-git-2" [routerLink]="h.overviewLink" [active]="section() === 'overview'">Aperçu</a>
+      <a gbtNavTab icon="git-commit" [routerLink]="h.commitsLink" [active]="section() === 'commits'">Commits</a>
+      <a gbtNavTab icon="tag" [routerLink]="h.releasesLink" [active]="section() === 'releases'">Releases</a>
+    </gbt-nav-tabs>
+  </div>
+}
+
+@switch (view().kind) {
+  @case ('loading') {
+    <div class="public-repository-page__status">
+      <gbt-spinner size="lg" label="Chargement…" />
+    </div>
+  }
+  @case ('notFound') {
+    <fg-public-not-found />
+  }
+  @case ('rateLimited') {
+    <gbt-alert class="public-repository-page__alert" variant="warning" appearance="subtle">
+      Trop de requêtes en peu de temps. Patientez une minute avant de réessayer.
+      <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+    </gbt-alert>
+  }
+  @case ('error') {
+    <gbt-alert class="public-repository-page__alert" variant="error" appearance="subtle">
+      Ce dépôt n'a pas pu être chargé.
+      <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+    </gbt-alert>
+  }
+  @case ('repository') {
+    <fg-repository-tree-view [repositoryId]="$any(view()).repositoryId" ref="HEAD" [treePath]="rootPath" />
+  }
+  @case ('tree') {
+    <fg-repository-tree-view [repositoryId]="$any(view()).repositoryId" [ref]="$any(view()).ref" [treePath]="$any(view()).treePath" />
+  }
+  @case ('blob') {
+    <fg-repository-blob-view [repositoryId]="$any(view()).repositoryId" [ref]="$any(view()).ref" [blobPath]="$any(view()).blobPath" />
+  }
+  @case ('commits') {
+    <fg-repository-commit-list [repositoryId]="$any(view()).repositoryId" [ref]="$any(view()).ref" />
+  }
+  @case ('releases') {
+    <fg-release-list [repositoryId]="$any(view()).repositoryId" [path]="$any(view()).path" />
+  }
+  @case ('releaseDetail') {
+    <fg-release-detail [repositoryId]="$any(view()).repositoryId" [tagName]="$any(view()).tagName" [path]="$any(view()).path" />
+  }
+}

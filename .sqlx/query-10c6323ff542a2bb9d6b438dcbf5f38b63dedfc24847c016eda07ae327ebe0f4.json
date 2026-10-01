@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT milestone_id FROM merge_requests WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "milestone_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "merge_requests",
+            "name": "milestone_id"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      true
+    ]
+  },
+  "hash": "10c6323ff542a2bb9d6b438dcbf5f38b63dedfc24847c016eda07ae327ebe0f4"
+}

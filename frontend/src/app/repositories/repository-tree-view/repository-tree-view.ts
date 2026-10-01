@@ -1,0 +1,304 @@
+import { afterNextRender, Component, computed, DOCUMENT, inject, Injector, input, OnInit, signal, TemplateRef, viewChild } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
+import { HttpErrorResponse } from '@angular/common/http';
+import {
+  Alert,
+  Badge,
+  Breadcrumb,
+  Button,
+  Card,
+  CardHeader,
+  CopyField,
+  DescriptionList,
+  DescriptionListEntry,
+  EmptyState,
+  formatBytes,
+  GbtDateTimePipe,
+  GbtRelativeTimePipe,
+  GbtToastService,
+  Icon,
+  PageLayout,
+  Panel,
+  Skeleton,
+  Spinner,
+  UserChip,
+} from '@masmarino/gabarit';
+import { CommitInfo, RepositoriesService, Repository, StarResponse, TreeEntry } from '../repositories.service';
+import { CLONE_PANEL_ID, RepositoryHeader, revealClonePanel } from '../repository-header/repository-header';
+import { MarkdownView } from '../../shared/markdown-view/markdown-view';
+import { ContributorAvatars } from '../contributor-avatars/contributor-avatars';
+import { LanguageBar } from '../language-bar/language-bar';
+
+interface TreeRow {
+  entry: TreeEntry;
+  depth: number;
+  parentPath: string[];
+  /** Router link built once with the row, so the template binds a stable array. */
+  link: string[];
+}
+
+interface BreadcrumbSegment {
+  name: string;
+  link: string[];
+}
+
+const LONG_DATE = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
+
+export function commitTitle(message: string): string {
+  return message.split('\n', 1)[0].trim();
+}
+
+@Component({
+  selector: 'fg-repository-tree-view',
+  standalone: true,
+  imports: [
+    RouterLink,
+    Alert,
+    Badge,
+    Breadcrumb,
+    Button,
+    Card,
+    CardHeader,
+    DescriptionList,
+    EmptyState,
+    Icon,
+    Skeleton,
+    Spinner,
+    RepositoryHeader,
+    MarkdownView,
+    ContributorAvatars,
+    LanguageBar,
+    PageLayout,
+    Panel,
+    CopyField,
+    UserChip,
+    GbtRelativeTimePipe,
+    GbtDateTimePipe,
+  ],
+  templateUrl: './repository-tree-view.html',
+  styleUrl: './repository-tree-view.scss',
+})
+export class RepositoryTreeView implements OnInit {
+  repositoryId = input.required<string>();
+  ref = input.required<string>();
+  treePath = input.required<string[]>();
+
+  private repositories = inject(RepositoriesService);
+  private toast = inject(GbtToastService);
+  private route = inject(ActivatedRoute);
+  private document = inject(DOCUMENT);
+  private injector = inject(Injector);
+
+  protected readonly clonePanelId = CLONE_PANEL_ID;
+  protected readonly skeletonRows = ['38%', '24%', '31%', '18%', '27%', '22%'];
+
+  protected repo = signal<Repository | null>(null);
+  protected entries = signal<TreeEntry[] | null>(null);
+  protected readme = signal<string | null>(null);
+  protected commits = signal<CommitInfo[]>([]);
+  protected isEmptyRepository = signal(false);
+  protected isNotFound = signal(false);
+  protected loadFailed = signal(false);
+
+  protected cloneUrl = computed(() => {
+    const r = this.repo();
+    return r ? this.repositories.cloneUrl(r.path) : '';
+  });
+
+  /** The clone URL cut after each `/` so push commands wrap between path segments on a phone (`<wbr>`). */
+  protected cloneUrlSegments = computed(() => this.cloneUrl().split(/(?<=[^/:]\/)/));
+
+  protected rootLink = computed(() => {
+    const r = this.repo();
+    return r ? ['/repositories', ...r.path] : null;
+  });
+
+  protected breadcrumbAncestors = computed<BreadcrumbSegment[]>(() => {
+    const r = this.repo();
+    if (!r) return [];
+    const base = ['/repositories', ...r.path, '-', 'tree', this.ref()];
+    const path = this.treePath();
+    return [{ name: r.name, link: base }, ...path.slice(0, -1).map((name, i) => ({ name, link: [...base, ...path.slice(0, i + 1)] }))];
+  });
+
+  protected currentFolderName = computed(() => this.treePath().at(-1) ?? '');
+
+  /** The newest commit: the ref's head at the root, else the newest last-commit among the folder's entries (no extra request). */
+  protected latestCommit = computed<CommitInfo | null>(() => {
+    if (this.treePath().length === 0) {
+      return this.commits()[0] ?? null;
+    }
+    let newest: CommitInfo | null = null;
+    for (const entry of this.entries() ?? []) {
+      const commit = entry.lastCommit;
+      if (commit && (!newest || new Date(commit.committedAt) > new Date(newest.committedAt))) {
+        newest = commit;
+      }
+    }
+    return newest;
+  });
+
+  protected createdLabel = computed(() => {
+    const createdAt = this.repo()?.createdAt;
+    if (!createdAt) return '';
+    const date = new Date(createdAt);
+    return Number.isNaN(date.getTime()) ? createdAt : LONG_DATE.format(date);
+  });
+
+  protected sizeLabel = computed(() => {
+    const bytes = this.repo()?.sizeBytes;
+    return bytes === undefined || bytes === null ? '' : formatBytes(bytes, 'fr', { binaryUnits: 'legacy' });
+  });
+
+  private createdTemplate = viewChild.required<TemplateRef<unknown>>('createdTemplate');
+
+  protected facts = computed<DescriptionListEntry[]>(() => {
+    const r = this.repo();
+    if (!r) return [];
+    const entries: DescriptionListEntry[] = [
+      { term: 'Visibilité', value: r.visibility === 'public' ? 'Public' : 'Privé' },
+      { term: 'Propriétaire', value: r.owner },
+      { term: 'Créé le', value: this.createdTemplate() },
+    ];
+    if (this.sizeLabel()) entries.push({ term: 'Taille', value: this.sizeLabel() });
+    entries.push({ term: 'Favoris', value: String(r.starCount ?? 0) });
+    return entries;
+  });
+
+  protected commitTitle = commitTitle;
+
+  protected shortSha(sha: string): string {
+    return sha.slice(0, 7);
+  }
+
+  // Directories expand in place. `expandedPaths` and `childrenCache` are keyed by the full path joined with '/',
+  // and `visibleRows` flattens them into the rendered rows.
+  private expandedPaths = signal<ReadonlySet<string>>(new Set());
+  private childrenCache = signal<ReadonlyMap<string, TreeEntry[]>>(new Map());
+  private loadingPaths = signal<ReadonlySet<string>>(new Set());
+
+  protected visibleRows = computed(() => this.buildRows(this.entries() ?? [], this.treePath(), 0));
+
+  private sortEntries(entries: TreeEntry[]): TreeEntry[] {
+    return [...entries].sort((a, b) => {
+      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+  }
+
+  private buildRows(entries: TreeEntry[], parentPath: string[], depth: number): TreeRow[] {
+    const repoPath = this.repo()?.path ?? [];
+    const rows: TreeRow[] = [];
+    for (const entry of this.sortEntries(entries)) {
+      const link = ['/repositories', ...repoPath, '-', entry.isDir ? 'tree' : 'blob', this.ref(), ...parentPath, entry.name];
+      rows.push({ entry, depth, parentPath, link });
+      if (entry.isDir) {
+        const key = this.pathKey([...parentPath, entry.name]);
+        const children = this.expandedPaths().has(key) ? this.childrenCache().get(key) : undefined;
+        if (children) {
+          rows.push(...this.buildRows(children, [...parentPath, entry.name], depth + 1));
+        }
+      }
+    }
+    return rows;
+  }
+
+  private pathKey(segments: string[]): string {
+    return segments.join('/');
+  }
+
+  protected rowKey(row: TreeRow): string {
+    return this.pathKey([...row.parentPath, row.entry.name]);
+  }
+
+  protected isExpanded(row: TreeRow): boolean {
+    return this.expandedPaths().has(this.rowKey(row));
+  }
+
+  protected isLoading(row: TreeRow): boolean {
+    return this.loadingPaths().has(this.rowKey(row));
+  }
+
+  protected toggleDir(row: TreeRow): void {
+    const key = this.rowKey(row);
+    if (this.expandedPaths().has(key)) {
+      this.expandedPaths.update((paths) => {
+        const next = new Set(paths);
+        next.delete(key);
+        return next;
+      });
+      return;
+    }
+
+    this.expandedPaths.update((paths) => new Set(paths).add(key));
+    if (this.childrenCache().has(key)) return;
+
+    this.loadingPaths.update((paths) => new Set(paths).add(key));
+    this.repositories.treeAt(this.repositoryId(), this.ref(), [...row.parentPath, row.entry.name]).subscribe({
+      next: (children) => {
+        this.childrenCache.update((cache) => new Map(cache).set(key, children));
+        this.loadingPaths.update((paths) => {
+          const next = new Set(paths);
+          next.delete(key);
+          return next;
+        });
+      },
+      error: () => {
+        this.loadingPaths.update((paths) => {
+          const next = new Set(paths);
+          next.delete(key);
+          return next;
+        });
+        this.expandedPaths.update((paths) => {
+          const next = new Set(paths);
+          next.delete(key);
+          return next;
+        });
+      },
+    });
+  }
+
+  protected onStarChange(state: StarResponse): void {
+    this.repo.update((r) => (r ? { ...r, starCount: state.starCount, isStarred: state.isStarred } : r));
+  }
+
+  ngOnInit(): void {
+    this.repositories.getById(this.repositoryId()).subscribe({
+      next: (repo) => {
+        this.repo.set(repo);
+        // Arrived from the header's `Cloner` action on another page (`…#cloner`): bring the clone box into view.
+        if (this.route.snapshot.fragment === CLONE_PANEL_ID) {
+          afterNextRender(() => revealClonePanel(this.document), { injector: this.injector });
+        }
+      },
+      error: () => this.toast.show('Impossible de charger ce dépôt. Réessayez plus tard.', 'error'),
+    });
+
+    this.repositories.treeAt(this.repositoryId(), this.ref(), this.treePath()).subscribe({
+      next: (entries) => this.entries.set(entries),
+      error: (err: HttpErrorResponse) => {
+        if (err.status !== 404) {
+          this.loadFailed.set(true);
+          this.toast.show('Impossible de charger ce dépôt. Réessayez plus tard.', 'error');
+        } else if (this.ref() === 'HEAD' && this.treePath().length === 0) {
+          this.isEmptyRepository.set(true);
+        } else {
+          this.isNotFound.set(true);
+        }
+      },
+    });
+
+    if (this.treePath().length === 0) {
+      this.repositories.readmeAt(this.repositoryId(), this.ref()).subscribe({
+        next: (readme) => this.readme.set(readme.content ?? null),
+        error: () => {}, // A failed README fetch renders the same as "no README".
+      });
+
+      // The banner's commit: the head of the current ref (a failure just leaves the banner out).
+      this.repositories.commitsById(this.repositoryId(), this.ref()).subscribe({
+        next: (commits) => this.commits.set(commits),
+        error: () => {},
+      });
+    }
+  }
+}

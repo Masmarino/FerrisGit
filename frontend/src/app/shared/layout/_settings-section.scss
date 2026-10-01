@@ -1,0 +1,164 @@
+// Content of the settings sections inside their `gbt-card`s: forms, rows, loading states. Each section
+// keeps its own BEM selectors and includes these. Narrow rules go in the section's
+// `@container settings-card (…)` blocks.
+
+@use 'list-page';
+@use 'card';
+
+$inner-radius: calc(var(--site-border-radius) - 1px);
+
+// Gabarit gap: `gbt-card` is not a size container, so each section makes its cards one for its
+// `@container settings-card (…)` rules. It uses only style and inline-size containment, so select and
+// date picker popups still open over the page.
+@mixin card-container {
+  gbt-card {
+    min-width: 0;
+    container: settings-card / inline-size;
+
+    @include card.inherit-text;
+  }
+}
+
+// The section's host: cards stacked, fields one height.
+@mixin section {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+
+  @include card-container;
+
+  // Gabarit gap: the date picker has a fixed 220px inline box; it fills its column here.
+  ::ng-deep gbt-date-picker {
+    display: block;
+    min-width: 0;
+  }
+
+  // (The element name adds the specificity needed to beat Gabarit's `.gbt-date-picker…` rules.)
+  ::ng-deep gbt-date-picker .gbt-date-picker,
+  ::ng-deep gbt-date-picker .gbt-date-picker__field {
+    display: flex;
+  }
+
+  ::ng-deep gbt-date-picker .gbt-date-picker__trigger {
+    width: 100%;
+  }
+}
+
+@mixin form {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  margin: 0;
+}
+
+@mixin field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+@mixin field-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem 1rem;
+  min-height: 1.25rem;
+}
+
+@mixin hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+// Fields side by side; the section's `@container settings-card` block stacks them in a narrow card.
+@mixin field-row($columns) {
+  display: grid;
+  grid-template-columns: $columns;
+  align-items: start;
+  gap: 1rem;
+}
+
+// The form's footer: submit on the right, an optional summary (`form-summary`) on the left, a hairline above.
+@mixin form-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--gbt-hairline);
+}
+
+@mixin form-summary {
+  flex: 1 1 auto;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+@mixin rows {
+  @include list-page.row-list;
+
+  > li:last-child ::ng-deep .gbt-list-row {
+    border-radius: 0 0 $inner-radius $inner-radius;
+  }
+
+  // Gabarit gap: an icon-only button (38px) in the trailing column keeps the row's 24px title line via
+  // negative block margins, as `gbt-list-row` has no such rule.
+  > li ::ng-deep .gbt-list-row__trailing > gbt-button:has(.gbt-button--icon-only) {
+    margin-block: -0.4375rem;
+  }
+}
+
+// A non-link row title, truncated on one line (`gbt-list-row` only truncates links). Doubled class so
+// its own `> *` rule does not keep it from shrinking.
+@mixin row-title-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@mixin mono {
+  font-family: var(--gbt-font-mono);
+  font-size: 0.8125rem;
+}
+
+@mixin chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3125rem;
+  max-width: 100%;
+  box-sizing: border-box;
+  padding: 0 0.5rem;
+  border: 1px solid var(--gbt-card-border);
+  border-radius: 999px;
+  background: var(--bg-principal);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  white-space: nowrap;
+
+  gbt-icon {
+    flex: none;
+    font-size: 0.6875rem;
+  }
+}
+
+@mixin skeleton-row {
+  @include list-page.skeleton-row;
+  padding-inline: 1rem;
+}
+
+@mixin skeleton-lines {
+  @include list-page.skeleton-lines;
+}

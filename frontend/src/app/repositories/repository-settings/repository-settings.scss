@@ -1,0 +1,14 @@
+@use '../../shared/layout/list-page';
+
+// Header and layout share the 1440px frame, so the h1 lines up with the nav's left edge.
+:host {
+  @include list-page.page-host;
+}
+
+.repository-settings__intro {
+  margin: 0;
+}
+
+.repository-settings__section {
+  min-width: 0;
+}

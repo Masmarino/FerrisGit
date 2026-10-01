@@ -1,0 +1,103 @@
+@use '../../shared/layout/list-page';
+
+:host {
+  @include list-page.page-host;
+}
+
+.workspace-page__tabs {
+  @include list-page.segmented-counts;
+  @include list-page.header-tabs;
+}
+
+// Four tabs with counts do not fit one line in a phone-width card: they share the header row with tighter padding.
+@container gbt-list-card (max-width: 479px) {
+  .workspace-page__tabs {
+    flex: 1 1 100%;
+    min-width: 0;
+
+    ::ng-deep .gbt-segmented-control {
+      display: flex;
+    }
+
+    ::ng-deep .gbt-segmented-control__option {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding-inline: 0.375rem;
+      line-height: 1.2;
+      text-align: center;
+    }
+  }
+}
+
+// The filters' panels and the groups panel read as one stack of panels (`gbt-panel + gbt-panel`).
+.workspace-page__aside > fg-workspace-grid-filters + gbt-panel {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--gbt-hairline);
+}
+
+.workspace-page__groups {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  margin: 0 0 0.5rem;
+  padding: 0;
+  list-style: none;
+}
+
+.workspace-page__group-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  margin-inline: -0.5rem;
+  padding: 0.3125rem 0.5rem;
+  border-radius: var(--site-border-radius-sm);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+  text-decoration: none;
+  transition: background-color var(--site-transition-fast);
+
+  gbt-icon {
+    flex: none;
+    color: color-mix(in srgb, var(--primary) 78%, var(--text-primary));
+    font-size: 0.75rem;
+  }
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+  }
+}
+
+.workspace-page__group-path {
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.workspace-page__all-groups {
+  color: var(--primary);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}

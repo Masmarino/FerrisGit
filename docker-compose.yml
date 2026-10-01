@@ -1,0 +1,51 @@
+# docker-compose.yml
+services:
+  postgres:
+    image: postgres:18-alpine3.24
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ferrisgit
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}
+      POSTGRES_DB: ferrisgit
+    volumes:
+      - ferrisgit-postgres-data:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ferrisgit"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  ferrisgit-server:
+    build: .
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://ferrisgit:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/ferrisgit
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
+      # Exactly 32 bytes. Encrypts every repository CI variable at rest.
+      # WARNING: rotating this key makes every previously-stored CI variable
+      # permanently undecryptable — there is no re-encryption path. Changing it
+      # means re-entering every CI variable by hand.
+      SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?SETTINGS_ENCRYPTION_KEY must be set}
+      # Public address of the app (scheme + host, no path): activation links sent by e-mail are built from it.
+      # Compose is the dev/test stack, so it has a default and `docker compose` commands (even for postgres alone)
+      # work without it; the server itself still refuses to start without PUBLIC_URL (k8s sets it explicitly).
+      PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
+      # Optional, comma-separated CIDRs of YOUR reverse proxy, if one sits in front of this container: only for a
+      # connection from there is X-Forwarded-For used to tell clients apart (rate limits). Empty = never trusted.
+      TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
+      STORAGE_ROOT: /data
+      BIND_ADDR: 0.0.0.0:8080
+      RUST_LOG: ${RUST_LOG:-info}
+      FERRISGIT_BOOTSTRAP_ADMIN_USERNAME: ${FERRISGIT_BOOTSTRAP_ADMIN_USERNAME:-}
+      FERRISGIT_BOOTSTRAP_ADMIN_PASSWORD: ${FERRISGIT_BOOTSTRAP_ADMIN_PASSWORD:-}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ferrisgit-storage:/data
+
+volumes:
+  ferrisgit-postgres-data:
+  ferrisgit-storage:

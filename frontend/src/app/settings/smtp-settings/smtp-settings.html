@@ -1,0 +1,146 @@
+@switch (loadState()) {
+  @case ('loading') {
+    <div class="smtp-settings__loading" aria-busy="true">
+      <span class="sr-only" role="status">Chargement des réglages e-mail…</span>
+      @for (help of skeletonCards; track $index) {
+        <gbt-card class="smtp-settings__skeleton" variant="outlined" aria-hidden="true">
+          <div card-header class="smtp-settings__skeleton-header">
+            <gbt-skeleton width="2rem" height="2rem" variant="rect" />
+            <div class="smtp-settings__skeleton-lines">
+              <gbt-skeleton [width]="help" height="0.875rem" />
+              <gbt-skeleton width="60%" height="0.75rem" />
+            </div>
+          </div>
+          <div class="smtp-settings__skeleton-body">
+            <gbt-skeleton width="9rem" height="0.75rem" />
+            <gbt-skeleton width="min(24rem, 100%)" height="2.5rem" variant="rect" />
+          </div>
+        </gbt-card>
+      }
+    </div>
+  }
+  @case ('failed') {
+    <gbt-card variant="outlined" icon="mail" heading="Serveur SMTP">
+      <gbt-alert variant="error" appearance="subtle" live="off">
+        Les réglages e-mail n'ont pas pu être chargés.
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="load()" />
+      </gbt-alert>
+    </gbt-card>
+  }
+  @default {
+    <gbt-card variant="outlined" icon="mail" heading="Serveur SMTP" description="Le serveur par lequel FerrisGit envoie ses e-mails (invitations, alertes de sécurité).">
+      <!-- ngNoForm keeps this a plain form, so Enter submits from any field. Its fields are standalone ngModels. -->
+      <form ngNoForm class="smtp-settings__form" novalidate (submit)="$event.preventDefault(); save()">
+        <div class="smtp-settings__group" role="group" aria-labelledby="smtp-group-connection">
+          <h3 class="smtp-settings__group-title" id="smtp-group-connection">Connexion</h3>
+          <div class="smtp-settings__row smtp-settings__row--server">
+            <div class="smtp-settings__field" data-field="host">
+              <gbt-input label="Hôte (serveur SMTP)" mono placeholder="smtp.example.com" autocomplete="off" [errorMessage]="shown()?.host ?? null" [ngModel]="host()" (ngModelChange)="host.set($event)" />
+            </div>
+            <div class="smtp-settings__field" data-field="port">
+              <gbt-input type="number" min="1" max="65535" label="Port" mono autocomplete="off" [errorMessage]="shown()?.port ?? null" [ngModel]="port()" (ngModelChange)="port.set($event)" />
+            </div>
+          </div>
+          <div class="smtp-settings__field" data-field="security">
+            <gbt-segmented-control label="Sécurité" tinted [options]="securityOptions" [value]="security()" (valueChange)="security.set($event)" />
+            <p class="smtp-settings__hint">{{ securityHint() }}</p>
+            @if (security() === 'none') {
+              <gbt-alert class="smtp-settings__warning" variant="warning" data-warning="no-encryption">Sans chiffrement, l'identifiant et le mot de passe transitent en clair. À réserver à un relais interne de confiance.</gbt-alert>
+            }
+          </div>
+        </div>
+
+        <div class="smtp-settings__group" role="group" aria-labelledby="smtp-group-auth">
+          <h3 class="smtp-settings__group-title" id="smtp-group-auth">Authentification</h3>
+          <div class="smtp-settings__row">
+            <div class="smtp-settings__field" data-field="username">
+              <gbt-input
+                label="Identifiant"
+                autocomplete="off"
+                hint="Laissez vide si le serveur n'exige pas d'authentification."
+                [ngModel]="username()"
+                (ngModelChange)="username.set($event)"
+              />
+            </div>
+            <div class="smtp-settings__field" data-field="password">
+              <gbt-input
+                label="Mot de passe"
+                type="password"
+                autocomplete="new-password"
+                showPasswordLabel="Afficher le mot de passe"
+                hidePasswordLabel="Masquer le mot de passe"
+                hint="Chiffré dans la base, jamais réaffiché."
+                [placeholder]="passwordPlaceholder()"
+                [errorMessage]="shown()?.password ?? null"
+                [ngModel]="password()"
+                (ngModelChange)="password.set($event)"
+              />
+            </div>
+          </div>
+        </div>
+
+        <div class="smtp-settings__group" role="group" aria-labelledby="smtp-group-sender">
+          <h3 class="smtp-settings__group-title" id="smtp-group-sender">Expéditeur</h3>
+          <div class="smtp-settings__row">
+            <div class="smtp-settings__field" data-field="fromAddress">
+              <gbt-input
+                label="Adresse d'expédition"
+                type="email"
+                placeholder="ferrisgit@example.com"
+                autocomplete="off"
+                [errorMessage]="shown()?.fromAddress ?? null"
+                [ngModel]="fromAddress()"
+                (ngModelChange)="fromAddress.set($event)"
+              />
+            </div>
+            <div class="smtp-settings__field" data-field="fromName">
+              <gbt-input label="Nom d'expéditeur" placeholder="FerrisGit" autocomplete="off" [errorMessage]="shown()?.fromName ?? null" [ngModel]="fromName()" (ngModelChange)="fromName.set($event)" />
+            </div>
+          </div>
+        </div>
+
+        <div class="smtp-settings__actions">
+          <!-- Always in the DOM, because a live region only announces changes if it already exists. -->
+          <p class="smtp-settings__summary" role="status" [attr.data-state]="dirty() ? 'dirty' : configured() ? 'saved' : null">
+            @if (dirty()) {
+              <gbt-icon name="circle-dot" aria-hidden="true" />Modifications non enregistrées
+            } @else if (configured()) {
+              <gbt-icon name="check" aria-hidden="true" />Réglages enregistrés
+            } @else {
+              Aucun serveur configuré : FerrisGit n'envoie pas d'e-mails.
+            }
+          </p>
+          <gbt-button type="submit" text="Enregistrer" loadingLabel="Enregistrement en cours" [loading]="saving()" [disabled]="saving() || !dirty()" />
+        </div>
+      </form>
+    </gbt-card>
+
+    <gbt-card variant="outlined" icon="send" heading="Tester l'envoi" description="Vérifiez que le serveur accepte bien vos e-mails, avant qu'une invitation en dépende.">
+      <form ngNoForm class="smtp-settings__form" novalidate (submit)="$event.preventDefault(); sendTest()">
+        <div class="smtp-settings__field smtp-settings__recipient" data-field="testRecipient">
+          <gbt-input
+            label="Destinataire du test"
+            type="email"
+            placeholder="vous@example.com"
+            autocomplete="email"
+            [hint]="testHint()"
+            [ngModel]="testRecipient()"
+            (ngModelChange)="testRecipient.set($event)"
+          />
+        </div>
+        <div class="smtp-settings__actions">
+          <!-- Gabarit gap: a persistent live region, because a `gbt-alert` inserted already filled is not reliably announced.
+               The banner says it with words and an icon, not colour alone. -->
+          <div class="smtp-settings__test-status" role="status">
+            @if (testResult(); as result) {
+              <p class="smtp-settings__banner" [attr.data-state]="result.sent ? 'sent' : 'failed'">
+                <gbt-icon [name]="result.sent ? 'check-circle' : 'alert-triangle'" aria-hidden="true" />{{ result.message }}
+              </p>
+            }
+          </div>
+          <gbt-button type="submit" variant="secondary" text="Envoyer un e-mail de test" loadingLabel="Envoi en cours" [loading]="testing()" [disabled]="!canTest()" />
+        </div>
+      </form>
+    </gbt-card>
+  }
+}

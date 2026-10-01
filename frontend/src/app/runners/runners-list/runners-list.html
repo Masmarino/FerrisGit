@@ -1,0 +1,147 @@
+<gbt-page-header heading="Runners">
+  @if (summary(); as text) {
+    <p header-meta class="runners-list__summary">{{ text }}</p>
+  }
+  <gbt-button header-actions iconName="plus" text="Enregistrer un runner" (clicked)="openRegister()" />
+</gbt-page-header>
+
+<gbt-page-layout width="wide" asideWidth="sm">
+  <div class="runners-list__main">
+    @if (revealed(); as r) {
+      <section #tokenCard class="runners-list__token" tabindex="-1" aria-labelledby="runners-list-token-heading">
+        <gbt-card variant="outlined">
+          <div card-header class="runners-list__token-header">
+            <gbt-icon-marker shape="tile" appearance="outline" tone="warning" icon="key" />
+            <div class="runners-list__token-titles">
+              <h2 id="runners-list-token-heading" class="runners-list__token-heading">Jeton du runner {{ r.name }}</h2>
+              <p class="runners-list__token-warning">Copiez-le maintenant : il ne sera plus jamais affiché.</p>
+            </div>
+          </div>
+          <div class="runners-list__token-body">
+            <p class="runners-list__token-usage">Donnez-le au runner dans la variable <code>FERRISGIT_RUNNER_TOKEN</code>.</p>
+            <!-- The token can be hidden (for example on a shared screen). The widget handles the copy, and its live region announces it. -->
+            <gbt-secret-reveal
+              class="runners-list__token-secret"
+              [value]="r.token"
+              [revealed]="true"
+              showLabel="Afficher le jeton"
+              hideLabel="Masquer le jeton"
+              hiddenLabel="Jeton masqué"
+              copyLabel="Copier le jeton"
+              copiedText="Jeton copié"
+              failedText="Copie impossible, jeton sélectionné"
+            />
+            <div class="runners-list__token-footer">
+              <gbt-button variant="secondary" size="small" text="J'ai copié le jeton" (clicked)="dismissToken()" />
+            </div>
+          </div>
+        </gbt-card>
+      </section>
+    }
+
+    <!-- The card stays `ready` so its header (heading and count) names it in every state. The list card's own
+         loading, failed and empty states would replace that header. -->
+    <gbt-list-card ariaLabel="Runners enregistrés">
+      <div list-card-header class="runners-list__band">
+        <span class="runners-list__card-title">
+          <gbt-icon name="server" aria-hidden="true" />
+          <h2 class="runners-list__card-heading">Runners enregistrés</h2>
+        </span>
+        @if (loaded() && rows().length > 0) {
+          <gbt-badge [value]="rows().length" />
+        }
+      </div>
+
+      @if (!loaded()) {
+        <gbt-skeleton-list [rows]="3" loadingLabel="Chargement des runners…" />
+      } @else if (loadFailed()) {
+        <!-- The error toast announces it, so this alert stays silent (one announcement, not two). -->
+        <gbt-alert class="runners-list__failed" variant="error" appearance="subtle" live="off">
+          Impossible de charger les runners.
+          <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retryLoad()" />
+        </gbt-alert>
+      } @else if (rows().length === 0) {
+        <div class="runners-list__empty">
+          <gbt-empty-state illustration="server" heading="Aucun runner enregistré" message="Enregistrez un runner : il prendra les jobs des pipelines dès qu'il interrogera le serveur.">
+            <gbt-button variant="secondary" iconName="plus" text="Enregistrer un runner" (clicked)="openRegister()" />
+          </gbt-empty-state>
+        </div>
+      } @else {
+        <ul class="runners-list__rows">
+          @for (row of rows(); track row.runner.id) {
+            <li>
+              <gbt-list-row [tone]="row.presentation.variant">
+                <span row-leading class="runners-list__status">
+                  <gbt-icon name="server" aria-hidden="true" />
+                </span>
+
+                <span class="runners-list__name" [title]="row.runner.name">{{ row.runner.name }}</span>
+                @for (tag of row.runner.tags; track tag) {
+                  <gbt-tag color="#6b7280">{{ tag }}</gbt-tag>
+                } @empty {
+                  <span class="runners-list__no-tags">Aucun tag</span>
+                }
+
+                <span row-meta class="runners-list__meta">
+                  @if (row.heartbeat; as heartbeat) {
+                    <span class="runners-list__heartbeat">
+                      Dernier signal <time [attr.datetime]="heartbeat.iso" [title]="heartbeat.title">{{ heartbeat.label }}</time>
+                    </span>
+                  }
+                  <span class="runners-list__created">
+                    enregistré <time [attr.datetime]="row.created.iso" [title]="row.created.title">{{ row.created.label }}</time>
+                  </span>
+                </span>
+
+                <gbt-badge row-trailing [variant]="row.presentation.variant" [icon]="row.presentation.icon">{{ row.presentation.label }}</gbt-badge>
+              </gbt-list-row>
+            </li>
+          }
+        </ul>
+      }
+    </gbt-list-card>
+  </div>
+
+  <div page-aside class="runners-list__aside">
+    <gbt-panel heading="Comment ça marche" [headingLevel]="2">
+      <ol class="runners-list__steps">
+        <li>Enregistrez un runner : son jeton ne s'affiche qu'une fois.</li>
+        <li>
+          Lancez <code>ferrisgit-runner</code> sur la machine avec <code>FERRISGIT_SERVER_URL</code> et <code>FERRISGIT_RUNNER_TOKEN</code>.
+        </li>
+        <li>Il passe « en ligne » dès qu'il interroge le serveur, « hors ligne » après {{ onlineThresholdMinutes }} minutes sans nouvelles.</li>
+      </ol>
+    </gbt-panel>
+    <gbt-panel heading="Tags" [headingLevel]="2">
+      <p class="runners-list__help">
+        Un job qui déclare des <code>tags:</code> ne part que sur un runner qui les porte tous. Un job sans tag peut partir sur n'importe quel runner.
+      </p>
+    </gbt-panel>
+  </div>
+</gbt-page-layout>
+
+<!-- Created each time it opens and destroyed on close, so a closed dialog never keeps a draft. -->
+@if (registerOpen()) {
+  <!-- The form wraps the whole dialog because the submit button lives in the footer slot, outside the body. -->
+  <form (submit)="$event.preventDefault(); register()">
+    <gbt-modal [isOpen]="true" heading="Enregistrer un runner" closeLabel="Fermer" [busy]="registering()" busyLabel="Enregistrement en cours" (closed)="closeRegister()">
+      <div class="runners-list__register">
+        <gbt-input name="name" label="Nom du runner" placeholder="ex : vps-1" required [errorMessage]="nameError()" [ngModel]="newRunnerName()" (ngModelChange)="newRunnerName.set($event)" />
+        <div class="runners-list__register-field">
+          <gbt-tag-input name="tags" label="Tags" placeholder="ex : docker, linux" [removeLabel]="removeTagLabel" [ngModel]="newRunnerTags()" (ngModelChange)="newRunnerTags.set($event)" />
+          <p class="runners-list__register-hint">Entrée ou virgule pour ajouter un tag. Le runner ne prendra que les jobs dont il porte tous les tags.</p>
+        </div>
+
+        @if (registerError()) {
+          <gbt-alert variant="error">
+            <p class="runners-list__register-error">Le runner n'a pas pu être enregistré. Réessayez.</p>
+          </gbt-alert>
+        }
+      </div>
+      <div modal-footer>
+        <gbt-button variant="secondary" text="Annuler" [disabled]="registering()" (clicked)="closeRegister()" />
+        <gbt-button type="submit" iconName="plus" text="Enregistrer" [loading]="registering()" loadingLabel="Enregistrement en cours" />
+      </div>
+    </gbt-modal>
+  </form>
+}

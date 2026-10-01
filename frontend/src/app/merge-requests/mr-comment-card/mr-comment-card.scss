@@ -1,0 +1,69 @@
+@use '../timeline-rail' as rail;
+@use '../../shared/layout/card';
+
+:host {
+  display: block;
+}
+
+gbt-card {
+  @include card.inherit-text;
+}
+
+// Centred on the header's 24px line. The header is the host's first row, above the box, at the card's left edge.
+.mr-comment__avatar {
+  @include rail.on-rail(rail.$avatar-size, (24px - rail.$avatar-size) * 0.5);
+}
+
+.mr-comment__header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+}
+
+.mr-comment__byline {
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.mr-comment__author {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.mr-comment__verb {
+  color: var(--text-secondary);
+}
+
+.mr-comment__badge {
+  flex: none;
+  padding: 0 0.5rem;
+  border: 1px solid var(--gbt-card-border);
+  border-radius: 999px;
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1.125rem;
+}
+
+.mr-comment__date {
+  flex: none;
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.mr-comment__body {
+  margin: 0;
+  padding: 0.875rem 1.25rem 1rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

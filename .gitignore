@@ -1,0 +1,10 @@
+.superpowers/
+/target
+/frontend/node_modules
+/frontend/dist
+/frontend/.angular
+/data
+.env
+/kubeconfig.yaml
+.idea/
+.claude/worktrees/

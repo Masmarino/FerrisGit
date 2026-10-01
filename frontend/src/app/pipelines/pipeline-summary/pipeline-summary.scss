@@ -1,0 +1,54 @@
+.pipeline-summary__stepper {
+  display: block;
+  margin-bottom: 2rem;
+}
+
+.pipeline-summary__graph {
+  display: block;
+  margin-bottom: 2rem;
+}
+
+.pipeline-summary__stage-jobs {
+  h3 {
+    margin: 0 0 0.5rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-secondary);
+  }
+
+  ul {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}
+
+.pipeline-summary__job-link {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  // The status glyph is 20px, the name's line 24px: the row keeps its 42px (a touch target).
+  min-height: 2.625rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--site-border-radius-sm);
+  color: var(--text-primary);
+  text-decoration: none;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+}
+
+.pipeline-summary__job-name {
+  flex: 1;
+}
+
+.pipeline-summary__job-duration {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}

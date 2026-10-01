@@ -1,0 +1,112 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, title, description, due_date, state, repository_id, group_id, created_at FROM milestones WHERE group_id = $1 ORDER BY title ASC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "milestones",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "milestones",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "milestones",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "due_date",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "milestones",
+            "name": "due_date"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "state",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "milestones",
+            "name": "state"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "milestones",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "group_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "milestones",
+            "name": "group_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "milestones",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      true,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "51441de2b256c7526e1206f9ce24a8f3ac48e2a82c9fb1ad45c862b23e7f97bb"
+}

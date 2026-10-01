@@ -1,0 +1,154 @@
+<!-- One fixed-layout table for the whole file (a tbody per hunk): hunks share the same columns and a long line wraps inside its own half. -->
+@if (hunks().length) {
+  <table class="file-diff-view__table" [class.file-diff-view__table--single]="layout() !== 'split'">
+    <caption class="sr-only">Différences ligne à ligne</caption>
+    <colgroup>
+      @if (showOld()) {
+        <col class="file-diff-view__col-gutter" />
+        <col />
+      }
+      @if (showNew()) {
+        <col class="file-diff-view__col-gutter" />
+        <col />
+      }
+    </colgroup>
+    <!-- The column headers are only for assistive technology. The hidden text sits in a span because an absolutely positioned th would drop out of the fixed layout. -->
+    <thead class="file-diff-view__head">
+      <tr>
+        @if (showOld()) {
+          <th scope="col"><span class="sr-only">Ligne (ancienne version)</span></th>
+          <th scope="col"><span class="sr-only">Ancienne version</span></th>
+        }
+        @if (showNew()) {
+          <th scope="col"><span class="sr-only">Ligne (nouvelle version)</span></th>
+          <th scope="col"><span class="sr-only">Nouvelle version</span></th>
+        }
+      </tr>
+    </thead>
+    @for (hunk of hunks(); track $index) {
+      <tbody class="file-diff-view__hunk">
+        @if (hunk.header) {
+          <tr class="file-diff-view__hunk-header">
+            <td [attr.colspan]="columnCount()">{{ hunk.header }}</td>
+          </tr>
+        }
+        @for (row of hunk.rows; track $index) {
+          <tr [class]="rowClass(row)">
+            @if (showOld()) {
+              <td
+                class="file-diff-view__gutter file-diff-view__gutter--old-side"
+                [class.file-diff-view__gutter--removed]="oldTone(row) === 'removed'"
+                [class.file-diff-view__gutter--empty]="oldTone(row) === 'empty'"
+              >
+                {{ row.oldLine }}
+                @if (row.oldContent !== null) {
+                  <button
+                    type="button"
+                    class="file-diff-view__add-comment"
+                    [attr.aria-label]="'Commenter la ligne ' + row.oldLine + ' (ancienne version)'"
+                    (mousedown)="beginSelecting(row.oldLine!, 'old')"
+                    (mouseover)="extendSelecting(row.oldLine!, 'old')"
+                    (click)="onAddCommentClick($event, row.oldLine!, 'old')"
+                  >+</button>
+                }
+              </td>
+              <td
+                class="file-diff-view__content file-diff-view__content--old-side"
+                [class.file-diff-view__content--removed]="oldTone(row) === 'removed'"
+                [class.file-diff-view__content--empty]="oldTone(row) === 'empty'"
+              ><span class="file-diff-view__prefix">{{ oldPrefix(row) }}</span>{{ row.oldContent }}</td>
+            }
+            @if (showNew()) {
+              <td
+                class="file-diff-view__gutter file-diff-view__gutter--new-side"
+                [class.file-diff-view__gutter--added]="newTone(row) === 'added'"
+                [class.file-diff-view__gutter--empty]="newTone(row) === 'empty'"
+              >
+                {{ row.newLine }}
+                @if (row.newContent !== null) {
+                  <button
+                    type="button"
+                    class="file-diff-view__add-comment"
+                    [attr.aria-label]="'Commenter la ligne ' + row.newLine + ' (nouvelle version)'"
+                    (mousedown)="beginSelecting(row.newLine!, 'new')"
+                    (mouseover)="extendSelecting(row.newLine!, 'new')"
+                    (click)="onAddCommentClick($event, row.newLine!, 'new')"
+                  >+</button>
+                }
+              </td>
+              <td
+                class="file-diff-view__content file-diff-view__content--new-side"
+                [class.file-diff-view__content--added]="newTone(row) === 'added'"
+                [class.file-diff-view__content--empty]="newTone(row) === 'empty'"
+              ><span class="file-diff-view__prefix">{{ newPrefix(row) }}</span>{{ row.newContent }}</td>
+            }
+          </tr>
+          @if (isComposeRowAt(row.oldLine ?? -1, 'old') || isComposeRowAt(row.newLine ?? -1, 'new')) {
+            <tr class="file-diff-view__compose-row">
+              <td [attr.colspan]="columnCount()">
+                <gbt-textarea label="Laisser un commentaire" placeholder="Laisser un commentaire" [ngModel]="newCommentBody()" (ngModelChange)="newCommentBody.set($event)" />
+                @if (composingAt()?.side === 'new') {
+                  <div class="file-diff-view__compose-actions">
+                    <gbt-button variant="secondary" size="small" [text]="showSuggestionInput() ? 'Retirer la suggestion' : 'Proposer un remplacement'" (clicked)="toggleSuggestionInput()" />
+                  </div>
+                  @if (showSuggestionInput()) {
+                    <gbt-textarea label="Contenu de remplacement" placeholder="Contenu de remplacement" [ngModel]="suggestionBody()" (ngModelChange)="suggestionBody.set($event)" />
+                  }
+                }
+                <div class="file-diff-view__compose-actions">
+                  <gbt-button variant="secondary" size="small" text="Commenter" (clicked)="submitComment()" />
+                  <gbt-button variant="secondary" size="small" text="Annuler" (clicked)="cancelComposing()" />
+                </div>
+              </td>
+            </tr>
+          }
+          @for (thread of threadsAt(row.oldLine ?? -1, 'old'); track thread.root.id) {
+            <ng-container [ngTemplateOutlet]="threadRow" [ngTemplateOutletContext]="{ $implicit: thread }" />
+          }
+          @for (thread of threadsAt(row.newLine ?? -1, 'new'); track thread.root.id) {
+            <ng-container [ngTemplateOutlet]="threadRow" [ngTemplateOutletContext]="{ $implicit: thread }" />
+          }
+        }
+      </tbody>
+    }
+  </table>
+}
+
+<ng-template #threadRow let-thread>
+  <tr class="file-diff-view__thread-row">
+    <td [attr.colspan]="columnCount()">
+      <div class="file-diff-view__thread" [class.file-diff-view__thread--resolved]="thread.root.resolved">
+        @if (thread.root.resolved && !isExpanded(thread.root.id)) {
+          <gbt-button class="file-diff-view__thread-summary" variant="secondary" size="small" iconName="check" text="Résolu — afficher" (clicked)="toggleExpanded(thread.root.id)" />
+        } @else {
+          @if (thread.root.outdated) {
+            <gbt-badge class="file-diff-view__outdated-badge" variant="warning">Périmé</gbt-badge>
+          }
+          @if (thread.root.resolved) {
+            <gbt-badge class="file-diff-view__resolved-badge" variant="success">Résolu</gbt-badge>
+          }
+          <p>{{ thread.root.body }}</p>
+          @for (reply of thread.replies; track reply.id) {
+            <p class="file-diff-view__reply">{{ reply.body }}</p>
+          }
+          @if (thread.root.suggestedContent !== null) {
+            <pre class="file-diff-view__suggestion">{{ thread.root.suggestedContent }}</pre>
+            @if (thread.root.appliedAt !== null) {
+              <p class="file-diff-view__applied">Appliqué ✓ ({{ thread.root.appliedCommitSha }})</p>
+            } @else if (canWrite()) {
+              <gbt-button variant="secondary" size="small" text="Appliquer la suggestion" (clicked)="applySuggestionClicked.emit({ commentId: thread.root.id })" />
+            }
+          }
+          <gbt-textarea label="Répondre" placeholder="Répondre" [ngModel]="replyBodyFor(thread.root.id)" (ngModelChange)="setReplyBody(thread.root.id, $event)" />
+          <div class="file-diff-view__thread-actions">
+            <gbt-button variant="secondary" size="small" text="Répondre" (clicked)="submitReply(thread.root.id)" />
+            <gbt-button variant="secondary" size="small" [iconName]="thread.root.resolved ? null : 'check'" [text]="thread.root.resolved ? 'Rouvrir' : 'Résoudre'" (clicked)="toggleResolve(thread)" />
+            @if (thread.root.resolved) {
+              <gbt-button variant="secondary" size="small" text="Masquer" (clicked)="toggleExpanded(thread.root.id)" />
+            }
+          </div>
+        }
+      </div>
+    </td>
+  </tr>
+</ng-template>

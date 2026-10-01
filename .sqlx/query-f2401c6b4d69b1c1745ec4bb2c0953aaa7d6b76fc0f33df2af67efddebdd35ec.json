@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM merge_request_labels WHERE merge_request_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f2401c6b4d69b1c1745ec4bb2c0953aaa7d6b76fc0f33df2af67efddebdd35ec"
+}

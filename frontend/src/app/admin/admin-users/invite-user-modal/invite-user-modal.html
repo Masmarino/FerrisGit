@@ -1,0 +1,50 @@
+<!-- The form wraps the whole dialog because the submit button lives in the footer slot, outside the body. -->
+<form novalidate (submit)="$event.preventDefault(); submit()">
+  <!-- While the request runs, `busy` stops Escape, the backdrop and the close button from closing the dialog. That
+       way the outcome (and the one-time activation link, when the mail fails) is never lost with it. -->
+  <gbt-modal [isOpen]="true" heading="Inviter un utilisateur" closeLabel="Fermer" [busy]="sending()" busyLabel="Envoi en cours" (closed)="close.emit()">
+    @if (result(); as r) {
+      <div #resultRegion class="invite-user__result" tabindex="-1">
+        @if (r.emailSent) {
+          <gbt-alert variant="success">
+            <p class="invite-user__sent-title">Invitation envoyée à {{ r.user.email }}</p>
+            <p class="invite-user__sent-help">{{ r.user.username }} y trouvera un lien d'activation valable 24 heures : il choisira son mot de passe, puis configurera la double authentification.</p>
+          </gbt-alert>
+        } @else {
+          <fg-link-mail-failed [username]="r.user.username" [emailError]="r.emailError" [url]="r.activationUrl" />
+        }
+      </div>
+    } @else {
+      <div class="invite-user">
+        <p class="invite-user__intro">Le compte est créé sans mot de passe : un e-mail avec un lien d'activation valable 24 heures est envoyé. La personne choisit son mot de passe, puis configure la double authentification.</p>
+
+        <gbt-input name="username" label="Nom d'utilisateur" autocomplete="off" [hint]="usernameHint" [errorMessage]="usernameError()" [ngModel]="username()" (ngModelChange)="onUsernameChange($event)" />
+
+        <gbt-input name="email" type="email" label="Adresse e-mail" autocomplete="off" [errorMessage]="emailError()" [ngModel]="email()" (ngModelChange)="onEmailChange($event)" />
+
+        <div class="invite-user__admin">
+          <gbt-switch name="isAdmin" label="Super-administrateur" hint="Un super-administrateur gère les utilisateurs, les réglages de l'instance et les runners." [ngModel]="isAdmin()" (ngModelChange)="isAdmin.set($event)" />
+        </div>
+
+        @if (formError(); as message) {
+          <gbt-alert variant="error">
+            <p class="invite-user__alert">{{ message }}</p>
+          </gbt-alert>
+        }
+      </div>
+    }
+
+    <!-- Footer: one block per step, each with a single root element so Angular can project it into the slot. -->
+    @if (result()) {
+      <div modal-footer class="invite-user__actions">
+        <gbt-button text="Terminé" (clicked)="close.emit()" />
+      </div>
+    }
+    @if (!result()) {
+      <div modal-footer class="invite-user__actions">
+        <gbt-button variant="secondary" text="Annuler" [disabled]="sending()" (clicked)="close.emit()" />
+        <gbt-button type="submit" [iconName]="sending() ? null : 'send'" text="Envoyer l'invitation" [loading]="sending()" loadingLabel="Envoi en cours" />
+      </div>
+    }
+  </gbt-modal>
+</form>

@@ -1,0 +1,27 @@
+@if (languages(); as langs) {
+  @if (langs.length > 0) {
+    <div class="language-bar">
+      <div class="language-bar__segments" aria-hidden="true">
+        @for (lang of langs; track lang.name) {
+          <span class="language-bar__segment" [style.width.%]="lang.percentage" [style.background]="colorFor(lang.name)"></span>
+        }
+      </div>
+      <ul class="language-bar__legend">
+        @for (lang of langs; track lang.name) {
+          <li>
+            <span class="language-bar__dot" [style.background]="colorFor(lang.name)" aria-hidden="true"></span>
+            <span class="language-bar__name">{{ lang.name }}</span>
+            <span class="language-bar__percent">{{ formatPercent(lang.percentage) }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+  } @else {
+    <p class="language-bar__empty">Aucun langage détecté</p>
+  }
+} @else {
+  <div class="language-bar__loading" aria-hidden="true">
+    <gbt-skeleton height="0.5rem" />
+    <gbt-skeleton width="70%" height="0.75rem" />
+  </div>
+}

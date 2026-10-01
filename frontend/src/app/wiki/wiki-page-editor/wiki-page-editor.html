@@ -1,0 +1,60 @@
+<fg-wiki-layout [repositoryId]="repositoryId()" [path]="path()" [currentSlug]="slug()" [offerCreate]="!isCreate()" (loaded)="onListLoaded($event)" (loadFailed)="onListFailed()">
+  <div class="wiki-page-editor">
+    <gbt-page-header [heading]="heading()" />
+
+    @if (conflict()) {
+      <gbt-alert class="wiki-page-editor__conflict" variant="warning">{{ conflictMessage }}</gbt-alert>
+    }
+
+    @if (isCreate()) {
+      <gbt-input
+        class="wiki-page-editor__slug"
+        label="Nom de la page"
+        placeholder="Getting-Started"
+        hint="Lettres, chiffres, « - » et « _ » : il devient l’adresse de la page."
+        [ngModel]="newSlug()"
+        (ngModelChange)="newSlug.set($event)"
+      />
+    }
+
+    <gbt-list-card ariaLabel="Contenu de la page">
+      <div class="wiki-page-editor__panes">
+        <div class="wiki-page-editor__pane wiki-page-editor__source">
+          <div class="wiki-page-editor__pane-header">
+            <gbt-icon name="pencil" aria-hidden="true" />
+            <label [for]="ids.source">Markdown</label>
+          </div>
+          <textarea
+            class="wiki-page-editor__textarea"
+            [id]="ids.source"
+            spellcheck="true"
+            placeholder="# Titre&#10;&#10;Écrivez la page en markdown…"
+            [value]="content()"
+            (input)="content.set($any($event.target).value)"
+          ></textarea>
+        </div>
+        <div class="wiki-page-editor__pane wiki-page-editor__preview" role="region" [attr.aria-labelledby]="ids.preview">
+          <div class="wiki-page-editor__pane-header">
+            <gbt-icon name="book-open" aria-hidden="true" />
+            <span [id]="ids.preview">Aperçu</span>
+          </div>
+          <div class="wiki-page-editor__preview-body">
+            @if (content().trim()) {
+              <fg-markdown-view [content]="content()" [headingOffset]="1" />
+            } @else {
+              <p class="wiki-page-editor__preview-empty">L’aperçu s’affichera ici.</p>
+            }
+          </div>
+        </div>
+      </div>
+    </gbt-list-card>
+
+    <div class="wiki-page-editor__footer">
+      <gbt-input class="wiki-page-editor__message" label="Message de commit" [placeholder]="messagePlaceholder()" [ngModel]="message()" (ngModelChange)="message.set($event)" />
+      <div class="wiki-page-editor__actions">
+        <gbt-button variant="secondary" text="Annuler" (clicked)="cancel()" />
+        <gbt-button [text]="isCreate() ? 'Créer la page' : 'Enregistrer'" [loading]="saving()" loadingLabel="Enregistrement en cours" (clicked)="save()" />
+      </div>
+    </div>
+  </div>
+</fg-wiki-layout>

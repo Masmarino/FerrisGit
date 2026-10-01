@@ -1,0 +1,29 @@
+<nav class="pipeline-sidebar" aria-label="Navigation du pipeline">
+  <a
+    class="pipeline-sidebar__link"
+    [class.pipeline-sidebar__link--active]="selectedJobId() === null"
+    [attr.aria-current]="selectedJobId() === null ? 'page' : null"
+    [routerLink]="summaryLink()"
+  >
+    Résumé
+  </a>
+  @for (group of groups(); track group.name) {
+    <h3 class="pipeline-sidebar__stage">{{ group.name }}</h3>
+    <ul class="pipeline-sidebar__jobs">
+      @for (job of group.jobs; track job.id) {
+        <li>
+          <a
+            class="pipeline-sidebar__link"
+            [class.pipeline-sidebar__link--active]="selectedJobId() === job.id"
+            [attr.aria-current]="selectedJobId() === job.id ? 'page' : null"
+            [routerLink]="jobLink(job.id)"
+          >
+            <gbt-job-status [status]="job.status" [label]="statusLabels[job.status]" />
+            <span class="pipeline-sidebar__name">{{ job.name }}</span>
+            <span class="pipeline-sidebar__duration">{{ duration(job) }}</span>
+          </a>
+        </li>
+      }
+    </ul>
+  }
+</nav>

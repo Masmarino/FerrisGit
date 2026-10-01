@@ -1,0 +1,401 @@
+@use '../../shared/layout/prose';
+@use '../../shared/layout/card';
+
+$row-height: 40px;
+
+// Header and layout share the 1440px frame, so the h1 and its actions line up with the main column and the aside.
+:host {
+  display: block;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.repository-tree-view__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+gbt-card {
+  @include card.inherit-text;
+}
+
+.repository-tree-view__files,
+.repository-tree-view__readme,
+.repository-tree-view__not-found {
+  min-width: 0;
+}
+
+.repository-tree-view__path {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.repository-tree-view__files {
+  container: repository-files / inline-size;
+}
+
+.repository-tree-view__files-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+}
+
+.repository-tree-view__card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  color: var(--text-primary);
+  font-weight: 600;
+
+  gbt-icon {
+    color: var(--text-secondary);
+  }
+}
+
+.repository-tree-view__latest {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.repository-tree-view__latest-author {
+  flex: 0 1 auto;
+  max-width: 35%;
+}
+
+.repository-tree-view__latest-message {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.repository-tree-view__sha {
+  flex: none;
+}
+
+.repository-tree-view__latest-date {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+// `table-layout: fixed` takes column widths from the first row, which is the header row. Its cells stay in the
+// layout, with visually hidden labels and zero height.
+.repository-tree-view__table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 0.875rem;
+}
+
+.repository-tree-view__head th {
+  height: 0;
+  padding: 0;
+  border: 0;
+  line-height: 0;
+}
+
+.repository-tree-view__col-message {
+  width: 36%;
+}
+
+.repository-tree-view__col-date {
+  width: 8rem;
+}
+
+.repository-tree-view__row {
+  td {
+    height: $row-height;
+    box-sizing: border-box;
+    padding: 0 1rem;
+    border-top: 1px solid var(--gbt-hairline);
+    vertical-align: middle;
+    transition: background-color var(--site-transition-fast);
+  }
+
+  &:first-child td {
+    border-top: 0;
+  }
+
+  &:hover td {
+    background: var(--bg-hover);
+  }
+}
+
+.repository-tree-view__row .repository-tree-view__name-cell {
+  padding-left: calc(0.625rem + var(--depth, 0) * 1.25rem);
+}
+
+.repository-tree-view__name {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.repository-tree-view__entry-name {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  text-decoration: none;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+
+  &:hover {
+    color: var(--primary);
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+.repository-tree-view__row-message {
+  overflow: hidden;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.repository-tree-view__row-date {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.repository-tree-view__toggle {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+
+  gbt-icon {
+    width: 0.875em;
+    height: 0.875em;
+    transition: transform 0.15s ease;
+  }
+
+  &:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 1px;
+  }
+
+  &--expanded gbt-icon {
+    transform: rotate(90deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    gbt-icon {
+      transition: none;
+    }
+  }
+}
+
+.repository-tree-view__toggle-spacer {
+  flex: none;
+  width: 1.25rem;
+}
+
+.repository-tree-view__entry-icon {
+  flex: none;
+  margin: 0 0.25rem 0 0.125rem;
+  color: var(--text-secondary);
+
+  &--dir {
+    color: var(--primary);
+  }
+}
+
+.repository-tree-view__loading {
+  flex: none;
+  margin-left: 0.5rem;
+}
+
+.repository-tree-view__empty-folder {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+// Narrow card (phone, or a squeezed main column): the commit-message column is hidden, header cell included,
+// or it would still claim its width. The name takes its room. The banner drops the sha, and the author
+// shrinks to their avatar.
+@container repository-files (max-width: 599px) {
+  .repository-tree-view__col-message,
+  .repository-tree-view__row-message {
+    display: none;
+  }
+
+  .repository-tree-view__col-date {
+    width: 6.5rem;
+  }
+
+  // Right-aligned, so the left padding is only a gutter: a smaller one fits `il y a 59 min`.
+  .repository-tree-view__row .repository-tree-view__row-date {
+    padding-left: 0.5rem;
+  }
+
+  .repository-tree-view__sha {
+    display: none;
+  }
+
+  .repository-tree-view__latest {
+    gap: 0.5rem;
+  }
+
+  // The author shrinks to their avatar (the name stays for screen readers and in the tooltip), so the
+  // message keeps a readable width. `flex: none` and `min-width` are needed because, with the name out of
+  // the flow, a shrinkable chip would collapse under its 24px avatar and the message would run over it.
+  .repository-tree-view__latest-author {
+    flex: none;
+    min-width: 24px;
+  }
+
+  .repository-tree-view__latest-author ::ng-deep .gbt-user-chip__name {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+}
+
+.repository-tree-view__files--loading .repository-tree-view__files-header gbt-skeleton {
+  flex: none;
+}
+
+.repository-tree-view__skeleton-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  height: $row-height;
+  padding: 0 1rem 0 2.125rem;
+
+  & + & {
+    border-top: 1px solid var(--gbt-hairline);
+  }
+
+  gbt-skeleton {
+    flex: none;
+  }
+}
+
+.repository-tree-view__readme-body {
+  padding: 1.5rem 2rem 1.75rem;
+
+  ::ng-deep {
+    @include prose.markdown;
+  }
+}
+
+@media (max-width: 768px) {
+  .repository-tree-view__readme-body {
+    padding: 1.25rem;
+  }
+}
+
+.repository-tree-view__empty-repo {
+  display: block;
+  min-width: 0;
+}
+
+.repository-tree-view__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  box-sizing: border-box;
+  max-width: 43rem;
+  padding-inline: 1.5rem;
+  margin: 0 auto 2rem;
+}
+
+.repository-tree-view__step {
+  min-width: 0;
+  scroll-margin-top: 1rem;
+}
+
+.repository-tree-view__step-title {
+  margin: 0 0 0.5rem;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+// Wraps instead of scrolling: the long clone URL stays readable on a phone, and the commands still
+// copy as written (a soft wrap adds no newline).
+.repository-tree-view__command {
+  margin: 0;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--gbt-hairline);
+  border-radius: var(--site-border-radius-sm);
+  background: var(--bg-panel);
+  color: var(--text-primary);
+  font-family: var(--gbt-font-mono);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+
+  code {
+    font-family: inherit;
+  }
+}
+
+.repository-tree-view__sidebar [id] {
+  scroll-margin-top: 1rem;
+}
+
+.repository-tree-view__description {
+  margin: 0 0 0.875rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.repository-tree-view__description--none {
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.repository-tree-view__facts {
+  display: block;
+}
+
+.repository-tree-view__panel-loading {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding-top: 0.25rem;
+}

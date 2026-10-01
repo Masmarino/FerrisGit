@@ -1,0 +1,211 @@
+<fg-repository-header [repo]="repo()" [ref]="ref()" (starChange)="onStarChange($event)" />
+
+<gbt-page-layout width="wide">
+  @if (isEmptyRepository()) {
+    <section class="repository-tree-view__empty-repo" aria-labelledby="repository-empty-title">
+      <gbt-card variant="outlined" [flush]="true">
+        <gbt-empty-state
+          icon="folder-git-2"
+          [headingLevel]="2"
+          headingId="repository-empty-title"
+          heading="Ce dépôt est vide"
+          message="Poussez un premier commit depuis votre machine pour voir vos fichiers ici."
+        />
+
+        @if (cloneUrl(); as url) {
+          <div class="repository-tree-view__steps">
+            <div class="repository-tree-view__step" [attr.id]="clonePanelId">
+              <h3 class="repository-tree-view__step-title">Adresse du dépôt</h3>
+              <gbt-copy-field [value]="url" copyLabel="Copier l'URL de clonage" copiedText="Copié" failedText="Copie impossible, URL sélectionnée" />
+            </div>
+            <div class="repository-tree-view__step">
+              <h3 class="repository-tree-view__step-title">Créer un nouveau dépôt en local</h3>
+              <pre class="repository-tree-view__command"><code>git init -b main
+git add .
+git commit -m "Premier commit"
+git remote add origin @for (segment of cloneUrlSegments(); track $index) {{{ segment }}<wbr />}
+git push -u origin main</code></pre>
+            </div>
+            <div class="repository-tree-view__step">
+              <h3 class="repository-tree-view__step-title">Pousser un dépôt existant</h3>
+              <pre class="repository-tree-view__command"><code>git remote add origin @for (segment of cloneUrlSegments(); track $index) {{{ segment }}<wbr />}
+git push -u origin main</code></pre>
+            </div>
+          </div>
+        } @else {
+          <div class="repository-tree-view__steps" aria-hidden="true">
+            <gbt-skeleton height="2rem" />
+            <gbt-skeleton height="5rem" variant="rect" />
+          </div>
+        }
+      </gbt-card>
+    </section>
+  } @else if (isNotFound()) {
+    <gbt-card class="repository-tree-view__not-found" variant="outlined" [flush]="true">
+      <gbt-empty-state illustration="folder" heading="Cette branche, ce tag ou ce chemin n'existe pas" message="Vérifiez l'adresse, ou repartez de la racine du dépôt.">
+        @if (rootLink(); as link) {
+          <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="link">Retour à la racine du dépôt</a>
+        }
+      </gbt-empty-state>
+    </gbt-card>
+  } @else {
+    <div class="repository-tree-view__main">
+      @if (treePath().length > 0 && repo()) {
+        <gbt-breadcrumb class="repository-tree-view__path" ariaLabel="Chemin dans le dépôt">
+          @for (segment of breadcrumbAncestors(); track $index) {
+            <li breadcrumb-ancestor>
+              <a class="gbt-breadcrumb__item" [routerLink]="segment.link">{{ segment.name }}</a>
+            </li>
+          }
+          {{ currentFolderName() }}
+        </gbt-breadcrumb>
+      }
+
+      @if (entries() !== null) {
+        <gbt-card class="repository-tree-view__files" variant="outlined" [flush]="true">
+          <div card-header class="repository-tree-view__files-header">
+            @if (latestCommit(); as commit) {
+              <div class="repository-tree-view__latest">
+                <span class="sr-only">Dernier commit :</span>
+                <gbt-user-chip class="repository-tree-view__latest-author" [name]="commit.authorName" />
+                <span class="repository-tree-view__latest-message" [title]="commit.message">{{ commitTitle(commit.message) }}</span>
+                <gbt-badge mono class="repository-tree-view__sha" [fullText]="commit.sha">{{ shortSha(commit.sha) }}</gbt-badge>
+                <time class="repository-tree-view__latest-date" [attr.datetime]="commit.committedAt" [title]="commit.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ commit.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+              </div>
+            } @else {
+              <span class="repository-tree-view__card-title">
+                <gbt-icon name="folder" aria-hidden="true" />
+                <span>Fichiers</span>
+              </span>
+            }
+          </div>
+
+          <table class="repository-tree-view__table">
+            <caption class="sr-only">Fichiers</caption>
+            <!-- The header row stays in the table layout (zero height, labels visually hidden): with `table-layout: fixed` its cells set the column widths. -->
+            <thead class="repository-tree-view__head">
+              <tr>
+                <th scope="col" class="repository-tree-view__col-name"><span class="sr-only">Nom</span></th>
+                <th scope="col" class="repository-tree-view__col-message"><span class="sr-only">Dernier commit</span></th>
+                <th scope="col" class="repository-tree-view__col-date"><span class="sr-only">Date</span></th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of visibleRows(); track rowKey(row)) {
+                <tr class="repository-tree-view__row">
+                  <td class="repository-tree-view__name-cell" [style.--depth]="row.depth">
+                    <div class="repository-tree-view__name">
+                      @if (row.entry.isDir) {
+                        <button
+                          type="button"
+                          class="repository-tree-view__toggle"
+                          [class.repository-tree-view__toggle--expanded]="isExpanded(row)"
+                          (click)="toggleDir(row)"
+                          [attr.aria-expanded]="isExpanded(row)"
+                          [attr.aria-label]="(isExpanded(row) ? 'Réduire' : 'Déplier') + ' ' + row.entry.name"
+                        >
+                          <gbt-icon name="chevron-right" />
+                        </button>
+                      } @else {
+                        <span class="repository-tree-view__toggle-spacer" aria-hidden="true"></span>
+                      }
+                      <gbt-icon
+                        [name]="row.entry.isDir ? (isExpanded(row) ? 'folder-open' : 'folder') : 'file'"
+                        class="repository-tree-view__entry-icon"
+                        [class.repository-tree-view__entry-icon--dir]="row.entry.isDir"
+                      />
+                      <a [routerLink]="row.link" class="repository-tree-view__entry-name" [title]="row.entry.name">{{ row.entry.name }}</a>
+                      @if (isLoading(row)) {
+                        <gbt-spinner class="repository-tree-view__loading" size="sm" label="Chargement…" />
+                      }
+                    </div>
+                  </td>
+                  <td class="repository-tree-view__row-message" [attr.title]="row.entry.lastCommit?.message ?? null">
+                    @if (row.entry.lastCommit; as last) {
+                      {{ commitTitle(last.message) }}
+                    }
+                  </td>
+                  <td class="repository-tree-view__row-date">
+                    @if (row.entry.lastCommit; as last) {
+                      <time [attr.datetime]="last.committedAt" [title]="last.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ last.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                    }
+                  </td>
+                </tr>
+              } @empty {
+                <tr>
+                  <td colspan="3" class="repository-tree-view__empty-folder">Ce dossier est vide.</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </gbt-card>
+
+        @if (readme(); as readmeContent) {
+          <gbt-card class="repository-tree-view__readme" variant="outlined" icon="book-open" heading="README.md" [flush]="true">
+            <div class="repository-tree-view__readme-body">
+              <fg-markdown-view [content]="readmeContent" />
+            </div>
+          </gbt-card>
+        }
+      } @else if (loadFailed()) {
+        <gbt-alert variant="error" appearance="subtle" live="off">Les fichiers n'ont pas pu être chargés.</gbt-alert>
+      } @else {
+        <gbt-card class="repository-tree-view__files repository-tree-view__files--loading" variant="outlined" [flush]="true" aria-busy="true">
+          <span class="sr-only" role="status">Chargement des fichiers…</span>
+          <div card-header class="repository-tree-view__files-header" aria-hidden="true">
+            <gbt-skeleton variant="circle" width="24px" />
+            <gbt-skeleton width="45%" height="0.75rem" />
+          </div>
+          <div aria-hidden="true">
+            @for (width of skeletonRows; track $index) {
+              <div class="repository-tree-view__skeleton-row">
+                <gbt-skeleton width="1rem" height="1rem" />
+                <gbt-skeleton [width]="width" height="0.75rem" />
+              </div>
+            }
+          </div>
+        </gbt-card>
+      }
+    </div>
+  }
+
+  <div page-aside class="repository-tree-view__sidebar">
+    <gbt-panel class="repository-tree-view__about" heading="À propos" [headingLevel]="2">
+      @if (repo(); as r) {
+        @if (r.description) {
+          <p class="repository-tree-view__description">{{ r.description }}</p>
+        } @else {
+          <p class="repository-tree-view__description repository-tree-view__description--none">Aucune description</p>
+        }
+        <gbt-description-list class="repository-tree-view__facts" layout="inline" valueAlign="end" [items]="facts()" />
+      } @else {
+        <div class="repository-tree-view__panel-loading" aria-hidden="true">
+          <gbt-skeleton width="90%" height="0.75rem" />
+          <gbt-skeleton width="60%" height="0.75rem" />
+          <gbt-skeleton width="75%" height="0.75rem" />
+        </div>
+      }
+    </gbt-panel>
+
+    @if (!isEmptyRepository() && !isNotFound()) {
+      <gbt-panel heading="Cloner" [headingLevel]="2" [attr.id]="clonePanelId">
+        @if (cloneUrl(); as url) {
+          <gbt-copy-field [value]="url" copyLabel="Copier l'URL de clonage" copiedText="Copié" failedText="Copie impossible, URL sélectionnée" />
+        } @else {
+          <gbt-skeleton height="30px" aria-hidden="true" />
+        }
+      </gbt-panel>
+      <gbt-panel heading="Langages" [headingLevel]="2">
+        <fg-language-bar [repositoryId]="repositoryId()" [ref]="ref()" />
+      </gbt-panel>
+      <gbt-panel heading="Contributeurs" [headingLevel]="2">
+        <fg-contributor-avatars [repositoryId]="repositoryId()" [ref]="ref()" />
+      </gbt-panel>
+    }
+  </div>
+</gbt-page-layout>
+
+<!-- A date gets a machine-readable value and the exact time on hover, not just text. -->
+<ng-template #createdTemplate>
+  <time [attr.datetime]="repo()?.createdAt" [title]="(repo()?.createdAt ?? '') | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ createdLabel() }}</time>
+</ng-template>

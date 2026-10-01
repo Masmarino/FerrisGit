@@ -1,0 +1,78 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO issue_comments (issue_id, author_id, body) VALUES ($1, $2, $3) RETURNING id, issue_id, author_id, body, created_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issue_comments",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "issue_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issue_comments",
+            "name": "issue_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "author_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issue_comments",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "body",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issue_comments",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "issue_comments",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "8c92b470c34aa8a6fec036fe735539a4c82954e8d65f1661692829f776d1eb60"
+}

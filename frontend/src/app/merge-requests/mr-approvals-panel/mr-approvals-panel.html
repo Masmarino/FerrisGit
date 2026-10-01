@@ -1,0 +1,39 @@
+@if (status() === 'open') {
+  <div class="mr-approvals">
+    @if (alert(); as blocked) {
+      <div class="mr-approvals__alert">
+        <gbt-alert [variant]="blocked.variant">{{ blocked.text }}</gbt-alert>
+      </div>
+    }
+    <ul class="mr-approvals__reviews" aria-label="Revues">
+      @for (review of summary()?.reviews ?? []; track review.userId) {
+        <li class="mr-approvals__review" [class.mr-approvals__review--stale]="review.stale">
+          <gbt-avatar class="mr-approvals__avatar" [name]="review.username" size="sm" aria-hidden="true" />
+          <span class="mr-approvals__line">
+            <strong>{{ review.username }}</strong> — {{ review.decision === 'approved' ? 'a approuvé' : 'a demandé des changements' }}
+            @if (review.stale) {
+              <em>(obsolète — nouveau commit poussé)</em>
+            }
+          </span>
+          <!-- The decision is in the text: the tinted marker only repeats it. -->
+          <gbt-icon-marker
+            class="mr-approvals__decision-icon"
+            size="sm"
+            appearance="outline"
+            [attr.data-decision]="review.decision"
+            [tone]="review.decision === 'approved' ? 'success' : 'error'"
+            [icon]="review.decision === 'approved' ? 'check' : 'alert-circle'"
+          />
+        </li>
+      } @empty {
+        <li class="mr-approvals__empty">Aucune revue pour l'instant.</li>
+      }
+    </ul>
+    @if (canWrite()) {
+      <div class="mr-approvals__actions">
+        <gbt-button variant="secondary" size="small" iconName="check" text="Approuver" (clicked)="approve.emit()" />
+        <gbt-button variant="secondary" size="small" text="Demander des changements" (clicked)="requestChanges.emit()" />
+      </div>
+    }
+  </div>
+}

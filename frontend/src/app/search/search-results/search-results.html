@@ -1,0 +1,186 @@
+<!-- The page's only live region. It stays in the DOM so every change to its text is announced. -->
+<p class="sr-only" role="status" aria-live="polite">{{ statusMessage() }}</p>
+
+<gbt-page-header [heading]="title()">
+  @if (hasResults()) {
+    <p header-meta class="search-results__total">{{ resultCountLabel() }}</p>
+  }
+</gbt-page-header>
+
+<gbt-page-layout>
+  @switch (state()) {
+    @case ('idle') {
+      <section aria-labelledby="search-results-idle-heading">
+        <gbt-card variant="outlined" [flush]="true">
+          <gbt-empty-state
+            icon="search"
+            [headingLevel]="2"
+            headingId="search-results-idle-heading"
+            heading="Que cherchez-vous&nbsp;?"
+            message="Saisissez un terme dans la barre de recherche pour trouver des dépôts, des tickets, des demandes de fusion ou des utilisateurs."
+          />
+        </gbt-card>
+      </section>
+    }
+
+    @case ('loading') {
+      <div class="search-results__main search-results__loading" aria-busy="true">
+        <div class="search-results__tabs-skeleton" aria-hidden="true">
+          <gbt-skeleton variant="rect" width="22rem" height="2.125rem" />
+        </div>
+        <gbt-card variant="outlined" [flush]="true" aria-hidden="true">
+          <div card-header>
+            <gbt-skeleton width="7rem" height="0.875rem" />
+          </div>
+          <gbt-skeleton-list [rows]="4" loadingLabel="" />
+        </gbt-card>
+      </div>
+    }
+
+    @case ('failed') {
+      <section class="search-results__failed" aria-labelledby="search-results-error-heading">
+        <gbt-card variant="outlined" [flush]="true">
+          <gbt-empty-state
+            tone="error"
+            icon="alert-circle"
+            [headingLevel]="2"
+            headingId="search-results-error-heading"
+            heading="La recherche n'a pas abouti"
+            message="Vérifiez votre connexion, puis relancez la recherche."
+          >
+            <gbt-button variant="secondary" iconName="search" text="Réessayer" (clicked)="retry()" />
+          </gbt-empty-state>
+        </gbt-card>
+      </section>
+    }
+
+    @default {
+      @if (isEmpty()) {
+        <section aria-labelledby="search-results-empty-heading">
+          <gbt-card variant="outlined" [flush]="true">
+            <gbt-empty-state
+              icon="search"
+              [headingLevel]="2"
+              headingId="search-results-empty-heading"
+              [heading]="'Aucun résultat pour ' + quotedQuery()"
+              message="Quelques pistes pour élargir la recherche&nbsp;:"
+            >
+              <ul class="search-results__suggestions">
+                <li>Vérifiez l'orthographe des mots-clés</li>
+                <li>Essayez un terme plus court ou plus général</li>
+                <li>Cherchez un nom de dépôt, le titre d'un ticket ou d'une demande de fusion, ou un nom d'utilisateur</li>
+              </ul>
+            </gbt-empty-state>
+          </gbt-card>
+        </section>
+      } @else {
+        <div class="search-results__main">
+          <gbt-segmented-control class="search-results__tabs" ariaLabel="Catégorie de résultats" tinted wrap [options]="tabOptions()" [value]="tab()" (valueChange)="tab.set($event)" />
+
+          @for (card of visibleCards(); track card.key) {
+            <section class="search-results__section" [attr.aria-labelledby]="card.headingId">
+              <gbt-card variant="outlined" [flush]="true">
+                <div card-header class="search-results__section-header">
+                  <gbt-icon class="search-results__section-icon" [name]="card.icon" aria-hidden="true" />
+                  <h2 class="search-results__section-heading" [id]="card.headingId">{{ card.label }}</h2>
+                  <gbt-badge class="search-results__count" [value]="card.counterValue" [max]="resultsPerCategory" />
+                </div>
+
+                <ul class="search-results__rows">
+                  @switch (card.key) {
+                    @case ('repositories') {
+                      @for (row of repositoryRows(); track row.id) {
+                        <li>
+                          <gbt-list-row>
+                            <span row-leading class="search-results__leading" [title]="row.visibilityLabel">
+                              <gbt-icon [name]="row.visibilityIcon" aria-hidden="true" />
+                            </span>
+
+                            <a [routerLink]="row.link" [title]="row.path"><span class="search-results__namespace">{{ row.namespace }}</span>{{ row.name }}</a>
+
+                            @if (row.description) {
+                              <span row-meta class="search-results__description">{{ row.description }}</span>
+                            }
+
+                            <gbt-badge row-trailing [variant]="row.visibilityVariant" [icon]="row.visibilityIcon">{{ row.visibilityLabel }}</gbt-badge>
+                          </gbt-list-row>
+                        </li>
+                      }
+                    }
+
+                    @case ('issues') {
+                      @for (row of issueRows(); track row.id) {
+                        <li>
+                          <gbt-list-row>
+                            <span row-leading class="search-results__leading" [title]="row.kindLabel">
+                              <gbt-icon [name]="row.kindIcon" aria-hidden="true" />
+                              <span class="sr-only">{{ row.kindLabel }}</span>
+                            </span>
+
+                            <a [routerLink]="row.link" [title]="row.title"><span class="search-results__number">{{ row.number }}</span> {{ row.title }}</a>
+
+                            <span row-meta class="search-results__meta">
+                              <a class="search-results__repo" [routerLink]="row.repositoryLink" [title]="row.repositoryPath"><gbt-badge mono>{{ row.repositoryPath }}</gbt-badge></a>
+                              <span class="search-results__opened">ouvert <time [attr.datetime]="row.createdAt" [title]="row.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.opened }}</time></span>
+                            </span>
+
+                            <fg-status-badge row-trailing kind="issue" [status]="row.status" />
+                          </gbt-list-row>
+                        </li>
+                      }
+                    }
+
+                    @case ('mergeRequests') {
+                      @for (row of mergeRequestRows(); track row.id) {
+                        <li>
+                          <gbt-list-row>
+                            <span row-leading class="search-results__leading" title="Demande de fusion">
+                              <gbt-icon name="git-pull-request" aria-hidden="true" />
+                            </span>
+
+                            <a [routerLink]="row.link" [title]="row.title">{{ row.title }}</a>
+
+                            <span row-meta class="search-results__meta">
+                              <a class="search-results__repo" [routerLink]="row.repositoryLink" [title]="row.repositoryPath"><gbt-badge mono>{{ row.repositoryPath }}</gbt-badge></a>
+                              <span class="search-results__branches" [title]="row.branchesTitle">
+                                <span class="sr-only">Branche </span>
+                                <gbt-badge mono class="search-results__branch">{{ row.sourceBranch }}</gbt-badge>
+                                <span class="search-results__arrow" aria-hidden="true">→</span>
+                                <span class="sr-only"> vers </span>
+                                <gbt-badge mono class="search-results__branch">{{ row.targetBranch }}</gbt-badge>
+                              </span>
+                              <span class="search-results__opened">ouverte <time [attr.datetime]="row.createdAt" [title]="row.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.opened }}</time></span>
+                            </span>
+
+                            <fg-status-badge row-trailing kind="merge-request" [status]="row.status" />
+                          </gbt-list-row>
+                        </li>
+                      }
+                    }
+
+                    @case ('users') {
+                      @for (user of userRows(); track user.id) {
+                        <li>
+                          <gbt-list-row>
+                            <gbt-user-chip class="search-results__user" [name]="user.username" />
+                          </gbt-list-row>
+                        </li>
+                      }
+                    }
+                  }
+                </ul>
+
+                @if (card.capped) {
+                  <p class="search-results__capped">
+                    <gbt-icon name="info" aria-hidden="true" />
+                    Seuls les {{ resultsPerCategory }} résultats les plus pertinents sont affichés&nbsp;: précisez la recherche pour affiner.
+                  </p>
+                }
+              </gbt-card>
+            </section>
+          }
+        </div>
+      }
+    }
+  }
+</gbt-page-layout>

@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO repositories (owner_id, name, group_id, description, disk_path, visibility) VALUES ($1, $2, $3, '', 'acme/widget.git', 'private')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "53fafd7dab22eb9dc71b29a8074b670a00a7174aa5ea5050a7928707d0672ba1"
+}

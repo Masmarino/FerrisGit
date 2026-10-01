@@ -1,0 +1,140 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE releases SET title = COALESCE($1, title), notes = COALESCE($2, notes), prerelease = COALESCE($3, prerelease) WHERE id = $4 AND repository_id = $5 RETURNING id, repository_id, tag_name, title, notes, draft, prerelease, author_id, created_at, published_at",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "tag_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "tag_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "notes",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "notes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "draft",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "draft"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "prerelease",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "prerelease"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "author_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "published_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "published_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Bool",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "56f4dc1265efd21ad362cb073dbb96175f8c3c5d6878e00a0572bb73ef9bec54"
+}

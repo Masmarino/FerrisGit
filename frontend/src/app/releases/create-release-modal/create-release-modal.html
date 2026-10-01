@@ -1,0 +1,71 @@
+<form (submit)="$event.preventDefault(); submit()">
+  <gbt-modal [isOpen]="true" heading="Nouvelle release" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
+    <div class="create-release">
+      <fieldset class="create-release__group">
+        <legend class="create-release__legend">
+          <gbt-icon name="tag" aria-hidden="true" />
+          <span>Version</span>
+        </legend>
+        <div class="create-release__grid">
+          <gbt-select class="create-release__tag" name="tagChoice" label="Tag" [options]="tagOptions()" [ngModel]="tagChoice()" (ngModelChange)="tagChoice.set($event)" />
+          @if (isNewTag()) {
+            <gbt-input
+              class="create-release__tag-name"
+              name="newTagName"
+              label="Nom du nouveau tag"
+              placeholder="v1.0.0"
+              required
+              [ngModel]="newTagName()"
+              (ngModelChange)="newTagName.set($event)"
+            />
+            <gbt-select class="create-release__branch" name="targetBranch" label="Branche cible" [options]="branchOptions()" [ngModel]="targetBranch()" (ngModelChange)="targetBranch.set($event)" />
+          }
+        </div>
+        @if (targetDescription(); as target) {
+          <p class="create-release__target">
+            <gbt-icon name="git-commit" aria-hidden="true" />
+            <span>{{ target }}</span>
+          </p>
+        }
+      </fieldset>
+
+      <gbt-input class="create-release__title" name="title" label="Titre" placeholder="Version 1.0 — première version stable" required [ngModel]="title()" (ngModelChange)="title.set($event)" />
+      <gbt-textarea
+        class="create-release__notes"
+        name="notes"
+        label="Notes de version"
+        placeholder="Nouveautés, corrections, points d'attention (markdown)"
+        [rows]="5"
+        [ngModel]="notes()"
+        (ngModelChange)="notes.set($event)"
+      />
+
+      <div class="create-release__flags">
+        <gbt-switch name="draft" label="Brouillon" hint="Visible des mainteneurs seulement, jusqu'à sa publication" [ngModel]="draft()" (ngModelChange)="draft.set($event)" />
+        <gbt-switch name="prerelease" label="Pré-version" hint="Une version de test, pas encore stable" [ngModel]="prerelease()" (ngModelChange)="prerelease.set($event)" />
+      </div>
+
+      @if (error()) {
+        <gbt-alert class="create-release__error" variant="error">
+          <p class="create-release__error-text">{{ error() }}</p>
+          @if (conflictedTagName(); as tag) {
+            <gbt-button
+              class="create-release__retry"
+              variant="danger"
+              size="small"
+              iconName="trash-2"
+              [text]="'Supprimer le tag « ' + tag + ' » et réessayer'"
+              [disabled]="creating()"
+              (clicked)="deleteConflictedTagAndRetry()"
+            />
+          }
+        </gbt-alert>
+      }
+    </div>
+
+    <div modal-footer>
+      <gbt-button variant="secondary" text="Annuler" [disabled]="creating()" (clicked)="close.emit()" />
+      <gbt-button type="submit" iconName="tag" text="Créer la release" [loading]="creating()" loadingLabel="Création en cours" />
+    </div>
+  </gbt-modal>
+</form>

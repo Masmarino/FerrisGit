@@ -1,0 +1,72 @@
+:host {
+  display: block;
+}
+
+// A size container, so the header folds by its own width (and a 375px story frame shows the phone layout).
+.public-layout {
+  container: public-layout / inline-size;
+  min-height: 100vh;
+  background: var(--bg-panel);
+}
+
+.public-layout__header {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-areas: 'home search account';
+  align-items: center;
+  gap: 0.75rem 1.5rem;
+  padding: 0.75rem 1.5rem;
+  background: var(--bg-principal);
+  border-bottom: 1px solid var(--border-color);
+
+  @container public-layout (max-width: 599px) {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'home account'
+      'search search';
+    padding: 0.75rem 1rem;
+  }
+}
+
+.public-layout__home {
+  grid-area: home;
+  display: inline-flex;
+  border-radius: var(--site-border-radius-sm);
+}
+
+.public-layout__logo {
+  display: block;
+  height: 2rem;
+  width: auto;
+}
+
+.public-layout__search {
+  grid-area: search;
+  justify-self: center;
+  width: 100%;
+  max-width: 28rem;
+  margin: 0;
+}
+
+.public-layout__account {
+  grid-area: account;
+  justify-self: end;
+}
+
+// A comfortable tap target on a phone.
+@media (pointer: coarse) {
+  .public-layout__account-link {
+    min-height: 44px;
+  }
+}
+
+.public-layout__content {
+  box-sizing: border-box;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1.5rem;
+
+  @container public-layout (max-width: 599px) {
+    padding: 1rem;
+  }
+}

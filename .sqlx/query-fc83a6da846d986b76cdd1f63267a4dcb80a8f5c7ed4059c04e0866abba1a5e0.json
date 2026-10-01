@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO milestones (id, title, repository_id) VALUES ($1, 'v1', $2)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "fc83a6da846d986b76cdd1f63267a4dcb80a8f5c7ed4059c04e0866abba1a5e0"
+}

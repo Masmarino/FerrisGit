@@ -1,0 +1,40 @@
+.pipeline-job__header {
+  margin-bottom: 1.5rem;
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    // The heading keeps the height its glyph line gave it (36px) with Gabarit's 20px glyph.
+    min-height: 2.25rem;
+    margin: 0 0 0.25rem;
+  }
+}
+
+.pipeline-job__meta,
+.pipeline-job__needs {
+  margin: 0.25rem 0 0;
+  color: var(--text-secondary);
+}
+
+.pipeline-job__meta {
+  display: flex;
+  gap: 1rem;
+}
+
+.pipeline-job__stepper {
+  display: block;
+  margin-bottom: 1.5rem;
+}
+
+.pipeline-job__logs {
+  max-height: 70vh;
+  margin: 0;
+  padding: 1rem;
+  overflow: auto;
+  background: #111;
+  color: #ddd;
+  border-radius: 4px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

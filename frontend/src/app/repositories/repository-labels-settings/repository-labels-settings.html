@@ -1,0 +1,102 @@
+<gbt-card variant="outlined" icon="plus" heading="Nouveau label" description="Les labels classent les tickets et les demandes de fusion de ce dépôt.">
+  <form class="repository-labels-settings__form" (submit)="$event.preventDefault(); addLabel()">
+    <div class="repository-labels-settings__fields">
+      <gbt-input name="name" label="Nom du label" placeholder="bug, documentation…" autocomplete="off" [ngModel]="newLabelName()" (ngModelChange)="newLabelName.set($event)" />
+      <div class="repository-labels-settings__preview">
+        <span class="repository-labels-settings__preview-label" aria-hidden="true">Aperçu</span>
+        <gbt-tag [color]="newLabelColor()">{{ newLabelName().trim() || 'Aperçu' }}</gbt-tag>
+      </div>
+    </div>
+
+    <fieldset class="repository-labels-settings__palette">
+      <legend class="repository-labels-settings__legend">Couleur</legend>
+      <div class="repository-labels-settings__swatches">
+        @for (swatch of labelPalette; track swatch.color) {
+          <input
+            type="radio"
+            class="repository-labels-settings__swatch"
+            [name]="paletteName"
+            [value]="swatch.color"
+            [checked]="newLabelColor() === swatch.color"
+            [style.--swatch]="swatch.color"
+            [attr.aria-label]="swatch.name"
+            [title]="swatch.name"
+            (change)="newLabelColor.set(swatch.color)"
+          />
+        }
+      </div>
+    </fieldset>
+
+    <div class="repository-labels-settings__actions">
+      <gbt-button type="submit" iconName="plus" text="Créer le label" [disabled]="!newLabelName().trim()" />
+    </div>
+  </form>
+</gbt-card>
+
+<gbt-card variant="outlined" icon="tag" heading="Labels" description="Les labels de ce dépôt, proposés sur ses tickets et ses demandes de fusion." [count]="listState() === 'loaded' ? labels().length : null" [flush]="listState() !== 'failed'">
+  @switch (listState()) {
+    @case ('loading') {
+      <div class="repository-labels-settings__loading" aria-busy="true">
+        <span class="sr-only" role="status">Chargement des labels…</span>
+        @for (width of skeletonRows; track $index) {
+          <div class="repository-labels-settings__skeleton" aria-hidden="true">
+            <gbt-skeleton variant="rect" [width]="width" height="1.375rem" />
+          </div>
+        }
+      </div>
+    }
+    @case ('failed') {
+      <gbt-alert variant="error" appearance="subtle" live="off">
+        Les labels n'ont pas pu être chargés.
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+      </gbt-alert>
+    }
+    @default {
+      @if (labels().length === 0) {
+        <gbt-empty-state
+          size="compact"
+          icon="tag"
+          heading="Aucun label pour l'instant"
+          message="Créez « bug », « documentation » ou « urgent » pour trier les tickets et les demandes de fusion d'un coup d'œil."
+        />
+      } @else {
+        <ul class="repository-labels-settings__rows" aria-label="Labels">
+          @for (label of labels(); track label.id) {
+            <li>
+              <gbt-list-row>
+                <gbt-tag class="repository-labels-settings__tag" [color]="label.color" [title]="label.name">{{ label.name }}</gbt-tag>
+                <code row-trailing class="repository-labels-settings__hex">{{ label.color }}</code>
+                <gbt-button
+                  row-trailing
+                  class="repository-labels-settings__delete"
+                  variant="ghost-danger"
+                  size="medium"
+                  [iconOnly]="true"
+                  iconName="trash-2"
+                  title="Supprimer"
+                  [ariaLabel]="'Supprimer le label ' + label.name"
+                  (clicked)="confirmDeleteLabel(label)"
+                />
+              </gbt-list-row>
+            </li>
+          }
+        </ul>
+      }
+    }
+  }
+</gbt-card>
+
+@if (labelPendingDelete(); as label) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    heading="Supprimer ce label"
+    message="Ce label sera retiré de tous les tickets et de toutes les demandes de fusion qui l'utilisent. Cette action est irréversible."
+    [confirmText]="label.name"
+    confirmInputLabel="Tapez le nom du label pour confirmer"
+    confirmLabel="Supprimer"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    (confirmed)="deleteLabel()"
+    (closed)="labelPendingDelete.set(null)"
+  />
+}

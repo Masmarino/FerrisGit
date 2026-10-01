@@ -1,0 +1,87 @@
+<gbt-card variant="outlined" icon="plus" heading="Ajouter un collaborateur" description="Donne accès à ce dépôt à un utilisateur existant, avec le rôle choisi.">
+  <form class="repository-collaborators-settings__form" (submit)="$event.preventDefault(); addCollaborator()">
+    <div class="repository-collaborators-settings__fields">
+      <gbt-input name="username" label="Nom d'utilisateur" placeholder="alice" autocomplete="off" [ngModel]="newCollaboratorUsername()" (ngModelChange)="newCollaboratorUsername.set($event)" />
+      <gbt-select class="repository-collaborators-settings__role-input" name="role" label="Rôle" placeholder="Choisir un rôle" [options]="roleOptions" [ngModel]="newCollaboratorRole()" (ngModelChange)="newCollaboratorRole.set($event)" />
+      <p class="repository-collaborators-settings__hint">Lecteur : consulte le dépôt. Contributeur : pousse des branches et propose des changements. Mainteneur : administre aussi le dépôt.</p>
+    </div>
+    <div class="repository-collaborators-settings__actions">
+      <gbt-button type="submit" iconName="plus" text="Ajouter le collaborateur" [disabled]="!newCollaboratorUsername().trim()" />
+    </div>
+  </form>
+</gbt-card>
+
+<gbt-card variant="outlined" icon="user" heading="Collaborateurs" description="Les personnes qui ont accès à ce dépôt, en plus de son propriétaire." [count]="listState() === 'loaded' ? collaborators().length : null" [flush]="listState() !== 'failed'">
+  @switch (listState()) {
+    @case ('loading') {
+      <gbt-skeleton-list [rows]="3" leadingSize="1.5rem" loadingLabel="Chargement des collaborateurs…" />
+    }
+    @case ('failed') {
+      <gbt-alert variant="error" appearance="subtle" live="off">
+        Les collaborateurs n'ont pas pu être chargés.
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+      </gbt-alert>
+    }
+    @default {
+      @if (collaborators().length === 0) {
+        <gbt-empty-state
+          size="compact"
+          icon="user"
+          heading="Aucun collaborateur pour l'instant"
+          message="Seul le propriétaire a accès à ce dépôt. Ajoutez des personnes pour relire, contribuer ou maintenir avec vous."
+        />
+      } @else {
+        <ul class="repository-collaborators-settings__rows" aria-label="Collaborateurs">
+          @for (collaborator of collaborators(); track collaborator.userId) {
+            <li>
+              <gbt-list-row>
+                <gbt-user-chip [name]="collaborator.username" />
+                <span row-meta>
+                  ajouté <time [attr.datetime]="collaborator.createdAt" [title]="collaborator.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ collaborator.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                </span>
+                <gbt-select
+                  row-trailing
+                  class="repository-collaborators-settings__role"
+                  size="sm"
+                  [label]="'Rôle de ' + collaborator.username"
+                  hideLabel
+                  placeholder="Choisir un rôle"
+                  [options]="roleOptions"
+                  [ngModel]="pendingRoles().get(collaborator.userId) ?? collaborator.role"
+                  (ngModelChange)="changeCollaboratorRole(collaborator, $event)"
+                />
+                <gbt-button
+                  row-trailing
+                  class="repository-collaborators-settings__remove"
+                  variant="ghost-danger"
+                  size="medium"
+                  [iconOnly]="true"
+                  iconName="trash-2"
+                  title="Retirer"
+                  [ariaLabel]="'Retirer ' + collaborator.username"
+                  (clicked)="confirmRemoveCollaborator(collaborator)"
+                />
+              </gbt-list-row>
+            </li>
+          }
+        </ul>
+      }
+    }
+  }
+</gbt-card>
+
+@if (collaboratorPendingRemoval(); as collaborator) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    heading="Retirer le collaborateur"
+    [message]="collaborator.username + ' n’aura plus accès à ce dépôt, sauf s’il est public. Vous pourrez l’ajouter à nouveau plus tard.'"
+    confirmLabel="Retirer"
+    confirmIcon="trash-2"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    busyLabel="Retrait en cours"
+    [busy]="removing()"
+    (confirmed)="removeCollaborator(collaborator.username)"
+    (closed)="collaboratorPendingRemoval.set(null)"
+  />
+}

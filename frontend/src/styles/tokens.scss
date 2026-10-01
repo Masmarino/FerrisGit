@@ -1,0 +1,43 @@
+@use '@masmarino/gabarit/tokens' as *;
+
+// FerrisGit's own identity, reapplied over the library's values. Literal values rather than `var(--brand-*)`: Gabarit's
+// raw palette is an internal detail nothing here should rely on.
+:root {
+  --primary: #44476a;
+  --bg-principal: #ffffff;
+  --bg-panel: #f5f5f7;
+  --bg-hover: rgba(0, 0, 0, 0.05);
+
+  --site-border-radius: 14px;
+  --site-border-radius-sm: 10px;
+  --site-border-radius-lg: 24px;
+
+  --site-shadow-sm:
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 1px 4px rgba(0, 0, 0, 0.06);
+  --site-shadow-md:
+    0 4px 6px rgba(0, 0, 0, 0.07),
+    0 2px 4px rgba(0, 0, 0, 0.06);
+
+  --site-transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  --site-transition-base: 300ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@mixin dark-tokens {
+  --primary: #a7aeff;
+  // Reuses Gabarit's own dark-mode default. Without it, --bg-principal stayed #ffffff under light text (about 1:1 contrast).
+  --bg-principal: var(--grey-900);
+  --bg-panel: #0f1c26;
+  --bg-hover: rgba(255, 255, 255, 0.06);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    @include dark-tokens;
+  }
+}
+
+// Gabarit also turns dark on `[data-theme='dark']` (the dark stories set it), so FerrisGit's own values follow it.
+:root[data-theme='dark'] {
+  @include dark-tokens;
+}

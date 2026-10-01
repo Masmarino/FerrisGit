@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO issues (id, repository_id, number, author_id, title, description, status, kind, milestone_id) VALUES ($1, $2, 1, $3, 'an issue', '', 'todo', 'bug', $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "68421e03ec43239050a42452b781209ff8501db54e50a8b76bc51a2a88c2fcce"
+}

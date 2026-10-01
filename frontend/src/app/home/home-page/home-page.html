@@ -1,0 +1,134 @@
+<gbt-page-header heading="Accueil">
+  @if (username()) {
+    <p header-meta class="home-page__greeting">Bonjour, <span class="home-page__username">{{ username() }}</span></p>
+  }
+</gbt-page-header>
+
+<gbt-page-layout width="wide">
+  @if (loading()) {
+    <!-- The grid announces once that the dashboard is loading (a polite status, outside any aria-busy region). The
+         card's own placeholder rows stay silent. -->
+    <div class="home-page__main home-page__loading">
+      <gbt-stat-grid ariaLabel="Résumé" [loading]="true" loadingLabel="Chargement du tableau de bord…" />
+      <gbt-card variant="outlined" [flush]="true" aria-hidden="true">
+        <div card-header>
+          <gbt-skeleton width="7rem" height="0.875rem" />
+        </div>
+        <gbt-skeleton-list [rows]="4" loadingLabel="" />
+      </gbt-card>
+    </div>
+  } @else if (loadFailed()) {
+    <gbt-alert variant="error" appearance="subtle" live="off" heading="Le tableau de bord n'a pas pu être chargé">
+      Vérifiez votre connexion, puis réessayez.
+      <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="load()" />
+    </gbt-alert>
+  } @else {
+    <div class="home-page__main">
+      <gbt-stat-grid ariaLabel="Résumé">
+        @for (group of todoGroups(); track group.key) {
+          <gbt-stat-tile [attr.data-kind]="group.kind" [label]="group.label" [value]="group.count" [icon]="group.icon" [muted]="group.rows.length === 0" />
+        }
+      </gbt-stat-grid>
+
+      @if (nothingToDo()) {
+        <gbt-card variant="outlined" [flush]="true">
+          <div class="home-page__empty">
+            <gbt-empty-state
+              illustration="checklist"
+              heading="Rien à traiter pour l'instant"
+              message="Aucun ticket ni demande de fusion ne vous attend. Ce qui vous est assigné, ce que vous ouvrez et ce qu'on vous demande de relire apparaîtra ici."
+            />
+          </div>
+        </gbt-card>
+      } @else {
+        <gbt-card class="home-page__todo" variant="outlined" icon="check-circle" heading="À traiter" [flush]="true">
+          @for (group of todoGroups(); track group.key) {
+            <section class="home-page__group" [attr.aria-labelledby]="group.headingId">
+              <h3 class="home-page__group-heading" [id]="group.headingId">
+                <gbt-icon [name]="group.icon" aria-hidden="true" />
+                <span class="home-page__group-label">{{ group.label }}</span>
+                <gbt-badge class="home-page__group-count" [value]="group.counterValue" [max]="cap" />
+              </h3>
+
+              @if (group.rows.length > 0) {
+                <ul class="home-page__rows">
+                  @for (row of group.rows; track row.id) {
+                    <li>
+                      <gbt-list-row>
+                        <span row-leading class="home-page__row-icon" [title]="row.iconLabel">
+                          <gbt-icon [name]="row.icon" aria-hidden="true" />
+                          <span class="sr-only">{{ row.iconLabel }}</span>
+                        </span>
+
+                        <a [routerLink]="row.link" [title]="row.title">
+                          @if (row.number) {
+                            <span class="home-page__number">{{ row.number }}</span>
+                          }
+                          {{ row.title }}
+                        </a>
+
+                        <span row-meta class="home-page__meta">
+                          <a class="home-page__repo" [routerLink]="row.repositoryLink" [title]="row.repositoryPath"><gbt-badge mono>{{ row.repositoryPath }}</gbt-badge></a>
+                          <!-- No "·" separator: the chip's border already sets it apart, and a separator would start
+                               the wrapped line on a phone. -->
+                          <span class="home-page__opened">
+                            {{ row.kind === 'issue' ? 'ouvert' : 'ouverte' }}
+                            <time [attr.datetime]="row.createdAt" [title]="row.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                          </span>
+                        </span>
+
+                        <fg-status-badge row-trailing [kind]="row.kind" [status]="row.status" />
+                      </gbt-list-row>
+                    </li>
+                  }
+                </ul>
+              } @else {
+                <p class="home-page__group-empty"><gbt-icon name="check" aria-hidden="true" />Tout est à jour</p>
+              }
+            </section>
+          }
+        </gbt-card>
+      }
+    </div>
+  }
+
+  @if (!loadFailed()) {
+    <div page-aside class="home-page__aside">
+      <gbt-panel heading="Activité récente" [headingLevel]="2">
+        @if (unreadLabel(); as unread) {
+          <gbt-badge panel-actions class="home-page__unread-count" variant="info">{{ unread }}</gbt-badge>
+        }
+
+        @if (loading()) {
+          <div class="home-page__activity-loading" aria-hidden="true">
+            @for (i of activitySkeletons; track i) {
+              <div class="home-page__skeleton-event">
+                <gbt-skeleton width="90%" height="0.75rem" />
+                <gbt-skeleton width="30%" height="0.625rem" />
+              </div>
+            }
+          </div>
+        } @else {
+          @if (activityRows().length > 0) {
+            <ol class="home-page__activity">
+              @for (n of activityRows(); track n.id) {
+                <li class="home-page__event" [class.home-page__event--unread]="!n.read">
+                  <span class="home-page__event-marker" aria-hidden="true"></span>
+                  <a class="home-page__event-link" [routerLink]="n.link" [queryParams]="n.queryParams">
+                    @if (!n.read) {
+                      <span class="sr-only">Non lue</span>
+                    }
+                    {{ n.sentence }}
+                  </a>
+                  <time class="home-page__event-time" [attr.datetime]="n.createdAt" [title]="n.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ n.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                </li>
+              }
+            </ol>
+          } @else {
+            <p class="home-page__activity-empty">Aucune activité récente</p>
+          }
+        }
+      </gbt-panel>
+    </div>
+  }
+</gbt-page-layout>

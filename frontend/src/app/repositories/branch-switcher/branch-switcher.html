@@ -1,0 +1,2 @@
+<!-- The trigger icon says what the control is, so the label stays for assistive technology only. -->
+<gbt-select class="branch-switcher" size="sm" label="Branche ou tag" hideLabel placeholder="Branche ou tag" [options]="refOptions()" [ngModel]="selectedRef()" (ngModelChange)="navigateToRef($event)" />

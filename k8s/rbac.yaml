@@ -1,0 +1,35 @@
+# Lets FerrisGit's own Kubernetes CI engine create/watch Pods and cache PVCs in this same
+# namespace — see the README section "Kubernetes execution engine". In-cluster namespace auto-detection then picks
+# "ferrisgit" automatically, so no `k8s_namespace` setting is needed.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ferrisgit-ci
+  namespace: ferrisgit
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ferrisgit-ci
+  namespace: ferrisgit
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ferrisgit-ci
+  namespace: ferrisgit
+subjects:
+  - kind: ServiceAccount
+    name: ferrisgit-ci
+    namespace: ferrisgit
+roleRef:
+  kind: Role
+  name: ferrisgit-ci
+  apiGroup: rbac.authorization.k8s.io

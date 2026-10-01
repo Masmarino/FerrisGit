@@ -1,0 +1,190 @@
+@use '../../shared/layout/list-page';
+
+:host {
+  @include list-page.page-host;
+}
+
+.admin-users__summary {
+  margin: 0;
+}
+
+.admin-users__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+.admin-users__toolbar {
+  ::ng-deep .gbt-list-toolbar__search {
+    min-width: min(200px, 100%);
+  }
+
+  ::ng-deep .gbt-select {
+    min-width: 0;
+  }
+}
+
+.admin-users__toolbar--idle {
+  opacity: 0.55;
+}
+
+.admin-users__rows > li:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: -2px;
+}
+
+.admin-users__tabs {
+  @include list-page.segmented-counts;
+  @include list-page.header-tabs;
+}
+
+.admin-users__user-link {
+  display: inline-flex;
+  align-items: center;
+
+  gbt-user-chip {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+.admin-users__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.875rem;
+  min-width: 0;
+}
+
+.admin-users__email {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+// A dot between segments would open or close a wrapped line.
+.admin-users__segment {
+  white-space: nowrap;
+}
+
+.admin-users__trailing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem 0.5rem;
+  min-width: 0;
+}
+
+.admin-users__badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.375rem;
+}
+
+.admin-users__menu {
+  @include list-page.row-menu;
+}
+
+// The width the kebab takes in the row (its 32px trigger minus the 8px it overlaps the row's padding).
+.admin-users__busy {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: 0 0 0 0;
+}
+
+.admin-users__busy {
+  width: 32px;
+  margin-right: -8px;
+}
+
+.admin-users__menu ::ng-deep .gbt-menu__item {
+  align-items: flex-start;
+  min-height: 2.25rem;
+  line-height: 1.25rem;
+
+  gbt-icon {
+    flex: none;
+    margin-top: 0.125rem;
+    color: var(--text-secondary);
+  }
+}
+
+.admin-users__menu ::ng-deep .gbt-menu__list {
+  max-width: min(20rem, calc(100vw - 2rem));
+}
+
+.admin-users__help {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+@container gbt-list-card (max-width: 559px) {
+  .admin-users__rows ::ng-deep .gbt-list-row__trailing {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+
+  .admin-users__trailing {
+    flex-wrap: nowrap;
+    width: 100%;
+    justify-content: space-between;
+  }
+
+  .admin-users__badges {
+    justify-content: flex-start;
+  }
+
+  .admin-users__menu ::ng-deep .gbt-menu__trigger--icon-only {
+    min-width: 44px;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  .admin-users__menu {
+    margin: -10px -14px -10px 0;
+  }
+
+  .admin-users__menu ::ng-deep .gbt-menu__item {
+    min-height: 44px;
+    align-items: center;
+  }
+
+  .admin-users__busy {
+    width: 44px;
+    margin-right: -14px;
+  }
+
+  .admin-users__email {
+    flex: 1 0 100%;
+  }
+}
+
+@media (max-width: 599px) {
+  .admin-users__invite ::ng-deep .gbt-button {
+    min-height: 44px;
+  }
+
+  .admin-users__toolbar {
+    ::ng-deep .gbt-input .gbt-input__wrapper input,
+    ::ng-deep .gbt-select__trigger {
+      height: 2.75rem;
+    }
+
+    ::ng-deep .gbt-list-toolbar__direction {
+      width: 44px;
+      height: 44px;
+    }
+  }
+
+  .admin-users__tabs ::ng-deep .gbt-segmented-control__option {
+    min-height: 2.75rem;
+  }
+}

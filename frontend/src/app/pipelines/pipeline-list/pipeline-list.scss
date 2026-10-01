@@ -1,0 +1,134 @@
+@use '../../shared/layout/list-page';
+
+:host {
+  @include list-page.page-host;
+}
+
+.pipeline-list__band {
+  display: flex;
+  flex: 1 1 auto;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  min-width: 0;
+}
+
+.pipeline-list__tabs {
+  @include list-page.segmented-counts;
+  @include list-page.header-tabs;
+}
+
+.pipeline-list__filters {
+  display: flex;
+  flex: 1 1 24rem;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+// Labels are kept for assistive technology only (`hideLabel`). The controls are 32px tall to line up with the segmented control.
+.pipeline-list__search {
+  flex: 0 1 20rem;
+  min-width: 0;
+}
+
+// Gabarit gives a select a 180px minimum; the header sets its own widths.
+.pipeline-list__order {
+  flex: none;
+  width: 12.5rem;
+  min-width: 0;
+}
+
+.pipeline-list__items {
+  > li {
+    position: relative; // anchors the visually hidden badge of a phone-width row
+  }
+}
+
+.pipeline-list__status {
+  @include list-page.row-status;
+}
+
+.pipeline-list__number {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.pipeline-list__number--alone {
+  color: inherit;
+  font-weight: inherit;
+}
+
+.pipeline-list__sha {
+  flex: none;
+}
+
+.pipeline-list__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0 0.375rem;
+  min-width: 0;
+}
+
+.pipeline-list__author {
+  @include list-page.row-author;
+}
+
+.pipeline-list__when,
+.pipeline-list__duration {
+  white-space: nowrap;
+}
+
+.pipeline-list__duration {
+  font-variant-numeric: tabular-nums;
+}
+
+.pipeline-list__trailing {
+  display: flex;
+  align-items: center;
+}
+
+@container gbt-list-card (max-width: 559px) {
+  .pipeline-list__filters {
+    flex-basis: 100%;
+  }
+
+  .pipeline-list__search {
+    flex: 1 1 auto;
+  }
+
+  .pipeline-list__order {
+    width: 9rem;
+  }
+
+  // A phone-width row can't spare ~100px for the badge, so the leading icon shows the status and the badge stays for screen readers.
+  .pipeline-list__items ::ng-deep .gbt-list-row__trailing {
+    @include list-page.visually-hidden;
+  }
+}
+
+@container gbt-list-card (max-width: 479px) {
+  .pipeline-list__tabs {
+    flex: 1 1 100%;
+    min-width: 0;
+
+    ::ng-deep .gbt-segmented-control {
+      display: flex;
+    }
+
+    ::ng-deep .gbt-segmented-control__option {
+      flex: 1 1 auto;
+      min-width: 0;
+      padding-inline: 0.375rem;
+      line-height: 1.2;
+      text-align: center;
+    }
+  }
+
+}
+
+.pipeline-list__pagination {
+  @include list-page.pagination;
+}

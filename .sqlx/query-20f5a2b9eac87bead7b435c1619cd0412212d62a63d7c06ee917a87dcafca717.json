@@ -1,0 +1,65 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                WITH RECURSIVE d AS (\n                    SELECT id, parent_group_id, name, description, created_by, created_at, name::text AS suffix\n                    FROM groups WHERE parent_group_id = $1\n                    UNION ALL\n                    SELECT g.id, g.parent_group_id, g.name, g.description, g.created_by, g.created_at, d.suffix || '/' || g.name\n                    FROM groups g JOIN d ON g.parent_group_id = d.id\n                )\n                SELECT id AS \"id!\", parent_group_id, name AS \"name!\", description AS \"description!\",\n                       created_by AS \"created_by?\", created_at AS \"created_at!\", suffix FROM d\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "parent_group_id",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "description!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_by?",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 6,
+        "name": "suffix",
+        "type_info": "Text",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "20f5a2b9eac87bead7b435c1619cd0412212d62a63d7c06ee917a87dcafca717"
+}

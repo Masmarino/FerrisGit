@@ -1,0 +1,241 @@
+@use '../../shared/layout/list-page';
+@use '../../shared/layout/settings-section';
+@use '../../shared/layout/card';
+
+:host {
+  @include list-page.page-host;
+}
+
+.runners-list__summary {
+  margin: 0;
+}
+
+.runners-list__main {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  min-width: 0;
+}
+
+code {
+  font-family: var(--gbt-font-mono);
+  font-size: 0.8125em;
+}
+
+.runners-list__token {
+  min-width: 0;
+  border-radius: var(--site-border-radius);
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  // Gabarit sets its own text colour on the card root; hand it back to the page.
+  gbt-card {
+    @include card.inherit-text;
+  }
+}
+
+// Gabarit's `tone` does not reach projected header content: use the warning text colour meant for the page background
+// (`-bg-text` is for text on a warning tint).
+.runners-list__token-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.runners-list__token-titles {
+  min-width: 0;
+}
+
+.runners-list__token-heading {
+  margin: 0;
+  color: var(--color-warning-text);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+  overflow-wrap: anywhere;
+}
+
+.runners-list__token-warning {
+  margin: 0;
+  color: var(--color-warning-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+.runners-list__token-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+// Gabarit gap: `gbt-secret-reveal` has no size or touch rule. On touch, use real 44px sizes rather than a larger hit
+// area, because a mis-tap on the eye button would hide the secret.
+.runners-list__token-secret ::ng-deep .gbt-secret-reveal__value {
+  min-height: 2.25rem;
+  padding: 0.4375rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.runners-list__token-secret ::ng-deep .gbt-secret-reveal__toggle .gbt-button,
+.runners-list__token-secret ::ng-deep .gbt-secret-reveal__copy .gbt-button {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+@media (pointer: coarse) {
+  .runners-list__token-secret ::ng-deep .gbt-secret-reveal__value {
+    min-height: 2.75rem;
+  }
+
+  .runners-list__token-secret ::ng-deep .gbt-secret-reveal__toggle .gbt-button,
+  .runners-list__token-secret ::ng-deep .gbt-secret-reveal__copy .gbt-button {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
+.runners-list__token-usage {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.runners-list__token-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem 1rem;
+}
+
+.runners-list__band {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.runners-list__card-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 1rem;
+  font-weight: 600;
+
+  gbt-icon {
+    flex: none;
+    color: var(--text-secondary);
+  }
+}
+
+.runners-list__card-heading {
+  margin: 0;
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1.5rem;
+}
+
+.runners-list__status {
+  @include list-page.row-status;
+}
+
+// The class is doubled because gbt-list-row's `> *` rule would otherwise keep it from shrinking.
+.runners-list__name.runners-list__name {
+  @include settings-section.row-title-text;
+  font-family: var(--gbt-font-mono);
+  font-size: 0.875rem;
+}
+
+.runners-list__no-tags {
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.runners-list__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.125rem 0.375rem;
+}
+
+.runners-list__heartbeat,
+.runners-list__created {
+  white-space: nowrap;
+}
+
+.runners-list__heartbeat + .runners-list__created::before {
+  content: '·' / '';
+  margin-right: 0.375rem;
+}
+
+.runners-list__failed {
+  display: block;
+  margin: 1rem;
+}
+
+.runners-list__empty {
+  @include list-page.empty-card;
+}
+
+.runners-list__steps {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding-left: 1.125rem;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+
+  li::marker {
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+}
+
+.runners-list__help {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+
+.runners-list__steps code,
+.runners-list__help code {
+  padding: 0 0.25rem;
+  border-radius: 4px;
+  background: var(--bg-hover);
+  overflow-wrap: anywhere;
+}
+
+.runners-list__register {
+  @include list-page.create-form;
+  width: min(28rem, 100%);
+}
+
+.runners-list__register-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+}
+
+.runners-list__register-hint {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.4;
+}
+
+.runners-list__register-error {
+  margin: 0;
+}

@@ -1,0 +1,37 @@
+<div class="public-layout">
+  <header class="public-layout__header">
+    <a class="public-layout__home" routerLink="/explore" aria-label="FerrisGit, explorer les dépôts publics">
+      <picture>
+        <source srcset="Logo_horizontal_dark.png" media="(prefers-color-scheme: dark)" />
+        <img class="public-layout__logo" src="Logo_horizontal.png" alt="" />
+      </picture>
+    </a>
+
+    <form ngNoForm class="public-layout__search" role="search" aria-label="Recherche rapide" (submit)="$event.preventDefault(); search()">
+      <gbt-input
+        type="search"
+        size="sm"
+        leadingIcon="search"
+        label="Rechercher un dépôt public"
+        hideLabel
+        placeholder="Rechercher un dépôt…"
+        enterkeyhint="search"
+        [maxlength]="maxQueryLength"
+        [ngModel]="query()"
+        (ngModelChange)="query.set($event)"
+      />
+    </form>
+
+    <div class="public-layout__account">
+      @if (isAuthenticated()) {
+        <a gbtButton class="public-layout__account-link" variant="secondary" size="small" routerLink="/repositories">Mes dépôts</a>
+      } @else {
+        <a gbtButton class="public-layout__account-link" variant="primary" size="small" [routerLink]="login().commands" [queryParams]="login().queryParams">Se connecter</a>
+      }
+    </div>
+  </header>
+
+  <main class="public-layout__content">
+    <router-outlet />
+  </main>
+</div>

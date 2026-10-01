@@ -1,0 +1,100 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT mrl.merge_request_id, l.id, l.name, l.color, l.repository_id, l.group_id, l.created_at FROM labels l JOIN merge_request_labels mrl ON mrl.label_id = l.id WHERE mrl.merge_request_id = ANY($1::uuid[])",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "merge_request_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "merge_request_labels",
+            "name": "merge_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "labels",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "labels",
+            "name": "name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "color",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "labels",
+            "name": "color"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "labels",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "group_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "labels",
+            "name": "group_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "labels",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "94e3545e85bd88ca5827013540c54f78b3665b492671638b34bd72ab02ed4ba9"
+}

@@ -1,0 +1,44 @@
+<fg-wiki-layout [repositoryId]="repositoryId()" [path]="path()" (loaded)="onLoaded($event)" (loadFailed)="onLoadFailed()">
+  <gbt-page-header heading="Wiki">
+    @if (state() === 'loaded' && pages().length > 0) {
+      <span header-meta>{{ countLabel() }}</span>
+    }
+  </gbt-page-header>
+
+  @if (state() === 'failed') {
+    <!-- Not the list card's failed state: the wiki shell's nav alert announces this same failed request, and its reload lives in the shell. -->
+    <gbt-alert class="wiki-page-list__load-error" variant="error" appearance="subtle" live="off">Le wiki n’a pas pu être chargé.</gbt-alert>
+  } @else {
+    <gbt-list-card
+      ariaLabel="Toutes les pages"
+      [state]="cardState()"
+      loadingLabel="Chargement du wiki…"
+      [skeletonRows]="3"
+      emptyIllustration="book"
+      emptyHeading="Aucune page pour l'instant"
+      emptyMessage="Le wiki rassemble la documentation du dépôt : guides, décisions, procédures. Chaque page s’écrit en markdown et garde son historique."
+    >
+      <div list-card-header class="wiki-page-list__band">
+        <gbt-icon name="book-open" aria-hidden="true" />
+        <h2 class="wiki-page-list__card-heading">Toutes les pages</h2>
+        <span class="wiki-page-list__card-note">Par ordre alphabétique</span>
+      </div>
+
+      <ul class="wiki-page-list__items">
+        @for (row of rows(); track row.page.slug) {
+          <li>
+            <a class="wiki-page-list__tile" [routerLink]="row.link" [title]="row.page.title"
+              ><gbt-icon-marker shape="tile" tone="primary" icon="file"
+              /><span class="wiki-page-list__tile-title">{{ row.page.title }}</span
+              ><gbt-icon class="wiki-page-list__tile-chevron" name="chevron-right" aria-hidden="true"
+            /></a>
+          </li>
+        }
+      </ul>
+
+      @if (canManage()) {
+        <gbt-button list-card-empty class="wiki-page-list__new-page-link" iconName="plus" text="Créer la première page" (clicked)="createPage()" />
+      }
+    </gbt-list-card>
+  }
+</fg-wiki-layout>

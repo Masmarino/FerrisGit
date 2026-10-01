@@ -1,0 +1,53 @@
+@if (pipeline(); as p) {
+  <gbt-page-header [heading]="'Pipeline #' + p.id.slice(0, 8)">
+    <fg-status-badge header-badges class="pipeline-detail__status pipeline-detail__status--{{ p.status }}" kind="pipeline" [status]="p.status" />
+
+    <p header-meta class="pipeline-detail__meta">
+      <span class="pipeline-detail__commit">
+        <gbt-badge mono class="pipeline-detail__sha" [fullText]="p.commitSha">{{ p.commitSha.slice(0, 8) }}</gbt-badge>
+        @if (p.commitMessage; as message) {
+          &ngsp;<span class="pipeline-detail__message">{{ message }}</span>
+        }
+      </span>
+      <!-- Each separator belongs to the segment after it: a wrapped line never ends on a dangling "·". -->
+      <span>
+        <span aria-hidden="true"> · </span>déclenché
+        <time [attr.datetime]="p.createdAt" [title]="p.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ p.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+        @if (p.triggeredBy; as user) {
+          par <span class="pipeline-detail__author">{{ user.username }}</span>
+        }
+      </span>
+      <span class="pipeline-detail__timing"><span aria-hidden="true"> · </span>durée <span class="pipeline-detail__duration">{{ pipelineDuration() }}</span></span>
+    </p>
+
+    @if ((p.status === 'pending' || p.status === 'running') && (role() === 'owner' || role() === 'contributor' || role() === 'maintainer')) {
+      <gbt-button header-actions variant="danger" (clicked)="cancel()" text="Annuler le pipeline" />
+    }
+  </gbt-page-header>
+
+  <div class="pipeline-detail__layout">
+    <fg-pipeline-sidebar [path]="path()" [pipelineId]="pipelineId()" [groups]="groups()" [selectedJobId]="jobId()" [now]="now()" />
+    <div class="pipeline-detail__content">
+      @if (jobId() === null) {
+        <fg-pipeline-summary
+          [groups]="groups()"
+          [activeStageIndex]="activeStage()"
+          [selectedStage]="selectedStage()"
+          [path]="path()"
+          [pipelineId]="pipelineId()"
+          [now]="now()"
+          (stageSelected)="selectStage($event)"
+          (jobOpened)="openJob($event)"
+        />
+      } @else if (currentJob(); as job) {
+        <fg-pipeline-job [job]="job" [groups]="groups()" [activeStageIndex]="activeStage()" [now]="now()" (stageSelected)="selectStage($event)" />
+      } @else {
+        <section class="pipeline-detail__not-found">
+          <gbt-empty-state illustration="pipeline" heading="Ce job est introuvable dans ce pipeline.">
+            <a [routerLink]="summaryLink()">Retour au résumé</a>
+          </gbt-empty-state>
+        </section>
+      }
+    </div>
+  </div>
+}

@@ -1,0 +1,26 @@
+@if (contributors(); as all) {
+  @if (all.length > 0) {
+    <ol class="contributor-avatars">
+      @for (c of visible(); track c.email) {
+        <li class="contributor-avatars__item">
+          <gbt-user-chip [name]="c.name" />
+          <span class="contributor-avatars__count">{{ commitCountLabel(c.commitCount) }}</span>
+        </li>
+      }
+    </ol>
+    @if (hiddenCount() > 0) {
+      <p class="contributor-avatars__more">+{{ hiddenCount() }} autre{{ hiddenCount() > 1 ? 's' : '' }}</p>
+    }
+  } @else {
+    <p class="contributor-avatars__empty">Aucun contributeur</p>
+  }
+} @else {
+  <div class="contributor-avatars__loading" aria-hidden="true">
+    @for (width of skeletonWidths; track $index) {
+      <div class="contributor-avatars__loading-row">
+        <gbt-skeleton variant="circle" width="24px" />
+        <gbt-skeleton [width]="width" height="0.75rem" />
+      </div>
+    }
+  </div>
+}

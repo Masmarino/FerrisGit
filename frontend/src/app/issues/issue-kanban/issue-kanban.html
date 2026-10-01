@@ -1,0 +1,155 @@
+<gbt-page-header heading="Tickets">
+  <gbt-button header-actions variant="secondary" iconName="list" text="Vue liste" (clicked)="openList()" />
+</gbt-page-header>
+
+<gbt-page-layout width="full">
+  <!-- Filters stay when a filtered refetch fails, so the failing filter can be changed or cleared. They are hidden while the repository has no issues at all. -->
+  @if (!isEmptyRepository() && (!loadFailed() || hasServerFilters())) {
+    <div class="issue-kanban__toolbar" role="search" aria-label="Filtrer les tickets">
+      <gbt-input
+        class="issue-kanban__search"
+        label="Rechercher un ticket"
+        hideLabel
+        leadingIcon="search"
+        placeholder="Rechercher un ticket"
+        [ngModel]="search()"
+        (ngModelChange)="search.set($event)"
+      />
+      <gbt-select
+        class="issue-kanban__labels"
+        label="Filtrer par label"
+        hideLabel
+        fullWidth
+        [options]="labelOptions()"
+        [multiple]="true"
+        [chips]="true"
+        [ngModel]="selectedLabelIds()"
+        (ngModelChange)="onLabelFilterChange($event)"
+        placeholder="Tous les labels"
+      />
+      <gbt-select
+        class="issue-kanban__milestone-filter"
+        label="Filtrer par milestone"
+        hideLabel
+        fullWidth
+        [options]="milestoneOptions()"
+        [ngModel]="selectedMilestoneId()"
+        (ngModelChange)="onMilestoneFilterChange($event)"
+        placeholder="Tous les milestones"
+      />
+      @if (hasActiveFilters()) {
+        <gbt-button class="issue-kanban__reset" variant="secondary" size="small" iconName="x" text="Réinitialiser" ariaLabel="Réinitialiser les filtres" (clicked)="resetFilters()" />
+      }
+      @if (!loading() && !loadFailed()) {
+        <p class="issue-kanban__summary">{{ summary() }}</p>
+      }
+    </div>
+  }
+
+  @if (loadFailed()) {
+    <gbt-alert variant="error" appearance="subtle" live="off">Les tickets n'ont pas pu être chargés.</gbt-alert>
+  } @else {
+    <div class="issue-kanban__board" cdkScrollable [attr.aria-busy]="loading() ? 'true' : null">
+      @if (loading()) {
+        <span class="sr-only" role="status">Chargement des tickets…</span>
+      }
+      @for (lane of lanes(); track lane.status) {
+        <section class="issue-kanban__lane" [attr.data-status]="lane.status" [attr.aria-labelledby]="lane.headingId">
+          <header class="issue-kanban__lane-header">
+            <span class="issue-kanban__lane-icon" [attr.data-variant]="lane.presentation.variant" aria-hidden="true">
+              <gbt-icon [name]="lane.presentation.icon" />
+            </span>
+            <h2 class="issue-kanban__lane-title" [id]="lane.headingId">{{ lane.presentation.label }}</h2>
+            @if (!loading()) {
+              <gbt-badge [value]="lane.issues.length" />
+            }
+          </header>
+
+          @if (loading()) {
+            <div class="issue-kanban__cards" aria-hidden="true">
+              @for (lines of skeletonCards; track $index) {
+                <div class="issue-kanban__skeleton">
+                  <gbt-skeleton width="2.5rem" height="0.75rem" />
+                  @for (width of lines; track $index) {
+                    <gbt-skeleton [width]="width" height="0.875rem" />
+                  }
+                </div>
+              }
+            </div>
+          } @else {
+            <ul
+              class="issue-kanban__cards"
+              cdkDropList
+              [id]="lane.id"
+              [cdkDropListData]="lane.issues"
+              [cdkDropListConnectedTo]="laneIds"
+              [cdkDropListAutoScrollStep]="6"
+              (cdkDropListDropped)="drop($event, lane.status)"
+            >
+              @for (card of lane.cards; track card.issue.id) {
+                <li
+                  class="issue-kanban__card"
+                  cdkDrag
+                  [cdkDragData]="card.issue"
+                  [cdkDragDisabled]="!canWrite()"
+                  [cdkDragStartDelay]="dragStartDelay"
+                  [class.issue-kanban__card--draggable]="canWrite()"
+                  [attr.data-issue-id]="card.issue.id"
+                >
+                  <div class="issue-kanban__card-head">
+                    <a class="issue-kanban__card-link" [routerLink]="card.link" [title]="card.issue.title"
+                      ><span class="issue-kanban__number">#{{ card.issue.number }}</span> {{ card.issue.title }}</a
+                    >
+                    <!-- The drag gesture has no keyboard equivalent: this menu is how to move a card without a mouse. -->
+                    @if (canWrite()) {
+                      <gbt-menu class="issue-kanban__move" [label]="card.menuLabel" triggerIcon="ellipsis-vertical" align="end">
+                        @for (target of card.moveTargets; track target.status) {
+                          <button gbtMenuItem (click)="moveTo(card.issue, target.status)">
+                            <span class="issue-kanban__move-icon" [attr.data-variant]="target.presentation.variant"><gbt-icon [name]="target.presentation.icon" aria-hidden="true" /></span>{{ target.presentation.label }}
+                          </button>
+                        }
+                      </gbt-menu>
+                    }
+                  </div>
+
+                  <div class="issue-kanban__card-tags">
+                    <gbt-badge class="issue-kanban__kind" variant="neutral" [icon]="card.kind.icon">{{ card.kind.label }}</gbt-badge>
+                    @for (label of card.issue.labels; track label.id) {
+                      <gbt-tag [color]="label.color">{{ label.name }}</gbt-tag>
+                    }
+                    @if (card.milestoneTitle; as milestone) {
+                      <gbt-badge class="issue-kanban__milestone" variant="neutral" icon="flag" [title]="'Milestone ' + milestone">{{ milestone }}</gbt-badge>
+                    }
+                  </div>
+
+                  @if (card.issue.assignee || card.issue.commentCount > 0) {
+                    <div class="issue-kanban__card-footer">
+                      @if (card.issue.assignee; as assignee) {
+                        <span class="issue-kanban__assignee">
+                          <span class="sr-only">Assigné à</span>
+                          <gbt-user-chip [name]="assignee.username" />
+                        </span>
+                      }
+                      @if (card.issue.commentCount > 0) {
+                        <span class="issue-kanban__comments" [title]="card.commentsLabel">
+                          <gbt-icon name="message-circle" aria-hidden="true" />
+                          <span class="issue-kanban__comment-count" aria-hidden="true">{{ card.issue.commentCount }}</span>
+                          <span class="sr-only">{{ card.commentsLabel }}</span>
+                        </span>
+                      }
+                    </div>
+                  }
+                </li>
+              } @empty {
+                <li class="issue-kanban__empty">Aucun ticket</li>
+              }
+            </ul>
+          }
+        </section>
+      }
+    </div>
+  }
+</gbt-page-layout>
+
+<!-- What the last move from a card's menu did (the card itself leaves the lane the menu was in). -->
+<p class="issue-kanban__announcer sr-only" role="status">{{ announcement() }}</p>

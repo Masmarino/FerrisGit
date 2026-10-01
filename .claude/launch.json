@@ -1,0 +1,23 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "frontend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "start", "--", "--port", "4201"],
+      "port": 4201
+    },
+    {
+      "name": "dev",
+      "runtimeExecutable": "bash",
+      "runtimeArgs": ["scripts/dev.sh"],
+      "port": 4201
+    },
+    {
+      "name": "storybook",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["--prefix", "frontend", "run", "storybook"],
+      "port": 6007
+    }
+  ]
+}

@@ -1,0 +1,10 @@
+@use '../../shared/layout/list-page';
+
+:host {
+  display: block;
+}
+
+.workspace-grid-filters__sort {
+  @include list-page.sort-stack;
+}
+

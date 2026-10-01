@@ -1,0 +1,124 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            UPDATE system_settings SET\n                execution_engine = COALESCE($1, execution_engine),\n                k8s_namespace = CASE WHEN $2 THEN $3 ELSE k8s_namespace END,\n                k8s_cache_storage_class = CASE WHEN $4 THEN $5 ELSE k8s_cache_storage_class END,\n                runner_registration_token = CASE WHEN $6 THEN $7 ELSE runner_registration_token END,\n                log_retention_days = CASE WHEN $8 THEN $9 ELSE log_retention_days END,\n                max_concurrent_jobs = CASE WHEN $10 THEN $11 ELSE max_concurrent_jobs END,\n                jwt_ttl_hours = COALESCE($12, jwt_ttl_hours),\n                max_push_size_mb = COALESCE($13, max_push_size_mb)\n            WHERE id = true\n            RETURNING execution_engine, k8s_namespace, k8s_cache_storage_class, runner_registration_token, log_retention_days, max_concurrent_jobs, jwt_ttl_hours, max_push_size_mb\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "execution_engine",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "execution_engine"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "k8s_namespace",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "k8s_namespace"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "k8s_cache_storage_class",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "k8s_cache_storage_class"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "runner_registration_token",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "runner_registration_token"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "log_retention_days",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "log_retention_days"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "max_concurrent_jobs",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "max_concurrent_jobs"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "jwt_ttl_hours",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "jwt_ttl_hours"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "max_push_size_mb",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "system_settings",
+            "name": "max_push_size_mb"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        "Text",
+        "Bool",
+        "Int4",
+        "Bool",
+        "Int4",
+        "Int4",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "9b0cacf422211e738cc047a952ea626af3109a9750b8ca4f5ea73dddf99ed3fa"
+}

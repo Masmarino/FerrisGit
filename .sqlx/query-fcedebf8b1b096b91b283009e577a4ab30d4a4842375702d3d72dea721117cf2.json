@@ -1,0 +1,67 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE repository_settings SET pipeline_file_path = COALESCE($1, pipeline_file_path), ci_enabled = COALESCE($2, ci_enabled), required_approvals = COALESCE($3, required_approvals) WHERE repository_id = $4 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "repository_settings",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "pipeline_file_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository_settings",
+            "name": "pipeline_file_path"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "ci_enabled",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "repository_settings",
+            "name": "ci_enabled"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "required_approvals",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "repository_settings",
+            "name": "required_approvals"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Bool",
+        "Int4",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "fcedebf8b1b096b91b283009e577a4ab30d4a4842375702d3d72dea721117cf2"
+}

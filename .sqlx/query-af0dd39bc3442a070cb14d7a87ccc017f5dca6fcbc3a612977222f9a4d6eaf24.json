@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE merge_requests SET status = 'merged', merge_commit_sha = $1, closed_at = now() WHERE id = $2 AND status = 'open'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "af0dd39bc3442a070cb14d7a87ccc017f5dca6fcbc3a612977222f9a4d6eaf24"
+}

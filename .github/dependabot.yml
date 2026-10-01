@@ -1,0 +1,40 @@
+version: 2
+updates:
+  - package-ecosystem: "cargo"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      cargo-minor-and-patch:
+        update-types: ["minor", "patch"]
+
+  - package-ecosystem: "npm"
+    directory: "/frontend"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      angular:
+        patterns: ["@angular/*", "@angular-devkit/*", "@schematics/*"]
+      storybook:
+        patterns: ["storybook", "@storybook/*"]
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Angular pins its supported TypeScript range (currently 6.0.x); move it with Angular.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    groups:
+      github-actions:
+        patterns: ["*"]

@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT secret_ciphertext FROM webhooks WHERE id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "secret_ciphertext",
+        "type_info": "Bytea",
+        "origin": {
+          "Table": {
+            "table": "webhooks",
+            "name": "secret_ciphertext"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "0f9d5bd410cf602c791badcaf6f63fce0965a6c1b25b5e7b4530c99e40811911"
+}

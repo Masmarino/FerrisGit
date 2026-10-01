@@ -1,0 +1,197 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE merge_request_comments SET applied_at = now(), applied_commit_sha = $1 WHERE id = $2 RETURNING *",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "merge_request_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "merge_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "author_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "body",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "body"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "reply_to_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "reply_to_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "file_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "file_path"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "line_number",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "line_number"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "side",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "side"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "anchor_content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "anchor_content"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "resolved",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "resolved"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "end_line",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "end_line"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "suggested_content",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "suggested_content"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "applied_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "applied_at"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "applied_commit_sha",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "merge_request_comments",
+            "name": "applied_commit_sha"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false,
+      true,
+      true,
+      true,
+      true
+    ]
+  },
+  "hash": "1e31660f82328f06f66b6ce8a81662220cdce86cd44e43a43ec1b10368b47791"
+}

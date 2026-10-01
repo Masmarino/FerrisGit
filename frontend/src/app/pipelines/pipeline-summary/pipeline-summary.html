@@ -1,0 +1,42 @@
+<section class="pipeline-summary">
+  @if (groups().length > 0) {
+    <gbt-stepper
+      class="pipeline-summary__stepper"
+      [steps]="steps()"
+      [activeIndex]="activeStageIndex()"
+      [interactive]="true"
+      [selectedIndex]="selectedIndex()"
+      (selectedIndexChange)="onStepSelected($event)"
+      completedLabel="Terminé"
+      errorLabel="En erreur"
+      selectedLabel="Sélectionné"
+    />
+    <gbt-job-graph
+      class="pipeline-summary__graph"
+      [stages]="graphStages()"
+      [statusLabels]="statusLabels"
+      needsLabel="Dépend de"
+      ariaLabel="Jobs du pipeline"
+      (jobSelected)="jobOpened.emit($event)"
+    />
+  } @else {
+    <p class="pipeline-summary__empty">Ce pipeline ne contient aucun job.</p>
+  }
+
+  @if (selectedGroup(); as group) {
+    <section class="pipeline-summary__stage-jobs">
+      <h3>Stage {{ group.name }}</h3>
+      <ul>
+        @for (job of group.jobs; track job.id) {
+          <li>
+            <a [routerLink]="jobLink(job.id)" class="pipeline-summary__job-link">
+              <gbt-job-status [status]="job.status" [label]="statusLabels[job.status]" />
+              <span class="pipeline-summary__job-name">{{ job.name }}</span>
+              <span class="pipeline-summary__job-duration">{{ duration(job) }}</span>
+            </a>
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</section>

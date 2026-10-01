@@ -1,0 +1,35 @@
+<gbt-page-header heading="Commits">
+  <p header-meta class="repository-commit-list__ref">Sur {{ refLabel() }}</p>
+</gbt-page-header>
+
+<gbt-page-layout width="wide">
+  <gbt-list-card
+    ariaLabel="Commits"
+    [state]="listState()"
+    loadingLabel="Chargement des commits…"
+    failedHeading="Les commits n'ont pas pu être chargés"
+    failedMessage="Réessayez dans un instant."
+    retryLabel="Réessayer"
+    (retry)="load()"
+    emptyIllustration="book"
+    emptyHeading="Aucun commit"
+    emptyMessage="Ce dépôt n'a pas encore de commit sur cette branche."
+  >
+    <ul class="repository-commit-list__items">
+      @for (commit of commits(); track commit.sha) {
+        <li>
+          <gbt-list-row>
+            <span class="repository-commit-list__title" [title]="commit.message">{{ commitTitle(commit.message) }}</span>
+            <span row-meta class="repository-commit-list__meta">
+              <gbt-user-chip class="repository-commit-list__author" [name]="commit.authorName" />
+              <time [attr.datetime]="commit.committedAt" [title]="commit.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ commit.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+            </span>
+            <span row-trailing>
+              <gbt-badge mono class="repository-commit-list__sha" [fullText]="commit.sha">{{ shortSha(commit.sha) }}</gbt-badge>
+            </span>
+          </gbt-list-row>
+        </li>
+      }
+    </ul>
+  </gbt-list-card>
+</gbt-page-layout>

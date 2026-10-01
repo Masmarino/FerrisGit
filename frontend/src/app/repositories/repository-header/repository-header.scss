@@ -1,0 +1,46 @@
+
+:host {
+  display: block;
+}
+
+// One height for the header's controls: the compact branch select is 32px, so the small buttons are raised to match.
+.repository-header__star,
+.repository-header__clone {
+  ::ng-deep .gbt-button {
+    min-height: 32px;
+  }
+}
+
+// Tabular figures, so going from 9 to 10 barely moves the button's edge.
+.repository-header__star ::ng-deep .gbt-button {
+  min-width: 3.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+// Starred: the icon turns solid so the pressed state is not colour-only (`aria-pressed` covers assistive technology).
+.repository-header__star--on ::ng-deep gbt-icon {
+  color: var(--color-warning-base);
+
+  svg {
+    fill: currentColor;
+  }
+}
+
+.repository-header-placeholder {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  // gbt-page-header: a 2.25rem title row, 1rem of padding and the 1px hairline (border-box sizing).
+  min-height: calc(2.25rem + 1rem + 1px);
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--gbt-hairline);
+}
+
+.repository-header-placeholder gbt-skeleton {
+  flex: none;
+}
+
+.repository-header-placeholder gbt-skeleton:last-child {
+  border-radius: 999px;
+}

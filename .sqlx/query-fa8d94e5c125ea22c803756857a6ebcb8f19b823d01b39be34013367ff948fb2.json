@@ -1,0 +1,137 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, repository_id, tag_name, title, notes, draft, prerelease, author_id, created_at, published_at FROM releases WHERE repository_id = $1 AND tag_name = $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "tag_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "tag_name"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "notes",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "notes"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "draft",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "draft"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "prerelease",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "prerelease"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "author_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "published_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "releases",
+            "name": "published_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "fa8d94e5c125ea22c803756857a6ebcb8f19b823d01b39be34013367ff948fb2"
+}

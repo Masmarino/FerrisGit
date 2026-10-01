@@ -1,0 +1,59 @@
+<section class="mr-timeline-section">
+  <div class="mr-timeline__toolbar">
+    @if (hasThreads()) {
+      <p class="mr-timeline__counter">
+        <span class="sr-only mr-timeline__counter-text">{{ counterText() }}</span>
+        <span class="mr-timeline__counter-badges" aria-hidden="true">
+          <gbt-badge class="mr-timeline__counter-open" [variant]="threadCounts().open ? 'warning' : 'neutral'" icon="message-circle">{{ openBadge() }}</gbt-badge>
+          <gbt-badge class="mr-timeline__counter-resolved" [variant]="threadCounts().resolved ? 'success' : 'neutral'" icon="check">{{ resolvedBadge() }}</gbt-badge>
+        </span>
+      </p>
+    }
+    <gbt-segmented-control class="mr-timeline__filter" [options]="filterOptions" [(value)]="filter" ariaLabel="Filtrer la chronologie" />
+  </div>
+
+  @if (isEmpty()) {
+    <p class="mr-timeline__empty">Aucune activité pour l'instant.</p>
+  }
+
+  <div class="mr-timeline__body">
+    @if (!isEmpty()) {
+      <ol class="mr-timeline">
+        @if (showDescription()) {
+          <li class="mr-timeline__item mr-timeline__item--card">
+            <fg-mr-comment-card [author]="author()" [createdAt]="mergeRequest().createdAt" [body]="mergeRequest().description" verb="a ouvert cette demande de fusion" badge="Auteur" />
+          </li>
+        }
+        @for (item of visibleItems(); track item.id) {
+          <li class="mr-timeline__item" [class.mr-timeline__item--card]="item.type !== 'event'" [class.mr-timeline__item--note]="item.type === 'event'">
+            @if (item.type === 'comment') {
+              <fg-mr-comment-card [author]="item.author" [createdAt]="item.createdAt" [body]="item.body" />
+            } @else if (item.type === 'thread') {
+              <fg-mr-thread-card
+                [thread]="item"
+                [canWrite]="canWrite()"
+                (replyAdded)="replyAdded.emit($event)"
+                (resolveToggled)="resolveToggled.emit($event)"
+                (applySuggestionClicked)="applySuggestionClicked.emit($event)"
+              />
+            } @else {
+              <fg-mr-system-note [event]="item" />
+            }
+          </li>
+        }
+      </ol>
+    }
+
+    @if (canWrite()) {
+      <div class="mr-timeline__composer">
+        <gbt-icon-marker class="mr-timeline__composer-marker" appearance="outline" icon="pencil" />
+        <gbt-card variant="outlined" [flush]="true">
+          <div class="mr-timeline__composer-card">
+            <gbt-textarea label="Ajouter un commentaire" placeholder="Écrire un commentaire…" [ngModel]="draft()" (ngModelChange)="draft.set($event)" />
+            <gbt-button class="comment-button" variant="secondary" size="small" text="Commenter" (clicked)="submitComment()" />
+          </div>
+        </gbt-card>
+      </div>
+    }
+  </div>
+</section>

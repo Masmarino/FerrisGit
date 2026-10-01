@@ -1,0 +1,189 @@
+@if (mergeRequest(); as mr) {
+  <gbt-page-header [heading]="mr.title">
+    <fg-status-badge header-badges kind="merge-request" [status]="mr.status" />
+
+    <p header-meta class="mr-detail__meta">
+      <span class="mr-detail__branches" [title]="branchesTitle()">
+        <gbt-badge mono maxWidth="20rem">{{ mr.sourceBranch }}</gbt-badge>&ngsp;<span class="mr-detail__arrow">→</span>&ngsp;<gbt-badge mono maxWidth="20rem">{{ mr.targetBranch }}</gbt-badge>
+      </span>&ngsp;
+      <span class="mr-detail__opened">
+        <span class="mr-detail__when">ouverte <time [attr.datetime]="mr.createdAt" [title]="mr.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ mr.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time></span>
+        @if (author(); as by) {
+          par <span class="mr-detail__author">{{ by.username }}</span>
+        }
+      </span>
+      <!-- Each separator belongs to the segment after it, so a wrapped line does not end on a dangling "·". -->
+      @if (ended(); as end) {
+        <span class="mr-detail__when">
+          <span aria-hidden="true"> · </span>{{ end.verb }} <time [attr.datetime]="end.at" [title]="end.at | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ end.at | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+        </span>
+      }
+      @if (commentCountLabel(); as count) {
+        <span class="mr-detail__when"><span aria-hidden="true"> · </span>{{ count }}</span>
+      }
+    </p>
+
+    <!-- One root element: content projection only sees an @if's single root. -->
+    @if (mr.status === 'open' && canWrite()) {
+      <div header-actions class="mr-detail__actions">
+        <gbt-button variant="secondary" iconName="git-pull-request-closed" text="Fermer" (clicked)="close()" />
+        <gbt-button variant="primary" iconName="git-merge" text="Fusionner" [disabled]="!!reviewSummary()?.blocked" (clicked)="merge()" />
+      </div>
+    }
+  </gbt-page-header>
+
+  <gbt-page-layout width="wide" asideWidth="md">
+    @if (mr.status === 'open' && mergeConflict()) {
+      <gbt-alert class="mr-detail__conflict" variant="warning">Impossible de fusionner automatiquement — mettez à jour la branche et réessayez.</gbt-alert>
+    }
+
+    <gbt-tabs class="mr-detail__tabs" [(activeIndex)]="activeTab">
+      <gbt-tab label="Vue d'ensemble">
+        <fg-merge-request-timeline
+          [mergeRequest]="mr"
+          [author]="timeline().author"
+          [items]="timeline().items"
+          [canWrite]="canWrite()"
+          (commentAdded)="onTimelineComment($event)"
+          (replyAdded)="onReplyAdded($event)"
+          (resolveToggled)="onResolveToggled($event)"
+          (applySuggestionClicked)="onApplySuggestionClicked($event)"
+        />
+      </gbt-tab>
+
+      <gbt-tab label="Modifications">
+        <section class="mr-diff" aria-labelledby="mr-diff-heading">
+          <!-- The review actions and status stay at hand while reading the diff (the aside is hidden here). -->
+          @if (mr.status === 'open') {
+            <gbt-alert data-review-bar variant="neutral" appearance="subtle" live="off">
+              <span data-review-status>{{ review()?.text }}</span>
+              @if (canWrite()) {
+                <ng-container alert-actions>
+                  <gbt-button variant="secondary" size="small" iconName="check" text="Approuver" (clicked)="submitReview('approved')" />
+                  <gbt-button variant="secondary" size="small" text="Demander des changements" (clicked)="submitReview('changes_requested')" />
+                </ng-container>
+              }
+            </gbt-alert>
+          }
+          @if (diffEntries().length === 0) {
+            <h2 id="mr-diff-heading" class="sr-only">Modifications</h2>
+            <p class="mr-diff__empty">Aucune modification.</p>
+          } @else {
+            <h2 id="mr-diff-heading" class="mr-diff__summary">{{ diffSummary() }}</h2>
+            @for (entry of diffEntries(); track entry.file.path) {
+              <article class="mr-diff__file">
+                <gbt-card variant="outlined" [flush]="true">
+                  <div card-header class="mr-diff__file-header">
+                    <gbt-icon class="mr-diff__file-icon" name="file" aria-hidden="true" />
+                    <h3 class="mr-diff__path" [title]="entry.file.path"><span class="mr-diff__directory">{{ entry.directory }}</span><span class="mr-diff__name">{{ entry.name }}</span></h3>
+                    <gbt-badge class="mr-diff__change" [variant]="entry.change.variant" [icon]="entry.change.icon">{{ entry.change.label }}</gbt-badge>
+                  </div>
+                  @if (entry.file.change === 'binary') {
+                    <p class="mr-diff__binary">Fichier binaire modifié.</p>
+                  } @else {
+                    <fg-file-diff-view
+                      [file]="entry.file"
+                      [comments]="entry.comments"
+                      [canWrite]="canWrite()"
+                      (commentAdded)="onCommentAdded($event)"
+                      (replyAdded)="onReplyAdded($event)"
+                      (resolveToggled)="onResolveToggled($event)"
+                      (applySuggestionClicked)="onApplySuggestionClicked($event)"
+                    />
+                  }
+                </gbt-card>
+              </article>
+            }
+          }
+        </section>
+      </gbt-tab>
+    </gbt-tabs>
+
+    @if (showAside()) {
+      <div page-aside class="mr-detail__aside">
+        @if (mr.status === 'open') {
+          <gbt-panel heading="Approbations" [headingLevel]="2">
+            <fg-mr-approvals-panel
+              [summary]="reviewSummary()"
+              [status]="mr.status"
+              [canWrite]="canWrite()"
+              (approve)="submitReview('approved')"
+              (requestChanges)="submitReview('changes_requested')"
+            />
+          </gbt-panel>
+        }
+
+        <gbt-panel heading="Labels" [headingLevel]="2">
+          @if (canWrite()) {
+            <gbt-select
+              label="Labels"
+              hideLabel
+              fullWidth
+              [options]="labelOptions()"
+              [multiple]="true"
+              [chips]="true"
+              [ngModel]="labelIds()"
+              (ngModelChange)="onLabelsChange($event)"
+              placeholder="Ajouter des labels"
+            />
+          } @else if (mr.labels.length > 0) {
+            <ul class="mr-detail__tags" aria-label="Labels de la demande de fusion">
+              @for (label of mr.labels; track label.id) {
+                <li><gbt-tag [color]="label.color">{{ label.name }}</gbt-tag></li>
+              }
+            </ul>
+          } @else {
+            <p class="mr-detail__empty">Aucun</p>
+          }
+        </gbt-panel>
+
+        <gbt-panel heading="Milestone" [headingLevel]="2">
+          @if (canWrite()) {
+            <gbt-select label="Milestone" hideLabel fullWidth [options]="milestoneOptions()" [ngModel]="mr.milestoneId" (ngModelChange)="onMilestoneChange($event)" placeholder="Aucun milestone" />
+          } @else if (milestoneTitle(); as milestone) {
+            <p class="mr-detail__milestone"><gbt-icon name="flag" aria-hidden="true" />{{ milestone }}</p>
+          } @else {
+            <p class="mr-detail__empty">Aucun</p>
+          }
+        </gbt-panel>
+
+        <gbt-panel heading="Auteur" [headingLevel]="2">
+          @if (author(); as by) {
+            <gbt-user-chip class="mr-detail__person" size="md" [name]="by.username" />
+          } @else {
+            <p class="mr-detail__empty">Utilisateur supprimé</p>
+          }
+        </gbt-panel>
+
+        @if (participants().length > 0) {
+          <gbt-panel heading="Participants" [headingLevel]="2">
+            <ul class="mr-detail__people">
+              @for (person of participants(); track person.id) {
+                <li><gbt-user-chip [name]="person.username" /></li>
+              }
+            </ul>
+          </gbt-panel>
+        }
+      </div>
+    }
+  </gbt-page-layout>
+} @else if (loadFailed()) {
+  <gbt-page-layout width="wide">
+    <gbt-alert variant="error" appearance="subtle" live="off">Cette demande de fusion n'a pas pu être chargée.</gbt-alert>
+  </gbt-page-layout>
+} @else {
+  <div class="mr-detail__loading" aria-busy="true">
+    <span class="sr-only" role="status">Chargement de la demande de fusion…</span>
+    <div class="mr-detail__loading-header" aria-hidden="true">
+      <gbt-skeleton width="min(28rem, 80%)" height="1.75rem" />
+      <gbt-skeleton width="18rem" height="0.875rem" />
+    </div>
+    <gbt-card variant="outlined" [flush]="true" aria-hidden="true">
+      <div class="mr-detail__loading-card">
+        @for (width of skeletonLines; track $index) {
+          <gbt-skeleton [width]="width" height="0.875rem" />
+        }
+      </div>
+    </gbt-card>
+  </div>
+}

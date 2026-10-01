@@ -1,0 +1,102 @@
+<form (submit)="$event.preventDefault(); submit()">
+  <gbt-modal [isOpen]="true" heading="Nouveau dépôt" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
+    <div class="create-repository">
+      <div class="create-repository__path">
+        <!-- One label row over both fields so they line up (their own labels differ in height and are for assistive technology only). -->
+        <span class="create-repository__path-label create-repository__path-label--location" aria-hidden="true">Emplacement</span>
+        <span class="create-repository__path-label create-repository__path-label--name" aria-hidden="true">Nom du dépôt *</span>
+        <gbt-select
+          class="create-repository__location"
+          name="location"
+          label="Emplacement"
+          hideLabel
+          fullWidth
+          [options]="locationOptions()"
+          [ngModel]="location()"
+          (ngModelChange)="location.set($event)"
+        />
+        <span class="create-repository__slash" aria-hidden="true">/</span>
+        <gbt-input
+          class="create-repository__name"
+          name="name"
+          label="Nom du dépôt"
+          hideLabel
+          placeholder="mon-projet"
+          hint="Lettres, chiffres, - et _ uniquement."
+          required
+          [errorMessage]="nameError()"
+          [ngModel]="name()"
+          (ngModelChange)="onNameChange($event)"
+        />
+      </div>
+
+      <gbt-textarea
+        class="create-repository__description"
+        name="description"
+        label="Description"
+        placeholder="À quoi sert ce dépôt (optionnel)"
+        [rows]="3"
+        [ngModel]="description()"
+        (ngModelChange)="description.set($event)"
+      />
+
+      <div class="create-repository__visibility-field">
+        <gbt-segmented-control
+          class="create-repository__visibility"
+          label="Visibilité"
+          tinted
+          [options]="visibilityOptions"
+          [value]="visibility()"
+          (valueChange)="isPublic.set($event === 'public')"
+        />
+        <p class="create-repository__visibility-hint">
+          <gbt-icon [name]="isPublic() ? 'globe' : 'lock'" aria-hidden="true" />
+          <span>{{ isPublic() ? 'Visible par tous les utilisateurs de l’instance.' : 'Visible par vous et les personnes à qui vous donnez accès.' }}</span>
+        </p>
+      </div>
+
+      <div class="create-repository__advanced">
+        <button
+          type="button"
+          class="create-repository__advanced-toggle"
+          [attr.aria-expanded]="advancedOpen()"
+          aria-controls="create-repository-modal-advanced"
+          (click)="advancedOpen.set(!advancedOpen())"
+        >
+          <gbt-icon class="create-repository__chevron" [class.create-repository__chevron--open]="advancedOpen()" name="chevron-right" aria-hidden="true" />
+          <span>Options avancées</span>
+        </button>
+        @if (advancedOpen()) {
+          <div id="create-repository-modal-advanced" class="create-repository__advanced-body">
+            <gbt-switch name="ciEnabled" label="CI activée" [ngModel]="ciEnabled()" (ngModelChange)="ciEnabled.set($event)" />
+            <div class="create-repository__advanced-grid">
+              <gbt-input
+                class="create-repository__approvals"
+                name="requiredApprovals"
+                label="Approbations requises avant fusion"
+                [ngModel]="requiredApprovals()"
+                (ngModelChange)="requiredApprovals.set($event)"
+              />
+              <gbt-input
+                class="create-repository__pipeline-file"
+                name="pipelineFilePath"
+                label="Chemin du fichier pipeline"
+                [ngModel]="pipelineFilePath()"
+                (ngModelChange)="pipelineFilePath.set($event)"
+              />
+            </div>
+          </div>
+        }
+      </div>
+
+      @if (formError(); as message) {
+        <gbt-alert variant="error">{{ message }}</gbt-alert>
+      }
+    </div>
+
+    <div modal-footer>
+      <gbt-button variant="secondary" text="Annuler" [disabled]="creating()" (clicked)="close.emit()" />
+      <gbt-button type="submit" iconName="plus" text="Créer le dépôt" [loading]="creating()" loadingLabel="Création en cours" />
+    </div>
+  </gbt-modal>
+</form>

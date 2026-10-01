@@ -1,0 +1,80 @@
+@use '../../shared/layout/list-page';
+
+// The card is Gabarit's `gbt-list-card`. Row bits, aside filters and the creation dialog come from
+// `shared/layout/_list-page.scss`.
+
+:host {
+  @include list-page.page-host;
+}
+
+.issue-list__tabs {
+  @include list-page.segmented-counts;
+  @include list-page.header-tabs;
+}
+
+.issue-list__status {
+  @include list-page.row-status;
+}
+
+.issue-list__number {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+}
+
+.issue-list__author {
+  @include list-page.row-author;
+}
+
+// A date or a comment count never breaks inside itself; the author's name may (a very long one).
+.issue-list__meta time,
+.issue-list__comments {
+  white-space: nowrap;
+}
+
+// Assignee then menu, both on the title line. The chip never shrinks under its avatar and caps a long
+// name, so the title keeps the room.
+.issue-list__trailing {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.issue-list__assignee {
+  display: inline-flex;
+  flex: none;
+  min-width: 24px;
+  max-width: 11rem;
+
+  gbt-user-chip {
+    min-width: 24px;
+  }
+}
+
+.issue-list__menu {
+  @include list-page.row-menu;
+}
+
+// Narrow card (phone, or a squeezed main column): the assignee shrinks to their avatar (the name stays
+// for screen readers and in the tooltip).
+@container gbt-list-card (max-width: 559px) {
+  .issue-list__assignee ::ng-deep .gbt-user-chip__name {
+    @include list-page.visually-hidden;
+  }
+}
+
+.issue-list__pagination {
+  @include list-page.pagination;
+}
+
+.issue-list__reset {
+  @include list-page.filter-reset;
+}
+
+.issue-list__sort {
+  @include list-page.sort-stack;
+}
+
+.issue-list__create-form {
+  @include list-page.create-form;
+}

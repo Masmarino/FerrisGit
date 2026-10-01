@@ -1,0 +1,116 @@
+@use '../../shared/layout/list-page';
+
+:host {
+  display: block;
+}
+
+.wiki-page-list__band {
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+
+  gbt-icon {
+    flex: none;
+    color: var(--text-secondary);
+    font-size: 0.9375rem;
+  }
+}
+
+.wiki-page-list__card-heading {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+}
+
+.wiki-page-list__card-note {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+// The pages as tiles: as many columns as fit ~18rem each, one on a phone. Doubled class: the list
+// card resets a direct child `ul` (`margin`, `padding`, bullets) with a more specific rule.
+.wiki-page-list__items.wiki-page-list__items {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr));
+  gap: 0.5rem;
+  margin: 0;
+  padding: 1rem;
+  list-style: none;
+
+  li {
+    display: flex;
+    min-width: 0;
+  }
+}
+
+.wiki-page-list__tile {
+  display: flex;
+  flex: 1;
+  align-items: center;
+  gap: 0.75rem;
+  min-width: 0;
+  min-height: 3.25rem;
+  box-sizing: border-box;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--gbt-hairline);
+  border-radius: var(--site-border-radius-sm);
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-decoration: none;
+  transition:
+    background-color var(--site-transition-fast),
+    border-color var(--site-transition-fast);
+
+  &:hover {
+    border-color: var(--gbt-card-border);
+    background: var(--bg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+}
+
+.wiki-page-list__tile-title {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.wiki-page-list__tile-chevron {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  transition: transform var(--site-transition-fast);
+}
+
+.wiki-page-list__tile:hover .wiki-page-list__tile-chevron {
+  transform: translateX(2px);
+}
+
+@container gbt-list-card (max-width: 559px) {
+  .wiki-page-list__items.wiki-page-list__items {
+    padding: 0.75rem;
+  }
+
+  .wiki-page-list__card-note {
+    display: none;
+  }
+}
+
+.wiki-page-list__load-error {
+  display: block;
+}

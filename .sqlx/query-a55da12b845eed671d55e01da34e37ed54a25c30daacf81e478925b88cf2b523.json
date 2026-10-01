@@ -1,0 +1,23 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n                WITH RECURSIVE d AS (\n                    SELECT id FROM groups WHERE parent_group_id = $1\n                    UNION ALL\n                    SELECT g.id FROM groups g JOIN d ON g.parent_group_id = d.id\n                )\n                SELECT id AS \"id!\" FROM d\n                ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "a55da12b845eed671d55e01da34e37ed54a25c30daacf81e478925b88cf2b523"
+}

@@ -1,0 +1,25 @@
+// A block, not a flex column: the reused pages centre themselves with `margin-inline: auto`, which in a flex
+// column would shrink them to their content.
+:host {
+  display: block;
+}
+
+.public-repository-page__top {
+  max-width: 1440px;
+  margin: 0 auto 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.public-repository-page__breadcrumb {
+  min-width: 0;
+  font-size: 1.125rem;
+}
+
+.public-repository-page__status {
+  display: flex;
+  justify-content: center;
+  padding: 3rem 0;
+}

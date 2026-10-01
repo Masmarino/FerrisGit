@@ -1,0 +1,26 @@
+@use '../layout/prose';
+
+.prose-demo {
+  max-width: 44rem;
+  overflow: hidden;
+  border: 1px solid var(--gbt-card-border);
+  border-radius: 12px;
+  background: var(--bg-principal);
+}
+
+.prose-demo__header {
+  padding: 0.625rem 1rem;
+  border-bottom: 1px solid var(--gbt-hairline);
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.prose-demo__body {
+  padding: 1rem 1.5rem;
+
+  ::ng-deep {
+    @include prose.markdown;
+  }
+}

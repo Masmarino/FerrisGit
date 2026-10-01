@@ -1,0 +1,18 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO domain_events (aggregate_type, aggregate_id, event_type, payload, version, actor_id) VALUES ('Security', $1, $2, $3, $4, $5)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Jsonb",
+        "Int8",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "eb763140f8b0af15111cd42f6af8e1ba7c487c5a0c7927661b002532b1ee39c8"
+}

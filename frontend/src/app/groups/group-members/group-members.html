@@ -1,0 +1,122 @@
+<gbt-page-header heading="Membres du groupe">
+  <p header-meta class="group-members__meta">
+    @if (membership(); as group) {
+      <span>Groupe <code class="group-members__path">{{ group.path }}</code></span>
+    }
+    @if (listState() === 'loaded') {
+      <span class="group-members__count">{{ members().length }} {{ members().length > 1 ? 'membres' : 'membre' }}</span>
+    }
+  </p>
+  <a header-actions gbtButton variant="secondary" class="group-members__back" iconName="arrow-left" [routerLink]="backLink()" [queryParams]="backQuery()">
+    <span>{{ membership() ? 'Retour à ' + membership()!.path : 'Retour aux groupes' }}</span>
+  </a>
+</gbt-page-header>
+
+<gbt-page-layout width="wide" asideWidth="sm">
+  <div class="group-members__cards">
+    @if (showControls()) {
+      <gbt-card variant="outlined" class="group-members__add" icon="plus" heading="Ajouter un membre" description="Donne accès à ce groupe, à ses sous-groupes et à leurs dépôts, avec le rôle choisi.">
+        <form class="group-members__form" (submit)="$event.preventDefault(); addMember()">
+          <div class="group-members__fields">
+            <gbt-input name="username" label="Nom d'utilisateur" placeholder="alice" autocomplete="off" [ngModel]="newMemberUsername()" (ngModelChange)="newMemberUsername.set($event)" />
+            <gbt-select class="group-members__role-input" name="role" label="Rôle" placeholder="Choisir un rôle" [options]="roleOptions" [ngModel]="newMemberRole()" (ngModelChange)="newMemberRole.set($event)" />
+          </div>
+          <div class="group-members__actions">
+            <gbt-button type="submit" iconName="plus" text="Ajouter le membre" [disabled]="!newMemberUsername().trim()" />
+          </div>
+        </form>
+      </gbt-card>
+    } @else if (rolePending()) {
+      <div class="group-members__add-loading" aria-hidden="true"><gbt-skeleton width="100%" height="9rem" /></div>
+    }
+
+    <gbt-card variant="outlined" icon="user" heading="Membres" description="Les personnes membres de ce groupe, et leur rôle." [count]="listState() === 'loaded' ? members().length : null" [flush]="listState() !== 'failed'">
+      @switch (listState()) {
+        @case ('loading') {
+          <gbt-skeleton-list [rows]="3" leadingSize="1.5rem" loadingLabel="Chargement des membres…" />
+        }
+        @case ('failed') {
+          <gbt-alert variant="error" appearance="subtle" live="off">
+            Les membres n'ont pas pu être chargés.
+            <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+          </gbt-alert>
+        }
+        @default {
+          @if (members().length === 0) {
+            <gbt-empty-state
+              size="compact"
+              icon="user"
+              heading="Aucun membre pour l'instant"
+              message="Ajoutez des personnes pour qu'elles accèdent au groupe et à ses dépôts."
+            />
+          } @else {
+            <ul class="group-members__rows" aria-label="Membres">
+              @for (member of members(); track member.userId) {
+                <li>
+                  <gbt-list-row>
+                    <gbt-user-chip [name]="member.username" />
+                    <span row-meta>
+                      membre depuis <time [attr.datetime]="member.createdAt" [title]="member.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ member.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                    </span>
+                    <!-- One root per branch, because a conditional block is only projected through its single root element. -->
+                    @if (showControls()) {
+                      <span row-trailing class="group-members__trailing">
+                        <gbt-select
+                          class="group-members__role-select"
+                          size="sm"
+                          [label]="'Rôle de ' + member.username"
+                          hideLabel
+                          placeholder="Choisir un rôle"
+                          [options]="roleOptions"
+                          [ngModel]="pendingRoles().get(member.userId) ?? member.role"
+                          (ngModelChange)="changeMemberRole(member, $event)"
+                        />
+                        <gbt-button
+                          class="group-members__remove"
+                          variant="ghost-danger"
+                          size="medium"
+                          [iconOnly]="true"
+                          iconName="trash-2"
+                          title="Retirer"
+                          [ariaLabel]="'Retirer ' + member.username"
+                          (clicked)="confirmRemoveMember(member)"
+                        />
+                      </span>
+                    } @else if (rolePending()) {
+                      <span row-trailing class="group-members__trailing-loading" aria-hidden="true"><gbt-skeleton width="6rem" height="1.75rem" /></span>
+                    } @else {
+                      <gbt-badge row-trailing class="group-members__role">{{ roleLabel(member.role) }}</gbt-badge>
+                    }
+                  </gbt-list-row>
+                </li>
+              }
+            </ul>
+          }
+        }
+      }
+    </gbt-card>
+  </div>
+
+  <div page-aside>
+    <gbt-panel heading="Rôles" [headingLevel]="2">
+      <gbt-description-list class="group-members__legend" [items]="roleLegend" />
+      <p class="group-members__legend-note">Un rôle vaut pour le groupe et tous ses sous-groupes.</p>
+    </gbt-panel>
+  </div>
+</gbt-page-layout>
+
+@if (memberPendingRemoval(); as member) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    heading="Retirer le membre"
+    [message]="member.username + ' n’aura plus accès à ce groupe ni à ses dépôts privés. Vous pourrez l’ajouter à nouveau plus tard.'"
+    confirmLabel="Retirer"
+    confirmIcon="trash-2"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    busyLabel="Retrait en cours"
+    [busy]="removing()"
+    (confirmed)="removeMember(member.username)"
+    (closed)="memberPendingRemoval.set(null)"
+  />
+}

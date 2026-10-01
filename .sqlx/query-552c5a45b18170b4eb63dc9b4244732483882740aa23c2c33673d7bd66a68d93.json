@@ -1,0 +1,16 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO merge_requests (id, repository_id, author_id, source_branch, target_branch, title, description) VALUES ($1, $2, $3, 'feature', 'main', 't', '')",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "552c5a45b18170b4eb63dc9b4244732483882740aa23c2c33673d7bd66a68d93"
+}

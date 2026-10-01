@@ -1,0 +1,133 @@
+<header class="explore-page__header">
+  <h1 class="explore-page__title">Explorer les dépôts publics</h1>
+  <p class="explore-page__intro">Les projets que leurs auteurs ont rendus publics sur cette instance. Pas besoin de compte pour les lire ou les cloner.</p>
+</header>
+
+@if (state().kind === 'closed') {
+  <gbt-card class="explore-page__closed" variant="outlined">
+    <gbt-empty-state
+      illustration="server"
+      [headingLevel]="2"
+      heading="Les pages publiques sont désactivées"
+      message="Cette instance n'ouvre pas ses dépôts aux visiteurs sans compte."
+    >
+      @if (isAuthenticated()) {
+        <a gbtButton variant="secondary" routerLink="/repositories">Mes dépôts</a>
+      } @else {
+        <a gbtButton variant="primary" [routerLink]="login.commands">Se connecter</a>
+      }
+    </gbt-empty-state>
+  </gbt-card>
+} @else {
+  <div class="explore-page__toolbar">
+    <form ngNoForm class="explore-page__search" role="search" aria-label="Rechercher dans le catalogue" (submit)="$event.preventDefault(); searchNow()">
+      <gbt-input
+        type="search"
+        leadingIcon="search"
+        label="Rechercher un dépôt public"
+        hideLabel
+        placeholder="Nom, chemin ou description"
+        enterkeyhint="search"
+        [maxlength]="maxQueryLength"
+        [ngModel]="text()"
+        (ngModelChange)="onTextChange($event)"
+      />
+    </form>
+    <gbt-segmented-control class="explore-page__sort" ariaLabel="Trier par" tinted [options]="sortOptions" [value]="query().sort" (valueChange)="setSort($event)" />
+  </div>
+
+  <section class="explore-page__results-section" aria-labelledby="explore-results-heading">
+    <div class="explore-page__summary">
+      <h2 id="explore-results-heading" class="explore-page__heading">{{ heading() }}</h2>
+      <p class="explore-page__count" aria-live="polite">{{ countLabel() }}</p>
+    </div>
+
+    @switch (state().kind) {
+      @case ('loading') {
+        <div class="explore-page__loading" aria-busy="true">
+          <span class="sr-only" role="status">Chargement des dépôts…</span>
+          @for (width of skeletonCards; track $index) {
+            <gbt-card variant="outlined" aria-hidden="true">
+              <div class="explore-page__skeleton">
+                <gbt-skeleton [width]="width" height="1rem" />
+                <gbt-skeleton width="80%" height="0.75rem" />
+                <gbt-skeleton width="30%" height="0.625rem" />
+              </div>
+            </gbt-card>
+          }
+        </div>
+      }
+      @case ('rateLimited') {
+        <gbt-alert class="explore-page__alert" variant="warning" appearance="subtle">
+          Trop de recherches en peu de temps. Patientez une minute avant de réessayer.
+          <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+        </gbt-alert>
+      }
+      @case ('error') {
+        <gbt-alert class="explore-page__alert" variant="error" appearance="subtle">
+          Le catalogue n'a pas pu être chargé.
+          <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+        </gbt-alert>
+      }
+      @default {
+        @if (result(); as result) {
+          @if (result.total === 0 && !query().q) {
+            <gbt-card variant="outlined">
+              <gbt-empty-state illustration="folder" [headingLevel]="3" heading="Aucun dépôt public pour l'instant" message="Les dépôts rendus publics sur cette instance apparaîtront ici." />
+            </gbt-card>
+          } @else if (result.total === 0) {
+            <gbt-card variant="outlined">
+              <gbt-empty-state illustration="book" [headingLevel]="3" heading="Aucun dépôt ne correspond à cette recherche" message="Essayez un autre mot, ou une partie du nom.">
+                <gbt-button variant="secondary" text="Effacer la recherche" (clicked)="clearSearch()" />
+              </gbt-empty-state>
+            </gbt-card>
+          } @else if (cards().length === 0) {
+            <gbt-card variant="outlined">
+              <gbt-empty-state illustration="book" [headingLevel]="3" heading="Cette page n'existe pas" message="La recherche a moins de pages.">
+                <a gbtButton variant="secondary" [routerLink]="[]" [queryParams]="pageParams(1)" queryParamsHandling="merge">Revenir à la première page</a>
+              </gbt-empty-state>
+            </gbt-card>
+          } @else {
+            <ol class="explore-page__results">
+              @for (card of cards(); track card.repository.id) {
+                <li>
+                  <gbt-card class="explore-page__card" variant="outlined">
+                    <article class="repository-card" [attr.aria-labelledby]="'repository-card-' + card.repository.id">
+                      <h3 class="repository-card__name" [id]="'repository-card-' + card.repository.id">
+                        <gbt-icon name="folder-git-2" aria-hidden="true" />
+                        <a [routerLink]="card.link" [title]="card.fullPath">{{ card.fullPath }}</a>
+                      </h3>
+                      @if (card.repository.description) {
+                        <p class="repository-card__description">{{ card.repository.description }}</p>
+                      }
+                      <p class="repository-card__meta">
+                        <span class="repository-card__stars" [title]="card.starsLabel"><gbt-icon name="star" aria-hidden="true" />{{ card.repository.stars }}<span class="sr-only"> {{ card.starsLabel }}</span></span>
+                        <span class="repository-card__created">créé <time [attr.datetime]="card.repository.createdAt" [title]="card.repository.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ card.repository.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time></span>
+                      </p>
+                    </article>
+                  </gbt-card>
+                </li>
+              }
+            </ol>
+
+            @if (totalPages() > 1) {
+              <nav class="explore-page__pagination" aria-label="Pages de résultats">
+                @if (query().page > 1) {
+                  <a gbtButton class="explore-page__previous" variant="secondary" iconName="arrow-left" [routerLink]="[]" [queryParams]="pageParams(query().page - 1)" queryParamsHandling="merge">Précédente</a>
+                } @else {
+                  <gbt-button class="explore-page__previous" variant="secondary" iconName="arrow-left" text="Précédente" disabled />
+                }
+                <span class="explore-page__page">{{ pageLabel() }}</span>
+                @if (query().page < totalPages()) {
+                  <a gbtButton class="explore-page__next" variant="secondary" [routerLink]="[]" [queryParams]="pageParams(query().page + 1)" queryParamsHandling="merge">Suivante</a>
+                } @else {
+                  <gbt-button class="explore-page__next" variant="secondary" text="Suivante" disabled />
+                }
+              </nav>
+            }
+          }
+        }
+      }
+    }
+  </section>
+}

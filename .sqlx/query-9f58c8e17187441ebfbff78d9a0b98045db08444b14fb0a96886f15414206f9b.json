@@ -1,0 +1,64 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, repository_id, disk_path, created_at FROM wikis WHERE repository_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "wikis",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "wikis",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "disk_path",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "wikis",
+            "name": "disk_path"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "wikis",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "9f58c8e17187441ebfbff78d9a0b98045db08444b14fb0a96886f15414206f9b"
+}

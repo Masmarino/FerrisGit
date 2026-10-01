@@ -1,0 +1,26 @@
+.repository-commit-list__ref {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.repository-commit-list__items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.repository-commit-list__title {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.repository-commit-list__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.75rem;
+}

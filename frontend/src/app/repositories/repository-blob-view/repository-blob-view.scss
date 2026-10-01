@@ -1,0 +1,258 @@
+@use '../../shared/layout/prose';
+@use '../../shared/layout/card';
+
+$toggle-height: 44px;
+$header-height: 2rem;
+$header-gap: 0.5rem;
+
+:host {
+  display: block;
+}
+
+// A navigator wide enough for a few folder levels before names truncate.
+.repository-blob-view__layout {
+  --gbt-page-nav-width: 280px;
+}
+
+// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+gbt-card {
+  @include card.inherit-text;
+}
+
+.repository-blob-view__file {
+  display: block;
+  min-width: 0;
+}
+
+.repository-blob-view__card {
+  min-width: 0;
+}
+
+.repository-blob-view__file-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 1rem;
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+}
+
+.repository-blob-view__path {
+  flex: 1 1 14rem;
+  min-width: 0;
+
+  ::ng-deep .gbt-breadcrumb__list {
+    font-size: 0.8125rem;
+    row-gap: 0;
+  }
+
+  ::ng-deep .gbt-breadcrumb__list > li {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  ::ng-deep .gbt-breadcrumb__item:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+.repository-blob-view__file-actions {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin-left: auto;
+}
+
+.repository-blob-view__file-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.repository-blob-view__meta-separator {
+  color: var(--text-discret);
+}
+
+.repository-blob-view__body {
+  min-width: 0;
+}
+
+.repository-blob-view__markdown {
+  padding: 1.5rem 2rem 1.75rem;
+
+  ::ng-deep {
+    @include prose.markdown;
+  }
+}
+
+.repository-blob-view__empty-file {
+  margin: 0;
+  padding: 1.5rem 1rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+.repository-blob-view__load-error {
+  display: block;
+  padding: 1rem;
+}
+
+.repository-blob-view__loading {
+  padding: 0.75rem 1rem;
+}
+
+.repository-blob-view__skeleton-line {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  height: 1.25rem;
+
+  gbt-skeleton {
+    flex: none;
+  }
+}
+
+// Up to 768px the navigator is a closed "Fichiers" disclosure above the file. Wider, it gets a column of its own.
+// Both follow the layout's container query, not the viewport.
+
+.repository-blob-view__nav {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--gbt-card-border);
+  border-radius: var(--site-border-radius);
+  background: var(--bg-principal);
+}
+
+.repository-blob-view__nav-toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  min-height: $toggle-height;
+  box-sizing: border-box;
+  padding: 0 1rem;
+  border: 0;
+  background: none;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--bg-hover);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+    border-radius: var(--site-border-radius);
+  }
+}
+
+.repository-blob-view__nav-toggle-icon {
+  color: var(--primary);
+}
+
+.repository-blob-view__nav-chevron {
+  margin-left: auto;
+  color: var(--text-secondary);
+  transition: transform 0.15s ease;
+
+  .repository-blob-view__nav--open & {
+    transform: rotate(180deg);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.repository-blob-view__nav-panel {
+  display: none;
+  padding: 0.375rem;
+  border-top: 1px solid var(--gbt-hairline);
+}
+
+.repository-blob-view__nav-panel--open {
+  display: block;
+}
+
+// In the disclosure the button already says "Fichiers", so the panel heading only names the section for
+// assistive technology (aria-labelledby still reads a heading with display: none).
+.repository-blob-view__navigator ::ng-deep .gbt-panel__header {
+  display: none;
+}
+
+.repository-blob-view__nav-loading {
+  display: flex;
+  flex-direction: column;
+}
+
+.repository-blob-view__nav-skeleton {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  height: 32px;
+  padding: 0 0.5rem 0 1.75rem;
+
+  gbt-skeleton {
+    flex: none;
+  }
+}
+
+@container gbt-page-layout (min-width: 769px) {
+  .repository-blob-view__nav {
+    overflow: visible;
+    border: 0;
+    border-radius: 0;
+    background: none;
+  }
+
+  .repository-blob-view__nav-toggle {
+    display: none;
+  }
+
+  .repository-blob-view__nav-panel {
+    display: block;
+    padding: 0;
+    border-top: 0;
+  }
+
+  .repository-blob-view__navigator ::ng-deep .gbt-panel__header {
+    display: flex;
+  }
+
+  .repository-blob-view__navigator ::ng-deep .gbt-panel__header {
+    min-height: $header-height;
+    margin-bottom: $header-gap;
+    padding: 0 0.5rem;
+  }
+}
+
+// Tree rows: a little tighter than Gabarit's default, and the chevron aligned on the row's icon.
+.repository-blob-view__navigator ::ng-deep {
+  .gbt-tree__item {
+    height: 30px;
+  }
+
+  .gbt-tree__item[aria-selected='true'] .gbt-tree__icon {
+    color: inherit;
+  }
+}
+
+@media (max-width: 768px) {
+  .repository-blob-view__markdown {
+    padding: 1rem;
+  }
+}

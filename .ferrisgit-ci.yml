@@ -1,0 +1,53 @@
+# Smoke-test pipeline for FerrisGit's own CI engine.
+#
+# On the Kubernetes engine a job's Pod runs its script in the given image WITHOUT the
+# repository checked out (only Docker runners clone), so these jobs deliberately don't need
+# the source: they exercise stage ordering, `needs`, variables, parallel jobs and Pod egress.
+# Script lines are joined with `&&`: a failing line fails the job.
+stages: [prepare, check, report]
+
+jobs:
+  hello:
+    stage: prepare
+    image: alpine:3.20
+    variables:
+      CI_GREETING: "hello from FerrisGit CI"
+    script:
+      - echo "$CI_GREETING"
+      - uname -a
+      - cat /etc/os-release
+
+  egress:
+    stage: check
+    image: alpine:3.20
+    needs: [hello]
+    script:
+      - echo "checking outbound network access"
+      - wget -q -O /dev/null https://example.com
+
+  parallel-a:
+    stage: check
+    image: alpine:3.20
+    needs: [hello]
+    variables:
+      JOB_NAME: parallel-a
+    script:
+      - echo "running $JOB_NAME"
+      - sleep 5
+
+  parallel-b:
+    stage: check
+    image: alpine:3.20
+    needs: [hello]
+    variables:
+      JOB_NAME: parallel-b
+    script:
+      - echo "running $JOB_NAME"
+      - sleep 5
+
+  summary:
+    stage: report
+    image: alpine:3.20
+    needs: [egress, parallel-a, parallel-b]
+    script:
+      - echo "all checks passed"

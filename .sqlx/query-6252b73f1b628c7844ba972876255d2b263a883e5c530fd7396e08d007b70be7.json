@@ -1,0 +1,209 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, recipient_id, kind, repository_owner, repository_name, actor_username, merge_request_id, merge_request_title, pipeline_id, commit_sha, role, issue_id, issue_number, issue_title, read_at, created_at FROM notifications WHERE recipient_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "recipient_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "recipient_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "repository_owner",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "repository_owner"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "repository_name",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "repository_name"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "actor_username",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "actor_username"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "merge_request_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "merge_request_id"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "merge_request_title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "merge_request_title"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "pipeline_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "pipeline_id"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "commit_sha",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "commit_sha"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "role",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "role"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "issue_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "issue_id"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "issue_number",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "issue_number"
+          }
+        }
+      },
+      {
+        "ordinal": 13,
+        "name": "issue_title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "issue_title"
+          }
+        }
+      },
+      {
+        "ordinal": 14,
+        "name": "read_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "read_at"
+          }
+        }
+      },
+      {
+        "ordinal": 15,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "notifications",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "6252b73f1b628c7844ba972876255d2b263a883e5c530fd7396e08d007b70be7"
+}

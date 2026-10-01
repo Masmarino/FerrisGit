@@ -1,0 +1,174 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, repository_id, number, author_id, assignee_id, milestone_id, title, description, status, kind, parent_issue_id, created_at, closed_at FROM issues WHERE repository_id = ANY($1::uuid[]) AND author_id = $2 AND status != 'done' ORDER BY created_at DESC, id LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "repository_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "repository_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "number",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "number"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "author_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "author_id"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "assignee_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "assignee_id"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "milestone_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "milestone_id"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "title",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "title"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "description",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "description"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "status",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 9,
+        "name": "kind",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "kind"
+          }
+        }
+      },
+      {
+        "ordinal": 10,
+        "name": "parent_issue_id",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "parent_issue_id"
+          }
+        }
+      },
+      {
+        "ordinal": 11,
+        "name": "created_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 12,
+        "name": "closed_at",
+        "type_info": "Timestamptz",
+        "origin": {
+          "Table": {
+            "table": "issues",
+            "name": "closed_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "UuidArray",
+        "Uuid",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      true,
+      true,
+      false,
+      false,
+      false,
+      false,
+      true,
+      false,
+      true
+    ]
+  },
+  "hash": "b87256304f2fd574cff2d6b4c7b72b215bc602b641009f3c19f5e1d4d6f852d3"
+}

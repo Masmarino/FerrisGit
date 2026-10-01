@@ -1,0 +1,135 @@
+import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
+import { FormsModule } from '@angular/forms';
+import {
+  Alert,
+  Badge,
+  Button,
+  Card,
+  ConfirmDangerModal,
+  DatePicker,
+  EmptyState,
+  GbtInput,
+  GbtToastService,
+  Icon,
+  ListRow,
+  SkeletonList,
+} from '@masmarino/gabarit';
+import { Milestone, MilestonesService } from '../../milestones/milestones.service';
+
+// A due date is a calendar day stored as UTC midnight, so it is formatted in UTC: formatting in
+// local time would show the previous day west of UTC.
+const DUE_DATE_FORMAT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+
+@Component({
+  selector: 'fg-repository-milestones-settings',
+  standalone: true,
+  imports: [FormsModule, GbtInput, Badge, Alert, EmptyState, Button, DatePicker, ConfirmDangerModal, Icon, SkeletonList, ListRow, Card],
+  templateUrl: './repository-milestones-settings.html',
+  styleUrl: './repository-milestones-settings.scss',
+})
+export class RepositoryMilestonesSettings implements OnInit {
+  repositoryId = input.required<string>();
+
+  private milestonesService = inject(MilestonesService);
+  private toast = inject(GbtToastService);
+
+
+  protected milestones = signal<Milestone[]>([]);
+  /** 'loading' until the first list arrives. If a later refresh fails, the list stays on screen. */
+  protected listState = signal<'loading' | 'loaded' | 'failed'>('loading');
+  protected newMilestoneTitle = signal('');
+  protected newMilestoneDueDate = signal<Date | null>(null);
+  protected milestonePendingDelete = signal<Milestone | null>(null);
+
+  protected rows = computed(() => {
+    const today = this.todayUtc();
+    return this.milestones().map((milestone) => {
+      const due = milestone.dueDate ? new Date(milestone.dueDate) : null;
+      const validDue = due && !Number.isNaN(due.getTime()) ? due : null;
+      return {
+        milestone,
+        due: validDue ? `Échéance le ${DUE_DATE_FORMAT.format(validDue)}` : 'Sans échéance',
+        late: milestone.state === 'open' && validDue !== null && validDue.getTime() < today,
+      };
+    });
+  });
+
+  ngOnInit(): void {
+    this.refresh();
+  }
+
+  refresh(): void {
+    this.milestonesService.listForRepository(this.repositoryId()).subscribe({
+      next: (m) => {
+        this.milestones.set(m);
+        this.listState.set('loaded');
+      },
+      error: () => {
+        if (this.listState() !== 'loaded') {
+          this.listState.set('failed');
+        }
+        this.toast.show('Impossible de charger les réglages. Réessayez plus tard.', 'error');
+      },
+    });
+  }
+
+  protected retry(): void {
+    this.listState.set('loading');
+    this.refresh();
+  }
+
+  private todayUtc(): number {
+    const now = new Date();
+    return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
+  }
+
+  /**
+   * `gbt-date-picker` builds a day at local midnight, but the API's `due_date` only takes RFC 3339, and
+   * `.toISOString()` would move the day back in time zones ahead of UTC. So rebuild the same Y/M/D at UTC midnight.
+   */
+  protected dueDateForApi(picked: Date | null): string | null {
+    if (!picked) {
+      return null;
+    }
+    return new Date(Date.UTC(picked.getFullYear(), picked.getMonth(), picked.getDate())).toISOString();
+  }
+
+  addMilestone(): void {
+    const title = this.newMilestoneTitle().trim();
+    if (!title) {
+      return;
+    }
+    // This section only manages title and due date: the description is created empty.
+    this.milestonesService.create({ repositoryId: this.repositoryId() }, title, '', this.dueDateForApi(this.newMilestoneDueDate())).subscribe({
+      next: () => {
+        this.newMilestoneTitle.set('');
+        this.newMilestoneDueDate.set(null);
+        this.refresh();
+        this.toast.show('Milestone créé.');
+      },
+      error: () => this.toast.show('Impossible de créer ce milestone.', 'error'),
+    });
+  }
+
+  confirmDeleteMilestone(milestone: Milestone): void {
+    this.milestonePendingDelete.set(milestone);
+  }
+
+  deleteMilestone(): void {
+    const milestone = this.milestonePendingDelete();
+    if (!milestone) {
+      return;
+    }
+    this.milestonesService.delete(milestone.id).subscribe({
+      next: () => {
+        this.milestonePendingDelete.set(null);
+        this.refresh();
+        this.toast.show('Milestone supprimé.');
+      },
+      error: () => {
+        this.milestonePendingDelete.set(null);
+        this.toast.show('Impossible de supprimer ce milestone.', 'error');
+      },
+    });
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM webhooks WHERE id = $1 AND repository_id = $2",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "00232a8c466ef788c2630e2a74c5d904411d474d18641e70b8cdca3f1c281e27"
+}

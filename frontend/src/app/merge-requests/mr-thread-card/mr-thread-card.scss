@@ -1,0 +1,280 @@
+@use '../timeline-rail' as rail;
+@use '../../shared/layout/card';
+
+:host {
+  display: block;
+}
+
+.mr-thread__marker {
+  @include rail.on-rail(rail.$marker-size, 4px);
+  border-radius: 50%;
+}
+
+// On the expanded card: hung from the header, centred on its first 24px line like the avatars.
+.mr-thread__marker--card {
+  top: (24px - rail.$marker-size) * 0.5;
+}
+
+.mr-thread__avatar {
+  @include rail.on-rail(rail.$avatar-size, (24px - rail.$avatar-size) * 0.5);
+}
+
+.mr-thread-collapsed {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  min-height: 32px;
+  padding: 0 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+
+  .mr-thread__marker {
+    top: calc(50% - #{rail.$marker-size * 0.5});
+  }
+}
+
+.mr-thread-collapsed__text {
+  flex: 1 1 auto;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mr-thread-collapsed__who {
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.mr-thread-collapsed__toggle {
+  flex: none;
+}
+
+gbt-card {
+  @include card.inherit-text;
+}
+
+.mr-thread__header {
+  position: relative;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1.5rem;
+}
+
+.mr-thread__header-icon {
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.mr-thread__location {
+  min-width: 0;
+  font-family: var(--gbt-font-mono);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  overflow-wrap: anywhere;
+}
+
+.mr-thread-collapsed .mr-thread__location {
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.mr-thread__date {
+  margin-left: auto;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+}
+
+.mr-thread__excerpt {
+  overflow-x: auto;
+  border-bottom: 1px solid var(--gbt-hairline);
+  background: var(--bg-principal);
+
+  &:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: -2px;
+  }
+}
+
+.mr-thread__excerpt-table {
+  min-width: 100%;
+  border-collapse: collapse;
+  font-family: var(--gbt-font-mono);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+}
+
+.mr-thread__excerpt-num {
+  width: 1%;
+  min-width: 2.5rem;
+  padding: 0 0.625rem 0 1.25rem;
+  border-right: 1px solid var(--gbt-hairline);
+  color: var(--text-discret);
+  text-align: right;
+  user-select: none;
+  white-space: nowrap;
+}
+
+.mr-thread__excerpt-line {
+  padding: 0 1rem 0 0.625rem;
+  color: var(--text-primary);
+  white-space: pre;
+}
+
+.mr-thread__excerpt-row:first-child td {
+  padding-top: 0.375rem;
+}
+
+.mr-thread__excerpt-row:last-child td {
+  padding-bottom: 0.375rem;
+}
+
+.mr-thread__excerpt-row--added td {
+  background: color-mix(in srgb, var(--color-success-bg) 75%, transparent);
+}
+
+.mr-thread__excerpt-row--removed td {
+  background: color-mix(in srgb, var(--color-error-bg) 75%, transparent);
+}
+
+.mr-thread__comments {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mr-thread__comment {
+  padding: 0.875rem 1.25rem;
+
+  & + & {
+    border-top: 1px solid var(--gbt-hairline);
+  }
+}
+
+.mr-thread__comment-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.8125rem;
+}
+
+.mr-thread__comment-author {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-primary);
+  font-weight: 600;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.mr-thread__comment-date {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  white-space: nowrap;
+
+  &::before {
+    content: '·';
+    margin-right: 0.5rem;
+  }
+}
+
+.mr-thread__comment-body {
+  margin: 0.25rem 0 0 2rem;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.mr-thread__suggestion-block {
+  margin: 0.75rem 0 0 2rem;
+  border: 1px solid var(--gbt-card-border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.mr-thread__suggestion-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.375rem 0.375rem 0.375rem 0.75rem;
+  border-bottom: 1px solid var(--gbt-hairline);
+  background: var(--bg-hover);
+  font-size: 0.75rem;
+}
+
+.mr-thread__suggestion-title {
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+
+.mr-thread__suggestion {
+  margin: 0;
+  padding: 0.5rem 0.75rem;
+  overflow-x: auto;
+  background: color-mix(in srgb, var(--color-success-bg) 75%, transparent);
+  color: var(--text-primary);
+  font-family: var(--gbt-font-mono);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  white-space: pre;
+}
+
+.mr-thread__applied {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-height: 1.75rem;
+  padding-right: 0.375rem;
+  color: var(--color-success-text);
+  font-weight: 600;
+}
+
+.mr-thread__sha {
+  font-family: var(--gbt-font-mono);
+}
+
+.mr-thread__footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.625rem 1.25rem;
+  border-top: 1px solid var(--gbt-hairline);
+  background: var(--bg-hover);
+}
+
+.mr-thread__footer--end {
+  justify-content: flex-end;
+}
+
+// Scoped under the footer so these outrank gbt-textarea's own `.gbt-textarea textarea` rules
+// (same specificity otherwise, and the library's styles load later).
+.mr-thread__footer .mr-thread__reply {
+  flex: 1 1 16rem;
+  min-width: 0;
+
+  // One line tall (rows=1, `autosize` grows it), level with the small buttons: tighter padding than the field's own.
+  ::ng-deep textarea {
+    min-height: 30px;
+    padding-block: 0.25rem;
+    line-height: 1.25rem;
+  }
+}
+
+.mr-thread__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}

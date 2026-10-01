@@ -1,0 +1,217 @@
+@use '../../shared/layout/card';
+
+// Header and layout share the 1440px frame, so the h1 and its actions line up with the tabs and the aside.
+:host {
+  display: block;
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+// Flex items, so each segment wraps as a unit and the branch pair can be held to the line's width.
+// The 0.25rem gap stands for the space between segments (same line as the merge request list rows).
+.mr-detail__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.375rem;
+  min-width: 0;
+  margin: 0;
+}
+
+.mr-detail__branches {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+  margin-right: 0.25rem;
+  overflow-wrap: normal;
+}
+
+.mr-detail__arrow {
+  flex: none;
+  color: var(--text-secondary);
+}
+
+.mr-detail__author {
+  color: var(--text-primary);
+  font-weight: 500;
+}
+
+.mr-detail__when {
+  white-space: nowrap;
+}
+
+.mr-detail__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.mr-detail__conflict {
+  display: block;
+  margin-bottom: 1rem;
+}
+
+// The tab strip reads as the section switch: a quiet hairline under it (Gabarit draws the full-strength border colour).
+.mr-detail__tabs ::ng-deep .gbt-tabs__list {
+  border-bottom-color: var(--gbt-hairline);
+}
+
+.mr-diff {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.mr-diff__summary {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.mr-diff__empty {
+  margin: 0;
+  padding: 2rem 1rem;
+  border: 1px dashed var(--gbt-card-border);
+  border-radius: var(--site-border-radius);
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  text-align: center;
+}
+
+// One outlined `gbt-card` per file: Gabarit draws the box's edge and clips the diff rows to its corners.
+// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+gbt-card {
+  @include card.inherit-text;
+}
+
+.mr-diff__file {
+  min-width: 0;
+}
+
+.mr-diff__file-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.mr-diff__file-icon {
+  flex: none;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+// The path reads as code: the directory muted, the file name in the text colour. When the header is
+// too narrow the directory truncates first, so the file name stays readable (full path in the tooltip).
+.mr-diff__path {
+  display: flex;
+  flex: 0 1 auto;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-primary);
+  font-family: var(--gbt-font-mono);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.mr-diff__directory,
+.mr-diff__name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.mr-diff__directory {
+  flex: 0 100000 auto;
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.mr-diff__name {
+  flex: 0 1 auto;
+  min-width: 4ch;
+}
+
+.mr-diff__change {
+  flex: none;
+  margin-left: auto;
+}
+
+.mr-diff__binary {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+  font-style: italic;
+}
+
+.mr-detail__person {
+  flex: none;
+  max-width: 100%;
+}
+
+.mr-detail__empty {
+  margin: 0;
+  color: var(--text-secondary);
+}
+
+.mr-detail__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mr-detail__milestone {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin: 0;
+
+  gbt-icon {
+    flex: none;
+    color: var(--text-secondary);
+    font-size: 0.875rem;
+  }
+}
+
+.mr-detail__people {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: flex;
+    min-width: 0;
+  }
+}
+
+.mr-detail__loading {
+  max-width: 1440px;
+  margin-inline: auto;
+}
+
+.mr-detail__loading-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--gbt-hairline);
+}
+
+.mr-detail__loading-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1.25rem;
+}

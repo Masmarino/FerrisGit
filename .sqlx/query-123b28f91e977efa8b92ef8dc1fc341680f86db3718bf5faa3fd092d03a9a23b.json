@@ -1,0 +1,58 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "\n            WITH RECURSIVE chain AS (\n                SELECT id, parent_group_id, name, description, created_by, created_at, 0 AS depth\n                FROM groups WHERE id = $1\n                UNION ALL\n                SELECT g.id, g.parent_group_id, g.name, g.description, g.created_by, g.created_at, c.depth + 1\n                FROM groups g JOIN chain c ON g.id = c.parent_group_id\n            )\n            SELECT id AS \"id!\", parent_group_id, name AS \"name!\", description AS \"description!\",\n                   created_by AS \"created_by?\", created_at AS \"created_at!\" FROM chain ORDER BY depth DESC\n            ",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id!",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 1,
+        "name": "parent_group_id",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 2,
+        "name": "name!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 3,
+        "name": "description!",
+        "type_info": "Text",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 4,
+        "name": "created_by?",
+        "type_info": "Uuid",
+        "origin": "Expression"
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at!",
+        "type_info": "Timestamptz",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      null,
+      null,
+      null,
+      null,
+      null,
+      null
+    ]
+  },
+  "hash": "123b28f91e977efa8b92ef8dc1fc341680f86db3718bf5faa3fd092d03a9a23b"
+}
