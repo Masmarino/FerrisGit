@@ -672,54 +672,87 @@ CHANGELOG.md                 release notes, one section per version
 
 ## Roadmap
 
-None of the items below exists yet: they are the direction the project is heading in, in rough priority order, and
-the details will change as they are designed. Items are only ticked once they ship.
+None of the items below exists yet: they are the direction the project is heading in, version by version, and the
+details will change as they are designed. Items are only ticked once they ship.
 
-### Automated checks on every merge request and on `main`
+### 0.2: a CI foundation for checks, and five languages
 
-The CI engine already runs arbitrary jobs. The goal is to make *checks* first-class: a set of analyses that run
-automatically on every merge request and on every push to `main`, report their result on the merge request itself,
-and can be made required before a merge.
+Code scanning needs the platform to understand *checks*: results that belong to a commit, show up on a merge request,
+and can stop a merge. This version builds that, and translates the interface.
 
-**Code quality scanning, in the spirit of SonarQube**
+- [ ] Protected branches: no direct push, merge only through a merge request, required approvals and required checks.
+- [ ] Pipelines on merge requests, with their status shown on the merge request and required before a merge.
+- [ ] Predefined CI variables (commit, branch, merge request, pipeline) and `rules` to decide when a job runs.
+- [ ] Pipeline artifacts and a report upload API, which is what the scans of the next versions use.
+- [ ] Re-running a pipeline from the interface, and scheduled pipelines.
+- [ ] Personal access tokens usable on the REST API, with scopes, and an OpenAPI description generated from the code.
+- [ ] A first link with ArtiFerris: publish an artifact built by a pipeline to an ArtiFerris instance.
+- [ ] Internationalisation with [Transloco](https://github.com/jsverse/transloco): the interface in English, French,
+  Italian, Spanish and German. The language follows the browser on a first visit, can be changed on the fly and is saved
+  on the account; the e-mails FerrisGit sends use the recipient's language, and the public pages follow the reader's
+  `Accept-Language`. The documentation is translated afterwards.
 
-- [ ] Static analysis of the changed code: bugs, code smells, duplication and complexity.
-- [ ] Test coverage tracking, with the trend per branch and the coverage of what a merge request changes.
-- [ ] Findings shown inline on the merge request diff and summarised in its timeline, with the history for `main`.
-- [ ] Quality gates: configurable thresholds (for example no new blocker issue, minimum coverage on new code) that
-  can block a merge.
-- [ ] Support for the languages the platform's own users write, starting with Rust and TypeScript, through pluggable
-  analysers rather than a single built-in engine.
+### 0.3: the analysis engine, secrets and dependencies
 
-**Security audits**
+FerrisGit gets its own analysis engine instead of wrapping third-party tools: a `ferrisgit-scan` crate, shipped as a
+binary a pipeline job runs, so the analysis scales with the runners and the server stays light. Its analysers are
+plugins behind one interface that produce *findings* in a model close to SARIF, so reports from other tools can still be
+imported next to the native ones.
 
-- [ ] Dependency audits against public advisory databases (lockfiles such as `Cargo.lock` and `package-lock.json`).
-- [ ] Secret detection: credentials and keys committed in a diff or already present in the history.
-- [ ] Static application security testing (SAST) of the changed code.
+- [ ] The engine and the findings store: a scan per commit, findings identified by a stable fingerprint, and a baseline
+  per branch to tell the *new* findings of a merge request from the old ones.
+- [ ] Native secret detection, in the diff of a merge request and in the whole history.
+- [ ] Native dependency audit: lockfiles (`Cargo.lock`, `package-lock.json`, and others later) matched against public
+  advisory databases such as OSV.
+- [ ] Findings shown inline on the merge request diff and summarised in its timeline.
+- [ ] Import of SARIF reports from other tools.
+
+### 0.4: quality gates and the dashboard
+
+- [ ] Quality gates, configurable per repository: for example no new blocker finding and a minimum coverage on new
+  code. A gate is a required check, so it can block a merge.
+- [ ] A repository dashboard: open findings, their age, trend per branch, technical debt and hotspots.
+- [ ] Triage: mark a finding as a false positive or as won't fix, assign it, suppress it in the code, and keep the history.
+- [ ] A `.ferrisgit/scan.yml` file to choose analysers, rule sets and thresholds, and to exclude paths.
+
+### 0.5: code quality
+
+The full repository is analysed on every push to the default branch and on every merge request, and the gates only
+look at what a merge request introduces (the "clean as you code" approach), so an existing project stays adoptable.
+
+- [ ] Parsing through tree-sitter, so the same engine reads several languages. Rust and TypeScript first.
+- [ ] Metrics: size, cyclomatic and cognitive complexity, duplication.
+- [ ] Code smells and bug patterns, as declarative rules and as native rules.
+- [ ] Test coverage tracking (LCOV and Cobertura reports), with the coverage of what a merge request changes.
+
+### 0.6: security analysis and ArtiFerris
+
+- [ ] Static application security testing: pattern rules first, then data flow within a function.
 - [ ] Container image and infrastructure-as-code scanning.
-- [ ] A security summary on every merge request and for the current state of `main`, with severity levels, and the
+- [ ] A security summary on every merge request and a security dashboard for the repository, with severities and the
   option to block merging above a chosen severity.
-- [ ] A repository-level security dashboard: open findings, their age, and how they evolve.
+- [ ] Trace every artifact published to ArtiFerris back to the commit, merge request and pipeline that produced it, and
+  show it on the FerrisGit release and pipeline pages.
+- [ ] Bring the artifact scan results of ArtiFerris back into the merge request checks.
+- [ ] Explore shared identity, so one account and one MFA enrolment work on both platforms.
 
-FerrisGit's own repository already runs comparable scans through GitHub Actions, which is the reference for what the
-platform should offer natively.
+### The platform, in no fixed order
 
-Both families are meant to share the same building blocks: a pipeline stage or job that produces a machine-readable
-report, a place to store and diff reports over time, and a check status that the merge request understands. The exact
-report format (for example SARIF) and which analysers to integrate are open questions.
+- [ ] Git over SSH and deploy keys.
+- [ ] Forks and merge requests between repositories; renaming and transferring a repository with redirects.
+- [ ] Squash and rebase merges, reopening a merge request, draft merge requests and `CODEOWNERS`.
+- [ ] Mentions (`@name`), issue references (`#12`) and closing an issue from a commit or a merge request.
+- [ ] Full-text search in the code, and import from GitHub and GitLab.
+- [ ] Self-service password reset, e-mail notifications with per-user settings, and single sign-on (OIDC, LDAP).
+- [ ] An audit log page in the administration, Prometheus metrics, and backup and restore tooling.
+- [ ] Webhooks with retries, a delivery log and more events (push, release).
 
 ### Connecting with ArtiFerris
 
 [ArtiFerris](https://github.com/Masmarino/ArtiFerris) already stores npm packages and Docker/OCI images and scans them
-for vulnerabilities. FerrisGit and ArtiFerris are complementary halves of the same delivery chain, and the aim is to
-connect them:
-
-- [ ] Publish the artifacts a pipeline builds (npm packages, container images) to an ArtiFerris instance, using
-  credentials held as CI variables or a dedicated integration.
-- [ ] Trace every published artifact back to the commit, merge request and pipeline that produced it, and show it on
-  the FerrisGit release and pipeline pages.
-- [ ] Bring the artifact scan results from ArtiFerris back into the merge request checks described above.
-- [ ] Explore shared identity, so one account and one MFA enrolment work on both platforms.
+for vulnerabilities. FerrisGit and ArtiFerris are complementary halves of the same delivery chain. The link grows in
+three steps: publishing from a pipeline (0.2), tracing an artifact back to its commit (0.6), and bringing the scan
+results back into the merge request checks (0.6). Shared identity stays an open question.
 
 ## Contributing
 

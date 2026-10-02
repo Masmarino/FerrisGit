@@ -37,7 +37,7 @@ La double authentification est obligatoire pour tous les comptes, sans exception
 
 - Git est servi **en HTTP uniquement** : il n'y a pas d'accès SSH. L'authentification se fait par un jeton Git.
 - Il n'y a pas de branches protégées : un Contributeur peut pousser sur n'importe quelle branche du dépôt.
-- Ne sont pas encore disponibles : l'analyse de qualité de code, les audits de sécurité intégrés aux demandes de fusion et le lien avec ArtiFerris. Ils figurent sur la feuille de route du projet, pas dans le produit.
+- Ne sont pas encore disponibles : l'analyse de qualité de code, les audits de sécurité intégrés aux demandes de fusion et le lien avec ArtiFerris. Ils figurent sur la [feuille de route](/docs/demarrer/feuille-de-route), pas dans le produit.
 
 ## Par où commencer
 

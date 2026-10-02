@@ -13,6 +13,11 @@
           "slug": "prise-en-main",
           "title": "Prise en main",
           "description": "Créer son compte, activer la double authentification et pousser un premier dépôt."
+        },
+        {
+          "slug": "feuille-de-route",
+          "title": "Feuille de route",
+          "description": "Ce que le projet prévoit d'ajouter, version par version."
         }
       ]
     },
