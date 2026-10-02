@@ -23,8 +23,11 @@
     </form>
 
     <div class="public-layout__end">
+      <a gbtButton class="public-layout__github" variant="ghost" size="small" iconName="github" [href]="repositoryUrl" target="_blank" rel="noopener" aria-label="FerrisGit sur GitHub (nouvel onglet)"
+        ><span class="public-layout__link-label">GitHub</span></a
+      >
       <a gbtButton class="public-layout__docs" variant="ghost" size="small" iconName="book-open" routerLink="/docs" routerLinkActive ariaCurrentWhenActive="page"
-        ><span class="public-layout__docs-label">Documentation</span></a
+        ><span class="public-layout__link-label">Documentation</span></a
       >
       <div class="public-layout__account">
         @if (isAuthenticated()) {

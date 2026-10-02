@@ -11,6 +11,7 @@ import { loginLink } from '../../auth/login-link';
 import { PUBLIC_CATALOG_MAX_QUERY_LENGTH as MAX_QUERY_LENGTH } from '../public-repositories.service';
 
 const APP_NAME = 'FerrisGit';
+const REPOSITORY_URL = 'https://github.com/Masmarino/FerrisGit';
 
 /** The frame of the public pages: a header (logo, quick search, documentation, sign-in) above a centred content column. No sidebar. */
 @Component({
@@ -32,6 +33,7 @@ export class PublicLayout implements OnDestroy {
   protected isAuthenticated = inject(AuthService).isAuthenticated;
 
   protected readonly maxQueryLength = MAX_QUERY_LENGTH;
+  protected readonly repositoryUrl = REPOSITORY_URL;
   protected query = signal('');
 
   protected login = computed(() => loginLink(this.url()));

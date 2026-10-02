@@ -90,6 +90,16 @@ describe('PublicLayout', () => {
     expect(link.getAttribute('href')).toBe('/docs');
   });
 
+  it('links to the GitHub repository, in a new tab', async () => {
+    const { el } = await setup();
+    const link = el().querySelector<HTMLAnchorElement>('a.public-layout__github')!;
+
+    expect(link.getAttribute('href')).toBe('https://github.com/Masmarino/FerrisGit');
+    expect(link.getAttribute('target')).toBe('_blank');
+    expect(link.getAttribute('rel')).toContain('noopener');
+    expect(link.getAttribute('aria-label')).toContain('GitHub');
+  });
+
   it('marks the documentation link as current on its pages', async () => {
     const { el } = await setup('/docs/ci-cd/reference-yaml');
 

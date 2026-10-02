@@ -58,8 +58,8 @@
   gap: 0.5rem;
 }
 
-// On a phone the book icon alone says "documentation"; the label stays for assistive technology.
-.public-layout__docs-label {
+// On a phone the icon alone says "GitHub" or "documentation"; the label stays for assistive technology.
+.public-layout__link-label {
   @container public-layout (max-width: 599px) {
     @include list-page.visually-hidden;
   }
@@ -67,6 +67,7 @@
 
 // A comfortable tap target on a phone.
 @media (pointer: coarse) {
+  .public-layout__github,
   .public-layout__docs,
   .public-layout__account-link {
     min-height: 44px;
