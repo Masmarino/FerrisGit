@@ -22,19 +22,7 @@ impl DeleteLabelUseCase {
 mod tests {
     use super::*;
     use crate::test_support::FakeLabels;
-    use chrono::Utc;
-    use ferrisgit_domain::label::Label;
-
-    fn label() -> Label {
-        Label {
-            id: Uuid::new_v4(),
-            name: "Bug".to_string(),
-            color: "#dc2626".to_string(),
-            repository_id: Some(Uuid::new_v4()),
-            group_id: None,
-            created_at: Utc::now(),
-        }
-    }
+    use crate::use_cases::fixtures::label;
 
     #[tokio::test]
     async fn deleting_a_label_removes_it() {
@@ -49,8 +37,7 @@ mod tests {
 
     #[tokio::test]
     async fn deleting_an_unknown_label_id_succeeds_without_error() {
-        // Mirrors the Postgres adapter: a DELETE matching zero rows still succeeds, since
-        // deleting something already gone is not a failure worth surfacing.
+        // Like the real store: deleting a label that is already gone is not a failure worth surfacing.
         let use_case = DeleteLabelUseCase::new(Arc::new(FakeLabels::empty()));
 
         use_case.execute(Uuid::new_v4()).await.unwrap();

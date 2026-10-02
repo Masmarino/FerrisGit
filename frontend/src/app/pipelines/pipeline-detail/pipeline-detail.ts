@@ -2,24 +2,23 @@ import { Component, OnDestroy, OnInit, computed, inject, input, signal } from '@
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
-import { Badge, Button, EmptyState, GbtDateTimePipe, GbtRelativeTimePipe, PageHeader, GbtToastService } from '@masmarino/gabarit';
+import { Alert, Badge, Button, EmptyState, GbtDateTimePipe, GbtRelativeTimePipe, PageHeader, GbtToastService } from '@masmarino/gabarit';
 import { PipelineDetail as PipelineDetailModel, PipelinesService } from '../pipelines.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
-import { activeStageIndex, durationLabel, groupByStage } from '../pipeline-helpers';
+import { activeStageIndex, durationLabel, groupByStage, isTerminal, pipelineLink } from '../pipeline-helpers';
 import { PipelineSidebar } from '../pipeline-sidebar/pipeline-sidebar';
 import { PipelineSummary } from '../pipeline-summary/pipeline-summary';
 import { PipelineJob } from '../pipeline-job/pipeline-job';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
 
-const TERMINAL_STATUSES = new Set(['success', 'failed', 'canceled']);
 const POLL_INTERVAL_MS = 3000;
 const TICK_INTERVAL_MS = 1000;
 
 @Component({
   selector: 'fg-pipeline-detail',
   standalone: true,
-  imports: [Button, EmptyState, RouterLink, GbtDateTimePipe, GbtRelativeTimePipe, PageHeader, StatusBadge, PipelineSidebar, PipelineSummary, PipelineJob, Badge],
+  imports: [Button, EmptyState, RouterLink, GbtDateTimePipe, GbtRelativeTimePipe, PageHeader, StatusBadge, PipelineSidebar, PipelineSummary, PipelineJob, Badge, Alert],
   templateUrl: './pipeline-detail.html',
   styleUrl: './pipeline-detail.scss',
 })
@@ -45,6 +44,11 @@ export class PipelineDetail implements OnInit, OnDestroy {
   protected pipeline = signal<PipelineDetailModel | null>(null);
   protected now = signal(Date.now());
   protected role = computed(() => this.repositoryContext.current()?.role ?? null);
+  protected canCancel = computed(() => {
+    const status = this.pipeline()?.status;
+    const role = this.role();
+    return (status === 'pending' || status === 'running') && (role === 'owner' || role === 'contributor' || role === 'maintainer');
+  });
   protected groups = computed(() => groupByStage(this.pipeline()?.jobs ?? []));
   protected activeStage = computed(() => activeStageIndex(this.groups()));
   protected currentJob = computed(() => this.pipeline()?.jobs.find((job) => job.id === this.jobId()) ?? null);
@@ -55,7 +59,7 @@ export class PipelineDetail implements OnInit, OnDestroy {
       return '—';
     }
     // Pipelines finished before migration 0003 have no finishedAt: counting up to "now" would be wrong.
-    if (TERMINAL_STATUSES.has(pipeline.status) && pipeline.finishedAt === null) {
+    if (isTerminal(pipeline.status) && pipeline.finishedAt === null) {
       return '—';
     }
     return durationLabel(pipeline.createdAt, pipeline.finishedAt, this.now());
@@ -72,7 +76,7 @@ export class PipelineDetail implements OnInit, OnDestroy {
   }
 
   protected summaryLink(): string[] {
-    return ['/repositories', ...this.path(), '-', 'pipelines', this.pipelineId()];
+    return pipelineLink(this.path(), this.pipelineId());
   }
 
   protected openJob(jobId: string): void {
@@ -104,7 +108,7 @@ export class PipelineDetail implements OnInit, OnDestroy {
         this.pipeline.set(detail);
         this.pageTitle.set(`Pipeline #${detail.id.slice(0, 8)}`);
         this.now.set(Date.now());
-        const stillRunning = !TERMINAL_STATUSES.has(detail.status);
+        const stillRunning = !isTerminal(detail.status);
         if (stillRunning && this.pollHandle === null) {
           this.pollHandle = setInterval(() => this.refresh(), POLL_INTERVAL_MS);
           this.tickHandle = setInterval(() => this.now.set(Date.now()), TICK_INTERVAL_MS);

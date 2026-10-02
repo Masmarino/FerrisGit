@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::runner::{NewRunner, Runner, RunnerRepositoryPort};
@@ -26,7 +27,7 @@ impl RunnerRepositoryPort for PostgresRunnerRepository {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn find_by_token_hash(&self, token_hash: &str) -> Result<Option<Runner>, DomainError> {
@@ -37,14 +38,14 @@ impl RunnerRepositoryPort for PostgresRunnerRepository {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn list(&self) -> Result<Vec<Runner>, DomainError> {
         sqlx::query_as!(Runner, "SELECT * FROM runners ORDER BY created_at DESC")
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     async fn touch_heartbeat(&self, id: Uuid) -> Result<(), DomainError> {
@@ -54,7 +55,7 @@ impl RunnerRepositoryPort for PostgresRunnerRepository {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -62,7 +63,7 @@ impl RunnerRepositoryPort for PostgresRunnerRepository {
         sqlx::query!("DELETE FROM runners WHERE id = $1", id)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(())
     }
 }

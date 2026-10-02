@@ -1,5 +1,8 @@
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
+mod common;
+
+use common::USER_PASSWORD;
+use common::http::{create_user, get, get_json, login, patch, post, post_json, put};
+
 use serde_json::json;
 use sqlx::PgPool;
 use std::process::Command;
@@ -8,41 +11,7 @@ use std::process::Command;
 async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_and_merge_requests(
     pool: PgPool,
 ) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap();
-    let static_dir = tempfile::tempdir().unwrap();
-    std::fs::write(static_dir.path().join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.path().to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.path().to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, static_dir.path());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
+    let addr = common::spawn_app(pool).await.addr;
 
     let client = reqwest::Client::new();
     let run_git = |args: Vec<String>, cwd: std::path::PathBuf| {
@@ -56,27 +25,16 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
         })
     };
 
-    let owner_login: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "admin", "password": "adminpassword123" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let owner_jwt = owner_login["token"].as_str().unwrap();
+    let owner_jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    let repo_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "name": "hello", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let repo_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &owner_jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
     assert_eq!(repo_res["owner"], "admin");
     assert_eq!(repo_res["role"], "owner");
     assert_eq!(
@@ -86,16 +44,14 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
     );
     let repo_id = repo_res["id"].as_str().unwrap().to_string();
 
-    let owner_token_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/tokens"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "name": "owner-ci" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let owner_token_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &owner_jwt,
+        "/tokens",
+        &json!({ "name": "owner-ci" }),
+    )
+    .await;
     let owner_plain_token = owner_token_res["token"].as_str().unwrap();
 
     let owner_clone_parent = tempfile::tempdir().unwrap();
@@ -172,49 +128,27 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
         .to_string();
 
     for username in ["reader", "contributor", "maintainer"] {
-        client
-            .post(format!("http://{addr}/api/admin/users"))
-            .bearer_auth(owner_jwt)
-            .json(&json!({ "username": username, "email": format!("{username}@example.com"), "password": "password12345" }))
-            .send()
-            .await
-            .unwrap()
-            .error_for_status()
-            .unwrap();
+        create_user(&client, addr, &owner_jwt, username).await;
     }
 
-    async fn login(client: &reqwest::Client, addr: std::net::SocketAddr, username: &str) -> String {
-        let res: serde_json::Value = client
-            .post(format!("http://{addr}/api/auth/login"))
-            .json(&json!({ "username": username, "password": "password12345" }))
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
-        res["token"].as_str().unwrap().to_string()
-    }
-
-    let reader_jwt = login(&client, addr, "reader").await;
-    let contributor_jwt = login(&client, addr, "contributor").await;
-    let maintainer_jwt = login(&client, addr, "maintainer").await;
+    let reader_jwt = login(&client, addr, "reader", USER_PASSWORD).await;
+    let contributor_jwt = login(&client, addr, "contributor", USER_PASSWORD).await;
+    let maintainer_jwt = login(&client, addr, "maintainer", USER_PASSWORD).await;
 
     for (username, role) in [
         ("reader", "reader"),
         ("contributor", "contributor"),
         ("maintainer", "maintainer"),
     ] {
-        let status = client
-            .post(format!(
-                "http://{addr}/api/repositories/{repo_id}/collaborators"
-            ))
-            .bearer_auth(owner_jwt)
-            .json(&json!({ "username": username, "role": role }))
-            .send()
-            .await
-            .unwrap()
-            .status();
+        let status = post(
+            &client,
+            addr,
+            &owner_jwt,
+            &format!("/repositories/{repo_id}/collaborators"),
+            &json!({ "username": username, "role": role }),
+        )
+        .await
+        .status();
         assert_eq!(
             status, 204,
             "expected adding {username} as {role} to return 204"
@@ -227,15 +161,13 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
         jwt: &str,
         repo_id: &str,
     ) -> String {
-        let branches: serde_json::Value = client
-            .get(format!("http://{addr}/api/repositories/{repo_id}/branches"))
-            .bearer_auth(jwt)
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+        let branches: serde_json::Value = get_json(
+            client,
+            addr,
+            jwt,
+            &format!("/repositories/{repo_id}/branches"),
+        )
+        .await;
         branches
             .as_array()
             .unwrap()
@@ -247,25 +179,19 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
             .to_string()
     }
 
-    let get_repo_status = client
-        .get(format!("http://{addr}/api/repositories/admin/hello"))
-        .bearer_auth(&reader_jwt)
-        .send()
+    let get_repo_status = get(&client, addr, &reader_jwt, "/repositories/admin/hello")
         .await
-        .unwrap()
         .status();
     assert_eq!(get_repo_status, 200);
 
-    let reader_token_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/tokens"))
-        .bearer_auth(&reader_jwt)
-        .json(&json!({ "name": "reader-ci" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let reader_token_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &reader_jwt,
+        "/tokens",
+        &json!({ "name": "reader-ci" }),
+    )
+    .await;
     let reader_plain_token = reader_token_res["token"].as_str().unwrap();
 
     let sha_before_reader_push = main_tip_sha(&client, addr, &reader_jwt, &repo_id).await;
@@ -345,65 +271,50 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
         "a rejected reader push must not move main's tip sha"
     );
 
-    let mr_list_before_reader_create: serde_json::Value = client
-        .get(format!(
-            "http://{addr}/api/repositories/{repo_id}/merge-requests"
-        ))
-        .bearer_auth(&reader_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let mr_list_before_reader_create: serde_json::Value = get_json(
+        &client,
+        addr,
+        &reader_jwt,
+        &format!("/repositories/{repo_id}/merge-requests"),
+    )
+    .await;
     assert_eq!(mr_list_before_reader_create.as_array().unwrap().len(), 0);
 
-    let reader_create_mr_status = client
-        .post(format!("http://{addr}/api/repositories/{repo_id}/merge-requests"))
-        .bearer_auth(&reader_jwt)
-        .json(&json!({ "sourceBranch": "main", "targetBranch": "main", "title": "reader mr", "description": "" }))
-        .send()
-        .await
-        .unwrap()
+    let reader_create_mr_status = post(&client, addr, &reader_jwt, &format!("/repositories/{repo_id}/merge-requests"), &json!({ "sourceBranch": "main", "targetBranch": "main", "title": "reader mr", "description": "" })).await
         .status();
     assert_eq!(reader_create_mr_status, 404);
 
-    let mr_list_after_reader_create: serde_json::Value = client
-        .get(format!(
-            "http://{addr}/api/repositories/{repo_id}/merge-requests"
-        ))
-        .bearer_auth(&reader_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let mr_list_after_reader_create: serde_json::Value = get_json(
+        &client,
+        addr,
+        &reader_jwt,
+        &format!("/repositories/{repo_id}/merge-requests"),
+    )
+    .await;
     assert_eq!(
         mr_list_after_reader_create.as_array().unwrap().len(),
         0,
         "a rejected merge-request creation must not create anything"
     );
 
-    let reader_settings_status = client
-        .get(format!("http://{addr}/api/repositories/{repo_id}/settings"))
-        .bearer_auth(&reader_jwt)
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let reader_settings_status = get(
+        &client,
+        addr,
+        &reader_jwt,
+        &format!("/repositories/{repo_id}/settings"),
+    )
+    .await
+    .status();
     assert_eq!(reader_settings_status, 404);
 
-    let contributor_token_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/tokens"))
-        .bearer_auth(&contributor_jwt)
-        .json(&json!({ "name": "contributor-ci" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let contributor_token_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &contributor_jwt,
+        "/tokens",
+        &json!({ "name": "contributor-ci" }),
+    )
+    .await;
     let contributor_plain_token = contributor_token_res["token"].as_str().unwrap();
 
     let contributor_clone_parent = tempfile::tempdir().unwrap();
@@ -555,76 +466,64 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
         .success()
     );
 
-    let contributor_mr_res = client
-        .post(format!("http://{addr}/api/repositories/{repo_id}/merge-requests"))
-        .bearer_auth(&contributor_jwt)
-        .json(&json!({ "sourceBranch": "contributor-feature", "targetBranch": "main", "title": "Add feature", "description": "" }))
-        .send()
-        .await
-        .unwrap();
+    let contributor_mr_res = post(&client, addr, &contributor_jwt, &format!("/repositories/{repo_id}/merge-requests"), &json!({ "sourceBranch": "contributor-feature", "targetBranch": "main", "title": "Add feature", "description": "" })).await;
     assert_eq!(contributor_mr_res.status(), 200);
     let contributor_mr_body: serde_json::Value = contributor_mr_res.json().await.unwrap();
     assert_eq!(contributor_mr_body["sourceBranch"], "contributor-feature");
     assert_eq!(contributor_mr_body["status"], "open");
 
-    let contributor_get_settings_status = client
-        .get(format!("http://{addr}/api/repositories/{repo_id}/settings"))
-        .bearer_auth(&contributor_jwt)
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let contributor_get_settings_status = get(
+        &client,
+        addr,
+        &contributor_jwt,
+        &format!("/repositories/{repo_id}/settings"),
+    )
+    .await
+    .status();
     assert_eq!(contributor_get_settings_status, 404);
 
-    let settings_before_contributor_put: serde_json::Value = client
-        .get(format!("http://{addr}/api/repositories/{repo_id}/settings"))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let settings_before_contributor_put: serde_json::Value = get_json(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/repositories/{repo_id}/settings"),
+    )
+    .await;
     assert_eq!(
         settings_before_contributor_put["pipelineFilePath"],
         ".ferrisgit-ci.yml"
     );
 
-    let contributor_put_settings_status = client
-        .put(format!("http://{addr}/api/repositories/{repo_id}/settings"))
-        .bearer_auth(&contributor_jwt)
-        .json(&json!({ "pipelineFilePath": "should-not-apply.yml" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let contributor_put_settings_status = put(
+        &client,
+        addr,
+        &contributor_jwt,
+        &format!("/repositories/{repo_id}/settings"),
+        &json!({ "pipelineFilePath": "should-not-apply.yml" }),
+    )
+    .await
+    .status();
     assert_eq!(contributor_put_settings_status, 404);
 
-    let settings_after_contributor_put: serde_json::Value = client
-        .get(format!("http://{addr}/api/repositories/{repo_id}/settings"))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let settings_after_contributor_put: serde_json::Value = get_json(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/repositories/{repo_id}/settings"),
+    )
+    .await;
     assert_eq!(
         settings_after_contributor_put["pipelineFilePath"], ".ferrisgit-ci.yml",
         "a rejected settings PUT must not change anything"
     );
 
-    let collaborators_before_contributor_add: serde_json::Value = client
-        .get(format!(
-            "http://{addr}/api/repositories/{repo_id}/collaborators"
-        ))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let collaborators_before_contributor_add: serde_json::Value = get_json(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/repositories/{repo_id}/collaborators"),
+    )
+    .await;
     assert_eq!(
         collaborators_before_contributor_add
             .as_array()
@@ -633,29 +532,24 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
         3
     );
 
-    let contributor_add_collaborator_status = client
-        .post(format!(
-            "http://{addr}/api/repositories/{repo_id}/collaborators"
-        ))
-        .bearer_auth(&contributor_jwt)
-        .json(&json!({ "username": "admin", "role": "reader" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let contributor_add_collaborator_status = post(
+        &client,
+        addr,
+        &contributor_jwt,
+        &format!("/repositories/{repo_id}/collaborators"),
+        &json!({ "username": "admin", "role": "reader" }),
+    )
+    .await
+    .status();
     assert_eq!(contributor_add_collaborator_status, 404);
 
-    let collaborators_after_contributor_add: serde_json::Value = client
-        .get(format!(
-            "http://{addr}/api/repositories/{repo_id}/collaborators"
-        ))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let collaborators_after_contributor_add: serde_json::Value = get_json(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/repositories/{repo_id}/collaborators"),
+    )
+    .await;
     assert_eq!(
         collaborators_after_contributor_add
             .as_array()
@@ -665,22 +559,24 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
         "a rejected add-collaborator must not add anything"
     );
 
-    let maintainer_get_settings_status = client
-        .get(format!("http://{addr}/api/repositories/{repo_id}/settings"))
-        .bearer_auth(&maintainer_jwt)
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let maintainer_get_settings_status = get(
+        &client,
+        addr,
+        &maintainer_jwt,
+        &format!("/repositories/{repo_id}/settings"),
+    )
+    .await
+    .status();
     assert_eq!(maintainer_get_settings_status, 200);
 
-    let maintainer_put_settings_res = client
-        .put(format!("http://{addr}/api/repositories/{repo_id}/settings"))
-        .bearer_auth(&maintainer_jwt)
-        .json(&json!({ "pipelineFilePath": "custom-pipeline.yml" }))
-        .send()
-        .await
-        .unwrap();
+    let maintainer_put_settings_res = put(
+        &client,
+        addr,
+        &maintainer_jwt,
+        &format!("/repositories/{repo_id}/settings"),
+        &json!({ "pipelineFilePath": "custom-pipeline.yml" }),
+    )
+    .await;
     assert_eq!(maintainer_put_settings_res.status(), 200);
     let maintainer_put_settings_body: serde_json::Value =
         maintainer_put_settings_res.json().await.unwrap();
@@ -689,51 +585,37 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
         "custom-pipeline.yml"
     );
 
-    client
-        .post(format!("http://{addr}/api/admin/users"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "username": "extra", "email": "extra@example.com", "password": "password12345" }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    create_user(&client, addr, &owner_jwt, "extra").await;
 
-    let maintainer_add_collaborator_status = client
-        .post(format!(
-            "http://{addr}/api/repositories/{repo_id}/collaborators"
-        ))
-        .bearer_auth(&maintainer_jwt)
-        .json(&json!({ "username": "extra", "role": "reader" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let maintainer_add_collaborator_status = post(
+        &client,
+        addr,
+        &maintainer_jwt,
+        &format!("/repositories/{repo_id}/collaborators"),
+        &json!({ "username": "extra", "role": "reader" }),
+    )
+    .await
+    .status();
     assert_eq!(maintainer_add_collaborator_status, 204);
 
-    let maintainer_set_role_status = client
-        .patch(format!(
-            "http://{addr}/api/repositories/{repo_id}/collaborators/reader"
-        ))
-        .bearer_auth(&maintainer_jwt)
-        .json(&json!({ "role": "contributor" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let maintainer_set_role_status = patch(
+        &client,
+        addr,
+        &maintainer_jwt,
+        &format!("/repositories/{repo_id}/collaborators/reader"),
+        &json!({ "role": "contributor" }),
+    )
+    .await
+    .status();
     assert_eq!(maintainer_set_role_status, 204);
 
-    let final_collaborators: serde_json::Value = client
-        .get(format!(
-            "http://{addr}/api/repositories/{repo_id}/collaborators"
-        ))
-        .bearer_auth(&maintainer_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let final_collaborators: serde_json::Value = get_json(
+        &client,
+        addr,
+        &maintainer_jwt,
+        &format!("/repositories/{repo_id}/collaborators"),
+    )
+    .await;
     let final_collaborators = final_collaborators.as_array().unwrap();
     // The owner is never itself a collaborator row, so this is the original three plus `extra`.
     assert_eq!(

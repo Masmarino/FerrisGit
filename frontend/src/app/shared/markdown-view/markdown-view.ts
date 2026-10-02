@@ -1,5 +1,6 @@
 import { afterRenderEffect, Component, computed, ElementRef, inject, input, output, viewChild } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
+import { Router } from '@angular/router';
 import { marked, Token } from 'marked';
 import DOMPurify, { Config } from 'dompurify';
 
@@ -72,7 +73,7 @@ export interface MarkdownOutlineEntry {
 const ID_PREFIX = 'user-content-';
 
 /** GitHub-like slug (accents kept). `section` when nothing is left, for example a title made only of emoji. */
-function headingSlug(text: string): string {
+export function headingSlug(text: string): string {
   const slug = text
     .toLowerCase()
     .replace(/[^\p{L}\p{N}\s_-]/gu, '')
@@ -122,7 +123,7 @@ export function decodeFragment(rawFragment: string): string {
 }
 
 /** The element a `#fragment` link points at: the `id` itself, else the `user-content-` id or `<a name>` the sanitiser produced. */
-function findAnchorTarget(root: HTMLElement, rawFragment: string): HTMLElement | null {
+export function findAnchorTarget(root: HTMLElement, rawFragment: string): HTMLElement | null {
   const fragment = decodeFragment(rawFragment);
   if (!fragment) {
     return null;
@@ -150,10 +151,16 @@ export class MarkdownView {
    * headings keeps the document outline.
    */
   headingOffset = input(0);
+  /**
+   * Opt-in: links whose path is this prefix or below it (`/docs` → `/docs/ci-cd/reference-yaml#variables`) go
+   * through the router instead of reloading the app. Off by default: a README link is left to the browser.
+   */
+  routedLinkPrefix = input<string | null>(null);
   /** The h2–h4 headings, emitted after each render (their ids are on the DOM by then). */
   outline = output<MarkdownOutlineEntry[]>();
 
   private sanitizer = inject(DomSanitizer);
+  private router = inject(Router, { optional: true });
   private container = viewChild.required<ElementRef<HTMLElement>>('container');
 
   constructor() {
@@ -175,6 +182,12 @@ export class MarkdownView {
       return;
     }
     const container = this.container().nativeElement;
+    const routed = this.routedHref(event.target);
+    if (routed !== null) {
+      event.preventDefault();
+      void this.router!.navigateByUrl(routed);
+      return;
+    }
     const link = event.target instanceof Element ? event.target.closest('a[href^="#"]') : null;
     if (!link || !container.contains(link)) {
       return;
@@ -191,6 +204,18 @@ export class MarkdownView {
       target.setAttribute('tabindex', '-1');
     }
     target.focus({ preventScroll: true });
+  }
+
+  /** The `href` of a clicked in-content link under `routedLinkPrefix`, or `null` when the browser should follow it. */
+  private routedHref(target: EventTarget | null): string | null {
+    const prefix = this.routedLinkPrefix();
+    const link = prefix && this.router && target instanceof Element ? target.closest('a[href]') : null;
+    if (!link || !this.container().nativeElement.contains(link) || link.hasAttribute('target')) {
+      return null;
+    }
+    const href = link.getAttribute('href')!;
+    const rest = href.startsWith(prefix!) ? href.slice(prefix!.length) : null;
+    return rest !== null && (rest === '' || /^[/#?]/.test(rest)) ? href : null;
   }
 
   // `marked.parse` is synchronous unless an async extension is used (none is), so the cast is safe.

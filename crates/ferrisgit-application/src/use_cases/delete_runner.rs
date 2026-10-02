@@ -31,27 +31,13 @@ impl DeleteRunnerUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeJobs, FakeRunners};
-    use chrono::Utc;
+    use crate::use_cases::fixtures;
     use ferrisgit_domain::job::{Job, JobStatus};
 
     fn job(runner_id: Option<Uuid>, status: JobStatus) -> Job {
         Job {
-            id: Uuid::new_v4(),
-            pipeline_id: Uuid::new_v4(),
-            stage: "build".to_string(),
-            name: "compile".to_string(),
-            image: "alpine".to_string(),
-            script: vec![],
-            variables: Default::default(),
-            needs: vec![],
-            tags: vec![],
-            cache: vec![],
-            status,
             runner_id,
-            logs: String::new(),
-            created_at: Utc::now(),
-            started_at: None,
-            finished_at: None,
+            ..fixtures::job(Uuid::new_v4(), status)
         }
     }
 

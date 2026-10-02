@@ -42,6 +42,7 @@ function makePipeline(overrides: Partial<PipelineDetailModel> = {}): PipelineDet
     finishedAt: null,
     triggeredBy: null,
     commitMessage: null,
+    error: null,
     jobs: [],
     ...overrides,
   };
@@ -166,6 +167,93 @@ describe('PipelineDetail', () => {
     it('shows the pipeline duration in the header', () => {
       const el = load(null);
       expect(el.querySelector('.pipeline-detail__duration')?.textContent).toContain('10s');
+    });
+  });
+
+  describe('invalid pipeline file', () => {
+    function loadFailed(overrides: Partial<PipelineDetailModel> = {}) {
+      const { fixture } = setup();
+      TestBed.inject(HttpTestingController).expectOne(DETAIL_URL).flush(
+        makePipeline({ status: 'failed', finishedAt: '2026-01-01T00:00:00Z', error: 'job \'a\' needs \'ghost\', which is not a declared job', ...overrides }),
+      );
+      fixture.detectChanges();
+      return fixture.nativeElement as HTMLElement;
+    }
+
+    it('explains the failure in an error alert with the parser message in a fixed-width block', () => {
+      const el = loadFailed();
+
+      const alert = el.querySelector('gbt-alert.pipeline-detail__error')!;
+      expect(alert.textContent).toContain('Fichier de pipeline invalide');
+      const message = alert.querySelector('pre.pipeline-detail__error-message')!;
+      expect(message.textContent).toBe("job 'a' needs 'ghost', which is not a declared job");
+    });
+
+    it('shows the failed badge and no job navigation, since the pipeline has no job', () => {
+      const el = loadFailed();
+
+      expect(el.querySelector('gbt-page-header fg-status-badge')?.textContent?.trim()).toBe('Échoué');
+      expect(el.querySelector('fg-pipeline-sidebar')).toBeNull();
+      expect(el.querySelector('fg-pipeline-summary')).toBeNull();
+    });
+
+    it('does not show the alert for a pipeline whose file was fine', () => {
+      const { fixture } = setup();
+      TestBed.inject(HttpTestingController).expectOne(DETAIL_URL).flush(makePipeline({ status: 'failed', finishedAt: '2026-01-01T00:00:10Z', jobs: [makeJob({ status: 'failed' })] }));
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      expect(el.querySelector('gbt-alert')).toBeNull();
+      expect(el.querySelector('fg-pipeline-sidebar')).not.toBeNull();
+    });
+
+    it('stops polling: an invalid pipeline is final from the start', () => {
+      vi.useFakeTimers();
+      try {
+        const { fixture } = setup();
+        const httpMock = TestBed.inject(HttpTestingController);
+        httpMock.expectOne(DETAIL_URL).flush(makePipeline({ status: 'failed', error: 'invalid YAML: boom' }));
+        fixture.detectChanges();
+
+        vi.advanceTimersByTime(15000);
+        httpMock.expectNone(DETAIL_URL);
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe('skipped jobs', () => {
+    it('shows them as "Ignoré" next to the failed job and keeps the pipeline failed', () => {
+      const { fixture } = setup();
+      TestBed.inject(HttpTestingController).expectOne(DETAIL_URL).flush(
+        makePipeline({
+          status: 'failed',
+          finishedAt: '2026-01-01T00:00:10Z',
+          jobs: [
+            makeJob({ id: 'j1', stage: 'build', name: 'compile', status: 'failed', startedAt: '2026-01-01T00:00:00Z', finishedAt: '2026-01-01T00:00:05Z' }),
+            makeJob({ id: 'j2', stage: 'test', name: 'unit', status: 'skipped' }),
+          ],
+        }),
+      );
+      fixture.detectChanges();
+
+      const el = fixture.nativeElement as HTMLElement;
+      const sidebarLink = [...el.querySelectorAll('fg-pipeline-sidebar a')].find((a) => a.textContent?.includes('unit'))!;
+      expect(sidebarLink.querySelector('.sr-only')?.textContent?.trim()).toBe('Ignoré');
+      expect(el.querySelector('gbt-page-header fg-status-badge')?.textContent?.trim()).toBe('Échoué');
+    });
+  });
+
+  describe('running pipeline', () => {
+    it('shows the "En cours" badge and offers to cancel it', () => {
+      const { fixture } = setup();
+      TestBed.inject(HttpTestingController).expectOne(DETAIL_URL).flush(makePipeline({ status: 'running', jobs: [makeJob({ status: 'running', startedAt: '2026-01-01T00:00:00Z' })] }));
+      fixture.detectChanges();
+
+      const status = fixture.nativeElement.querySelector('.pipeline-detail__status') as HTMLElement;
+      expect(status.textContent?.trim()).toBe('En cours');
+      expect(status.classList).toContain('pipeline-detail__status--running');
     });
   });
 

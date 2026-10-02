@@ -8,14 +8,17 @@ use ferrisgit_application::use_cases::create_group::CreateGroupUseCase;
 use ferrisgit_application::use_cases::delete_group::DeleteGroupUseCase;
 use ferrisgit_application::use_cases::remove_group_member::RemoveGroupMemberUseCase;
 use ferrisgit_application::use_cases::set_group_member_role::SetGroupMemberRoleUseCase;
-use ferrisgit_domain::error::DomainError;
+use ferrisgit_domain::group::Group;
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::auth_middleware::AuthUser;
-use crate::authz::{effective_role_in_group_chain, require_group_role_by_id};
+use crate::authz::{
+    effective_role_in_group_chain, require_group_chain_role, require_group_role_by_id,
+};
 use crate::error::ApiError;
+use crate::routes::user_ref::require_user;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -70,6 +73,18 @@ struct SetGroupMemberRoleRequest {
     role: String,
 }
 
+impl From<Group> for GroupResponse {
+    fn from(group: Group) -> Self {
+        GroupResponse {
+            id: group.id,
+            parent_group_id: group.parent_group_id,
+            name: group.name,
+            description: group.description,
+            created_at: group.created_at,
+        }
+    }
+}
+
 async fn create_root(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -83,13 +98,7 @@ async fn create_root(
     let group = use_case
         .execute(user_id, None, req.name, req.description)
         .await?;
-    Ok(Json(GroupResponse {
-        id: group.id,
-        parent_group_id: group.parent_group_id,
-        name: group.name,
-        description: group.description,
-        created_at: group.created_at,
-    }))
+    Ok(Json(group.into()))
 }
 
 async fn create_subgroup(
@@ -106,13 +115,7 @@ async fn create_subgroup(
     let group = use_case
         .execute(user_id, Some(parent_id), req.name, req.description)
         .await?;
-    Ok(Json(GroupResponse {
-        id: group.id,
-        parent_group_id: group.parent_group_id,
-        name: group.name,
-        description: group.description,
-        created_at: group.created_at,
-    }))
+    Ok(Json(group.into()))
 }
 
 async fn writable(
@@ -171,15 +174,7 @@ async fn list_members(
     State(state): State<AppState>,
     Path(group_id): Path<Uuid>,
 ) -> Result<Json<Vec<GroupMemberResponse>>, ApiError> {
-    let chain = state.groups.ancestor_chain(group_id).await?;
-    if chain.is_empty() {
-        return Err(DomainError::NotFound("group".to_string()).into());
-    }
-    let role =
-        effective_role_in_group_chain(state.group_membership.as_ref(), &chain, user_id).await?;
-    if role.is_none_or(|r| r < CollaboratorRole::Reader) {
-        return Err(DomainError::NotFound("group".to_string()).into());
-    }
+    require_group_role_by_id(&state, user_id, group_id, CollaboratorRole::Reader).await?;
     let members = state.group_membership.list_members(group_id).await?;
     Ok(Json(
         members
@@ -247,27 +242,10 @@ async fn list_children(
     State(state): State<AppState>,
     Path(group_id): Path<Uuid>,
 ) -> Result<Json<Vec<GroupResponse>>, ApiError> {
-    let chain = state.groups.ancestor_chain(group_id).await?;
-    if chain.is_empty() {
-        return Err(DomainError::NotFound("group".to_string()).into());
-    }
-    let role =
-        effective_role_in_group_chain(state.group_membership.as_ref(), &chain, user_id).await?;
-    if role.is_none_or(|r| r < CollaboratorRole::Reader) {
-        return Err(DomainError::NotFound("group".to_string()).into());
-    }
+    require_group_role_by_id(&state, user_id, group_id, CollaboratorRole::Reader).await?;
     let children = state.groups.list_children(Some(group_id)).await?;
     Ok(Json(
-        children
-            .into_iter()
-            .map(|g| GroupResponse {
-                id: g.id,
-                parent_group_id: g.parent_group_id,
-                name: g.name,
-                description: g.description,
-                created_at: g.created_at,
-            })
-            .collect(),
+        children.into_iter().map(GroupResponse::from).collect(),
     ))
 }
 
@@ -276,37 +254,23 @@ async fn list_repositories(
     State(state): State<AppState>,
     Path(group_id): Path<Uuid>,
 ) -> Result<Json<Vec<crate::routes::repositories::RepositoryResponse>>, ApiError> {
-    let chain = state.groups.ancestor_chain(group_id).await?;
-    if chain.is_empty() {
-        return Err(DomainError::NotFound("group".to_string()).into());
-    }
-    let role =
-        effective_role_in_group_chain(state.group_membership.as_ref(), &chain, user_id).await?;
-    if role.is_none_or(|r| r < CollaboratorRole::Reader) {
-        return Err(DomainError::NotFound("group".to_string()).into());
-    }
+    let (chain, role) =
+        require_group_chain_role(&state, user_id, group_id, CollaboratorRole::Reader).await?;
     // Every repository here shares this group's ancestor chain and the caller's role, both already resolved above.
     let group_path: Vec<String> = chain.iter().map(|g| g.name.clone()).collect();
-    let role = role.map_or_else(|| "reader".to_string(), |r| r.as_str().to_string());
+    let role = role.as_str();
     let repos = state.repositories.list_for_group(group_id).await?;
     let mut result = Vec::with_capacity(repos.len());
     for repo in repos {
-        let owner = state
-            .users
-            .find_by_id(repo.owner_id)
-            .await?
-            .ok_or_else(|| DomainError::NotFound("user".to_string()))?
-            .username;
+        let owner = require_user(&state, repo.owner_id).await?.username;
         let mut path = group_path.clone();
         path.push(repo.name.clone());
-        result.push(
-            crate::routes::repositories::RepositoryResponse::for_group_listing(
-                &repo,
-                owner,
-                role.clone(),
-                path,
-            ),
-        );
+        result.push(crate::routes::repositories::RepositoryResponse::new(
+            &repo,
+            owner,
+            Some(role.to_string()),
+            path,
+        ));
     }
     Ok(Json(result))
 }

@@ -4,7 +4,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
-import { Avatar, Badge, Button, Card, GbtInput, Icon, PageHeader, PageLayout, SaveStatus, Skeleton, GbtToastService, NavTab, NavTabs } from '@masmarino/gabarit';
+import { Avatar, Badge, Button, Card, GbtInput, GbtToastService, Icon, MIN_PASSWORD_LENGTH, NavTab, NavTabs, PageHeader, PageLayout, SaveStatus, Skeleton } from '@masmarino/gabarit';
 import { AuthService } from '../../auth/auth.service';
 import { MeService } from '../../shell/me.service';
 import { PageTitleService } from '../../shell/page-title.service';
@@ -12,18 +12,16 @@ import { MfaSettings } from '../mfa-settings/mfa-settings';
 import { PasskeySettings } from '../passkey-settings/passkey-settings';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
 
-export type AccountSectionKey = 'profile' | 'password' | 'security' | 'tokens';
+type AccountSectionKey = 'profile' | 'password' | 'security' | 'tokens';
 
 const SECTIONS: { key: AccountSectionKey; label: string; icon: string }[] = [
   { key: 'profile', label: 'Profil', icon: 'user' },
   { key: 'password', label: 'Mot de passe', icon: 'lock' },
   { key: 'security', label: 'Sécurité', icon: 'shield-check' },
-  { key: 'tokens', label: "Jetons d'API", icon: 'key' },
+  { key: 'tokens', label: 'Jetons Git', icon: 'key' },
 ];
 
 const DEFAULT_SECTION: AccountSectionKey = 'profile';
-
-const MIN_PASSWORD_LENGTH = 8;
 
 // Loose on purpose (something@something). The server has the last word, and this only catches typos.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;

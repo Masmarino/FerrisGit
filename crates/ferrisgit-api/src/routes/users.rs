@@ -24,6 +24,7 @@ use uuid::Uuid;
 use crate::auth_middleware::AdminUser;
 use crate::error::ApiError;
 use crate::routes::repositories::remove_git_storage;
+use crate::routes::user_ref::require_user;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
@@ -72,11 +73,7 @@ async fn reset_mfa(
     State(state): State<AppState>,
     Path(user_id): Path<Uuid>,
 ) -> Result<StatusCode, ApiError> {
-    let user = state
-        .users
-        .find_by_id(user_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+    let user = require_user(&state, user_id).await?;
     // Bump first, delete second. If the deletion fails, the sessions are dead and the factor intact (a retry
     // finishes the job), never the other way round.
     state.users.bump_token_epoch(user_id).await?;
@@ -406,11 +403,7 @@ async fn list_repositories(
     State(state): State<AppState>,
     Path(user_id): Path<Uuid>,
 ) -> Result<Json<Vec<AdminUserRepositoryRow>>, ApiError> {
-    state
-        .users
-        .find_by_id(user_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+    require_user(&state, user_id).await?;
     let repositories = state.repositories.list_for_owner(user_id).await?;
     let git_backend = state.git_backend.clone();
     let disk_paths: Vec<String> = repositories.iter().map(|r| r.disk_path.clone()).collect();

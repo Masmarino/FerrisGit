@@ -1,0 +1,70 @@
+@use '../fields';
+
+// The field and the modal join the card's form as siblings: this element adds no box of its own.
+:host {
+  display: contents;
+}
+
+@include fields.fields;
+
+.admin-settings__token-status {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.admin-settings__token-label {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.admin-settings__token-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.admin-settings__generated {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border: 1px solid var(--gbt-hairline);
+  border-radius: var(--site-border-radius-sm);
+}
+
+.admin-settings__generated-warning {
+  margin: 0;
+  color: var(--color-warning-text);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  line-height: 1.25rem;
+}
+
+// Gabarit gap: `gbt-secret-reveal` has no size or touch rule (same fix as the runner token card).
+.admin-settings__generated ::ng-deep .gbt-secret-reveal__value {
+  min-height: 2.25rem;
+  padding: 0.4375rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.admin-settings__generated ::ng-deep .gbt-secret-reveal__toggle .gbt-button,
+.admin-settings__generated ::ng-deep .gbt-secret-reveal__copy .gbt-button {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+@media (pointer: coarse) {
+  .admin-settings__generated ::ng-deep .gbt-secret-reveal__value {
+    min-height: 2.75rem;
+  }
+
+  .admin-settings__generated ::ng-deep .gbt-secret-reveal__toggle .gbt-button,
+  .admin-settings__generated ::ng-deep .gbt-secret-reveal__copy .gbt-button {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}

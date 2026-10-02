@@ -28,22 +28,11 @@ impl UpdateEmailUseCase {
 mod tests {
     use super::*;
     use crate::test_support::FakeUsers;
-    use chrono::Utc;
-
-    fn user() -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: "florian".to_string(),
-            email: "old@example.com".to_string(),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
-    }
+    use crate::use_cases::fixtures::user;
 
     #[tokio::test]
     async fn updates_the_email() {
-        let seed = user();
+        let seed = user("florian");
         let use_case = UpdateEmailUseCase::new(Arc::new(FakeUsers::new(vec![seed.clone()])));
 
         let updated = use_case
@@ -56,7 +45,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_an_email_with_no_at_sign() {
-        let seed = user();
+        let seed = user("florian");
         let use_case = UpdateEmailUseCase::new(Arc::new(FakeUsers::new(vec![seed.clone()])));
 
         let result = use_case.execute(seed.id, "not-an-email".to_string()).await;
@@ -66,7 +55,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_an_empty_email() {
-        let seed = user();
+        let seed = user("florian");
         let use_case = UpdateEmailUseCase::new(Arc::new(FakeUsers::new(vec![seed.clone()])));
 
         let result = use_case.execute(seed.id, "   ".to_string()).await;

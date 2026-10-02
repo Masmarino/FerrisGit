@@ -51,6 +51,8 @@ pub struct Pipeline {
     pub triggered_by: Uuid,
     pub created_at: DateTime<Utc>,
     pub finished_at: Option<DateTime<Utc>>,
+    /// Why the pipeline file could not be turned into jobs. Set only on a `Failed` pipeline that has no jobs.
+    pub error: Option<String>,
 }
 
 pub struct NewPipeline {
@@ -63,9 +65,19 @@ pub struct NewPipeline {
 #[async_trait]
 pub trait PipelineStorePort: Send + Sync {
     async fn create(&self, new_pipeline: NewPipeline) -> Result<Pipeline, DomainError>;
+    /// A pipeline that is `Failed` from the start (and already finished) because its file is invalid: `error` is the
+    /// parser's message.
+    async fn create_failed(
+        &self,
+        new_pipeline: NewPipeline,
+        error: &str,
+    ) -> Result<Pipeline, DomainError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Pipeline>, DomainError>;
     async fn list_for_repository(&self, repository_id: Uuid) -> Result<Vec<Pipeline>, DomainError>;
     async fn update_status(&self, id: Uuid, status: PipelineStatus) -> Result<(), DomainError>;
+    /// `Pending` -> `Running`, only from `Pending`: a pipeline that already finished (or was canceled) is left alone.
+    /// `true` when it changed, so the caller publishes the event once.
+    async fn mark_running(&self, id: Uuid) -> Result<bool, DomainError>;
     async fn count_created_since(&self, since: DateTime<Utc>) -> Result<i64, DomainError>;
 }
 

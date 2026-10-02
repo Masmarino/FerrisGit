@@ -1,11 +1,9 @@
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 
+use crate::git_cli;
 use async_trait::async_trait;
 use ferrisgit_domain::apply_suggestion_executor::ApplySuggestionExecutorPort;
 use ferrisgit_domain::error::DomainError;
-use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 use uuid::Uuid;
 
 pub struct GitApplySuggestionExecutor {
@@ -18,42 +16,16 @@ impl GitApplySuggestionExecutor {
     }
 }
 
-/// Runs `git` with optional env and stdin and returns stdout untrimmed. Callers reading file content
-/// must not trim it, and callers that want a single token trim it themselves.
+/// Returns stdout untrimmed: callers reading file content must not trim it, and callers that want a
+/// single token use `run_git`, which trims.
 async fn run_git_raw(
     repo_path: &Path,
     args: &[&str],
     env: &[(&str, &str)],
     stdin_data: Option<&str>,
 ) -> Result<(bool, Vec<u8>, String), DomainError> {
-    let mut cmd = Command::new("git");
-    cmd.args(args)
-        .current_dir(repo_path)
-        .envs(env.iter().copied());
-    cmd.stdout(Stdio::piped()).stderr(Stdio::piped());
-    if stdin_data.is_some() {
-        cmd.stdin(Stdio::piped());
-    }
-    let mut child = cmd
-        .spawn()
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-    if let Some(data) = stdin_data {
-        let mut stdin = child.stdin.take().expect("stdin was requested as piped");
-        stdin
-            .write_all(data.as_bytes())
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        drop(stdin);
-    }
-    let output = child
-        .wait_with_output()
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-    Ok((
-        output.status.success(),
-        output.stdout,
-        String::from_utf8_lossy(&output.stderr).trim().to_string(),
-    ))
+    let output = git_cli::run(repo_path, args, env, stdin_data.map(str::as_bytes)).await?;
+    Ok((output.success, output.stdout, output.stderr))
 }
 
 async fn run_git(
@@ -62,12 +34,8 @@ async fn run_git(
     env: &[(&str, &str)],
     stdin_data: Option<&str>,
 ) -> Result<(bool, String, String), DomainError> {
-    let (ok, stdout, stderr) = run_git_raw(repo_path, args, env, stdin_data).await?;
-    Ok((
-        ok,
-        String::from_utf8_lossy(&stdout).trim().to_string(),
-        stderr,
-    ))
+    let output = git_cli::run(repo_path, args, env, stdin_data.map(str::as_bytes)).await?;
+    Ok((output.success, output.stdout_trimmed(), output.stderr))
 }
 
 /// Splits `content` into lines that keep their trailing `\n` (the last keeps none if the file has none),
@@ -217,84 +185,19 @@ impl ApplySuggestionExecutorPort for GitApplySuggestionExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::process::Command as StdCommand;
+    use crate::test_git::{git, git_stdout_untrimmed, init_bare_with_clone, rev_parse};
 
-    fn init_bare_repo_with_a_file(dir: &Path, filename: &str, content: &str) -> (String, String) {
-        let bare = dir.join("bare.git");
-        assert!(
-            StdCommand::new("git")
-                .args(["init", "--bare", "-q", "-b", "main"])
-                .arg(&bare)
-                .status()
-                .unwrap()
-                .success()
-        );
-        let work = dir.join("work");
-        assert!(
-            StdCommand::new("git")
-                .args(["clone", "-q"])
-                .arg(&bare)
-                .arg(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
+    fn init_bare_repo_with_a_file(dir: &Path, filename: &str, content: &str) -> (PathBuf, PathBuf) {
+        let (bare, work) = init_bare_with_clone(dir);
         std::fs::write(work.join(filename), content).unwrap();
-        assert!(
-            StdCommand::new("git")
-                .args(["add", "."])
-                .current_dir(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
-        assert!(
-            StdCommand::new("git")
-                .args([
-                    "-c",
-                    "user.email=t@t.com",
-                    "-c",
-                    "user.name=t",
-                    "commit",
-                    "-q",
-                    "-m",
-                    "root"
-                ])
-                .current_dir(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
-        assert!(
-            StdCommand::new("git")
-                .args(["push", "-q", "origin", "main"])
-                .current_dir(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
-        (
-            bare.to_string_lossy().into_owned(),
-            work.to_string_lossy().into_owned(),
-        )
-    }
-
-    fn rev_parse(repo_path: &Path, rev: &str) -> String {
-        let output = StdCommand::new("git")
-            .args(["rev-parse", rev])
-            .current_dir(repo_path)
-            .output()
-            .unwrap();
-        String::from_utf8_lossy(&output.stdout).trim().to_string()
+        git(&work, &["add", "."]);
+        git(&work, &["commit", "-q", "-m", "root"]);
+        git(&work, &["push", "-q", "origin", "main"]);
+        (bare, work)
     }
 
     fn show(repo_path: &Path, rev_path: &str) -> String {
-        let output = StdCommand::new("git")
-            .args(["show", rev_path])
-            .current_dir(repo_path)
-            .output()
-            .unwrap();
-        String::from_utf8_lossy(&output.stdout).into_owned()
+        git_stdout_untrimmed(repo_path, &["show", rev_path])
     }
 
     #[tokio::test]
@@ -302,7 +205,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let (bare_path, _work_path) =
             init_bare_repo_with_a_file(tmp.path(), "README.md", "line one\nline two\nline three\n");
-        let tip = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let tip = rev_parse(&bare_path, "refs/heads/main");
         let executor = GitApplySuggestionExecutor::new(tmp.path().to_path_buf());
 
         let commit_sha = executor
@@ -321,12 +224,12 @@ mod tests {
             .await
             .unwrap();
 
-        let tip_after = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let tip_after = rev_parse(&bare_path, "refs/heads/main");
         assert_eq!(
             tip_after, commit_sha,
             "the branch ref must now point at the new commit"
         );
-        let content = show(bare_path.as_ref(), &format!("{commit_sha}:README.md"));
+        let content = show(&bare_path, &format!("{commit_sha}:README.md"));
         assert_eq!(content, "line one\nline TWO\nline three\n");
     }
 
@@ -338,7 +241,7 @@ mod tests {
             "README.md",
             "line one\nline two\nline three\nline four\n",
         );
-        let tip = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let tip = rev_parse(&bare_path, "refs/heads/main");
         let executor = GitApplySuggestionExecutor::new(tmp.path().to_path_buf());
 
         let commit_sha = executor
@@ -357,7 +260,7 @@ mod tests {
             .await
             .unwrap();
 
-        let content = show(bare_path.as_ref(), &format!("{commit_sha}:README.md"));
+        let content = show(&bare_path, &format!("{commit_sha}:README.md"));
         assert_eq!(
             content,
             "line one\nreplacement one\nreplacement two\nreplacement three\nline four\n"
@@ -367,64 +270,16 @@ mod tests {
     #[tokio::test]
     async fn works_on_a_file_nested_in_a_subdirectory() {
         let tmp = tempfile::tempdir().unwrap();
-        let bare = tmp.path().join("bare.git");
-        assert!(
-            StdCommand::new("git")
-                .args(["init", "--bare", "-q", "-b", "main"])
-                .arg(&bare)
-                .status()
-                .unwrap()
-                .success()
-        );
-        let work = tmp.path().join("work");
-        assert!(
-            StdCommand::new("git")
-                .args(["clone", "-q"])
-                .arg(&bare)
-                .arg(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
+        let (bare, work) = init_bare_with_clone(tmp.path());
         std::fs::create_dir_all(work.join("src").join("app")).unwrap();
         std::fs::write(
             work.join("src").join("app").join("main.rs"),
             "fn main() {\n    old();\n}\n",
         )
         .unwrap();
-        assert!(
-            StdCommand::new("git")
-                .args(["add", "."])
-                .current_dir(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
-        assert!(
-            StdCommand::new("git")
-                .args([
-                    "-c",
-                    "user.email=t@t.com",
-                    "-c",
-                    "user.name=t",
-                    "commit",
-                    "-q",
-                    "-m",
-                    "root"
-                ])
-                .current_dir(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
-        assert!(
-            StdCommand::new("git")
-                .args(["push", "-q", "origin", "main"])
-                .current_dir(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
+        git(&work, &["add", "."]);
+        git(&work, &["commit", "-q", "-m", "root"]);
+        git(&work, &["push", "-q", "origin", "main"]);
         let tip = rev_parse(&bare, "refs/heads/main");
         let executor = GitApplySuggestionExecutor::new(tmp.path().to_path_buf());
 
@@ -453,7 +308,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let (bare_path, _work_path) =
             init_bare_repo_with_a_file(tmp.path(), "README.md", "line one\nline two\nline three\n");
-        let tip = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let tip = rev_parse(&bare_path, "refs/heads/main");
         let executor = GitApplySuggestionExecutor::new(tmp.path().to_path_buf());
 
         let commit_sha = executor
@@ -472,7 +327,7 @@ mod tests {
             .await
             .unwrap();
 
-        let content = show(bare_path.as_ref(), &format!("{commit_sha}:README.md"));
+        let content = show(&bare_path, &format!("{commit_sha}:README.md"));
         assert_eq!(content, "LINE ONE\nline two\nline three\n");
     }
 
@@ -481,7 +336,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let (bare_path, _work_path) =
             init_bare_repo_with_a_file(tmp.path(), "README.md", "line one\nline two");
-        let tip = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let tip = rev_parse(&bare_path, "refs/heads/main");
         let executor = GitApplySuggestionExecutor::new(tmp.path().to_path_buf());
 
         let commit_sha = executor
@@ -500,7 +355,7 @@ mod tests {
             .await
             .unwrap();
 
-        let content = show(bare_path.as_ref(), &format!("{commit_sha}:README.md"));
+        let content = show(&bare_path, &format!("{commit_sha}:README.md"));
         assert_eq!(
             content, "line one\nline TWO",
             "the replacement's own lack of a trailing newline must be preserved, not silently added"
@@ -512,7 +367,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let (bare_path, _work_path) =
             init_bare_repo_with_a_file(tmp.path(), "README.md", "line one\nline two\nline three\n");
-        let tip = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let tip = rev_parse(&bare_path, "refs/heads/main");
         let executor = GitApplySuggestionExecutor::new(tmp.path().to_path_buf());
 
         let commit_sha = executor
@@ -531,7 +386,7 @@ mod tests {
             .await
             .unwrap();
 
-        let content = show(bare_path.as_ref(), &format!("{commit_sha}:README.md"));
+        let content = show(&bare_path, &format!("{commit_sha}:README.md"));
         assert_eq!(
             content, "line one\nline three\n",
             "an empty suggestion must delete the anchored line outright, not leave a blank line or error"
@@ -543,7 +398,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let (bare_path, _work_path) =
             init_bare_repo_with_a_file(tmp.path(), "README.md", "line one\nline two\n");
-        let tip = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let tip = rev_parse(&bare_path, "refs/heads/main");
         let executor = GitApplySuggestionExecutor::new(tmp.path().to_path_buf());
 
         let commit_sha = executor
@@ -562,7 +417,7 @@ mod tests {
             .await
             .unwrap();
 
-        let content = show(bare_path.as_ref(), &format!("{commit_sha}:README.md"));
+        let content = show(&bare_path, &format!("{commit_sha}:README.md"));
         assert_eq!(
             content, "",
             "deleting every line of a file via a suggestion must leave a valid, empty file, not error or corrupt the tree"
@@ -574,36 +429,21 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let (bare_path, work_path) =
             init_bare_repo_with_a_file(tmp.path(), "README.md", "line one\nline two\n");
-        let stale_tip = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let stale_tip = rev_parse(&bare_path, "refs/heads/main");
 
         // Move the branch tip past the stale `expected_tip`, as another push racing ahead would.
-        assert!(
-            StdCommand::new("git")
-                .args([
-                    "-c",
-                    "user.email=t@t.com",
-                    "-c",
-                    "user.name=t",
-                    "commit",
-                    "--allow-empty",
-                    "-q",
-                    "-m",
-                    "a later, unrelated commit"
-                ])
-                .current_dir(&work_path)
-                .status()
-                .unwrap()
-                .success()
+        git(
+            &work_path,
+            &[
+                "commit",
+                "--allow-empty",
+                "-q",
+                "-m",
+                "a later, unrelated commit",
+            ],
         );
-        assert!(
-            StdCommand::new("git")
-                .args(["push", "-q", "origin", "main"])
-                .current_dir(&work_path)
-                .status()
-                .unwrap()
-                .success()
-        );
-        let real_tip = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        git(&work_path, &["push", "-q", "origin", "main"]);
+        let real_tip = rev_parse(&bare_path, "refs/heads/main");
         assert_ne!(real_tip, stale_tip);
 
         let executor = GitApplySuggestionExecutor::new(tmp.path().to_path_buf());
@@ -623,7 +463,7 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(DomainError::Conflict(_))));
-        let tip_after = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let tip_after = rev_parse(&bare_path, "refs/heads/main");
         assert_eq!(
             tip_after, real_tip,
             "a rejected apply must not move the branch ref at all"

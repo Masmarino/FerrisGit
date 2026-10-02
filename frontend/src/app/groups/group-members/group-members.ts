@@ -24,17 +24,13 @@ import {
   SkeletonList,
   UserChip,
 } from '@masmarino/gabarit';
-import { GroupMember, GroupMembership, GroupsService } from '../groups.service';
+import { GROUP_ROLE_LABELS, GroupMember, GroupMembership, GroupRole, GroupsService } from '../groups.service';
 import { PageTitleService } from '../../shell/page-title.service';
 
-type Role = GroupMember['role'];
-
-const ROLE_LABELS: Record<Role, string> = { reader: 'Lecteur', contributor: 'Contributeur', maintainer: 'Mainteneur' };
-
 const ROLE_LEGEND: DescriptionListEntry[] = [
-  { term: ROLE_LABELS.reader, value: 'Consulte le groupe et ses dépôts.' },
-  { term: ROLE_LABELS.contributor, value: 'Pousse des branches, ouvre des tickets et des demandes de fusion.' },
-  { term: ROLE_LABELS.maintainer, value: 'Administre aussi le groupe : membres, sous-groupes et dépôts.' },
+  { term: GROUP_ROLE_LABELS.reader, value: 'Consulte le groupe et ses dépôts.' },
+  { term: GROUP_ROLE_LABELS.contributor, value: 'Pousse des branches, ouvre des tickets et des demandes de fusion.' },
+  { term: GROUP_ROLE_LABELS.maintainer, value: 'Administre aussi le groupe : membres, sous-groupes et dépôts.' },
 ];
 
 @Component({
@@ -88,16 +84,12 @@ export class GroupMembers implements OnInit {
   protected backQuery = computed(() => (this.membership() ? null : { tab: 'groups' }));
 
   protected newMemberUsername = signal('');
-  protected newMemberRole = signal<Role>('contributor');
+  protected newMemberRole = signal<GroupRole>('contributor');
   protected memberPendingRemoval = signal<GroupMember | null>(null);
   protected removing = signal(false);
   /** Dropping the entry changes the binding back, so `NgModel` writes the previous role into the select instead of leaving a refused one. */
-  protected pendingRoles = signal<ReadonlyMap<string, Role>>(new Map());
-  protected readonly roleOptions: SelectOption<Role>[] = [
-    { value: 'reader', label: 'Lecteur' },
-    { value: 'contributor', label: 'Contributeur' },
-    { value: 'maintainer', label: 'Mainteneur' },
-  ];
+  protected pendingRoles = signal<ReadonlyMap<string, GroupRole>>(new Map());
+  protected readonly roleOptions: SelectOption<GroupRole>[] = Object.entries(GROUP_ROLE_LABELS).map(([value, label]) => ({ value: value as GroupRole, label }));
 
   ngOnInit(): void {
     this.groupId = this.route.snapshot.paramMap.get('id') ?? '';
@@ -117,8 +109,8 @@ export class GroupMembers implements OnInit {
 
   protected readonly roleLegend = ROLE_LEGEND;
 
-  protected roleLabel(role: Role): string {
-    return ROLE_LABELS[role];
+  protected roleLabel(role: GroupRole): string {
+    return GROUP_ROLE_LABELS[role];
   }
 
   refresh(): void {
@@ -181,7 +173,7 @@ export class GroupMembers implements OnInit {
     });
   }
 
-  changeMemberRole(member: GroupMember, role: Role): void {
+  changeMemberRole(member: GroupMember, role: GroupRole): void {
     const { userId, username } = member;
     this.setPendingRole(userId, role);
     this.groups.setMemberRole(this.groupId, username, role).subscribe({
@@ -197,7 +189,7 @@ export class GroupMembers implements OnInit {
     });
   }
 
-  private setPendingRole(userId: string, role: Role | null): void {
+  private setPendingRole(userId: string, role: GroupRole | null): void {
     this.pendingRoles.update((current) => {
       const next = new Map(current);
       if (role === null) {

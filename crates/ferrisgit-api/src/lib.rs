@@ -5,6 +5,7 @@ pub mod config;
 pub mod error;
 pub mod first_setup_lock;
 pub mod git_auth;
+pub mod log_retention_sweep;
 pub mod login_rate_limiter;
 pub mod mfa_rate_limiter;
 pub mod routes;
@@ -54,8 +55,11 @@ fn security_headers() -> [(HeaderName, HeaderValue); 4] {
 /// Git smart-HTTP and the SPA share the root URL namespace and can only be told apart by a `.git`-suffixed path
 /// segment. A wildcard axum route would take priority over the SPA fallback and intercept its URLs.
 pub fn build_router(state: AppState, static_dir: &Path) -> Router {
-    let spa_fallback =
-        ServeDir::new(static_dir).not_found_service(ServeFile::new(static_dir.join("index.html")));
+    // `/docs` and `/docs/<section>` are folders of the documentation assets but also SPA routes: without a redirect to
+    // `/docs/`, they fall through to the shell like any other route (they hold no index.html).
+    let spa_fallback = ServeDir::new(static_dir)
+        .redirect_to_trailing_slash(false)
+        .not_found_service(ServeFile::new(static_dir.join("index.html")));
 
     let mut router = Router::new()
         .route("/health", get(routes::health))
@@ -67,6 +71,8 @@ pub fn build_router(state: AppState, static_dir: &Path) -> Router {
                 if routes::git_http::is_git_request_path(req.uri().path()) {
                     routes::git_http::git_smart_http(state, req).await
                 } else {
+                    // The documentation files (`/docs/index.json`, `/docs/<section>/<page>.md`) have no content hash either.
+                    let is_docs_asset = req.uri().path().starts_with("/docs/");
                     match spa_fallback.oneshot(req).await {
                         Ok(mut res) => {
                             // The app shell has no content hash in its name. Without a Cache-Control header, heuristic caching can keep
@@ -75,7 +81,7 @@ pub fn build_router(state: AppState, static_dir: &Path) -> Router {
                                 .headers()
                                 .get(axum::http::header::CONTENT_TYPE)
                                 .is_some_and(|v| v.as_bytes().starts_with(b"text/html"));
-                            if is_html {
+                            if is_html || is_docs_asset {
                                 res.headers_mut().insert(
                                     axum::http::header::CACHE_CONTROL,
                                     HeaderValue::from_static("no-cache"),
@@ -97,5 +103,15 @@ pub fn build_router(state: AppState, static_dir: &Path) -> Router {
             state.clone(),
             routes::public::robots_tag,
         ))
+        // Merged after the layer on purpose: `robots_tag` reads the settings from the database on every response, and the
+        // probes must not depend on it (liveness would fail during a database outage).
+        .merge(probe_routes())
         .with_state(state)
+}
+
+/// What the Kubernetes probes call: `/healthz` says the process runs, `/readyz` that the database answers.
+fn probe_routes() -> Router<AppState> {
+    Router::new()
+        .route("/healthz", get(routes::health))
+        .route("/readyz", get(routes::ready))
 }

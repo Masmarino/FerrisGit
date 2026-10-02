@@ -18,14 +18,14 @@ import {
   PageLayout,
   Panel,
   Select,
-  SelectOption,
   Skeleton,
   Tag,
   Textarea,
   UserChip,
 } from '@masmarino/gabarit';
-import { Issue, IssueComment, IssuesService } from '../issues.service';
+import { Issue, IssueComment, IssuesService, isClosed } from '../issues.service';
 import { issueKindPresentation } from '../issue-kind';
+import { labelSelectOptions, milestoneSelectOptions } from '../issue-filters';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { Label, LabelsService } from '../../labels/labels.service';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
@@ -46,11 +46,6 @@ interface DiscussionCard {
 }
 
 const UNKNOWN_USER = 'Utilisateur inconnu';
-
-/** Closed means the API's `done` status. The backend always sets `closedAt` with it and clears it on reopen. */
-function isClosed(issue: Issue): boolean {
-  return issue.status === 'done' || issue.closedAt !== null;
-}
 
 @Component({
   selector: 'fg-issue-detail',
@@ -83,10 +78,10 @@ function isClosed(issue: Issue): boolean {
   styleUrl: './issue-detail.scss',
 })
 export class IssueDetail implements OnInit {
-  private shellTitle = inject(PageTitleService);
   repositoryId = input.required<string>();
   number = input.required<number>();
 
+  private shellTitle = inject(PageTitleService);
   private issuesService = inject(IssuesService);
   private repositoryContext = inject(RepositoryContextService);
   private labelsService = inject(LabelsService);
@@ -107,8 +102,6 @@ export class IssueDetail implements OnInit {
     return issue ? `#${issue.number} ${issue.title}` : '';
   });
   protected kind = computed(() => issueKindPresentation(this.issue()?.kind ?? ''));
-
-  private syncShellTitle = effect(() => this.shellTitle.set(this.pageTitle()));
 
   private createdTemplate = viewChild.required<TemplateRef<unknown>>('createdTemplate');
   private closedTemplate = viewChild.required<TemplateRef<unknown>>('closedTemplate');
@@ -162,11 +155,8 @@ export class IssueDetail implements OnInit {
   // A stable reference: binding `labels.map(...)` in the template built a new array on every pass, so NgModel
   // re-applied the value and re-triggered detection forever.
   protected labelIds = computed(() => this.issue()?.labels.map((label) => label.id) ?? []);
-  protected labelOptions = computed<SelectOption<string>[]>(() => this.labels().map((label) => ({ value: label.id, label: label.name, color: label.color })));
-  protected milestoneOptions = computed<SelectOption<string | null>[]>(() => [
-    { value: null, label: 'Aucun milestone' },
-    ...this.milestones().map((milestone) => ({ value: milestone.id, label: milestone.title })),
-  ]);
+  protected labelOptions = computed(() => labelSelectOptions(this.labels()));
+  protected milestoneOptions = computed(() => milestoneSelectOptions(this.milestones(), 'Aucun milestone'));
   protected milestoneTitle = computed(() => {
     const id = this.issue()?.milestoneId;
     return id ? (this.milestones().find((milestone) => milestone.id === id)?.title ?? null) : null;
@@ -187,6 +177,10 @@ export class IssueDetail implements OnInit {
   });
 
   protected readonly skeletonLines = ['92%', '78%', '64%'];
+
+  constructor() {
+    effect(() => this.shellTitle.set(this.pageTitle()));
+  }
 
   ngOnInit(): void {
     this.load();

@@ -78,9 +78,11 @@ async fn add(
         state.repositories.clone(),
         state.notifications.clone(),
         state.webhooks.clone(),
+        state.groups.clone(),
+        state.group_membership.clone(),
     );
     use_case
-        .execute(repo.id, user_id, repo.owner_id, &req.username, role)
+        .execute(repo.id, user_id, &req.username, role)
         .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -100,10 +102,10 @@ async fn set_role(
         state.repositories.clone(),
         state.notifications.clone(),
         state.webhooks.clone(),
+        state.groups.clone(),
+        state.group_membership.clone(),
     );
-    use_case
-        .execute(repo.id, user_id, repo.owner_id, &username, role)
-        .await?;
+    use_case.execute(repo.id, user_id, &username, role).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 
@@ -125,10 +127,10 @@ async fn remove(
         state.users.clone(),
         state.notifications.clone(),
         state.webhooks.clone(),
+        state.groups.clone(),
+        state.group_membership.clone(),
     );
-    use_case
-        .execute(repo.id, user_id, repo.owner_id, target.id)
-        .await?;
+    use_case.execute(repo.id, user_id, target.id).await?;
     Ok(StatusCode::NO_CONTENT)
 }
 

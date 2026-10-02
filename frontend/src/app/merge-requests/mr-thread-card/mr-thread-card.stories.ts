@@ -2,30 +2,21 @@ import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { userEvent, waitFor, within } from 'storybook/test';
 import { MrThreadCard } from './mr-thread-card';
 import { Comment, TimelineThread } from '../merge-requests.service';
-import { expectOnRail, hoursAgo, minutesAgo, onTimelineRail, withFerrisgitIcons } from '../timeline-story-helpers';
-
-const alice = { id: 'u1', username: 'alice' };
-const bob = { id: 'u2', username: 'bob' };
+import { expectOnRail, onTimelineRail } from '../timeline-story-helpers';
+import { hoursAgo, minutesAgo, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
+import { ALICE, BOB, commentFixture } from '../merge-request-fixtures';
 
 function makeComment(overrides: Partial<Comment> = {}): Comment {
-  return {
+  return commentFixture({
     id: 't1',
-    authorId: 'u2',
-    author: bob,
+    author: BOB,
     body: 'Pourquoi ne pas garder la durée de vie fixe à une heure ?',
     createdAt: hoursAgo(3),
-    replyToId: null,
     filePath: 'src/auth/session.rs',
     lineNumber: 48,
-    endLine: null,
     side: 'new',
-    outdated: false,
-    resolved: false,
-    suggestedContent: null,
-    appliedAt: null,
-    appliedCommitSha: null,
     ...overrides,
-  };
+  });
 }
 
 function makeThread(overrides: Partial<TimelineThread> = {}): TimelineThread {
@@ -54,13 +45,13 @@ function makeThread(overrides: Partial<TimelineThread> = {}): TimelineThread {
 }
 
 const replies: Comment[] = [
-  makeComment({ id: 't1-r1', author: alice, authorId: 'u1', replyToId: 't1', body: 'Elle doit désormais être configurable depuis les réglages admin.', createdAt: hoursAgo(2), filePath: null, lineNumber: null, side: null }),
-  makeComment({ id: 't1-r2', author: bob, authorId: 'u2', replyToId: 't1', body: 'D’accord, merci pour la précision.', createdAt: minutesAgo(40), filePath: null, lineNumber: null, side: null }),
+  makeComment({ id: 't1-r1', author: ALICE, replyToId: 't1', body: 'Elle doit désormais être configurable depuis les réglages admin.', createdAt: hoursAgo(2), filePath: null, lineNumber: null, side: null }),
+  makeComment({ id: 't1-r2', author: BOB, replyToId: 't1', body: 'D’accord, merci pour la précision.', createdAt: minutesAgo(40), filePath: null, lineNumber: null, side: null }),
 ];
 
 const resolvedThread = makeThread({
   resolved: true,
-  resolvedBy: alice,
+  resolvedBy: ALICE,
   resolvedAt: minutesAgo(10),
   root: makeComment({ resolved: true }),
   replies,

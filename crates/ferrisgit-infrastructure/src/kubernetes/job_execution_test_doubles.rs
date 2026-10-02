@@ -13,6 +13,16 @@ impl PipelineStorePort for FakePipelines {
     async fn create(&self, _new_pipeline: NewPipeline) -> Result<Pipeline, DomainError> {
         unimplemented!()
     }
+    async fn create_failed(
+        &self,
+        _new_pipeline: NewPipeline,
+        _error: &str,
+    ) -> Result<Pipeline, DomainError> {
+        unimplemented!()
+    }
+    async fn mark_running(&self, _id: Uuid) -> Result<bool, DomainError> {
+        Ok(false)
+    }
     async fn find_by_id(&self, _id: Uuid) -> Result<Option<Pipeline>, DomainError> {
         Ok(Some(self.0.clone()))
     }
@@ -75,10 +85,7 @@ impl JobStorePort for FakeJobs {
         let Some(job) = jobs.iter_mut().find(|j| j.id == id) else {
             return Ok(false);
         };
-        if matches!(
-            job.status,
-            JobStatus::Success | JobStatus::Failed | JobStatus::Canceled
-        ) {
+        if job.status.is_terminal() {
             return Ok(false);
         }
         job.status = status;

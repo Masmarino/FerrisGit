@@ -6,8 +6,8 @@ use sha2::{Digest, Sha256};
 use subtle::ConstantTimeEq;
 use totp_rs::{Algorithm, Builder, Secret, Totp};
 
-pub const TOTP_ISSUER: &str = "FerrisGit";
-pub const BACKUP_CODE_COUNT: usize = 10;
+const TOTP_ISSUER: &str = "FerrisGit";
+const BACKUP_CODE_COUNT: usize = 10;
 pub const TOTP_STEP_SECS: u64 = 30;
 
 /// 20 random bytes (the RFC 4226 recommended seed size), base32 without padding: 32 characters.
@@ -21,7 +21,7 @@ pub fn generate_secret_base32() -> String {
 ///
 /// The account name may not contain `:` (the otpauth label separator), so any is replaced by `_`
 /// rather than failing an enrolment over an unusual username.
-pub fn build_totp(secret_base32: &str, username: &str) -> Result<Totp, DomainError> {
+fn build_totp(secret_base32: &str, username: &str) -> Result<Totp, DomainError> {
     let secret = Secret::try_from_base32(secret_base32).map_err(|_| {
         DomainError::Infrastructure("stored TOTP secret is not valid base32".to_string())
     })?;

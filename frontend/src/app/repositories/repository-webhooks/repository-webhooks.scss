@@ -1,4 +1,5 @@
 @use '../../shared/layout/settings-section';
+@use '../../shared/layout/list-page';
 
 :host {
   @include settings-section.section;
@@ -73,9 +74,7 @@
 }
 
 .repository-webhooks__webhook-deliveries {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  @include list-page.row-list;
 }
 
 .repository-webhooks__delivery {

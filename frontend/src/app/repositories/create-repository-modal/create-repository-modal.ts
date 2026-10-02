@@ -1,15 +1,11 @@
 import { Component, computed, inject, input, output, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RepositoriesService } from '../repositories.service';
+import { RepositoryVisibility, VISIBILITY_OPTIONS } from '../repository-visibility';
 import { GroupsService, WritableGroup } from '../../groups/groups.service';
-import { Alert, Button, GbtInput, Icon, Modal, SegmentedControl, SegmentedControlOption, Select, SelectOption, Switch, Textarea, GbtToastService } from '@masmarino/gabarit';
+import { Alert, Button, GbtInput, Icon, Modal, SegmentedControl, Select, SelectOption, Switch, Textarea, GbtToastService } from '@masmarino/gabarit';
 
 const NAME_REQUIRED = 'Le nom est requis';
-
-const VISIBILITY_OPTIONS: SegmentedControlOption<'private' | 'public'>[] = [
-  { value: 'private', label: 'Privé' },
-  { value: 'public', label: 'Public' },
-];
 
 /**
  * The "Nouveau dépôt" dialog. The parent renders it under `@if`, so it is rebuilt each time it opens and
@@ -46,7 +42,7 @@ export class CreateRepositoryModal implements OnInit {
     ...this.writableGroups().map((g) => ({ value: g.path, label: g.path })),
   ]);
   protected readonly visibilityOptions = VISIBILITY_OPTIONS;
-  protected visibility = computed<'private' | 'public'>(() => (this.isPublic() ? 'public' : 'private'));
+  protected visibility = computed<RepositoryVisibility>(() => (this.isPublic() ? 'public' : 'private'));
 
   protected nameError = computed(() => (this.error() === NAME_REQUIRED ? NAME_REQUIRED : null));
   protected formError = computed(() => (this.error() && this.error() !== NAME_REQUIRED ? this.error() : null));
@@ -83,12 +79,11 @@ export class CreateRepositoryModal implements OnInit {
       this.error.set(NAME_REQUIRED);
       return;
     }
-    const visibility = this.isPublic() ? 'public' : 'private';
     const requiredApprovals = Number(this.requiredApprovals());
     this.error.set('');
     this.creating.set(true);
     this.repositories
-      .create(this.name().trim(), visibility, {
+      .create(this.name().trim(), this.visibility(), {
         description: this.description().trim(),
         ciEnabled: this.ciEnabled(),
         requiredApprovals: Number.isFinite(requiredApprovals) ? requiredApprovals : 0,

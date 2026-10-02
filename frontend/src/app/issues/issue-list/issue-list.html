@@ -125,17 +125,17 @@
           label="Filtrer par label"
           hideLabel
           fullWidth
-          [options]="labelOptions()"
+          [options]="filters.labelOptions()"
           [multiple]="true"
           [chips]="true"
-          [ngModel]="selectedLabelIds()"
-          (ngModelChange)="onLabelFilterChange($event)"
+          [ngModel]="filters.selectedLabelIds()"
+          (ngModelChange)="filters.selectLabels($event)"
           placeholder="Tous les labels"
         />
       </gbt-panel>
 
       <gbt-panel heading="Milestone" [headingLevel]="2">
-        <gbt-select label="Filtrer par milestone" hideLabel fullWidth [options]="milestoneOptions()" [ngModel]="selectedMilestoneId()" (ngModelChange)="onMilestoneFilterChange($event)" placeholder="Tous les milestones" />
+        <gbt-select label="Filtrer par milestone" hideLabel fullWidth [options]="filters.milestoneOptions()" [ngModel]="filters.selectedMilestoneId()" (ngModelChange)="filters.selectMilestone($event)" placeholder="Tous les milestones" />
       </gbt-panel>
     </div>
   }

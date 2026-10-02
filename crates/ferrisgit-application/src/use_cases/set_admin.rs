@@ -90,17 +90,14 @@ pub(crate) async fn ensure_not_last_active_admin(
 mod tests {
     use super::*;
     use crate::test_support::{FakeInvitations, FakePasswordResets, FakeUsers};
+    use crate::use_cases::fixtures;
     use chrono::{Duration, Utc};
     use ferrisgit_domain::user::{NewUser, User};
 
     fn user(username: &str, is_admin: bool) -> User {
         User {
-            id: Uuid::new_v4(),
-            username: username.to_string(),
-            email: format!("{username}@example.com"),
-            password_hash: "h".to_string(),
             is_admin,
-            created_at: Utc::now(),
+            ..fixtures::user(username)
         }
     }
 

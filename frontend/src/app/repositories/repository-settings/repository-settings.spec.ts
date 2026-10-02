@@ -10,12 +10,15 @@ import { PageTitleService } from '../../shell/page-title.service';
 import { GbtToastService } from '@masmarino/gabarit';
 import { LabelsService } from '../../labels/labels.service';
 import { MilestonesService } from '../../milestones/milestones.service';
+import { RepositoriesService } from '../repositories.service';
+import { RepositoryGeneralSettings } from '../repository-general-settings/repository-general-settings';
 import { RepositoryPipelineSettings } from '../repository-pipeline-settings/repository-pipeline-settings';
 import { RepositoryCiVariables } from '../repository-ci-variables/repository-ci-variables';
 import { RepositoryWebhooks } from '../repository-webhooks/repository-webhooks';
 import { RepositoryCollaboratorsSettings } from '../repository-collaborators-settings/repository-collaborators-settings';
 import { RepositoryLabelsSettings } from '../repository-labels-settings/repository-labels-settings';
 import { RepositoryMilestonesSettings } from '../repository-milestones-settings/repository-milestones-settings';
+import { repositoryFixture } from '../repository-fixtures';
 
 @Component({
   imports: [RepositorySettings],
@@ -26,6 +29,7 @@ class SettingsHost {}
 const SETTINGS_URL = '/repositories/florian/ferrisgit/-/settings';
 
 const PANELS: [string, Type<unknown>][] = [
+  ['general', RepositoryGeneralSettings],
   ['pipeline', RepositoryPipelineSettings],
   ['variables', RepositoryCiVariables],
   ['webhooks', RepositoryWebhooks],
@@ -36,7 +40,7 @@ const PANELS: [string, Type<unknown>][] = [
 
 describe('RepositorySettings', () => {
   async function setup(url = SETTINGS_URL) {
-    // Every HTTP-backed service of the 6 sections needs a stub, since each is rendered when selected.
+    // Every HTTP-backed service of the 7 sections needs a stub, since each is rendered when selected.
     const repositorySettingsStub = {
       get: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 })),
       update: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 })),
@@ -51,6 +55,10 @@ describe('RepositorySettings', () => {
       createWebhook: vi.fn(() => of(undefined)),
       deleteWebhook: vi.fn(() => of(undefined)),
       listWebhookDeliveries: vi.fn(() => of([])),
+    };
+    const repositoriesStub = {
+      getById: vi.fn(() => of(repositoryFixture({ path: ['florian', 'ferrisgit'] }))),
+      update: vi.fn(),
     };
     const pageTitleStub = { set: vi.fn() };
     const labelsServiceStub = {
@@ -79,6 +87,7 @@ describe('RepositorySettings', () => {
       providers: [
         provideRouter([{ path: 'repositories/**', component: SettingsHost }]),
         { provide: RepositorySettingsService, useValue: repositorySettingsStub },
+        { provide: RepositoriesService, useValue: repositoriesStub },
         { provide: PageTitleService, useValue: pageTitleStub },
         { provide: LabelsService, useValue: labelsServiceStub },
         { provide: MilestonesService, useValue: milestonesServiceStub },
@@ -114,11 +123,12 @@ describe('RepositorySettings', () => {
     expect(el().querySelectorAll('nav')).toHaveLength(1);
   });
 
-  it('lists the six sections, in order, as links to ?section=<key> (the default one on the bare path)', async () => {
+  it('lists the seven sections, in order, as links to ?section=<key> (the default one on the bare path)', async () => {
     const { el } = await setup();
 
     const links = Array.from(el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a'));
     expect(links.map((a) => a.querySelector('.gbt-nav-tab__label')?.textContent)).toEqual([
+      'Informations',
       'Pipeline',
       'Variables CI/CD',
       'Webhooks',
@@ -128,6 +138,7 @@ describe('RepositorySettings', () => {
     ]);
     expect(links.map((a) => a.getAttribute('href'))).toEqual([
       SETTINGS_URL,
+      `${SETTINGS_URL}?section=pipeline`,
       `${SETTINGS_URL}?section=variables`,
       `${SETTINGS_URL}?section=webhooks`,
       `${SETTINGS_URL}?section=collaborators`,
@@ -137,15 +148,15 @@ describe('RepositorySettings', () => {
     expect(links.every((a) => a.querySelector('gbt-icon') !== null)).toBe(true);
   });
 
-  it('shows the pipeline section by default, and only it', async () => {
+  it('shows the information section by default, and only it', async () => {
     const { rendered, current } = await setup();
 
-    expect(rendered(RepositoryPipelineSettings)).toHaveLength(1);
-    expect(rendered(RepositoryPipelineSettings)[0].componentInstance.repositoryId()).toBe('repo-1');
+    expect(rendered(RepositoryGeneralSettings)).toHaveLength(1);
+    expect(rendered(RepositoryGeneralSettings)[0].componentInstance.repositoryId()).toBe('repo-1');
     for (const [, type] of PANELS.slice(1)) {
       expect(rendered(type), `${type.name} should not be rendered`).toHaveLength(0);
     }
-    expect(current()).toEqual(['Pipeline']);
+    expect(current()).toEqual(['Informations']);
   });
 
   it.each(PANELS)('?section=%s renders that section alone, with the repository id, and marks it in the nav', async (key, type) => {
@@ -161,12 +172,12 @@ describe('RepositorySettings', () => {
     expect(current()).toHaveLength(1);
   });
 
-  it('falls back to the pipeline section for an unknown section', async () => {
+  it('falls back to the information section for an unknown section', async () => {
     const { rendered, current } = await setup(`${SETTINGS_URL}?section=inconnue`);
 
-    expect(rendered(RepositoryPipelineSettings)).toHaveLength(1);
+    expect(rendered(RepositoryGeneralSettings)).toHaveLength(1);
     expect(rendered(RepositoryWebhooks)).toHaveLength(0);
-    expect(current()).toEqual(['Pipeline']);
+    expect(current()).toEqual(['Informations']);
   });
 
   it('follows the query param: navigating swaps the section without recreating the page', async () => {
@@ -175,13 +186,13 @@ describe('RepositorySettings', () => {
 
     await navigate(`${SETTINGS_URL}?section=labels`);
     expect(rendered(RepositoryLabelsSettings)).toHaveLength(1);
-    expect(rendered(RepositoryPipelineSettings)).toHaveLength(0);
+    expect(rendered(RepositoryGeneralSettings)).toHaveLength(0);
     expect(current()).toEqual(['Labels']);
 
     await navigate(SETTINGS_URL);
-    expect(rendered(RepositoryPipelineSettings)).toHaveLength(1);
+    expect(rendered(RepositoryGeneralSettings)).toHaveLength(1);
     expect(rendered(RepositoryLabelsSettings)).toHaveLength(0);
-    expect(current()).toEqual(['Pipeline']);
+    expect(current()).toEqual(['Informations']);
     expect(harness.routeNativeElement?.querySelector('gbt-page-header')).toBe(header);
   });
 
@@ -195,25 +206,28 @@ describe('RepositorySettings', () => {
     const { el } = await setup();
 
     const links = Array.from(el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a'));
-    expect(links).toHaveLength(6);
+    expect(links).toHaveLength(7);
     expect(links.every((a) => a.getAttribute('data-orientation') === 'vertical')).toBe(true);
   });
 
   it('moves to a section when its nav link is clicked', async () => {
     const { harness, rendered, el } = await setup();
 
-    el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a')[2].click();
+    el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a')[3].click();
     await harness.fixture.whenStable();
     harness.fixture.detectChanges();
 
     expect(rendered(RepositoryWebhooks)).toHaveLength(1);
-    expect(rendered(RepositoryPipelineSettings)).toHaveLength(0);
+    expect(rendered(RepositoryGeneralSettings)).toHaveLength(0);
   });
 
   it('loads a section only when it is shown', async () => {
     const { repositorySettingsStub, navigate } = await setup();
-    expect(repositorySettingsStub.get).toHaveBeenCalledWith('repo-1');
+    expect(repositorySettingsStub.get).not.toHaveBeenCalled();
     expect(repositorySettingsStub.listWebhooks).not.toHaveBeenCalled();
+
+    await navigate(`${SETTINGS_URL}?section=pipeline`);
+    expect(repositorySettingsStub.get).toHaveBeenCalledWith('repo-1');
 
     await navigate(`${SETTINGS_URL}?section=webhooks`);
     expect(repositorySettingsStub.listWebhooks).toHaveBeenCalledWith('repo-1');

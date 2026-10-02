@@ -1,115 +1,12 @@
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
+mod common;
+
+use common::git::{commit_file, git};
+use common::http::Api;
+
 use serde_json::{Value, json};
 use sqlx::PgPool;
-use std::path::Path;
-use std::process::Command;
-
-async fn git(args: &[&str], cwd: &Path) -> String {
-    let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
-    let cwd = cwd.to_path_buf();
-    let output = tokio::task::spawn_blocking(move || {
-        Command::new("git").args(&args).current_dir(&cwd).output()
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(
-        output.status.success(),
-        "git failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout).unwrap().trim().to_string()
-}
-
-async fn commit_file(repo_path: &Path, file: &str, content: &str, message: &str) {
-    std::fs::write(repo_path.join(file), content).unwrap();
-    git(&["add", "."], repo_path).await;
-    git(
-        &[
-            "-c",
-            "user.email=t@t.com",
-            "-c",
-            "user.name=t",
-            "commit",
-            "-q",
-            "-m",
-            message,
-        ],
-        repo_path,
-    )
-    .await;
-}
-
-struct Api {
-    client: reqwest::Client,
-    addr: std::net::SocketAddr,
-}
 
 impl Api {
-    async fn login(&self, username: &str, password: &str) -> String {
-        let res: Value = self
-            .client
-            .post(format!("http://{}/api/auth/login", self.addr))
-            .json(&json!({ "username": username, "password": password }))
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
-        res["token"].as_str().unwrap().to_string()
-    }
-
-    async fn post(&self, jwt: &str, path: &str, body: Value) -> Value {
-        let res = self
-            .client
-            .post(format!("http://{}/api{path}", self.addr))
-            .bearer_auth(jwt)
-            .json(&body)
-            .send()
-            .await
-            .unwrap();
-        assert!(
-            res.status().is_success(),
-            "POST {path} failed with {}",
-            res.status()
-        );
-        res.json().await.unwrap_or(Value::Null)
-    }
-
-    async fn post_no_body(&self, jwt: &str, path: &str) -> reqwest::StatusCode {
-        self.client
-            .post(format!("http://{}/api{path}", self.addr))
-            .bearer_auth(jwt)
-            .send()
-            .await
-            .unwrap()
-            .status()
-    }
-
-    async fn get(&self, jwt: &str, path: &str) -> Value {
-        self.client
-            .get(format!("http://{}/api{path}", self.addr))
-            .bearer_auth(jwt)
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap()
-    }
-
-    async fn get_status(&self, jwt: &str, path: &str) -> reqwest::StatusCode {
-        self.client
-            .get(format!("http://{}/api{path}", self.addr))
-            .bearer_auth(jwt)
-            .send()
-            .await
-            .unwrap()
-            .status()
-    }
-
     async fn timeline(&self, jwt: &str, mr_id: &str) -> Value {
         self.get(jwt, &format!("/merge-requests/{mr_id}/timeline"))
             .await
@@ -134,56 +31,9 @@ fn events_of<'a>(timeline: &'a Value, kind: &str) -> Vec<&'a Value> {
         .collect()
 }
 
-/// The temp dirs must outlive the test.
-async fn spawn_app(pool: PgPool) -> (Api, Vec<tempfile::TempDir>) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap();
-    let static_dir = tempfile::tempdir().unwrap();
-    std::fs::write(static_dir.path().join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.path().to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.path().to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, static_dir.path());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
-
-    (
-        Api {
-            client: reqwest::Client::new(),
-            addr,
-        },
-        vec![storage_dir, static_dir],
-    )
-}
-
 #[sqlx::test]
 async fn the_timeline_merges_comments_threads_and_recorded_activity_in_order(pool: PgPool) {
-    let (api, _dirs) = spawn_app(pool).await;
+    let api = Api::start(pool).await;
     let addr = api.addr;
     let jwt = api.login("admin", "adminpassword123").await;
     let jwt = jwt.as_str();
@@ -577,7 +427,7 @@ async fn the_timeline_merges_comments_threads_and_recorded_activity_in_order(poo
 #[sqlx::test]
 async fn the_timeline_still_answers_when_the_source_branch_is_gone(pool: PgPool) {
     sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-    let (api, _dirs) = spawn_app(pool).await;
+    let api = Api::start(pool).await;
     let addr = api.addr;
     let jwt = api.login("admin", "adminpassword123").await;
     let jwt = jwt.as_str();

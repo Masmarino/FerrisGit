@@ -1,0 +1,43 @@
+@use '../../shared/layout/settings-section';
+
+:host {
+  @include settings-section.section;
+}
+
+.repository-general-settings__form {
+  @include settings-section.form;
+}
+
+.repository-general-settings__field {
+  @include settings-section.field;
+  max-width: 32rem;
+}
+
+.repository-general-settings__field-footer {
+  @include settings-section.field-footer;
+}
+
+.repository-general-settings__hint {
+  @include settings-section.hint;
+}
+
+.repository-general-settings__loading {
+  @include settings-section.section;
+}
+
+.repository-general-settings__skeleton-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+
+.repository-general-settings__skeleton-lines {
+  @include settings-section.skeleton-lines;
+  padding-top: 0.25rem;
+}
+
+.repository-general-settings__skeleton-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}

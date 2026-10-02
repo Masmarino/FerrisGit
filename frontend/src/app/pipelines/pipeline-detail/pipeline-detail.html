@@ -20,34 +20,41 @@
       <span class="pipeline-detail__timing"><span aria-hidden="true"> · </span>durée <span class="pipeline-detail__duration">{{ pipelineDuration() }}</span></span>
     </p>
 
-    @if ((p.status === 'pending' || p.status === 'running') && (role() === 'owner' || role() === 'contributor' || role() === 'maintainer')) {
+    @if (canCancel()) {
       <gbt-button header-actions variant="danger" (clicked)="cancel()" text="Annuler le pipeline" />
     }
   </gbt-page-header>
 
-  <div class="pipeline-detail__layout">
-    <fg-pipeline-sidebar [path]="path()" [pipelineId]="pipelineId()" [groups]="groups()" [selectedJobId]="jobId()" [now]="now()" />
-    <div class="pipeline-detail__content">
-      @if (jobId() === null) {
-        <fg-pipeline-summary
-          [groups]="groups()"
-          [activeStageIndex]="activeStage()"
-          [selectedStage]="selectedStage()"
-          [path]="path()"
-          [pipelineId]="pipelineId()"
-          [now]="now()"
-          (stageSelected)="selectStage($event)"
-          (jobOpened)="openJob($event)"
-        />
-      } @else if (currentJob(); as job) {
-        <fg-pipeline-job [job]="job" [groups]="groups()" [activeStageIndex]="activeStage()" [now]="now()" (stageSelected)="selectStage($event)" />
-      } @else {
-        <section class="pipeline-detail__not-found">
-          <gbt-empty-state illustration="pipeline" heading="Ce job est introuvable dans ce pipeline.">
-            <a [routerLink]="summaryLink()">Retour au résumé</a>
-          </gbt-empty-state>
-        </section>
-      }
+  @if (p.error; as error) {
+    <gbt-alert class="pipeline-detail__error" variant="error" heading="Fichier de pipeline invalide">
+      <pre class="pipeline-detail__error-message">{{ error }}</pre>
+      <p class="pipeline-detail__error-hint">Corrigez le fichier, puis poussez un nouveau commit : un nouveau pipeline sera lancé.</p>
+    </gbt-alert>
+  } @else {
+    <div class="pipeline-detail__layout">
+      <fg-pipeline-sidebar [path]="path()" [pipelineId]="pipelineId()" [groups]="groups()" [selectedJobId]="jobId()" [now]="now()" />
+      <div class="pipeline-detail__content">
+        @if (jobId() === null) {
+          <fg-pipeline-summary
+            [groups]="groups()"
+            [activeStageIndex]="activeStage()"
+            [selectedStage]="selectedStage()"
+            [path]="path()"
+            [pipelineId]="pipelineId()"
+            [now]="now()"
+            (stageSelected)="selectStage($event)"
+            (jobOpened)="openJob($event)"
+          />
+        } @else if (currentJob(); as job) {
+          <fg-pipeline-job [job]="job" [groups]="groups()" [activeStageIndex]="activeStage()" [now]="now()" (stageSelected)="selectStage($event)" />
+        } @else {
+          <section class="pipeline-detail__not-found">
+            <gbt-empty-state illustration="pipeline" heading="Ce job est introuvable dans ce pipeline.">
+              <a [routerLink]="summaryLink()">Retour au résumé</a>
+            </gbt-empty-state>
+          </section>
+        }
+      </div>
     </div>
-  </div>
+  }
 }

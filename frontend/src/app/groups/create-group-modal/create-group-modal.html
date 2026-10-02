@@ -1,0 +1,33 @@
+<form (submit)="$event.preventDefault(); submit()">
+  <gbt-modal [isOpen]="true" heading="Nouveau groupe" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
+    <div class="create-group">
+      <gbt-input
+        class="create-group__name"
+        name="name"
+        label="Nom du groupe"
+        placeholder="acme"
+        hint="Lettres, chiffres, - et _ uniquement ; il ne doit pas être celui d'un compte. Il fera partie du chemin de ses dépôts."
+        required
+        [errorMessage]="nameError()"
+        [ngModel]="name()"
+        (ngModelChange)="onNameChange($event)"
+      />
+      <gbt-textarea
+        class="create-group__description"
+        name="description"
+        label="Description"
+        placeholder="À quoi sert ce groupe (optionnel)"
+        [rows]="3"
+        [ngModel]="description()"
+        (ngModelChange)="description.set($event)"
+      />
+      @if (formError(); as message) {
+        <gbt-alert variant="error">{{ message }}</gbt-alert>
+      }
+    </div>
+    <div modal-footer>
+      <gbt-button variant="secondary" text="Annuler" [disabled]="creating()" (clicked)="close.emit()" />
+      <gbt-button type="submit" iconName="plus" text="Créer le groupe" [loading]="creating()" loadingLabel="Création en cours" />
+    </div>
+  </gbt-modal>
+</form>

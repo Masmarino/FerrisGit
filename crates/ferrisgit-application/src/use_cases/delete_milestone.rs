@@ -22,21 +22,7 @@ impl DeleteMilestoneUseCase {
 mod tests {
     use super::*;
     use crate::test_support::FakeMilestones;
-    use chrono::Utc;
-    use ferrisgit_domain::milestone::{Milestone, MilestoneState};
-
-    fn milestone() -> Milestone {
-        Milestone {
-            id: Uuid::new_v4(),
-            title: "v1.0".to_string(),
-            description: String::new(),
-            due_date: None,
-            state: MilestoneState::Open,
-            repository_id: Some(Uuid::new_v4()),
-            group_id: None,
-            created_at: Utc::now(),
-        }
-    }
+    use crate::use_cases::fixtures::milestone;
 
     #[tokio::test]
     async fn deleting_a_milestone_removes_it() {

@@ -14,6 +14,7 @@ use uuid::Uuid;
 use crate::auth_middleware::AuthUser;
 use crate::authz::require_role_by_id;
 use crate::error::ApiError;
+use crate::routes::user_ref::require_user;
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -118,11 +119,7 @@ async fn save(
     )
     .await?;
 
-    let user = state
-        .users
-        .find_by_id(user_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+    let user = require_user(&state, user_id).await?;
     let use_case = SaveWikiPageUseCase::new(
         state.repositories.clone(),
         state.wikis.clone(),
@@ -157,11 +154,7 @@ async fn delete(
 ) -> Result<StatusCode, ApiError> {
     require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Maintainer).await?;
 
-    let user = state
-        .users
-        .find_by_id(user_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+    let user = require_user(&state, user_id).await?;
     let use_case = DeleteWikiPageUseCase::new(state.wikis.clone(), state.wiki_writer.clone());
     use_case
         .execute(

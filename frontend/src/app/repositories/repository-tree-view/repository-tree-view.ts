@@ -28,6 +28,8 @@ import { CLONE_PANEL_ID, RepositoryHeader, revealClonePanel } from '../repositor
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { ContributorAvatars } from '../contributor-avatars/contributor-avatars';
 import { LanguageBar } from '../language-bar/language-bar';
+import { commitTitle, shortSha } from '../commit-format';
+import { pathBreadcrumb, repositoryLink, sortEntries } from '../repository-links';
 
 interface TreeRow {
   entry: TreeEntry;
@@ -37,15 +39,12 @@ interface TreeRow {
   link: string[];
 }
 
-interface BreadcrumbSegment {
-  name: string;
-  link: string[];
-}
-
 const LONG_DATE = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
 
-export function commitTitle(message: string): string {
-  return message.split('\n', 1)[0].trim();
+function without<T>(set: ReadonlySet<T>, value: T): Set<T> {
+  const next = new Set(set);
+  next.delete(value);
+  return next;
 }
 
 @Component({
@@ -113,13 +112,7 @@ export class RepositoryTreeView implements OnInit {
     return r ? ['/repositories', ...r.path] : null;
   });
 
-  protected breadcrumbAncestors = computed<BreadcrumbSegment[]>(() => {
-    const r = this.repo();
-    if (!r) return [];
-    const base = ['/repositories', ...r.path, '-', 'tree', this.ref()];
-    const path = this.treePath();
-    return [{ name: r.name, link: base }, ...path.slice(0, -1).map((name, i) => ({ name, link: [...base, ...path.slice(0, i + 1)] }))];
-  });
+  protected breadcrumbAncestors = computed(() => pathBreadcrumb(this.repo(), this.ref(), this.treePath()));
 
   protected currentFolderName = computed(() => this.treePath().at(-1) ?? '');
 
@@ -167,9 +160,7 @@ export class RepositoryTreeView implements OnInit {
 
   protected commitTitle = commitTitle;
 
-  protected shortSha(sha: string): string {
-    return sha.slice(0, 7);
-  }
+  protected shortSha = shortSha;
 
   // Directories expand in place. `expandedPaths` and `childrenCache` are keyed by the full path joined with '/',
   // and `visibleRows` flattens them into the rendered rows.
@@ -179,18 +170,11 @@ export class RepositoryTreeView implements OnInit {
 
   protected visibleRows = computed(() => this.buildRows(this.entries() ?? [], this.treePath(), 0));
 
-  private sortEntries(entries: TreeEntry[]): TreeEntry[] {
-    return [...entries].sort((a, b) => {
-      if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-      return a.name.localeCompare(b.name);
-    });
-  }
-
   private buildRows(entries: TreeEntry[], parentPath: string[], depth: number): TreeRow[] {
     const repoPath = this.repo()?.path ?? [];
     const rows: TreeRow[] = [];
-    for (const entry of this.sortEntries(entries)) {
-      const link = ['/repositories', ...repoPath, '-', entry.isDir ? 'tree' : 'blob', this.ref(), ...parentPath, entry.name];
+    for (const entry of sortEntries(entries)) {
+      const link = repositoryLink(repoPath, entry.isDir ? 'tree' : 'blob', this.ref(), [...parentPath, entry.name]);
       rows.push({ entry, depth, parentPath, link });
       if (entry.isDir) {
         const key = this.pathKey([...parentPath, entry.name]);
@@ -222,11 +206,7 @@ export class RepositoryTreeView implements OnInit {
   protected toggleDir(row: TreeRow): void {
     const key = this.rowKey(row);
     if (this.expandedPaths().has(key)) {
-      this.expandedPaths.update((paths) => {
-        const next = new Set(paths);
-        next.delete(key);
-        return next;
-      });
+      this.expandedPaths.update((paths) => without(paths, key));
       return;
     }
 
@@ -237,23 +217,11 @@ export class RepositoryTreeView implements OnInit {
     this.repositories.treeAt(this.repositoryId(), this.ref(), [...row.parentPath, row.entry.name]).subscribe({
       next: (children) => {
         this.childrenCache.update((cache) => new Map(cache).set(key, children));
-        this.loadingPaths.update((paths) => {
-          const next = new Set(paths);
-          next.delete(key);
-          return next;
-        });
+        this.loadingPaths.update((paths) => without(paths, key));
       },
       error: () => {
-        this.loadingPaths.update((paths) => {
-          const next = new Set(paths);
-          next.delete(key);
-          return next;
-        });
-        this.expandedPaths.update((paths) => {
-          const next = new Set(paths);
-          next.delete(key);
-          return next;
-        });
+        this.loadingPaths.update((paths) => without(paths, key));
+        this.expandedPaths.update((paths) => without(paths, key));
       },
     });
   }

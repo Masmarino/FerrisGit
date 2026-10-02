@@ -80,4 +80,11 @@ describe('PipelineSidebar', () => {
     expect(glyph?.hasAttribute('aria-hidden')).toBe(false);
     expect(glyph?.querySelector('.sr-only')?.textContent?.trim()).toBe(label);
   });
+
+  it('shows a skipped job with the label "Ignoré" and "ignoré" as its duration', () => {
+    const el = setup(null, [job('build', 'prepare', 'failed'), job('deploy', 'report', 'skipped')]);
+    const link = [...el.querySelectorAll('a')].find((a) => a.textContent?.includes('deploy'))!;
+    expect(link.querySelector('gbt-job-status .sr-only')?.textContent?.trim()).toBe('Ignoré');
+    expect(link.querySelector('.pipeline-sidebar__duration')?.textContent?.trim()).toBe('ignoré');
+  });
 });

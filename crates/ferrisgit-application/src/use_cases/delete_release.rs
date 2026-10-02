@@ -39,39 +39,8 @@ impl DeleteReleaseUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use ferrisgit_domain::release::{Release, ReleaseAsset};
-
     use crate::test_support::{FakeReleases, FakeStorage};
-
-    fn asset(release_id: Uuid, disk_path: &str) -> ReleaseAsset {
-        ReleaseAsset {
-            id: Uuid::new_v4(),
-            release_id,
-            filename: "a.txt".to_string(),
-            content_type: "text/plain".to_string(),
-            size_bytes: 1,
-            disk_path: disk_path.to_string(),
-            uploaded_by: Some(Uuid::new_v4()),
-            created_at: Utc::now(),
-        }
-    }
-
-    /// `delete` errs `NotFound` unless a matching row exists, so tests must seed one.
-    fn release(id: Uuid, repository_id: Uuid) -> Release {
-        Release {
-            id,
-            repository_id,
-            tag_name: "v1.0.0".to_string(),
-            title: "First release".to_string(),
-            notes: String::new(),
-            draft: false,
-            prerelease: false,
-            author_id: Some(Uuid::new_v4()),
-            created_at: Utc::now(),
-            published_at: Some(Utc::now()),
-        }
-    }
+    use crate::use_cases::fixtures::{release, release_asset};
 
     #[tokio::test]
     async fn deleting_a_release_deletes_the_row_then_every_asset_file() {
@@ -79,8 +48,8 @@ mod tests {
         let repository_id = Uuid::new_v4();
         let releases = Arc::new(
             FakeReleases::new(vec![release(release_id, repository_id)]).with_assets(vec![
-                asset(release_id, "path/a"),
-                asset(release_id, "path/b"),
+                release_asset(release_id, "path/a"),
+                release_asset(release_id, "path/b"),
             ]),
         );
         let storage = Arc::new(FakeStorage::new());
@@ -103,7 +72,7 @@ mod tests {
         let repository_id = Uuid::new_v4();
         let releases = Arc::new(
             FakeReleases::new(vec![release(release_id, repository_id)])
-                .with_assets(vec![asset(release_id, "path/a")]),
+                .with_assets(vec![release_asset(release_id, "path/a")]),
         );
         let storage = Arc::new(FakeStorage::failing());
         let use_case = DeleteReleaseUseCase::new(releases.clone(), storage.clone());

@@ -1,5 +1,6 @@
 import { Component, computed, input } from '@angular/core';
 import { Avatar, Card, CardHeader, GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit';
+import { authorName } from '../merge-request-presentation';
 import { UserRef } from '../merge-requests.service';
 
 @Component({
@@ -16,6 +17,5 @@ export class MrCommentCard {
   verb = input('a commenté');
   badge = input<string | null>(null);
 
-  /** A `null` author is an account an admin deleted: the comment outlives it. */
-  protected authorName = computed(() => this.author()?.username ?? 'Utilisateur supprimé');
+  protected authorName = computed(() => authorName(this.author()));
 }

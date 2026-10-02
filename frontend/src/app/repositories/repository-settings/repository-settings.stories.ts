@@ -6,6 +6,8 @@ import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
 import { expect, waitFor } from 'storybook/test';
 import { of } from 'rxjs';
 import { RepositorySettings } from './repository-settings';
+import { RepositoriesService } from '../repositories.service';
+import { repositoryFixture } from '../repository-fixtures';
 import { CollaboratorSummary, RepositorySettingsService, WebhookSummary } from '../repository-settings.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { GbtToastService } from '@masmarino/gabarit';
@@ -69,10 +71,15 @@ const fakeRepositorySettingsService = {
   listWebhookDeliveries: () => of([]),
 };
 
+const REPOSITORY = repositoryFixture({ description: 'Une plateforme Git auto-hébergée.', path: ['florian', 'ferrisgit'] });
+
+const fakeRepositoriesService = { getById: () => of(REPOSITORY), update: () => of(REPOSITORY) };
+
 const fakeLabelsService = { listForRepository: () => of(LABELS), create: () => of(LABELS[0]), delete: () => of(undefined) };
 const fakeMilestonesService = { listForRepository: () => of(MILESTONES), create: () => of(MILESTONES[1]), delete: () => of(undefined) };
 
 const SECTION_ELEMENTS: Record<string, string> = {
+  Informations: 'fg-repository-general-settings',
   Pipeline: 'fg-repository-pipeline-settings',
   'Variables CI/CD': 'fg-repository-ci-variables',
   Webhooks: 'fg-repository-webhooks',
@@ -134,6 +141,7 @@ const meta: Meta<RepositorySettings> = {
     moduleMetadata({
       providers: [
         { provide: RepositorySettingsService, useValue: fakeRepositorySettingsService },
+        { provide: RepositoriesService, useValue: fakeRepositoriesService },
         { provide: PageTitleService, useValue: { set: () => {} } },
         { provide: GbtToastService, useValue: fakeToast },
         { provide: LabelsService, useValue: fakeLabelsService },
@@ -148,8 +156,13 @@ const meta: Meta<RepositorySettings> = {
 export default meta;
 type Story = StoryObj<RepositorySettings>;
 
-export const Pipeline: Story = {
+export const Informations: Story = {
   decorators: [startAt('/')],
+  play: ({ canvasElement }) => expectSettingsPage(canvasElement, 'Informations'),
+};
+
+export const Pipeline: Story = {
+  decorators: [startAt('/?section=pipeline')],
   play: ({ canvasElement }) => expectSettingsPage(canvasElement, 'Pipeline'),
 };
 
@@ -188,5 +201,5 @@ export const Milestones: Story = {
 
 export const UnknownSection: Story = {
   decorators: [startAt('/?section=avance')],
-  play: ({ canvasElement }) => expectSettingsPage(canvasElement, 'Pipeline'),
+  play: ({ canvasElement }) => expectSettingsPage(canvasElement, 'Informations'),
 };

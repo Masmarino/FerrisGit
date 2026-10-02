@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferrisgit_domain::error::DomainError;
@@ -13,10 +14,6 @@ impl PostgresPasswordResetStore {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-fn infra(e: sqlx::Error) -> DomainError {
-    DomainError::Infrastructure(e.to_string())
 }
 
 #[derive(sqlx::FromRow)]
@@ -92,15 +89,8 @@ impl PasswordResetPort for PostgresPasswordResetStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::postgres::test_support::seed_user;
-    use chrono::Duration;
+    use crate::postgres::test_support::{in_hours, seed_user};
     use std::sync::Arc;
-
-    /// Postgres keeps microseconds: truncate so a round-trip compares equal.
-    fn in_hours(hours: i64) -> DateTime<Utc> {
-        DateTime::from_timestamp_micros((Utc::now() + Duration::hours(hours)).timestamp_micros())
-            .unwrap()
-    }
 
     async fn count_rows(pool: &PgPool) -> i64 {
         sqlx::query_scalar("SELECT count(*) FROM password_reset_tokens")

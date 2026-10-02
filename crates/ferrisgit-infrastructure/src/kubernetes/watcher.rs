@@ -3,7 +3,11 @@ use ferrisgit_application::use_cases::report_job_result::{
     AppendJobLogsUseCase, ReportJobResultUseCase,
 };
 use ferrisgit_domain::error::DomainError;
-use ferrisgit_domain::job::JobStatus;
+use ferrisgit_domain::job::{JobStatus, JobStorePort};
+use ferrisgit_domain::notification::NotificationStorePort;
+use ferrisgit_domain::pipeline::PipelineStorePort;
+use ferrisgit_domain::repository::RepositoryStorePort;
+use ferrisgit_domain::user::UserRepositoryPort;
 use ferrisgit_domain::webhook_dispatcher::WebhookDispatcherPort;
 use futures::StreamExt;
 use k8s_openapi::api::core::v1::Pod;
@@ -17,11 +21,11 @@ pub struct PodWatcher {
     namespace: String,
     report: Arc<ReportJobResultUseCase>,
     append_logs: Arc<AppendJobLogsUseCase>,
-    jobs: Arc<dyn ferrisgit_domain::job::JobStorePort>,
-    pipelines: Arc<dyn ferrisgit_domain::pipeline::PipelineStorePort>,
-    repositories: Arc<dyn ferrisgit_domain::repository::RepositoryStorePort>,
-    users: Arc<dyn ferrisgit_domain::user::UserRepositoryPort>,
-    notifications: Arc<dyn ferrisgit_domain::notification::NotificationStorePort>,
+    jobs: Arc<dyn JobStorePort>,
+    pipelines: Arc<dyn PipelineStorePort>,
+    repositories: Arc<dyn RepositoryStorePort>,
+    users: Arc<dyn UserRepositoryPort>,
+    notifications: Arc<dyn NotificationStorePort>,
     webhooks: Arc<dyn WebhookDispatcherPort>,
 }
 
@@ -32,11 +36,11 @@ impl PodWatcher {
         namespace: String,
         report: Arc<ReportJobResultUseCase>,
         append_logs: Arc<AppendJobLogsUseCase>,
-        jobs: Arc<dyn ferrisgit_domain::job::JobStorePort>,
-        pipelines: Arc<dyn ferrisgit_domain::pipeline::PipelineStorePort>,
-        repositories: Arc<dyn ferrisgit_domain::repository::RepositoryStorePort>,
-        users: Arc<dyn ferrisgit_domain::user::UserRepositoryPort>,
-        notifications: Arc<dyn ferrisgit_domain::notification::NotificationStorePort>,
+        jobs: Arc<dyn JobStorePort>,
+        pipelines: Arc<dyn PipelineStorePort>,
+        repositories: Arc<dyn RepositoryStorePort>,
+        users: Arc<dyn UserRepositoryPort>,
+        notifications: Arc<dyn NotificationStorePort>,
         webhooks: Arc<dyn WebhookDispatcherPort>,
     ) -> Self {
         Self {
@@ -197,6 +201,7 @@ mod tests {
             triggered_by: Uuid::new_v4(),
             created_at: Utc::now(),
             finished_at: None,
+            error: None,
         }
     }
 

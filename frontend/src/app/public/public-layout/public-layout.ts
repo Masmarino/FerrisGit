@@ -1,29 +1,31 @@
 import { ChangeDetectionStrategy, Component, computed, effect, inject, OnDestroy, signal } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
-import { NavigationEnd, Router, RouterLink, RouterOutlet } from '@angular/router';
-import { filter, map } from 'rxjs';
+import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { Button, GbtInput } from '@masmarino/gabarit';
 import { AuthService } from '../../auth/auth.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
-import { loginLink } from '../login-link';
+import { currentUrl } from '../../shared/current-url';
+import { loginLink } from '../../auth/login-link';
+import { PUBLIC_CATALOG_MAX_QUERY_LENGTH as MAX_QUERY_LENGTH } from '../public-repositories.service';
 
 const APP_NAME = 'FerrisGit';
-const MAX_QUERY_LENGTH = 100;
 
-/** The frame of the public pages: a header (logo, quick search, sign-in) above a centred content column. No sidebar. */
+/** The frame of the public pages: a header (logo, quick search, documentation, sign-in) above a centred content column. No sidebar. */
 @Component({
   selector: 'fg-public-layout',
   standalone: true,
-  imports: [FormsModule, RouterLink, RouterOutlet, Button, GbtInput],
+  imports: [FormsModule, RouterLink, RouterLinkActive, RouterOutlet, Button, GbtInput],
   templateUrl: './public-layout.html',
   styleUrl: './public-layout.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class PublicLayout implements OnDestroy {
   private router = inject(Router);
+  private url = currentUrl();
+  /** The routes that fill the page, like the documentation, say so in their data: `{ width: 'full' }`. Otherwise the content is a centred column. */
+  protected readonly fullWidth = inject(ActivatedRoute).snapshot.data['width'] === 'full';
   private title = inject(Title);
   private pageTitle = inject(PageTitleService);
   private repoContext = inject(RepositoryContextService);
@@ -32,14 +34,7 @@ export class PublicLayout implements OnDestroy {
   protected readonly maxQueryLength = MAX_QUERY_LENGTH;
   protected query = signal('');
 
-  private currentUrl = toSignal(
-    this.router.events.pipe(
-      filter((event): event is NavigationEnd => event instanceof NavigationEnd),
-      map((event) => event.urlAfterRedirects),
-    ),
-    { initialValue: this.router.url },
-  );
-  protected login = computed(() => loginLink(this.currentUrl()));
+  protected login = computed(() => loginLink(this.url()));
 
   constructor() {
     effect(() => {

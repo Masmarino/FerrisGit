@@ -5,7 +5,7 @@ import { MfaSettingsState, type MfaPort, type MfaStatus, type Passkey } from '@m
 import { moduleMetadata } from '@storybook/angular-vite';
 import { NEVER, Observable, of, switchMap, throwError, timer } from 'rxjs';
 import { provideFerrisgitAuth } from '../auth/auth-kit';
-import { MfaService } from './mfa.service';
+import { MfaService } from '../auth/mfa.service';
 
 export const SECRET = 'JBSWY3DPEHPK3PXPJBSWY3DPEHPK3PXP';
 export const OTPAUTH_URL = `otpauth://totp/FerrisGit:florian.simon?secret=${SECRET}&issuer=FerrisGit`;

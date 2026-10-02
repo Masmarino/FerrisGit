@@ -1,5 +1,5 @@
 <gbt-page-header heading="Réglages">
-  <p header-meta class="repository-settings__intro">Intégration continue, accès et organisation du dépôt</p>
+  <p header-meta class="repository-settings__intro">Informations, intégration continue, accès et organisation du dépôt</p>
 </gbt-page-header>
 
 <gbt-page-layout class="repository-settings__layout" width="wide" navLabel="Réglages du dépôt">
@@ -13,6 +13,9 @@
   <!-- Only the selected section is rendered, and it loads its data when opened. -->
   <div class="repository-settings__section">
     @switch (activeSection()) {
+      @case ('pipeline') {
+        <fg-repository-pipeline-settings [repositoryId]="repositoryId()" />
+      }
       @case ('variables') {
         <fg-repository-ci-variables [repositoryId]="repositoryId()" />
       }
@@ -29,7 +32,7 @@
         <fg-repository-milestones-settings [repositoryId]="repositoryId()" />
       }
       @default {
-        <fg-repository-pipeline-settings [repositoryId]="repositoryId()" />
+        <fg-repository-general-settings [repositoryId]="repositoryId()" />
       }
     }
   </div>

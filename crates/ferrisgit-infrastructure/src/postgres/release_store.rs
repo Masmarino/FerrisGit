@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::error::{conflict_on_duplicate, infra};
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::release::{
@@ -92,14 +93,9 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| {
-            if let sqlx::Error::Database(db_err) = &e
-                && db_err.code().as_deref() == Some("23505")
-            {
-                return DomainError::Conflict(format!("a release for tag '{}' already exists", new_release.tag_name));
-            }
-            DomainError::Infrastructure(e.to_string())
-        })?;
+        .map_err(conflict_on_duplicate(|| {
+            format!("a release for tag '{}' already exists", new_release.tag_name)
+        }))?;
         Ok(row.into())
     }
 
@@ -118,7 +114,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
@@ -136,7 +132,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row.map(Into::into))
     }
 
@@ -162,7 +158,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
+        .map_err(infra)?
         .ok_or_else(|| DomainError::NotFound("release".to_string()))?;
         Ok(row.into())
     }
@@ -178,7 +174,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
+        .map_err(infra)?
         .ok_or_else(|| DomainError::NotFound("release".to_string()))?;
         Ok(row.into())
     }
@@ -191,7 +187,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("release".to_string()));
         }
@@ -214,7 +210,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row.into())
     }
 
@@ -227,7 +223,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
@@ -245,7 +241,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row.map(Into::into))
     }
 
@@ -257,7 +253,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("release asset".to_string()));
         }
@@ -272,7 +268,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
             .bind(release_ids)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(rows.into_iter().collect())
     }
 }
@@ -280,36 +276,7 @@ impl ReleaseStorePort for PostgresReleaseStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)",
-            id,
-            username,
-            format!("{username}@example.com"),
-            "not-a-real-hash"
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        id
-    }
-
-    async fn seed_repository(pool: &PgPool, owner_id: Uuid, name: &str) -> Uuid {
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO repositories (id, owner_id, name, disk_path) VALUES ($1, $2, $3, $4)",
-            id,
-            owner_id,
-            name,
-            format!("{name}.git")
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        id
-    }
+    use crate::postgres::test_support::{seed_repository, seed_user};
 
     fn new_release(
         repository_id: Uuid,

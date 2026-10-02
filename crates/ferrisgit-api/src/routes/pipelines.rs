@@ -49,6 +49,8 @@ struct PipelineResponse {
     finished_at: Option<DateTime<Utc>>,
     triggered_by: Option<UserRef>,
     commit_message: Option<String>,
+    /// Why the pipeline file could not be used. Only set on a failed pipeline without jobs.
+    error: Option<String>,
 }
 
 impl PipelineResponse {
@@ -103,6 +105,7 @@ impl PipelineResponse {
                     status: p.status.as_str().to_string(),
                     created_at: p.created_at,
                     finished_at: p.finished_at,
+                    error: p.error,
                 }
             })
             .collect()
@@ -125,6 +128,8 @@ struct JobResponse {
     needs: Vec<String>,
     tags: Vec<String>,
     logs: String,
+    /// Set when the log retention emptied this job's log, so the interface can tell it from a log that was never written.
+    logs_purged_at: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
     started_at: Option<DateTime<Utc>>,
     finished_at: Option<DateTime<Utc>>,
@@ -164,11 +169,13 @@ async fn detail(
     let (pipeline, repo) =
         find_accessible_pipeline(&state, user_id, pipeline_id, CollaboratorRole::Reader).await?;
     let jobs = state.jobs.list_for_pipeline(pipeline.id).await?;
+    let logs_purged_at = state.job_log_retention.logs_purged_at(pipeline.id).await?;
     Ok(Json(PipelineDetailResponse {
         pipeline: PipelineResponse::build(&state, &repo.disk_path, pipeline).await,
         jobs: jobs
             .into_iter()
             .map(|j| JobResponse {
+                logs_purged_at: logs_purged_at.get(&j.id).copied(),
                 id: j.id,
                 stage: j.stage,
                 name: j.name,

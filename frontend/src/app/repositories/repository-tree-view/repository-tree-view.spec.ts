@@ -6,23 +6,18 @@ import { provideRouter, Router } from '@angular/router';
 import { RepositoryTreeView } from './repository-tree-view';
 import { formatDateTime, GbtToastService } from '@masmarino/gabarit';
 import { Repository } from '../repositories.service';
+import { repositoryFixture } from '../repository-fixtures';
 
 const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;
 const absoluteDateTime = (iso: string) => formatDateTime(iso, 'fr', ABSOLUTE_OPTIONS);
 
-const REPO: Repository = {
-  id: 'repo-1',
-  name: 'hello',
-  description: '',
-  owner: 'alice',
-  role: 'owner',
+const REPO = repositoryFixture({
   visibility: 'public',
   createdAt: '2026-01-01T12:00:00Z', // midday: the same calendar day in any test machine's time zone
-  path: ['alice', 'hello'],
   starCount: 3,
   isStarred: false,
   sizeBytes: 2048,
-};
+});
 
 const NOW = new Date('2026-03-01T12:00:00Z');
 

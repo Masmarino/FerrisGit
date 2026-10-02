@@ -66,10 +66,7 @@ mod tests {
             let Some(job) = jobs.iter_mut().find(|j| j.id == id) else {
                 return Ok(false);
             };
-            if matches!(
-                job.status,
-                JobStatus::Success | JobStatus::Failed | JobStatus::Canceled
-            ) {
+            if job.status.is_terminal() {
                 return Ok(false);
             }
             job.status = status;

@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { MrCommentCard } from './mr-comment-card';
-import { daysAgo, expectOnRail, hoursAgo, minutesAgo, onTimelineRail } from '../timeline-story-helpers';
+import { daysAgo, hoursAgo, minutesAgo } from '../../shared/layout/page-story-helpers';
+import { expectOnRail, onTimelineRail } from '../timeline-story-helpers';
 
 const meta: Meta<MrCommentCard> = {
   title: 'MergeRequests/MrCommentCard',

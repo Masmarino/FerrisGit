@@ -16,7 +16,7 @@ pub struct Release {
     pub notes: String,
     pub draft: bool,
     pub prerelease: bool,
-    /// `None` once the author's account was deleted (`ON DELETE SET NULL`): the release outlives them.
+    /// `None` once the author's account was deleted: the release outlives them.
     pub author_id: Option<Uuid>,
     pub created_at: DateTime<Utc>,
     pub published_at: Option<DateTime<Utc>>,
@@ -49,7 +49,7 @@ pub struct ReleaseAsset {
     pub content_type: String,
     pub size_bytes: i64,
     pub disk_path: String,
-    /// `None` once the uploader's account was deleted (`ON DELETE SET NULL`): the asset outlives them.
+    /// `None` once the uploader's account was deleted: the asset outlives them.
     pub uploaded_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
@@ -103,9 +103,8 @@ pub trait ReleaseStorePort: Send + Sync {
     /// Scoped by `release_id`, same reasoning as `delete`. Errs `NotFound` if no matching row.
     async fn delete_asset(&self, id: Uuid, release_id: Uuid) -> Result<(), DomainError>;
     /// Assets per release in one query. Releases without assets are absent from the map. The default returns an empty
-    /// map and the Postgres store overrides it.
-    async fn asset_counts(&self, release_ids: &[Uuid]) -> Result<HashMap<Uuid, i64>, DomainError> {
-        let _ = release_ids;
+    /// map; the real store overrides it.
+    async fn asset_counts(&self, _release_ids: &[Uuid]) -> Result<HashMap<Uuid, i64>, DomainError> {
         Ok(HashMap::new())
     }
 }

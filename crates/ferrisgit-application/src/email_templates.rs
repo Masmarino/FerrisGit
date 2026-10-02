@@ -73,6 +73,20 @@ fn button(href: &str, label: &str) -> String {
     )
 }
 
+fn greeting(username: &str) -> String {
+    format!(
+        r#"<p style="margin:0 0 16px;">Bonjour <strong>{}</strong>,</p>"#,
+        esc(username)
+    )
+}
+
+/// The amber box that closes the security notifications. `html` is trusted markup, escaped by the caller.
+fn warning(html: &str) -> String {
+    format!(
+        r#"<p style="margin:0; padding:12px 16px; background-color:#fef3c7; border-radius:8px; color:#92400e;">{html}</p>"#
+    )
+}
+
 pub fn account_created(username: &str, activation_url: &str) -> EmailContent {
     let text = format!(
         "Bonjour {username},\n\n\
@@ -84,11 +98,12 @@ pub fn account_created(username: &str, activation_url: &str) -> EmailContent {
          renvoyer une invitation."
     );
     let body_html = format!(
-        r#"<p style="margin:0 0 16px;">Bonjour <strong>{username}</strong>,</p>
+        r#"{greeting}
 <p style="margin:0 0 16px;">Votre nom d'utilisateur : <strong>{username}</strong></p>
 <p style="margin:0 0 16px;">Un compte FerrisGit a été créé pour vous. Pour l'activer et choisir votre mot de passe, cliquez sur le bouton ci-dessous.</p>
 {button}
 <p style="margin:16px 0 0; font-size:13px; color:{TEXT_SECONDARY};">Ce lien expire dans 24 heures. Passé ce délai, demandez à un administrateur de vous renvoyer une invitation.</p>"#,
+        greeting = greeting(username),
         username = esc(username),
         button = button(activation_url, "Activer mon compte"),
     );
@@ -108,11 +123,14 @@ pub fn password_changed(username: &str) -> EmailContent {
          administrateur de votre instance FerrisGit."
     );
     let body_html = format!(
-        r#"<p style="margin:0 0 16px;">Bonjour <strong>{username}</strong>,</p>
+        r#"{greeting}
 <p style="margin:0 0 16px;">Le mot de passe de votre compte FerrisGit vient d'être modifié.</p>
 <p style="margin:0 0 16px;">Si vous êtes à l'origine de ce changement, aucune action n'est nécessaire.</p>
-<p style="margin:0; padding:12px 16px; background-color:#fef3c7; border-radius:8px; color:#92400e;">Si vous n'êtes <strong>pas</strong> à l'origine de ce changement, contactez immédiatement un administrateur de votre instance FerrisGit.</p>"#,
-        username = esc(username),
+{warning}"#,
+        greeting = greeting(username),
+        warning = warning(
+            "Si vous n'êtes <strong>pas</strong> à l'origine de ce changement, contactez immédiatement un administrateur de votre instance FerrisGit."
+        ),
     );
     EmailContent {
         subject: "Votre mot de passe FerrisGit a été modifié".to_string(),
@@ -131,12 +149,15 @@ pub fn mfa_enrolled(username: &str, method: &str) -> EmailContent {
          de votre instance FerrisGit."
     );
     let body_html = format!(
-        r#"<p style="margin:0 0 16px;">Bonjour <strong>{username}</strong>,</p>
+        r#"{greeting}
 <p style="margin:0 0 16px;">Une nouvelle méthode de double authentification vient d'être ajoutée à votre compte FerrisGit : <strong>{method}</strong>.</p>
 <p style="margin:0 0 16px;">Si vous êtes à l'origine de cet ajout, aucune action n'est nécessaire.</p>
-<p style="margin:0; padding:12px 16px; background-color:#fef3c7; border-radius:8px; color:#92400e;">Si vous n'êtes <strong>pas</strong> à l'origine de cet ajout, contactez immédiatement un administrateur de votre instance FerrisGit.</p>"#,
-        username = esc(username),
+{warning}"#,
+        greeting = greeting(username),
         method = esc(method),
+        warning = warning(
+            "Si vous n'êtes <strong>pas</strong> à l'origine de cet ajout, contactez immédiatement un administrateur de votre instance FerrisGit."
+        ),
     );
     EmailContent {
         subject: "Nouvelle méthode de double authentification ajoutée".to_string(),
@@ -153,10 +174,12 @@ pub fn mfa_reset(username: &str) -> EmailContent {
          Si vous ne vous attendiez pas à ce changement, contactez un administrateur."
     );
     let body_html = format!(
-        r#"<p style="margin:0 0 16px;">Bonjour <strong>{username}</strong>,</p>
+        r#"{greeting}
 <p style="margin:0 0 16px;">Un administrateur de votre instance FerrisGit a réinitialisé la double authentification de votre compte. Vous devrez la configurer de nouveau à votre prochaine connexion.</p>
-<p style="margin:0; padding:12px 16px; background-color:#fef3c7; border-radius:8px; color:#92400e;">Si vous ne vous attendiez pas à ce changement, contactez un administrateur.</p>"#,
-        username = esc(username),
+{warning}"#,
+        greeting = greeting(username),
+        warning =
+            warning("Si vous ne vous attendiez pas à ce changement, contactez un administrateur."),
     );
     EmailContent {
         subject: "La double authentification de votre compte a été réinitialisée".to_string(),
@@ -179,13 +202,15 @@ pub fn password_reset(username: &str, reset_url: &str) -> EmailContent {
          Si vous ne vous attendiez pas à ce changement, contactez un administrateur."
     );
     let body_html = format!(
-        r#"<p style="margin:0 0 16px;">Bonjour <strong>{username}</strong>,</p>
+        r#"{greeting}
 <p style="margin:0 0 16px;">Un administrateur de votre instance FerrisGit a réinitialisé le mot de passe de votre compte. Votre mot de passe actuel ne fonctionne plus et vos sessions en cours ont été fermées.</p>
 <p style="margin:0 0 16px;">Pour choisir un nouveau mot de passe, cliquez sur le bouton ci-dessous.</p>
 {button}
 <p style="margin:16px 0; font-size:13px; color:{TEXT_SECONDARY};">Ce lien expire dans 1 heure. Passé ce délai, demandez à un administrateur de recommencer.</p>
-<p style="margin:0; padding:12px 16px; background-color:#fef3c7; border-radius:8px; color:#92400e;">Si vous ne vous attendiez pas à ce changement, contactez un administrateur.</p>"#,
-        username = esc(username),
+{warning}"#,
+        greeting = greeting(username),
+        warning =
+            warning("Si vous ne vous attendiez pas à ce changement, contactez un administrateur."),
         button = button(reset_url, "Choisir un nouveau mot de passe"),
     );
     EmailContent {

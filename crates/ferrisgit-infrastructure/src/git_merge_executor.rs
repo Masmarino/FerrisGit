@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
+use crate::git_cli;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::merge_executor::{MergeExecutorPort, MergeOutcome};
-use tokio::process::Command;
 
 pub struct GitMergeExecutor {
     storage_root: PathBuf,
@@ -34,18 +34,8 @@ async fn run_git_with_env(
     args: &[&str],
     envs: &[(&str, &str)],
 ) -> Result<(bool, String, String), DomainError> {
-    let output = Command::new("git")
-        .args(args)
-        .envs(envs.iter().copied())
-        .current_dir(repo_path)
-        .output()
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-    Ok((
-        output.status.success(),
-        String::from_utf8_lossy(&output.stdout).trim().to_string(),
-        String::from_utf8_lossy(&output.stderr).trim().to_string(),
-    ))
+    let output = git_cli::run(repo_path, args, envs, None).await?;
+    Ok((output.success, output.stdout_trimmed(), output.stderr))
 }
 
 #[async_trait]
@@ -74,14 +64,15 @@ impl MergeExecutorPort for GitMergeExecutor {
             )));
         }
 
-        let output = Command::new("git")
-            .args(["merge-tree", "--write-tree", &target_tip, &source_tip])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let output = git_cli::run(
+            &repo_path,
+            &["merge-tree", "--write-tree", &target_tip, &source_tip],
+            &[],
+            None,
+        )
+        .await?;
 
-        let tree_oid = match output.status.code() {
+        let tree_oid = match output.code {
             Some(0) => String::from_utf8_lossy(&output.stdout)
                 .lines()
                 .next()
@@ -92,7 +83,7 @@ impl MergeExecutorPort for GitMergeExecutor {
             _ => {
                 return Err(DomainError::Infrastructure(format!(
                     "git merge-tree failed: {}",
-                    String::from_utf8_lossy(&output.stderr)
+                    output.stderr
                 )));
             }
         };
@@ -141,88 +132,26 @@ impl MergeExecutorPort for GitMergeExecutor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::process::Command as StdCommand;
+    use crate::test_git::{git, git_command, git_stdout, init_bare_with_clone, rev_parse};
 
-    fn init_bare_repo_with_diverging_branches(dir: &Path) -> (String, String) {
-        // Builds history in a working checkout and pushes into a bare repo, as production stores repositories.
-        let bare = dir.join("bare.git");
-        assert!(
-            StdCommand::new("git")
-                .args(["init", "--bare", "-q", "-b", "main"])
-                .arg(&bare)
-                .status()
-                .unwrap()
-                .success()
-        );
-
-        let work = dir.join("work");
-        assert!(
-            StdCommand::new("git")
-                .args(["clone", "-q"])
-                .arg(&bare)
-                .arg(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
-        let run = |args: &[&str]| {
-            assert!(
-                StdCommand::new("git")
-                    .args(args)
-                    .current_dir(&work)
-                    .status()
-                    .unwrap()
-                    .success()
-            );
-        };
-        let commit = |message: &str| {
-            assert!(
-                StdCommand::new("git")
-                    .args([
-                        "-c",
-                        "user.email=t@t.com",
-                        "-c",
-                        "user.name=t",
-                        "commit",
-                        "--allow-empty",
-                        "-q",
-                        "-m",
-                        message
-                    ])
-                    .current_dir(&work)
-                    .status()
-                    .unwrap()
-                    .success()
-            );
-        };
+    /// A bare repository whose `feature` branch is one commit ahead of `main`.
+    fn init_bare_repo_with_diverging_branches(dir: &Path) -> PathBuf {
+        let (bare, work) = init_bare_with_clone(dir);
+        let commit = |message: &str| git(&work, &["commit", "--allow-empty", "-q", "-m", message]);
 
         commit("root");
-        run(&["push", "-q", "origin", "main"]);
-        run(&["checkout", "-q", "-b", "feature"]);
+        git(&work, &["push", "-q", "origin", "main"]);
+        git(&work, &["checkout", "-q", "-b", "feature"]);
         commit("feature work");
-        run(&["push", "-q", "origin", "feature"]);
-        run(&["checkout", "-q", "main"]);
-
-        (
-            bare.to_string_lossy().to_string(),
-            work.to_string_lossy().to_string(),
-        )
-    }
-
-    fn rev_parse(repo_path: &Path, rev: &str) -> String {
-        let output = StdCommand::new("git")
-            .args(["rev-parse", rev])
-            .current_dir(repo_path)
-            .output()
-            .unwrap();
-        String::from_utf8_lossy(&output.stdout).trim().to_string()
+        git(&work, &["push", "-q", "origin", "feature"]);
+        bare
     }
 
     #[tokio::test]
     async fn a_clean_merge_moves_the_target_ref_to_a_real_two_parent_commit() {
         let tmp = tempfile::tempdir().unwrap();
-        let (bare_path, work_path) = init_bare_repo_with_diverging_branches(tmp.path());
-        let target_tip_before = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let bare = init_bare_repo_with_diverging_branches(tmp.path());
+        let target_tip_before = rev_parse(&bare, "refs/heads/main");
         let executor = GitMergeExecutor::new(tmp.path().to_path_buf());
 
         let outcome = executor
@@ -233,35 +162,27 @@ mod tests {
         let MergeOutcome::Merged { commit_sha } = outcome else {
             panic!("expected a clean merge")
         };
-        let target_tip_after = rev_parse(bare_path.as_ref(), "refs/heads/main");
+        let target_tip_after = rev_parse(&bare, "refs/heads/main");
         assert_eq!(
             target_tip_after, commit_sha,
             "the target ref must now point at the new merge commit"
         );
         assert_ne!(target_tip_after, target_tip_before);
 
-        let parents_output = StdCommand::new("git")
-            .args(["log", "--pretty=%P", "-1", &commit_sha])
-            .current_dir(&bare_path)
-            .output()
-            .unwrap();
-        let parents: Vec<&str> = std::str::from_utf8(&parents_output.stdout)
-            .unwrap()
-            .split_whitespace()
-            .collect();
+        let parents_output = git_stdout(&bare, &["log", "--pretty=%P", "-1", &commit_sha]);
+        let parents: Vec<&str> = parents_output.split_whitespace().collect();
         assert_eq!(
             parents.len(),
             2,
             "a merge commit must have exactly two parents"
         );
-        let _ = work_path; // only used to build history via a real working checkout
     }
 
     #[tokio::test]
     async fn the_merge_commit_carries_a_fixed_server_identity_instead_of_depending_on_git_config() {
         // Regression: without a global git identity (as in the production container) `git commit-tree` failed.
         let tmp = tempfile::tempdir().unwrap();
-        let (bare_path, _work_path) = init_bare_repo_with_diverging_branches(tmp.path());
+        let bare = init_bare_repo_with_diverging_branches(tmp.path());
         let executor = GitMergeExecutor::new(tmp.path().to_path_buf());
 
         let outcome = executor
@@ -272,13 +193,12 @@ mod tests {
         let MergeOutcome::Merged { commit_sha } = outcome else {
             panic!("expected a clean merge")
         };
-        let log = StdCommand::new("git")
-            .args(["log", "--pretty=%an <%ae> / %cn <%ce>", "-1", &commit_sha])
-            .current_dir(&bare_path)
-            .output()
-            .unwrap();
+        let log = git_stdout(
+            &bare,
+            &["log", "--pretty=%an <%ae> / %cn <%ce>", "-1", &commit_sha],
+        );
         assert_eq!(
-            String::from_utf8_lossy(&log.stdout).trim(),
+            log,
             "FerrisGit <noreply@ferrisgit.local> / FerrisGit <noreply@ferrisgit.local>"
         );
     }
@@ -286,53 +206,10 @@ mod tests {
     #[tokio::test]
     async fn a_conflicting_merge_leaves_the_repository_untouched() {
         let tmp = tempfile::tempdir().unwrap();
-        let bare = tmp.path().join("bare.git");
-        assert!(
-            StdCommand::new("git")
-                .args(["init", "--bare", "-q", "-b", "main"])
-                .arg(&bare)
-                .status()
-                .unwrap()
-                .success()
-        );
-        let work = tmp.path().join("work");
-        assert!(
-            StdCommand::new("git")
-                .args(["clone", "-q"])
-                .arg(&bare)
-                .arg(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
-        let run = |args: &[&str]| {
-            assert!(
-                StdCommand::new("git")
-                    .args(args)
-                    .current_dir(&work)
-                    .status()
-                    .unwrap()
-                    .success()
-            );
-        };
+        let (bare, work) = init_bare_with_clone(tmp.path());
+        let run = |args: &[&str]| git(&work, args);
         let commit = |message: &str| {
-            assert!(
-                StdCommand::new("git")
-                    .args([
-                        "-c",
-                        "user.email=t@t.com",
-                        "-c",
-                        "user.name=t",
-                        "commit",
-                        "-q",
-                        "-m",
-                        message
-                    ])
-                    .current_dir(&work)
-                    .status()
-                    .unwrap()
-                    .success()
-            );
+            git(&work, &["commit", "-q", "-m", message]);
         };
 
         std::fs::write(work.join("README.md"), "line one\n").unwrap();
@@ -370,54 +247,10 @@ mod tests {
     async fn update_ref_with_a_stale_expected_old_value_is_rejected_by_git_itself() {
         // Tests the compare-and-swap directly, because the race inside `merge()` can't be reproduced deterministically.
         let tmp = tempfile::tempdir().unwrap();
-        let bare = tmp.path().join("bare.git");
-        assert!(
-            StdCommand::new("git")
-                .args(["init", "--bare", "-q", "-b", "main"])
-                .arg(&bare)
-                .status()
-                .unwrap()
-                .success()
-        );
-        let work = tmp.path().join("work");
-        assert!(
-            StdCommand::new("git")
-                .args(["clone", "-q"])
-                .arg(&bare)
-                .arg(&work)
-                .status()
-                .unwrap()
-                .success()
-        );
-        let run = |args: &[&str]| {
-            assert!(
-                StdCommand::new("git")
-                    .args(args)
-                    .current_dir(&work)
-                    .status()
-                    .unwrap()
-                    .success()
-            );
-        };
+        let (bare, work) = init_bare_with_clone(tmp.path());
+        let run = |args: &[&str]| git(&work, args);
         let commit = |message: &str| {
-            assert!(
-                StdCommand::new("git")
-                    .args([
-                        "-c",
-                        "user.email=t@t.com",
-                        "-c",
-                        "user.name=t",
-                        "commit",
-                        "--allow-empty",
-                        "-q",
-                        "-m",
-                        message
-                    ])
-                    .current_dir(&work)
-                    .status()
-                    .unwrap()
-                    .success()
-            );
+            git(&work, &["commit", "--allow-empty", "-q", "-m", message]);
         };
         commit("root");
         run(&["push", "-q", "origin", "main"]);
@@ -427,9 +260,8 @@ mod tests {
         let current_tip = rev_parse(&bare, "refs/heads/main");
         assert_ne!(stale_tip, current_tip);
 
-        let status = StdCommand::new("git")
+        let status = git_command(&bare)
             .args(["update-ref", "refs/heads/main", &current_tip, &stale_tip])
-            .current_dir(&bare)
             .status()
             .unwrap();
 

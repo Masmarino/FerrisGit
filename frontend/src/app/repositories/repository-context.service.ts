@@ -1,14 +1,20 @@
 import { inject, Injectable, signal } from '@angular/core';
-import { RepositoriesService } from './repositories.service';
+import { RepositoriesService, RepositoryRole } from './repositories.service';
 import { PageTitleService } from '../shell/page-title.service';
+
+/** A group above the repository, as a breadcrumb step. */
+export interface RepositoryAncestor {
+  label: string;
+  link: string[];
+}
 
 export interface RepositoryContext {
   repositoryId: string;
   path: string[];
   /** `null` until the role fetch resolves. Templates treat it as no elevated permissions, so a role-gated item does not flash into view. */
-  role: 'owner' | 'reader' | 'contributor' | 'maintainer' | null;
+  role: RepositoryRole | null;
   /** Groups above and including the repository's own group, root-first; empty for a personal repository. */
-  ancestors: { label: string; link: string[] }[];
+  ancestors: RepositoryAncestor[];
   /** The repository's own direct group id (`null` for a personal repository), to fetch the breadcrumb switcher's siblings. */
   groupId: string | null;
 }
@@ -20,7 +26,7 @@ export class RepositoryContextService {
 
   readonly current = signal<RepositoryContext | null>(null);
 
-  enter(repositoryId: string, path: string[], ancestors: { label: string; link: string[] }[], groupId: string | null): void {
+  enter(repositoryId: string, path: string[], ancestors: RepositoryAncestor[], groupId: string | null): void {
     if (this.current()?.repositoryId === repositoryId) {
       return;
     }

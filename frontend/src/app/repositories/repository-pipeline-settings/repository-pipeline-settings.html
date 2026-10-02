@@ -35,7 +35,7 @@
             <gbt-switch label="CI activée pour ce dépôt" [ngModel]="ciEnabledShown()" (ngModelChange)="setPipelineEnabled($event)" />
             <div class="repository-pipeline-settings__field-footer">
               <p class="repository-pipeline-settings__hint repository-pipeline-settings__switch-hint">
-                {{ s.ciEnabled ? 'Un pipeline est lancé à chaque push qui contient le fichier ci-dessous.' : "Aucun pipeline n'est lancé tant que la CI est désactivée." }}
+                {{ s.ciEnabled ? 'Un pipeline est lancé à chaque push, si le fichier ci-dessous existe sur la branche par défaut.' : "Aucun pipeline n'est lancé tant que la CI est désactivée." }}
               </p>
               <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().ciEnabled }" />
             </div>
@@ -45,7 +45,7 @@
             <!-- `(committed)` rather than `(ngModelChange)`: saving on every keystroke would store every half-typed path. -->
             <gbt-input label="Chemin du fichier pipeline" mono placeholder=".ferrisgit-ci.yml" [errorMessage]="pathError()" [ngModel]="s.pipelineFilePath" (committed)="updatePipelineFilePath($event)" />
             <div class="repository-pipeline-settings__field-footer">
-              <p class="repository-pipeline-settings__hint">Relatif à la racine du dépôt, sur la branche poussée.</p>
+              <p class="repository-pipeline-settings__hint">Relatif à la racine du dépôt. Il est lu sur la branche par défaut après chaque push.</p>
               <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().pipelineFilePath }" />
             </div>
           </div>

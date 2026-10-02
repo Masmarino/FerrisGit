@@ -29,10 +29,11 @@ import {
   createListToolbarState,
 } from '@masmarino/gabarit';
 import { BranchInfo, MergeRequestSummary, MergeRequestsService } from '../merge-requests.service';
+import { mergeRequestEnd } from '../merge-request-presentation';
 import { Label, LabelsService } from '../../labels/labels.service';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { injectRepositoryPermissions } from '../../repositories/repository-role';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 
 type SortKey = 'date' | 'title';
@@ -100,7 +101,7 @@ export class MergeRequestList implements OnInit {
   private labelsService = inject(LabelsService);
   private milestonesService = inject(MilestonesService);
   private pageTitle = inject(PageTitleService);
-  private repositoryContext = inject(RepositoryContextService);
+  private permissions = injectRepositoryPermissions();
   private toast = inject(GbtToastService);
 
   protected list = signal<MergeRequestSummary[]>([]);
@@ -111,8 +112,9 @@ export class MergeRequestList implements OnInit {
   protected milestones = signal<Milestone[]>([]);
   protected selectedLabelIds = signal<string[]>([]);
   protected selectedMilestoneId = signal<string | null>(null);
-  protected role = computed(() => this.repositoryContext.current()?.role ?? null);
-  protected canWrite = computed(() => this.role() === 'owner' || this.role() === 'contributor' || this.role() === 'maintainer');
+  protected canWrite = this.permissions.canWrite;
+  /** The server merges only for the owner and Maintainers (`POST /merge-requests/{id}/merge`): a Contributor does not get the menu entry. */
+  protected canMerge = this.permissions.canMaintain;
 
   protected labelOptions = computed<SelectOption<string>[]>(() => this.labels().map((label) => ({ value: label.id, label: label.name, color: label.color })));
   protected milestoneOptions = computed<SelectOption<string | null>[]>(() => [
@@ -173,10 +175,7 @@ export class MergeRequestList implements OnInit {
         status: statusPresentation('merge-request', mergeRequest.status),
         milestoneTitle: mergeRequest.milestoneId ? (milestoneTitles.get(mergeRequest.milestoneId) ?? null) : null,
         branchesTitle: `${mergeRequest.sourceBranch} → ${mergeRequest.targetBranch}`,
-        ended:
-          mergeRequest.status !== 'open' && mergeRequest.closedAt
-            ? { verb: mergeRequest.status === 'merged' ? 'fusionnée' : 'fermée', at: mergeRequest.closedAt }
-            : null,
+        ended: mergeRequestEnd(mergeRequest),
         menuLabel: `Actions de la demande de fusion « ${mergeRequest.title} »`,
       }));
   });

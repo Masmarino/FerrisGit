@@ -1,9 +1,8 @@
 import { LOCALE_ID } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { RepositoryWebhooks } from './repository-webhooks';
 import { RepositorySettingsService, WebhookDelivery, WebhookSummary } from '../repository-settings.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { createSettingsSection } from '../settings-section-testing';
 
 describe('RepositoryWebhooks', () => {
   function setup() {
@@ -13,17 +12,11 @@ describe('RepositoryWebhooks', () => {
       deleteWebhook: vi.fn(() => of<void>(undefined)),
       listWebhookDeliveries: vi.fn(() => of<WebhookDelivery[]>([])),
     };
-    const toastStub = { show: vi.fn() };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: RepositorySettingsService, useValue: repositorySettingsStub },
-        { provide: GbtToastService, useValue: toastStub },
-        { provide: LOCALE_ID, useValue: 'fr' },
-      ],
-    });
-    const fixture = TestBed.createComponent(RepositoryWebhooks);
-    fixture.componentRef.setInput('repositoryId', 'repo-1');
-    return { fixture, component: fixture.componentInstance, repositorySettingsStub, toastStub };
+    const providers = [
+      { provide: RepositorySettingsService, useValue: repositorySettingsStub },
+      { provide: LOCALE_ID, useValue: 'fr' },
+    ];
+    return { ...createSettingsSection(RepositoryWebhooks, providers), repositorySettingsStub };
   }
 
   it('lists configured webhooks', () => {
@@ -72,7 +65,7 @@ describe('RepositoryWebhooks', () => {
 
   it('loads and displays delivery history when toggled', () => {
     const { component, fixture, repositorySettingsStub } = setup();
-    // The heading looks up the webhook's URL from webhooks(), so it must be there for the drawer to render.
+    // The heading looks up the webhook's URL in the loaded list, so it must be there for the drawer to render.
     repositorySettingsStub.listWebhooks.mockReturnValue(
       of([{ id: 'w1', url: 'https://example.com', events: ['issue_closed'], active: true, createdAt: '2026-01-01T00:00:00Z' }]),
     );
@@ -152,7 +145,7 @@ describe('RepositoryWebhooks', () => {
     component['newWebhookEvents'].set(['issue_closed']);
     component.addWebhook();
 
-    // `ngOnInit` never ran here, so this call came only from `refresh()` in `addWebhook()`.
+    // `ngOnInit` never ran here, so this call came only from the refresh after `addWebhook()`.
     expect(repositorySettingsStub.listWebhooks).toHaveBeenCalledTimes(1);
   });
 

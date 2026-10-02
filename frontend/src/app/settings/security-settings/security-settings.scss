@@ -1,0 +1,18 @@
+@use '../../shared/layout/settings-section';
+@use '../fields';
+
+:host {
+  @include settings-section.section;
+}
+
+@include fields.fields;
+
+.admin-settings__jwt ::ng-deep .gbt-input__wrapper {
+  max-width: 8rem;
+}
+
+@media (max-width: 599px) {
+  .admin-settings__switch ::ng-deep .gbt-switch {
+    min-height: 44px;
+  }
+}

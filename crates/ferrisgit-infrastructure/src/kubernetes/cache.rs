@@ -1,3 +1,4 @@
+use crate::error::infra;
 use ferrisgit_domain::error::DomainError;
 use k8s_openapi::api::core::v1::{
     PersistentVolumeClaim, PersistentVolumeClaimSpec, VolumeResourceRequirements,
@@ -33,12 +34,7 @@ pub async fn ensure_cache_pvcs(
     let pvcs: Api<PersistentVolumeClaim> = Api::namespaced(client.clone(), namespace);
     for key in cache_keys {
         let name = pvc_name(repository_id, key);
-        if pvcs
-            .get_opt(&name)
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-            .is_some()
-        {
+        if pvcs.get_opt(&name).await.map_err(infra)?.is_some() {
             continue;
         }
         let mut requests = BTreeMap::new();
@@ -63,7 +59,7 @@ pub async fn ensure_cache_pvcs(
         match pvcs.create(&PostParams::default(), &pvc).await {
             Ok(_) => {}
             Err(kube::Error::Api(err)) if err.code == 409 => {} // created concurrently between our get_opt and create — fine
-            Err(err) => return Err(DomainError::Infrastructure(err.to_string())),
+            Err(err) => return Err(infra(err)),
         }
     }
     Ok(())

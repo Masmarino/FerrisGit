@@ -35,27 +35,31 @@ export interface SaveWikiPageOptions {
 export class WikiService {
   private http = inject(HttpClient);
 
+  private pageUrl(repositoryId: string, slug: string): string {
+    return `/api/repositories/${repositoryId}/wiki/pages/${encodeURIComponent(slug)}`;
+  }
+
   list(repositoryId: string) {
     return this.http.get<WikiList>(`/api/repositories/${repositoryId}/wiki`);
   }
 
   detail(repositoryId: string, slug: string) {
-    return this.http.get<WikiPageDetail>(`/api/repositories/${repositoryId}/wiki/pages/${encodeURIComponent(slug)}`);
+    return this.http.get<WikiPageDetail>(this.pageUrl(repositoryId, slug));
   }
 
   save(repositoryId: string, slug: string, options: SaveWikiPageOptions) {
-    return this.http.put<WikiPageDetail>(`/api/repositories/${repositoryId}/wiki/pages/${encodeURIComponent(slug)}`, options);
+    return this.http.put<WikiPageDetail>(this.pageUrl(repositoryId, slug), options);
   }
 
   delete(repositoryId: string, slug: string, baseSha: string) {
-    return this.http.delete<void>(`/api/repositories/${repositoryId}/wiki/pages/${encodeURIComponent(slug)}?baseSha=${encodeURIComponent(baseSha)}`);
+    return this.http.delete<void>(`${this.pageUrl(repositoryId, slug)}?baseSha=${encodeURIComponent(baseSha)}`);
   }
 
   revisions(repositoryId: string, slug: string) {
-    return this.http.get<WikiRevision[]>(`/api/repositories/${repositoryId}/wiki/pages/${encodeURIComponent(slug)}/revisions`);
+    return this.http.get<WikiRevision[]>(`${this.pageUrl(repositoryId, slug)}/revisions`);
   }
 
   revisionContent(repositoryId: string, slug: string, commitSha: string) {
-    return this.http.get<{ content: string }>(`/api/repositories/${repositoryId}/wiki/pages/${encodeURIComponent(slug)}/revisions/${encodeURIComponent(commitSha)}`);
+    return this.http.get<{ content: string }>(`${this.pageUrl(repositoryId, slug)}/revisions/${encodeURIComponent(commitSha)}`);
   }
 }

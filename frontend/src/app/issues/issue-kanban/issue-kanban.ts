@@ -15,15 +15,13 @@ import {
   PageHeader,
   PageLayout,
   Select,
-  SelectOption,
   Skeleton,
   Tag,
   UserChip,
 } from '@masmarino/gabarit';
 import { Issue, IssuesService } from '../issues.service';
 import { IssueKindPresentation, issueKindPresentation } from '../issue-kind';
-import { Label, LabelsService } from '../../labels/labels.service';
-import { Milestone, MilestonesService } from '../../milestones/milestones.service';
+import { createIssueFilters } from '../issue-filters';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { PageTitleService } from '../../shell/page-title.service';
@@ -80,14 +78,12 @@ function insertionIndex(full: Issue[], shown: Issue[], index: number): number {
   styleUrl: './issue-kanban.scss',
 })
 export class IssueKanban implements OnInit {
-  private pageTitle = inject(PageTitleService);
   repositoryId = input.required<string>();
   path = input.required<string[]>();
 
+  private pageTitle = inject(PageTitleService);
   private router = inject(Router);
   private issuesService = inject(IssuesService);
-  private labelsService = inject(LabelsService);
-  private milestonesService = inject(MilestonesService);
   private repoContext = inject(RepositoryContextService);
   private toast = inject(GbtToastService);
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
@@ -96,10 +92,7 @@ export class IssueKanban implements OnInit {
   protected board = signal<Board>(emptyBoard());
   protected loading = signal(true);
   protected loadFailed = signal(false);
-  protected labels = signal<Label[]>([]);
-  protected milestones = signal<Milestone[]>([]);
-  protected selectedLabelIds = signal<string[]>([]);
-  protected selectedMilestoneId = signal<string | null>(null);
+  protected filters = createIssueFilters(() => this.repositoryId(), () => this.load());
   protected search = signal('');
   protected announcement = signal('');
 
@@ -116,20 +109,13 @@ export class IssueKanban implements OnInit {
     return role === 'owner' || role === 'contributor' || role === 'maintainer';
   });
 
-  protected labelOptions = computed<SelectOption<string>[]>(() => this.labels().map((label) => ({ value: label.id, label: label.name, color: label.color })));
-  protected milestoneOptions = computed<SelectOption<string | null>[]>(() => [
-    { value: null, label: 'Tous les milestones' },
-    ...this.milestones().map((milestone) => ({ value: milestone.id, label: milestone.title })),
-  ]);
-  private milestoneTitleById = computed(() => new Map(this.milestones().map((milestone) => [milestone.id, milestone.title])));
-
   private query = computed(() => this.search().trim().toLowerCase());
   private matches = (issue: Issue) => issue.title.toLowerCase().includes(this.query());
 
   protected lanes = computed<LaneView[]>(() => {
     const board = this.board();
     const query = this.query();
-    const milestoneTitles = this.milestoneTitleById();
+    const milestoneTitles = this.filters.milestoneTitleById();
     return STATUSES.map((status) => {
       const issues = query ? board[status].filter(this.matches) : board[status];
       return {
@@ -159,19 +145,17 @@ export class IssueKanban implements OnInit {
     return this.query() ? `${this.shownCount()} ${noun} sur ${total}` : `${total} ${noun}`;
   });
 
-  protected hasServerFilters = computed(() => this.selectedLabelIds().length > 0 || this.selectedMilestoneId() !== null);
-  protected hasActiveFilters = computed(() => this.query() !== '' || this.hasServerFilters());
-  protected isEmptyRepository = computed(() => !this.loading() && !this.loadFailed() && this.totalCount() === 0 && !this.hasServerFilters());
+  protected hasActiveFilters = computed(() => this.query() !== '' || this.filters.hasSelection());
+  protected isEmptyRepository = computed(() => !this.loading() && !this.loadFailed() && this.totalCount() === 0 && !this.filters.hasSelection());
 
   ngOnInit(): void {
     this.pageTitle.set('Tickets');
     this.load();
-    this.labelsService.listForRepository(this.repositoryId()).subscribe({ next: (labels) => this.labels.set(labels) });
-    this.milestonesService.listForRepository(this.repositoryId()).subscribe({ next: (milestones) => this.milestones.set(milestones) });
+    this.filters.loadOptions();
   }
 
   private load(): void {
-    this.issuesService.list(this.repositoryId(), { labelIds: this.selectedLabelIds(), milestoneId: this.selectedMilestoneId() ?? undefined }).subscribe({
+    this.issuesService.list(this.repositoryId(), this.filters.params()).subscribe({
       next: (issues) => {
         const board = emptyBoard();
         for (const issue of issues) {
@@ -190,24 +174,9 @@ export class IssueKanban implements OnInit {
     });
   }
 
-  protected onLabelFilterChange(labelIds: string[]): void {
-    this.selectedLabelIds.set(labelIds);
-    this.load();
-  }
-
-  protected onMilestoneFilterChange(milestoneId: string | null): void {
-    this.selectedMilestoneId.set(milestoneId);
-    this.load();
-  }
-
   protected resetFilters(): void {
-    const refetch = this.hasServerFilters();
     this.search.set('');
-    this.selectedLabelIds.set([]);
-    this.selectedMilestoneId.set(null);
-    if (refetch) {
-      this.load();
-    }
+    this.filters.clear();
   }
 
   /** A card dropped on a lane. The CDK indices count only the shown cards, which a search may have filtered, so place it next to the visible card it was dropped by. Moving to another lane saves the new status. */

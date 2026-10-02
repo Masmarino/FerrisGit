@@ -14,6 +14,9 @@ import { HomePage } from './home/home-page/home-page';
 import { LoginPage } from './auth/login-page/login-page';
 import { WorkspacePage } from './repositories/workspace-page/workspace-page';
 import { RepositoryPathResolver } from './repositories/repository-path-resolver/repository-path-resolver';
+import { DocsPage } from './docs/docs-page/docs-page';
+import { DocsService } from './docs/docs.service';
+import { fakeDocsService } from './docs/docs-fixtures';
 
 const TOKEN_KEY = 'ferrisgit_token';
 
@@ -28,6 +31,7 @@ async function open(url: string, options: { signedIn?: boolean; publicPagesEnabl
       provideHttpClientTesting(),
       provideRouter(routes),
       { provide: PublicConfigService, useValue: { publicPagesEnabled: () => of(options.publicPagesEnabled ?? true) } },
+      { provide: DocsService, useValue: fakeDocsService() },
     ],
   });
   const router = TestBed.inject(Router);
@@ -63,6 +67,21 @@ describe('routes', () => {
       expect(await open(url)).toEqual({ url: '/login', components: [LoginPage] });
     });
 
+    describe('documentation', () => {
+      it.each([true, false])('opens /docs at its first page in the public layout, public pages on or off (%s)', async (publicPagesEnabled) => {
+        expect(await open('/docs', { publicPagesEnabled })).toEqual({ url: '/docs/demarrer/presentation', components: [PublicLayout, DocsPage] });
+      });
+
+      it('opens a page with its anchor, public pages off', async () => {
+        const url = '/docs/ci-cd/reference-yaml#variables';
+        expect(await open(url, { publicPagesEnabled: false })).toEqual({ url, components: [PublicLayout, DocsPage] });
+      });
+
+      it.each(['/docs/inconnue', '/docs/ci-cd/inconnue', '/docs/a/b/c'])('keeps %s in the docs, for their own "not found"', async (url) => {
+        expect(await open(url)).toEqual({ url, components: [PublicLayout, DocsPage] });
+      });
+    });
+
     it('answers an unknown URL with the public "not found" page', async () => {
       expect(await open('/does/not/exist')).toEqual({ url: '/does/not/exist', components: [PublicLayout, PublicNotFound] });
     });
@@ -80,6 +99,14 @@ describe('routes', () => {
     it('opens a repository in the shell, as before', async () => {
       const url = '/repositories/alice/hello/-/releases';
       expect(await open(url, { signedIn: true })).toEqual({ url, components: [AppShell, RepositoryPathResolver] });
+    });
+
+    it('opens the documentation in the shell', async () => {
+      expect(await open('/docs', { signedIn: true })).toEqual({ url: '/docs/demarrer/presentation', components: [AppShell, DocsPage] });
+    });
+
+    it('keeps an unknown docs page in the shell, for the docs\' own "not found"', async () => {
+      expect(await open('/docs/ci-cd/inconnue', { signedIn: true })).toEqual({ url: '/docs/ci-cd/inconnue', components: [AppShell, DocsPage] });
     });
 
     it('can still open the catalog at /explore, in the public layout', async () => {

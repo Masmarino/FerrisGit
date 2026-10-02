@@ -9,7 +9,7 @@ import { AdminSettings } from './admin-settings';
 import { SettingsService, SmtpSettings, SystemSettings, SystemSettingsUpdate } from '../settings.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { GbtToastService } from '@masmarino/gabarit';
-import { inShellContentArea, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
+import { atPhoneWidth, inDarkTheme, inShellContentArea, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectSettingsLayout, fakeToast } from '../../shared/layout/settings-story-helpers';
 
 @Component({ template: '' })
@@ -76,7 +76,13 @@ function fakeSettingsService(initial: SystemSettings, options: { refuse?: boolea
           if (options.refuse) {
             return throwError(() => new Error('refused'));
           }
-          current = { ...current, ...(update as Partial<SystemSettings>) };
+          const { runnerRegistrationToken, ...rest } = update;
+          current = {
+            ...current,
+            ...(rest as Partial<SystemSettings>),
+            // The token is stored hashed: only whether one exists comes back.
+            ...(runnerRegistrationToken === undefined ? {} : { runnerRegistrationTokenConfigured: runnerRegistrationToken !== null }),
+          };
           return of(current);
         }),
       ),
@@ -149,6 +155,56 @@ export const Kubernetes: Story = {
 
 export const KubernetesAutoDetected: Story = {
   decorators: [startAt('/'), withSettings(fakeSettingsService(K8S_AUTO_DETECTED_SETTINGS))],
+  play: ({ canvasElement }) => expectSettingsPage(canvasElement, 'Exécution'),
+};
+
+export const RegistrationTokenNotConfigured: Story = {
+  decorators: [startAt('/'), withSettings(fakeSettingsService({ ...DOCKER_SETTINGS, runnerRegistrationTokenConfigured: false, maxConcurrentJobs: null, logRetentionDays: null }))],
+  play: async ({ canvasElement }) => {
+    await expectSettingsPage(canvasElement, 'Exécution');
+    await waitFor(() => expect(canvasElement.querySelector('[data-field="runnerRegistrationToken"] gbt-badge')?.textContent?.trim()).toBe('Non configuré'));
+  },
+};
+
+export const GeneratedRegistrationToken: Story = {
+  decorators: [startAt('/'), withSettings(fakeSettingsService({ ...DOCKER_SETTINGS, runnerRegistrationTokenConfigured: false }))],
+  play: async ({ canvasElement }) => {
+    await expectSettingsPage(canvasElement, 'Exécution');
+    const generate = await waitFor(() => {
+      const found = Array.from(canvasElement.querySelectorAll<HTMLButtonElement>('[data-field="runnerRegistrationToken"] button')).find((b) => b.textContent?.trim() === 'Générer un jeton');
+      if (!found) throw new Error('"Générer un jeton" not rendered yet');
+      return found;
+    });
+    generate.click();
+    await waitFor(() => expect(canvasElement.querySelector('[data-field="runnerRegistrationToken"] gbt-secret-reveal')).not.toBeNull());
+    await expect(canvasElement.querySelector('[data-field="runnerRegistrationToken"] gbt-badge')?.textContent?.trim()).toBe('Configuré');
+  },
+};
+
+export const ConfirmRemoveRegistrationToken: Story = {
+  decorators: [startAt('/'), inDarkTheme],
+  play: async ({ canvasElement }) => {
+    await expectSettingsPage(canvasElement, 'Exécution');
+    const remove = await waitFor(() => {
+      const found = Array.from(canvasElement.querySelectorAll<HTMLButtonElement>('[data-field="runnerRegistrationToken"] button')).find((b) => b.textContent?.trim() === 'Supprimer le jeton');
+      if (!found) throw new Error('"Supprimer le jeton" not rendered yet');
+      return found;
+    });
+    remove.click();
+    await waitFor(() => expect(canvasElement.ownerDocument.querySelector('[role="dialog"]')?.textContent).toContain("Supprimer le jeton d'enregistrement"));
+  },
+};
+
+export const ExecutionAtPhoneWidth: Story = {
+  decorators: [startAt('/'), atPhoneWidth],
+  play: async ({ canvasElement }) => {
+    await expectSettingsPage(canvasElement, 'Exécution');
+    await expect(canvasElement.querySelector('gbt-page-layout')!.getBoundingClientRect().width).toBeLessThan(769);
+  },
+};
+
+export const ExecutionInDarkTheme: Story = {
+  decorators: [startAt('/'), inDarkTheme],
   play: ({ canvasElement }) => expectSettingsPage(canvasElement, 'Exécution'),
 };
 

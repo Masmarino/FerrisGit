@@ -1,7 +1,9 @@
 use std::net::SocketAddr;
 use std::path::PathBuf;
 
-use ferrisgit_api::{build_router, config::Config, state::AppState};
+use tokio::sync::watch;
+
+use ferrisgit_api::{build_router, config::Config, log_retention_sweep, state::AppState};
 use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
 
 /// Detached: runs for the life of the process. A failed tick logs and the loop continues.
@@ -17,6 +19,32 @@ fn spawn_metrics_snapshot_timer(state: &AppState) {
         }
     });
 }
+
+/// Resolves on Ctrl-C or, on Unix, SIGTERM (what `docker stop` and Kubernetes send).
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c()
+            .await
+            .expect("failed to listen for Ctrl-C");
+    };
+    #[cfg(unix)]
+    let terminate = async {
+        tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+            .expect("failed to listen for SIGTERM")
+            .recv()
+            .await;
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+    tokio::select! {
+        _ = ctrl_c => {}
+        _ = terminate => {}
+    }
+}
+
+/// Long-lived connections (the pipeline event streams) never end by themselves: past this delay the server stops
+/// waiting for them.
+const SHUTDOWN_GRACE: std::time::Duration = std::time::Duration::from_secs(10);
 
 #[tokio::main]
 async fn main() {
@@ -36,6 +64,12 @@ async fn main() {
     let state = AppState::new(pool, config.clone()).await;
 
     spawn_metrics_snapshot_timer(&state);
+    let (shutdown_tx, shutdown_rx) = watch::channel(false);
+    let log_retention_sweep = log_retention_sweep::spawn(
+        state.purge_expired_job_logs.clone(),
+        log_retention_sweep::SWEEP_EVERY,
+        shutdown_rx.clone(),
+    );
 
     BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
         .execute(
@@ -68,11 +102,27 @@ async fn main() {
         .await
         .expect("failed to bind");
     tracing::info!("listening on {addr}");
+    tokio::spawn(async move {
+        shutdown_signal().await;
+        tracing::info!("shutting down");
+        shutdown_tx.send_replace(true);
+    });
+    let mut graceful = shutdown_rx.clone();
     // Populates `ConnectInfo<SocketAddr>`, the per-IP rate limiters' key.
-    axum::serve(
+    let server = axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),
     )
-    .await
-    .expect("server error");
+    .with_graceful_shutdown(async move {
+        graceful.wait_for(|stopped| *stopped).await.ok();
+    });
+    let mut grace_deadline = shutdown_rx;
+    tokio::select! {
+        result = async { server.await } => result.expect("server error"),
+        _ = async {
+            grace_deadline.wait_for(|stopped| *stopped).await.ok();
+            tokio::time::sleep(SHUTDOWN_GRACE).await;
+        } => tracing::warn!("closing with connections still open"),
+    }
+    log_retention_sweep.await.ok();
 }

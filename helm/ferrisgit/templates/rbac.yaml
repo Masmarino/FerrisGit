@@ -1,0 +1,73 @@
+{{- if .Values.kubernetesExecutor.enabled }}
+{{- $sa := include "ferrisgit.serviceAccountName" . }}
+{{- $jobsNamespace := include "ferrisgit.jobsNamespace" . }}
+# What the Kubernetes execution engine needs: a Pod per CI job, its logs, and the cache claims. Never Secrets. Same rules
+# as the README ("Kubernetes execution engine") and as the fixture of the RBAC test in ferrisgit-infrastructure.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $sa }}
+  labels:
+    {{- include "ferrisgit.labels" . | nindent 4 }}
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $sa }}
+  namespace: {{ $jobsNamespace }}
+  labels:
+    {{- include "ferrisgit.labels" . | nindent 4 }}
+rules:
+  - apiGroups: [""]
+    resources: ["pods", "pods/log"]
+    verbs: ["get", "list", "watch", "create", "delete"]
+  - apiGroups: [""]
+    resources: ["persistentvolumeclaims"]
+    verbs: ["get", "list", "create"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $sa }}
+  namespace: {{ $jobsNamespace }}
+  labels:
+    {{- include "ferrisgit.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: Role
+  name: {{ $sa }}
+  apiGroup: rbac.authorization.k8s.io
+{{- if .Values.kubernetesExecutor.detectStorageClass }}
+---
+# Cluster-scoped and read-only: it only pre-fills the cache StorageClass in the admin settings.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ printf "%s-%s-storageclasses" .Release.Namespace .Release.Name }}
+  labels:
+    {{- include "ferrisgit.labels" . | nindent 4 }}
+rules:
+  - apiGroups: ["storage.k8s.io"]
+    resources: ["storageclasses"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ printf "%s-%s-storageclasses" .Release.Namespace .Release.Name }}
+  labels:
+    {{- include "ferrisgit.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $sa }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  kind: ClusterRole
+  name: {{ printf "%s-%s-storageclasses" .Release.Namespace .Release.Name }}
+  apiGroup: rbac.authorization.k8s.io
+{{- end }}
+{{- end }}

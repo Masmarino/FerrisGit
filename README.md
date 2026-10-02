@@ -31,8 +31,10 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 
 **Hosting and collaboration**
 
-- Git over HTTP (smart protocol): clone, fetch and push, authenticated with your username and an API token.
-- Repositories owned by a user or nested inside hierarchical **groups**, public or private.
+- Git over HTTP (smart protocol): clone, fetch and push, authenticated with your username and a personal access token
+  (public repositories can be cloned anonymously while the public pages are on).
+- Repositories owned by a user or nested inside hierarchical **groups**, public or private (the description and the
+  visibility can be changed afterwards; any signed-in user can create a top-level group).
 - Per-repository and per-group roles: **Reader**, **Contributor** and **Maintainer**.
 - **Merge requests** with threaded inline comments, code suggestions that can be applied from the interface,
   approvals and change requests, conflict detection, and a timeline of everything that happened.
@@ -42,13 +44,15 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 - In-app **notifications**, **search**, a personal dashboard, and repository language statistics.
 - **Public pages**: visitors without an account can browse public repositories (catalogue, README, files, commits and
   releases) and download release assets, read-only.
+- **Documentation** at `/docs`, open to everyone, signed in or not, and independent of the public pages switch: a user
+  guide, the CI/CD reference, administration and self-hosting, and the REST API reference, in French, with search.
 
 **CI/CD**
 
 - Pipelines described in a `.ferrisgit-ci.yml` file at the root of the repository.
 - Two execution engines: **Docker runners** (a small `ferrisgit-runner` binary polling the server) or
   **Kubernetes**, where each job runs as a Pod.
-- Per-repository CI variables, encrypted at rest, and per-job caches.
+- Per-repository CI variables, encrypted at rest (Docker runners only), and per-job caches (Kubernetes only).
 
 **Accounts and administration**
 
@@ -57,9 +61,9 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 - Free registration behind an administrator switch, or accounts created by e-mail invitation.
 - Administrator tooling: user list and detail pages, invitations, password resets sent by e-mail, MFA resets,
   promotion and demotion of administrators, and deletion of a user with anonymisation of their contributions.
-- Instance settings edited in the interface (SMTP, registration, execution engine, retention), plus a dashboard
-  with usage metrics and a health page.
-- Personal API tokens.
+- Instance settings edited in the interface (SMTP, registration, execution engine, runner registration token,
+  concurrent job ceiling, job log retention), plus a dashboard with usage metrics and a health page.
+- Personal access tokens for Git over HTTPS.
 
 The web interface is in French.
 
@@ -140,10 +144,16 @@ The Compose file additionally reads `POSTGRES_PASSWORD`, which is shared by the 
 
 Other settings are managed at runtime by an administrator, under **Réglages admin**:
 
-- **E-mail (SMTP)**: server, credentials and sender. Needed for invitations, password resets and notifications.
-  When a message cannot be sent, the administrator is given the link to pass on manually.
+- **E-mail (SMTP)**: server, credentials and sender. Needed for invitations, password resets and security alerts
+  (activity notifications stay in the application). When a message cannot be sent, the administrator is given the link
+  to pass on manually.
 - **Registration**: free sign-up is off by default; administrators can always invite users.
-- **Execution engine**: Docker runners or Kubernetes (see [CI/CD](#cicd)), and job retention.
+- **Execution engine**: Docker runners or Kubernetes (see [CI/CD](#cicd)).
+- **Docker runners**: the instance registration token that lets runners register themselves (stored hashed, can be
+  generated in the browser and is shown once), and a ceiling on the number of jobs running at the same time (Docker
+  runners only, empty for no limit).
+- **Job log retention**: a number of days after which the log text of finished jobs is deleted (empty to keep logs
+  forever). See [Log retention](#log-retention).
 
 ## Using FerrisGit
 
@@ -155,8 +165,11 @@ Repositories are served under the path of their owner or group:
 git clone https://ferrisgit.example.com/<owner-or-group-path>/<repository>.git
 ```
 
-Git authenticates with HTTP Basic credentials: your **username** and a **personal API token**, created under
-*Mon compte → Jetons d'accès*. Wikis are separate repositories reachable at `<repository>.wiki.git`.
+Git authenticates with HTTP Basic credentials: your **username** and a **personal access token** (`fg_…`), created
+under *Mon compte → Jetons Git*. A token is for Git over HTTPS only (clone, fetch, push): it does not authenticate
+against the REST API, which takes the session obtained at sign-in. Wikis are separate repositories reachable at
+`<repository>.wiki.git`. A public repository, and its wiki, can be cloned without credentials while *Pages publiques*
+is on; see [Public pages](#public-pages).
 
 ### Public pages
 
@@ -169,14 +182,14 @@ same URLs the signed-in interface uses, so a link to `/repositories/<owner>/<rep
 - issues, merge requests, pipelines, wikis and settings are never exposed; signed-in users keep the usual interface.
 
 A private repository, an unknown one and a repository hidden because the pages are switched off all answer with the
-same "not found or private" page, so nothing reveals which private repositories exist. Draft releases are hidden.
+same "not found or private" page (a 401 for Git), so nothing reveals which private repositories exist. Draft releases are hidden.
 Visitors are rate limited per client IP.
 
 Two switches under *Admin → Réglages → Sécurité → Pages publiques* control the feature:
 
 | Setting | Default | Effect |
 |---|---|---|
-| Pages publiques | on | Turns the anonymous pages and the read-only `/api/public/*` API on or off. When off, `/` redirects to the sign-in page. |
+| Pages publiques | on | Turns the anonymous pages, the read-only `/api/public/*` API and the anonymous Git clone of public repositories (wikis included) on or off. When off, `/` redirects to the sign-in page and an anonymous clone gets the same 401 as a private repository; signed-in users (username and token) still read public repositories. |
 | Référencement par les moteurs de recherche | off | Lets search engines index the public pages. Off, every public response carries `X-Robots-Tag: noindex, nofollow` and `/robots.txt` disallows everything; on, only `/api/`, `/account` and `/admin/` are disallowed. |
 
 What a public repository shows is what an anonymous `git clone` of it already reveals: commit author names and
@@ -187,12 +200,14 @@ an unpublished draft release) are listed. Make a repository private if that is a
 
 | Role | Can |
 |---|---|
-| Reader | Browse and clone. |
-| Contributor | Reader rights plus contributing: open merge requests and issues, comment, review, apply suggestions, set labels. |
+| Reader | Browse and clone; read issues, merge requests and wikis. |
+| Contributor | Reader rights plus contributing: open issues and merge requests, comment on both, review, apply suggestions, set labels, be assigned an issue. |
 | Maintainer | Contributor rights plus merging, repository settings, CI variables, releases and tags, and managing collaborators. |
 
-Roles can be granted on a repository or on a group; a group role applies to everything below it in the hierarchy.
-Every group always keeps at least one Maintainer.
+Roles can be granted on a repository or on a group; a group role applies to everything below it in the hierarchy,
+and the effective role is the highest of them. On a public repository every signed-in user is a Reader. The interface
+only shows the buttons the server accepts (for instance *Fusionner* is for Maintainers and owners only). Every group
+always keeps at least one Maintainer.
 
 ### Administration
 
@@ -233,16 +248,24 @@ jobs:
 
 | Key | Meaning |
 |---|---|
-| `stages` | Ordered list of stages. Jobs of a stage run in parallel. |
+| `stages` | Ordered list of stages. A stage is a barrier: its jobs start once every job of every earlier stage succeeded; jobs of a stage with no dependency between them run in parallel. |
 | `jobs.<name>.stage` | The stage the job belongs to. |
 | `jobs.<name>.image` | Container image the job runs in. |
 | `jobs.<name>.script` | Commands, chained with `&&`: the first failing command fails the job. |
-| `jobs.<name>.variables` | Environment variables for this job. Repository CI variables are added on top. |
-| `jobs.<name>.needs` | Jobs that must succeed first. |
-| `jobs.<name>.tags` | Runner tags a runner must have to pick the job up. |
-| `jobs.<name>.cache` | Cache keys persisted between runs of the same repository. |
+| `jobs.<name>.variables` | Environment variables for this job. With Docker runners, repository CI variables are added on top. |
+| `jobs.<name>.needs` | Jobs that must succeed first. Replaces the stage barrier for this job. Cycles are rejected. |
+| `jobs.<name>.tags` | Tags a runner must have to pick the job up (Docker runners only). |
+| `jobs.<name>.cache` | Cache keys persisted between runs of the same repository (Kubernetes only). |
 
 The repository's own [`.ferrisgit-ci.yml`](.ferrisgit-ci.yml) is a small smoke-test pipeline.
+
+A pipeline is created after every successful push, from the file at the root of the default branch. It is `pending`
+until a first job starts, `running` while its jobs run, then `success`, `failed` or `canceled`. A job whose
+`needs` or earlier stages did not succeed never starts: it ends `skipped`, so a failure ends the pipeline instead of
+leaving it waiting, and the pipeline is `failed`. Both execution engines apply the same rule. A pipeline file that is
+present but invalid (bad YAML, unknown stage, bad `needs`, a `needs` cycle, a bad cache key) still produces a `failed`
+pipeline without any job, carrying the parser's message, which the web interface and the API (`error`) show to
+whoever pushed. A missing file creates no pipeline.
 
 ### Docker runners
 
@@ -346,8 +369,9 @@ look for such a Pod with `kubectl get pods -n <namespace>`.
   'none'`, `frame-ancestors 'none'`) and `X-Frame-Options: DENY`. Changing or resetting a password, and resetting MFA,
   end the user's existing sessions.
 - **Public pages** expose only repositories marked public, through a dedicated read-only API that makes a single
-  authorization decision per request and returns the same 404 for private, unknown and switched-off cases. Search
-  engine indexing is off unless an administrator enables it.
+  authorization decision per request and returns the same 404 for private, unknown and switched-off cases. The
+  anonymous Git clone of a public repository follows the same switch. Search engine indexing is off unless an
+  administrator enables it.
 - **Rate limiting** applies to sign-in, registration, activation, password reset, MFA and the public endpoints, per client IP
   (IPv6 clients are counted per /64). Configure `TRUSTED_PROXY_CIDRS` correctly behind a proxy, otherwise every client
   shares one budget.
@@ -376,13 +400,28 @@ cannot decrypt its secrets.
 ### Upgrades
 
 Migrations run automatically at startup. The baseline is `migrations/0001_init.sql`; every schema
-change since is a further numbered file (`0002_public_pages.sql` is the first). Do not edit an already-applied migration: databases that ran it will
+change since is a further numbered file (`0002_public_pages.sql` is the first, `0004_job_log_retention.sql` adds the
+log retention bookkeeping). Do not edit an already-applied migration: databases that ran it will
 refuse the changed checksum.
+
+### Log retention
+
+When *Durée de conservation des journaux* is set under *Admin → Réglages → Exécution*, a background task of the server
+empties the logs of finished jobs that ended more than that many days ago. It runs once at startup, then every 24 hours,
+one sweep at a time, in batches of 500 jobs. Pipelines, jobs, statuses and dates are kept, and the interface shows
+*Journal supprimé le …* instead of the log. Deleted logs are not recoverable (restore a backup for that). The server
+stops the task cleanly on `SIGTERM` or Ctrl-C, and gives open connections 10 seconds to finish before exiting.
 
 ### Health
 
-`GET /health` answers `200` when the server is up and is what the Kubernetes liveness and readiness probes call. The
-Admin health page reports on the state of the components the server depends on, such as the database and storage.
+Three unauthenticated routes, outside `/api` and outside the rate limits:
+
+| Route | Answers |
+|---|---|
+| `GET /healthz` (and `GET /health`, the same) | `200 ok` as long as the process runs. It never touches the database, so a database outage does not get the pod restarted. The Helm chart uses it for the startup and liveness probes. |
+| `GET /readyz` | `200 ok` when the database answers a trivial query within 2 seconds, otherwise `503` with no detail. The chart uses it for the readiness probe: a pod whose database is down leaves the Service without being restarted. |
+
+The Admin health page reports on the state of the components the server depends on, such as the database and storage.
 
 ### Recovering an account that lost its second factor
 
@@ -415,53 +454,75 @@ another instance), sign-ins for that user answer HTTP 500 by design, never a byp
 
 ## Deploying to Kubernetes
 
-The [`k8s/`](k8s) directory holds the manifests used for the author's own deployment:
+The Helm chart [`helm/ferrisgit`](helm/ferrisgit) deploys FerrisGit with its own PostgreSQL. It replaces the manifests
+that used to live in `k8s/`. Its templates:
 
-| File | Content |
+| Template | Installs |
 |---|---|
-| `namespace.yaml` | The `ferrisgit` namespace. |
-| `postgres.yaml` | PostgreSQL deployment and its volume claim. |
-| `rbac.yaml` | The `ferrisgit-ci` `ServiceAccount`, `Role` and `RoleBinding` for the Kubernetes execution engine. |
-| `ferrisgit.yaml` | The application: volume claim, `Deployment` (single replica, `Recreate` strategy), `Service`. |
-| `ingress.yaml` | A Traefik ingress with a Let's Encrypt certificate. |
-
-They are a starting point, not a turnkey chart, and contain values specific to that environment: the hostname
-`app.ferrisgit.pro`, the private registry `alume.artiferris.pro/alume-docker/ferrisgit` with its `alume-registry` pull
-secret, and Traefik annotations. Adapt them before use.
-
-The manifests expect a Secret named `ferrisgit-secrets` with the keys `POSTGRES_PASSWORD`, `JWT_SECRET`,
-`SETTINGS_ENCRYPTION_KEY` and `BOOTSTRAP_ADMIN_PASSWORD`:
+| `ferrisgit.yaml` | The server: volume claim, `Deployment` (a single replica, `Recreate` strategy) and `Service`. |
+| `postgres.yaml` | PostgreSQL: volume claim, `Deployment` and `Service`. |
+| `secret.yaml` | The `ferrisgit-secrets` Secret. |
+| `ingress.yaml` | The Traefik `Ingress`. |
+| `networkpolicy.yaml` | Only the FerrisGit pod reaches PostgreSQL, and the FerrisGit pod only accepts port 8080 (`networkPolicy.enabled`). |
+| `rbac.yaml` | The `ferrisgit-ci` `ServiceAccount`, `Role` and `RoleBinding` of [Kubernetes execution engine](#kubernetes-execution-engine) (`kubernetesExecutor.enabled`). |
 
 ```bash
-kubectl create namespace ferrisgit
-kubectl -n ferrisgit create secret generic ferrisgit-secrets \
-  --from-literal=POSTGRES_PASSWORD=... \
-  --from-literal=JWT_SECRET=... \
-  --from-literal=SETTINGS_ENCRYPTION_KEY=... \
-  --from-literal=BOOTSTRAP_ADMIN_PASSWORD=...
+helm upgrade --install ferrisgit ./helm/ferrisgit \
+  --namespace ferrisgit --create-namespace \
+  --set image.tag=<release> \
+  --set ingress.host=git.example.com \
+  --set-string ferrisgit.trustedProxyCidrs=10.42.0.0/16
+kubectl -n ferrisgit rollout status deployment/ferrisgit
 ```
 
-Use the image published by CI (`masmarino/ferrisgit`, once the Docker Hub credentials are configured) or build and
-publish your own for the architecture of your nodes, then apply the manifests:
+The release must be called `ferrisgit` for the resource names to be the ones the documentation uses (`ferrisgit`,
+`ferrisgit-postgres`, `ferrisgit-secrets`, `ferrisgit-storage`, `ferrisgit-postgres-data`, `ferrisgit-ci`).
 
-```bash
-docker buildx build --platform linux/amd64 -t <registry>/ferrisgit:latest --push .
-kubectl diff  -f k8s/
-kubectl apply -f k8s/
-kubectl -n ferrisgit rollout status deployment/ferrisgit-server
-```
+- **What the cluster needs.** Traefik as the ingress controller, with the middlewares `traefik-https` and
+  `traefik-headers` and the TLSOption `traefik-mintls13` (TLS 1.3 minimum) in the `traefik` namespace; a CNI that enforces
+  `NetworkPolicy`; a default `StorageClass` (or `storage.storageClassName` and `postgres.storage.storageClassName`). Set
+  `ingress.middlewares` and `ingress.tlsOptions` to `""` to use neither. There is deliberately no rate-limit middleware:
+  a clone or a push is a burst of requests that one would reject.
+- **Certificate.** By default Traefik's own `letsencrypt-http` resolver (`ingress.certResolver`), which is what the old
+  manifests used: it needs a DNS A record from the host to the Traefik load balancer. To use cert-manager instead, set
+  `--set ingress.certResolver= --set ingress.clusterIssuer=<issuer>`; setting both is an error, and setting neither
+  requests no certificate (the Secret `ingress.tlsSecretName` must then exist).
+- **Image.** `image.tag` has no default; `image.digest` pins the image (the CI does). Add `imagePullSecrets` for a private
+  registry.
+- **Secrets.** Left empty, the chart generates the database password, `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY` and the
+  bootstrap administrator's password in `ferrisgit-secrets` and finds them again with `lookup` on every upgrade. Under
+  `helm template`, `--dry-run`, Argo CD or Flux `lookup` returns nothing, so pass every `secrets.*` value yourself
+  (`helm/ferrisgit/values-secrets.example.yaml`). Never delete the Secret while the database volume exists, and never
+  change `SETTINGS_ENCRYPTION_KEY`: there is no rotation, stored CI variables would become unreadable.
+- **Proxy network.** With the ingress on, set `ferrisgit.trustedProxyCidrs` to the ingress controller's pod network: the
+  chart refuses to render otherwise, since every visitor would share one sign-in rate-limit budget
+  (`ferrisgit.allowSharedRateLimit=true` accepts that).
+- **Hardening.** Pods run as uid 100 / 70, without privilege escalation, with a read-only root filesystem (`/data` and
+  `/tmp` are writable), seccomp `RuntimeDefault` and no capability. Probes: `/healthz` (startup, up to 5 minutes for the
+  migrations, then liveness) and `/readyz` (readiness, see [Health](#health)).
+- **Uninstall.** The Secret and both volumes survive `helm uninstall` (`persistence.keepOnUninstall`); delete them by hand
+  to wipe the data.
 
-Apply the manifests whenever they change: restarting the Deployment alone only re-applies the spec already stored in the
-cluster, so new environment variables would not reach the Pod. The server refuses to start without `PUBLIC_URL`. The
-`Recreate` strategy stops the old Pod before starting the new one, so a rollout that fails leaves the service down
-until it is fixed.
+The CI deploys a version tag to the cluster: the `Deploy to Kubernetes` job runs `helm upgrade --install --atomic` with the digest of
+the image it just pushed (see [Continuous integration and delivery](#continuous-integration-and-delivery)).
+
+**Rolling back.** `helm rollback`, `--atomic` or an older image tag do not undo migrations. The server applies the ones it
+ships at every start (`sqlx::migrate!`) and refuses to start on a database that records a migration it does not know: the
+older release stops with `failed to run migrations: VersionMissing(<n>)` and the pod restarts in a loop. Back up before an
+upgrade; to go back, restore the database backup (and the repositories volume it matches).
+
+**Coming from the old manifests.** The Secret and the two volume claims keep their names, so they can be adopted without
+losing data; the `Deployment`s and `Service`s must be recreated (their selectors changed). The procedure, checked against
+the names the chart renders, is in the documentation page *Déploiement sur Kubernetes*
+(`docs/administration/deploiement-kubernetes.md`).
 
 ## Development
 
 ### Prerequisites
 
 - [`rustup`](https://rustup.rs): the Rust toolchain is pinned in `rust-toolchain.toml` and installed automatically,
-  with Clippy and rustfmt. Also [`sqlx-cli`](https://crates.io/crates/sqlx-cli)
+  with Clippy and rustfmt
+- [`sqlx-cli`](https://crates.io/crates/sqlx-cli), for `sqlx migrate run` and `cargo sqlx prepare`
 - A C toolchain (`aws-lc-rs`, which provides TLS, and OpenSSL, which WebAuthn needs, both compile C code)
 - Node.js 26 (`.nvmrc`, `engines` in `frontend/package.json`, and the version CI and the Docker image use), with npm
 - Docker with Compose
@@ -514,22 +575,24 @@ npm run storybook             # component stories
 ### Continuous integration and delivery
 
 The pipeline in `.github/workflows/ci-cd.yml` is shared in shape with [ArtiFerris](https://github.com/Masmarino/ArtiFerris).
-It runs on pushes to `main`, `develop`, `feature/**`, `fix/**` and `release/**`, on version tags (`v*.*.*`) and on every
-pull request:
+It runs on pushes to `main`, `develop`, `feature/**`, `fix/**` and `release/**`, on version tags (`v*.*.*`), on every
+pull request and on demand:
 
 | Job | When | What |
 |---|---|---|
 | Backend format & lint | always | `cargo fmt --check` and `cargo clippy -D warnings`. |
 | Backend build & test | always | Build and tests against a PostgreSQL service container. |
 | Frontend build & test | always | Production build and unit tests on Node 26. |
-| Security scan | pull requests, `main`, `develop`, `release/**`, tags | `cargo audit` (RustSec), plus Trivy and Grype on the source tree. A HIGH or CRITICAL finding fails the job; results also go to the repository's **Security** tab as SARIF. |
-| Tag guard | every push | A `v*.*.*` tag is refused unless its commit is on `main`. |
-| Docker image | `main`, `release/**`, tags | Builds the image, scans it with Trivy and Grype, and only then pushes it. |
+| Security scan (source & dependencies) | pull requests, `main`, `develop`, `release/**`, tags | `cargo audit` (RustSec), plus Trivy and Grype on the source tree. A HIGH or CRITICAL finding fails the job; results also go to the repository's **Security** tab as SARIF. |
+| Require the tagged commit to be on main | every push | A `v*.*.*` tag is refused unless its commit is on `main`. |
+| Build, scan & push Docker image | `main`, `release/**`, tags | Builds the image, scans it with Trivy and Grype, and only then pushes it. |
 | GitHub release | tags | Creates the GitHub release of the tag once the image is pushed, with the matching [`CHANGELOG.md`](CHANGELOG.md) section as its notes. |
+| Helm chart lint | always | `helm lint --strict` and `helm template` of `helm/ferrisgit` with the default values, with cert-manager instead of the Traefik resolver, and with several switches off; checks that setting `ingress.certResolver` and `ingress.clusterIssuer` together is refused. |
+| Deploy to Kubernetes | tags | Upgrades the production release with `helm upgrade --install --atomic`, pinned to the digest of the image just pushed. Needs the `production` environment, the secret `KUBE_CONFIG` (base64 kubeconfig) and the variable `TRUSTED_PROXY_CIDRS`; `FERRISGIT_INGRESS_HOST`, `FERRISGIT_CERT_RESOLVER` and `FERRISGIT_CLUSTER_ISSUER` are optional. Two deploys never run at once, and the commit must be on `main`. |
 
 The image is pushed to Docker Hub as `masmarino/ferrisgit` (`latest` and `sha-*` from `main`, the version from a tag)
 only when the repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are set; without them the image is still
-built and scanned. There is no deploy job: FerrisGit is deployed by hand, see
+built and scanned. A version tag is then deployed to Kubernetes by the Deploy job, see
 [Deploying to Kubernetes](#deploying-to-kubernetes).
 
 To publish a version, bump `version` in `[workspace.package]` of `Cargo.toml`, add a `## [X.Y.Z] - YYYY-MM-DD` section
@@ -554,6 +617,27 @@ cargo sqlx prepare --workspace -- --all-targets
 Commit the resulting `.sqlx/` changes. The workspace-root `.sqlx/` is the only cache; do not add one inside a crate,
 since a crate-level directory takes precedence and can silently go stale.
 
+### Documentation
+
+The documentation site is a set of Markdown files in [`docs/`](docs), served by the application at `/docs`. The files
+are copied into the frontend build as static assets (`frontend/docs` is a symlink to `docs/`, and the `Dockerfile` copies
+the directory next to `frontend/`); nothing is stored in the database.
+
+- `docs/index.json` lists the sections and pages, in display order. A page is `docs/<section>/<page>.md` and is served
+  at `/docs/<section>/<page>`. The first line of a page is its `# Title`, the same as in the index.
+- Links between pages are absolute application paths, such as `[reference](/docs/ci-cd/reference-yaml)`. Callouts are
+  blockquotes that start with `**Note**` or `**Attention**`.
+- A complete pipeline example is written in a fenced block tagged `yaml ferrisgit-ci`.
+- In the REST reference (`docs/api/`), each route has a heading of the form ``### `GET /api/repositories/{id}` ``.
+
+Three checks keep the pages honest, and run with the usual tests:
+
+| Check | Where | What it does |
+|---|---|---|
+| Index and links | `frontend/src/app/docs/docs-content.spec.ts` | Every listed page exists and every page is listed, titles match, and each internal link and anchor resolves. |
+| Pipeline examples | `crates/ferrisgit-domain/tests/docs_pipeline_examples.rs` | Every `yaml ferrisgit-ci` block is accepted by the real pipeline parser. |
+| API routes | `crates/ferrisgit-api/tests/docs_api_routes.rs` | The paths in the router and in `docs/api/` are the same: a new route without documentation fails. |
+
 ### Conventions
 
 - Code, identifiers, comments and commit messages are in English; the user interface is in French.
@@ -571,14 +655,19 @@ crates/
   ferrisgit-runner/          Docker job runner (binary: ferrisgit-runner)
 frontend/                    Angular application
 migrations/                  SQL schema (applied at startup)
+docs/                        documentation pages (Markdown) and their index
 .sqlx/                       SQLx offline query metadata
-k8s/                         Kubernetes manifests
+helm/ferrisgit/              Helm chart (Kubernetes deployment)
 .github/                     GitHub Actions workflow (ci-cd.yml) and Dependabot configuration
 .cargo/audit.toml            accepted RustSec advisories, with their justification
 rust-toolchain.toml          pinned Rust toolchain
 scripts/dev.sh               local development launcher
 Dockerfile                   multi-stage build: frontend, backend, runtime image
 docker-compose.yml           application and PostgreSQL for local use
+docker-compose.override.yml  publishes PostgreSQL on port 5435 (used by scripts/dev.sh)
+.env.example                 template of the variables Compose and scripts/dev.sh read
+CHANGELOG.md                 release notes, one section per version
+.ferrisgit-ci.yml            smoke-test pipeline of FerrisGit's own CI engine
 ```
 
 ## Roadmap

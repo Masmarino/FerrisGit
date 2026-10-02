@@ -1,61 +1,42 @@
-@switch (view().kind) {
-  @case ('loading') {
-    <div class="repository-path-resolver__status">
-      <gbt-spinner size="lg" label="Chargement…" />
-    </div>
-  }
-  @case ('notFound') {
-    <gbt-empty-state illustration="folder" heading="Introuvable." />
-  }
-  @case ('group') {
-    <fg-group-detail [groupId]="$any(view()).groupId" [role]="$any(view()).role" [path]="$any(view()).path" />
-  }
-  @case ('repository') {
-    <fg-repository-detail [repositoryId]="$any(view()).repositoryId" [path]="$any(view()).path" />
-  }
-  @case ('tree') {
-    <fg-repository-tree-view [repositoryId]="$any(view()).repositoryId" [ref]="$any(view()).ref" [treePath]="$any(view()).treePath" />
-  }
-  @case ('blob') {
-    <fg-repository-blob-view [repositoryId]="$any(view()).repositoryId" [ref]="$any(view()).ref" [blobPath]="$any(view()).blobPath" />
-  }
-  @case ('pipelines') {
-    <fg-pipeline-list [repositoryId]="$any(view()).repositoryId" [path]="$any(view()).path" />
-  }
-  @case ('pipelineDetail') {
-    <fg-pipeline-detail [repositoryId]="$any(view()).repositoryId" [pipelineId]="$any(view()).id" [path]="$any(view()).path" [jobId]="$any(view()).jobId" />
-  }
-  @case ('mergeRequests') {
-    <fg-merge-request-list [repositoryId]="$any(view()).repositoryId" [path]="$any(view()).path" />
-  }
-  @case ('mergeRequestDetail') {
-    <fg-merge-request-detail [repositoryId]="$any(view()).repositoryId" [mergeRequestId]="$any(view()).id" />
-  }
-  @case ('issues') {
-    <fg-issue-list [repositoryId]="$any(view()).repositoryId" [path]="$any(view()).path" />
-  }
-  @case ('issueBoard') {
-    <fg-issue-kanban [repositoryId]="$any(view()).repositoryId" [path]="$any(view()).path" />
-  }
-  @case ('issueDetail') {
-    <fg-issue-detail [repositoryId]="$any(view()).repositoryId" [number]="$any(view()).number" />
-  }
-  @case ('settings') {
-    <fg-repository-settings [repositoryId]="$any(view()).repositoryId" />
-  }
-  @case ('releases') {
-    <fg-release-list [repositoryId]="$any(view()).repositoryId" [path]="$any(view()).path" />
-  }
-  @case ('releaseDetail') {
-    <fg-release-detail [repositoryId]="$any(view()).repositoryId" [tagName]="$any(view()).tagName" [path]="$any(view()).path" />
-  }
-  @case ('wikiPages') {
-    <fg-wiki-page-list [repositoryId]="$any(view()).repositoryId" [path]="$any(view()).path" />
-  }
-  @case ('wikiPageEditor') {
-    <fg-wiki-page-editor [repositoryId]="$any(view()).repositoryId" [slug]="$any(view()).slug" [path]="$any(view()).path" />
-  }
-  @case ('wikiPageDetail') {
-    <fg-wiki-page-detail [repositoryId]="$any(view()).repositoryId" [slug]="$any(view()).slug" [showHistory]="$any(view()).showHistory" [path]="$any(view()).path" />
-  }
+@let current = view();
+@if (current.kind === 'loading') {
+  <div class="repository-path-resolver__status">
+    <gbt-spinner size="lg" label="Chargement…" />
+  </div>
+} @else if (current.kind === 'notFound') {
+  <gbt-empty-state illustration="folder" heading="Introuvable." />
+} @else if (current.kind === 'group') {
+  <fg-group-detail [groupId]="current.groupId" [role]="current.role" [path]="current.path" />
+} @else if (current.kind === 'repository') {
+  <fg-repository-detail [repositoryId]="current.repositoryId" [path]="current.path" />
+} @else if (current.kind === 'tree') {
+  <fg-repository-tree-view [repositoryId]="current.repositoryId" [ref]="current.ref" [treePath]="current.treePath" />
+} @else if (current.kind === 'blob') {
+  <fg-repository-blob-view [repositoryId]="current.repositoryId" [ref]="current.ref" [blobPath]="current.blobPath" />
+} @else if (current.kind === 'pipelines') {
+  <fg-pipeline-list [repositoryId]="current.repositoryId" [path]="current.path" />
+} @else if (current.kind === 'pipelineDetail') {
+  <fg-pipeline-detail [repositoryId]="current.repositoryId" [pipelineId]="current.id" [path]="current.path" [jobId]="current.jobId" />
+} @else if (current.kind === 'mergeRequests') {
+  <fg-merge-request-list [repositoryId]="current.repositoryId" [path]="current.path" />
+} @else if (current.kind === 'mergeRequestDetail') {
+  <fg-merge-request-detail [repositoryId]="current.repositoryId" [mergeRequestId]="current.id" />
+} @else if (current.kind === 'issues') {
+  <fg-issue-list [repositoryId]="current.repositoryId" [path]="current.path" />
+} @else if (current.kind === 'issueBoard') {
+  <fg-issue-kanban [repositoryId]="current.repositoryId" [path]="current.path" />
+} @else if (current.kind === 'issueDetail') {
+  <fg-issue-detail [repositoryId]="current.repositoryId" [number]="current.number" />
+} @else if (current.kind === 'settings') {
+  <fg-repository-settings [repositoryId]="current.repositoryId" />
+} @else if (current.kind === 'releases') {
+  <fg-release-list [repositoryId]="current.repositoryId" [path]="current.path" />
+} @else if (current.kind === 'releaseDetail') {
+  <fg-release-detail [repositoryId]="current.repositoryId" [tagName]="current.tagName" [path]="current.path" />
+} @else if (current.kind === 'wikiPages') {
+  <fg-wiki-page-list [repositoryId]="current.repositoryId" [path]="current.path" />
+} @else if (current.kind === 'wikiPageEditor') {
+  <fg-wiki-page-editor [repositoryId]="current.repositoryId" [slug]="current.slug" [path]="current.path" />
+} @else if (current.kind === 'wikiPageDetail') {
+  <fg-wiki-page-detail [repositoryId]="current.repositoryId" [slug]="current.slug" [showHistory]="current.showHistory" [path]="current.path" />
 }

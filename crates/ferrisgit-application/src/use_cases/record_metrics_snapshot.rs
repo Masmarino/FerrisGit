@@ -1,10 +1,12 @@
 use std::sync::Arc;
 
+use chrono::Utc;
 use ferrisgit_domain::error::DomainError;
-use ferrisgit_domain::metrics_snapshot::MetricsSnapshotRepositoryPort;
+use ferrisgit_domain::metrics_snapshot::{MetricsSnapshot, MetricsSnapshotRepositoryPort};
 use ferrisgit_domain::repository::RepositoryStorePort;
 use ferrisgit_domain::storage_size::DirectorySizePort;
 use ferrisgit_domain::user::UserRepositoryPort;
+use uuid::Uuid;
 
 pub struct RecordMetricsSnapshotUseCase {
     repositories: Arc<dyn RepositoryStorePort>,
@@ -47,9 +49,9 @@ impl RecordMetricsSnapshotUseCase {
             total_storage_bytes += size as i64;
         }
 
-        let snapshot = ferrisgit_domain::metrics_snapshot::MetricsSnapshot {
-            id: uuid::Uuid::new_v4(),
-            recorded_at: chrono::Utc::now(),
+        let snapshot = MetricsSnapshot {
+            id: Uuid::new_v4(),
+            recorded_at: Utc::now(),
             total_users,
             total_repositories: repositories.len() as i64,
             total_storage_bytes,
@@ -64,33 +66,20 @@ mod tests {
     use crate::test_support::{
         FakeDirectorySize, FakeMetricsSnapshots, FakeRepositories, FakeUsers,
     };
-    use chrono::Utc;
-    use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
+    use crate::use_cases::fixtures;
+    use ferrisgit_domain::repository::Repository;
     use ferrisgit_domain::user::User;
     use std::collections::HashMap;
     use uuid::Uuid;
 
     fn a_user() -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: "alice".to_string(),
-            email: "a@example.com".to_string(),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
+        fixtures::user("alice")
     }
 
     fn a_repo(owner_id: Uuid, disk_path: &str) -> Repository {
         Repository {
-            id: Uuid::new_v4(),
-            owner_id,
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
             disk_path: disk_path.to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
+            ..fixtures::repository(owner_id)
         }
     }
 

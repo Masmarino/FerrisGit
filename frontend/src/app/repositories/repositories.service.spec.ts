@@ -103,6 +103,18 @@ describe('RepositoriesService', () => {
     ]);
   });
 
+  it('update patches the description and visibility of the repository by id, and returns it', () => {
+    const { service, http } = setup();
+    let updated: unknown;
+    service.update('repo-1', { description: 'Nouveau texte', visibility: 'public' }).subscribe((repo) => (updated = repo));
+
+    const req = http.expectOne('/api/repositories/by-id/repo-1');
+    expect(req.request.method).toBe('PATCH');
+    expect(req.request.body).toEqual({ description: 'Nouveau texte', visibility: 'public' });
+    req.flush({ id: 'repo-1', description: 'Nouveau texte', visibility: 'public' });
+    expect(updated).toMatchObject({ visibility: 'public' });
+  });
+
   it('star posts to the star endpoint and returns the fresh count', () => {
     const { service, http } = setup();
     service.star('repo-1').subscribe();

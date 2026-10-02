@@ -1,18 +1,15 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
-import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
+import { moduleMetadata } from '@storybook/angular-vite';
 import { expect, waitFor } from 'storybook/test';
 import { NEVER, Observable, of, throwError } from 'rxjs';
-import { ActivatedRoute, convertToParamMap, provideRouter, withDisabledInitialNavigation } from '@angular/router';
+import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { WorkspacePage } from './workspace-page';
 import { Repository, RepositoriesService } from '../repositories.service';
 import { GroupMembership, GroupsService, WritableGroup } from '../../groups/groups.service';
 import { GbtToastService } from '@masmarino/gabarit';
-import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { inShellContentArea } from '../../shared/layout/page-story-helpers';
+import { withRouterAndIcons } from '../repository-story-fixtures';
 import { LONG_MEMBERSHIPS, LONG_REPOSITORIES, MANY_REPOSITORIES, MEMBERSHIPS, REPOSITORIES, expectWorkspaceLayout } from '../workspace-grid/workspace-story-helpers';
-
-// `provideRouter` returns `EnvironmentProviders`, which only fit in an `ApplicationConfig`.
-const withApp = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
 
 const WRITABLE: WritableGroup[] = [
   { id: 'group-1', path: 'acme-france' },
@@ -41,7 +38,12 @@ function withData(options: {
     },
     {
       provide: GroupsService,
-      useValue: { listMember: options.listMember ?? (() => of(options.groups ?? MEMBERSHIPS)), listWritable: () => of(WRITABLE), delete: () => of(undefined) },
+      useValue: {
+        listMember: options.listMember ?? (() => of(options.groups ?? MEMBERSHIPS)),
+        listWritable: () => of(WRITABLE),
+        createRoot: () => of({ id: 'group-9', parentGroupId: null, name: 'nouveau', description: '', createdAt: '2026-01-01T00:00:00Z' }),
+        delete: () => of(undefined),
+      },
     },
     { provide: GbtToastService, useValue: { show: () => {}, dismiss: () => {} } },
   ];
@@ -56,7 +58,7 @@ const meta: Meta<WorkspacePage> = {
   component: WorkspacePage,
   tags: ['autodocs'],
   parameters: { layout: 'fullscreen' },
-  decorators: [withApp, inShellContentArea],
+  decorators: [withRouterAndIcons, inShellContentArea],
 };
 
 export default meta;
@@ -121,5 +123,18 @@ export const CreateDialog: Story = {
     });
     button.click();
     await waitFor(() => expect(canvasElement.ownerDocument.querySelector('[role="dialog"]')).not.toBeNull());
+  },
+};
+
+export const CreateGroupDialog: Story = {
+  decorators: [withData()],
+  play: async ({ canvasElement }) => {
+    const button = await waitFor(() => {
+      const found = Array.from(canvasElement.querySelectorAll<HTMLButtonElement>('.gbt-page-header__actions button')).find((b) => b.textContent?.includes('Nouveau groupe'));
+      if (!found) throw new Error('"Nouveau groupe" not rendered yet');
+      return found;
+    });
+    button.click();
+    await waitFor(() => expect(canvasElement.ownerDocument.querySelector('[role="dialog"]')?.textContent).toContain('Nouveau groupe'));
   },
 };

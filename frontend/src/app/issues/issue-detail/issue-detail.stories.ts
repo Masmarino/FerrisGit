@@ -13,20 +13,19 @@ import { GbtToastService } from '@masmarino/gabarit';
 import { UserRef } from '../../shared/user-ref';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { daysAgo, hoursAgo, inShellContentArea, minutesAgo } from '../../shared/layout/page-story-helpers';
+import {
+  ALICE,
+  BASTIEN,
+  BUG,
+  FLORIAN,
+  LABELS,
+  MILESTONES,
+  UI,
+  URGENT,
+  fakeRepositoryContextService,
+  fakeToast,
+} from '../issue-story-fixtures';
 
-const label = (id: string, name: string, color: string): Label => ({ id, name, color, repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' });
-
-const LABELS: Label[] = [label('l-bug', 'bug', '#dc2626'), label('l-urgent', 'urgent', '#f97316'), label('l-ui', 'interface', '#6366f1'), label('l-docs', 'documentation', '#0ea5e9')];
-const [BUG, URGENT, UI] = LABELS;
-
-const MILESTONES: Milestone[] = [
-  { id: 'm1', title: 'v1.0', description: 'Première version stable', dueDate: '2026-11-01', state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'm2', title: 'v1.1', description: '', dueDate: null, state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-02-01T00:00:00Z' },
-];
-
-const ALICE: UserRef = { id: 'u1', username: 'alice' };
-const BASTIEN: UserRef = { id: 'u2', username: 'bastien' };
-const FLORIAN: UserRef = { id: 'u3', username: 'florian' };
 const CAMILLE: UserRef = { id: 'u4', username: 'camille' };
 
 function issue(fields: Partial<Issue> = {}): Issue {
@@ -110,8 +109,6 @@ function fakeIssuesService(current: Issue, comments: IssueComment[], overrides: 
   };
 }
 
-const fakeToast = { show: () => {}, dismiss: () => {} };
-
 function withData(options: { issue?: Issue; comments?: IssueComment[]; role?: 'owner' | 'contributor' | 'reader'; issuesService?: unknown; labels?: Label[]; milestones?: Milestone[] } = {}) {
   const current = options.issue ?? issue();
   return moduleMetadata({
@@ -119,7 +116,7 @@ function withData(options: { issue?: Issue; comments?: IssueComment[]; role?: 'o
       { provide: IssuesService, useValue: options.issuesService ?? fakeIssuesService(current, options.comments ?? COMMENTS) },
       { provide: LabelsService, useValue: { listForRepository: () => of(options.labels ?? LABELS), setForIssue: () => of(current.labels) } },
       { provide: MilestonesService, useValue: { listForRepository: () => of(options.milestones ?? MILESTONES) } },
-      { provide: RepositoryContextService, useValue: { current: () => ({ repositoryId: 'repo-1', path: ['alice', 'ferrisgit'], role: options.role ?? 'contributor', ancestors: [], groupId: null }) } },
+      { provide: RepositoryContextService, useValue: fakeRepositoryContextService(options.role ?? 'contributor') },
       { provide: MeService, useValue: { id: () => FLORIAN.id, username: () => FLORIAN.username, email: () => 'florian@example.com', isAdmin: () => false } },
       { provide: GbtToastService, useValue: fakeToast },
     ],

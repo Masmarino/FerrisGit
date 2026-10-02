@@ -20,7 +20,7 @@ const USERNAME_MAX_LEN: usize = 32;
 /// Names a user must not take: every top-level SPA route (a user page lives at `/<username>`, so a user called
 /// `login` would shadow the login page) plus infrastructure names. `reserved_names_cover_every_frontend_route` fails
 /// until new routes in `app.routes.ts` are added here.
-pub const RESERVED_USERNAMES: &[&str] = &[
+const RESERVED_USERNAMES: &[&str] = &[
     // Top-level SPA routes.
     "login",
     "register",
@@ -40,6 +40,7 @@ pub const RESERVED_USERNAMES: &[&str] = &[
     "health",
     "git",
     "explore",
+    "docs",
     "help",
     "about",
     "me",
@@ -324,6 +325,17 @@ mod tests {
             "api",
         ] {
             assert!(RESERVED_USERNAMES.contains(&name), "{name}");
+        }
+    }
+
+    /// `/docs` is the product documentation (static files and SPA pages): no account may take the name.
+    #[test]
+    fn the_documentation_is_reserved() {
+        for name in ["docs", "Docs", " DOCS "] {
+            assert!(
+                is_validation(normalize_username(name)),
+                "{name:?} should be refused"
+            );
         }
     }
 

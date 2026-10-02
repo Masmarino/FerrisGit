@@ -1,20 +1,13 @@
-import { describeEvent, eventMarker, eventSegments, shortSha } from './merge-request-events';
+import { describeEvent, eventMarker, eventSegments } from './merge-request-events';
+import { ALICE, eventFixture } from './merge-request-fixtures';
 import { MergeRequestEventKind, TimelineEvent, UserRef } from './merge-requests.service';
 
-const alice: UserRef = { id: 'u1', username: 'alice' };
-
-function event(kind: MergeRequestEventKind | string, payload: Record<string, unknown>, actor: UserRef | null = alice): TimelineEvent {
-  return { type: 'event', id: 'e1', createdAt: '2026-01-01T00:00:00Z', actor, kind: kind as MergeRequestEventKind, payload };
+function event(kind: MergeRequestEventKind | string, payload: Record<string, unknown>, actor: UserRef | null = ALICE): TimelineEvent {
+  return eventFixture({ id: 'e1', createdAt: '2026-01-01T00:00:00Z', kind: kind as MergeRequestEventKind, actor, payload });
 }
 
 const bug = { id: 'l1', name: 'bug', color: '#ff0000' };
 const api = { id: 'l2', name: 'api', color: '#00ff00' };
-
-describe('shortSha', () => {
-  it('keeps the first 7 characters', () => {
-    expect(shortSha('abcdef1234567')).toBe('abcdef1');
-  });
-});
 
 describe('describeEvent', () => {
   it('describes an approval', () => {

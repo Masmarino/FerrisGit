@@ -49,43 +49,17 @@ impl GetAdminStatsUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakePipelines, FakeRepositories, FakeUsers};
+    use crate::use_cases::fixtures::{pipeline, repository, user};
     use chrono::Utc;
     use ferrisgit_domain::pipeline::{Pipeline, PipelineStatus};
-    use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
-    use ferrisgit_domain::settings::ExecutionEngine;
-    use ferrisgit_domain::user::User;
     use uuid::Uuid;
-
-    fn a_user() -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: "alice".to_string(),
-            email: "a@example.com".to_string(),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
-    }
-
-    fn a_repo(owner_id: Uuid) -> Repository {
-        Repository {
-            id: Uuid::new_v4(),
-            owner_id,
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "p".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }
-    }
 
     #[tokio::test]
     async fn reports_total_users_and_total_repositories() {
-        let owner = a_user();
+        let owner = user("alice");
         let repositories = Arc::new(FakeRepositories::new(vec![
-            a_repo(owner.id),
-            a_repo(owner.id),
+            repository(owner.id),
+            repository(owner.id),
         ]));
         let users = Arc::new(FakeUsers::new(vec![owner]));
         let pipelines = Arc::new(FakePipelines::empty());
@@ -99,28 +73,18 @@ mod tests {
 
     #[tokio::test]
     async fn counts_only_pipelines_created_in_the_last_7_days() {
-        let owner = a_user();
-        let repo = a_repo(owner.id);
+        let owner = user("alice");
+        let repo = repository(owner.id);
         let repository_id = repo.id;
         let recent = Pipeline {
-            id: Uuid::new_v4(),
             repository_id,
-            commit_sha: "a".to_string(),
-            execution_engine: ExecutionEngine::DockerRunners,
-            status: PipelineStatus::Success,
             triggered_by: owner.id,
-            created_at: Utc::now(),
-            finished_at: None,
+            ..pipeline(Uuid::new_v4(), PipelineStatus::Success)
         };
         let old = Pipeline {
             id: Uuid::new_v4(),
-            repository_id,
-            commit_sha: "b".to_string(),
-            execution_engine: ExecutionEngine::DockerRunners,
-            status: PipelineStatus::Success,
-            triggered_by: owner.id,
             created_at: Utc::now() - chrono::Duration::days(10),
-            finished_at: None,
+            ..recent.clone()
         };
         let repositories = Arc::new(FakeRepositories::new(vec![repo]));
         let users = Arc::new(FakeUsers::new(vec![owner]));

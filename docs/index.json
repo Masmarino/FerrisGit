@@ -1,0 +1,224 @@
+{
+  "sections": [
+    {
+      "slug": "demarrer",
+      "title": "Démarrer",
+      "pages": [
+        {
+          "slug": "presentation",
+          "title": "Présentation",
+          "description": "Ce qu'est FerrisGit et ce qu'il sait faire."
+        },
+        {
+          "slug": "prise-en-main",
+          "title": "Prise en main",
+          "description": "Créer son compte, activer la double authentification et pousser un premier dépôt."
+        }
+      ]
+    },
+    {
+      "slug": "utilisation",
+      "title": "Utilisation",
+      "pages": [
+        {
+          "slug": "depots-et-groupes",
+          "title": "Dépôts et groupes",
+          "description": "Créer des dépôts, les ranger dans des groupes, régler leur visibilité."
+        },
+        {
+          "slug": "roles-et-permissions",
+          "title": "Rôles et permissions",
+          "description": "Lecteur, Contributeur et Mainteneur, sur un dépôt ou un groupe."
+        },
+        {
+          "slug": "cloner-et-pousser",
+          "title": "Cloner et pousser",
+          "description": "S'authentifier avec un jeton Git pour cloner et pousser."
+        },
+        {
+          "slug": "merge-requests",
+          "title": "Demandes de fusion",
+          "description": "Relectures, commentaires, suggestions, approbations et fusion."
+        },
+        {
+          "slug": "tickets",
+          "title": "Tickets, étiquettes et jalons",
+          "description": "Suivre le travail avec les tickets et le tableau kanban."
+        },
+        {
+          "slug": "wikis",
+          "title": "Wikis",
+          "description": "Un wiki par dépôt, stocké dans son propre dépôt Git."
+        },
+        {
+          "slug": "releases",
+          "title": "Releases et tags",
+          "description": "Publier des versions avec des fichiers joints."
+        },
+        {
+          "slug": "webhooks",
+          "title": "Webhooks",
+          "description": "Notifier un service externe des événements d'un dépôt."
+        },
+        {
+          "slug": "notifications-et-recherche",
+          "title": "Notifications et recherche",
+          "description": "Suivre l'activité et retrouver un dépôt, un ticket ou une demande."
+        },
+        {
+          "slug": "pages-publiques",
+          "title": "Pages publiques",
+          "description": "Ce que voient les visiteurs sans compte sur les dépôts publics."
+        },
+        {
+          "slug": "compte-et-securite",
+          "title": "Compte et sécurité",
+          "description": "Mot de passe, double authentification, passkeys et jetons Git."
+        }
+      ]
+    },
+    {
+      "slug": "ci-cd",
+      "title": "CI/CD",
+      "pages": [
+        {
+          "slug": "premiers-pas",
+          "title": "Premiers pas",
+          "description": "Lancer son premier pipeline."
+        },
+        {
+          "slug": "reference-yaml",
+          "title": "Référence de .ferrisgit-ci.yml",
+          "description": "Toutes les clés du fichier de pipeline."
+        },
+        {
+          "slug": "variables-et-secrets",
+          "title": "Variables et secrets",
+          "description": "Variables d'environnement des jobs et variables chiffrées du dépôt."
+        },
+        {
+          "slug": "caches",
+          "title": "Caches",
+          "description": "Conserver des fichiers d'un pipeline à l'autre."
+        },
+        {
+          "slug": "runners-docker",
+          "title": "Runners Docker",
+          "description": "Installer et enregistrer un runner."
+        },
+        {
+          "slug": "kubernetes",
+          "title": "Moteur Kubernetes",
+          "description": "Exécuter chaque job dans un Pod."
+        },
+        {
+          "slug": "exemples",
+          "title": "Exemples de pipelines",
+          "description": "Rust, Node et Angular, image Docker, déploiement."
+        },
+        {
+          "slug": "depannage",
+          "title": "Dépannage",
+          "description": "Comprendre un pipeline qui échoue ou qui ne démarre pas."
+        }
+      ]
+    },
+    {
+      "slug": "administration",
+      "title": "Administration",
+      "pages": [
+        {
+          "slug": "installation",
+          "title": "Installation",
+          "description": "Démarrer FerrisGit avec Docker Compose."
+        },
+        {
+          "slug": "deploiement-kubernetes",
+          "title": "Déploiement sur Kubernetes",
+          "description": "Déployer FerrisGit dans un cluster."
+        },
+        {
+          "slug": "configuration",
+          "title": "Configuration",
+          "description": "Les variables d'environnement du serveur."
+        },
+        {
+          "slug": "reglages",
+          "title": "Réglages de l'instance",
+          "description": "Les réglages modifiables dans l'interface d'administration."
+        },
+        {
+          "slug": "utilisateurs",
+          "title": "Utilisateurs et invitations",
+          "description": "Créer, inviter, réinitialiser et supprimer des comptes."
+        },
+        {
+          "slug": "sauvegardes-et-mises-a-jour",
+          "title": "Sauvegardes et mises à jour",
+          "description": "Sauvegarder les données et mettre à niveau l'instance."
+        },
+        {
+          "slug": "securite",
+          "title": "Sécurité",
+          "description": "Ce que FerrisGit protège et ce qu'il demande de configurer."
+        }
+      ]
+    },
+    {
+      "slug": "api",
+      "title": "API REST",
+      "pages": [
+        {
+          "slug": "introduction",
+          "title": "Introduction",
+          "description": "Principes de l'API, formats, erreurs et limites."
+        },
+        {
+          "slug": "authentification",
+          "title": "Authentification",
+          "description": "Se connecter par l'API, double authentification et jetons."
+        },
+        {
+          "slug": "depots",
+          "title": "Dépôts et groupes",
+          "description": "Les routes des dépôts, groupes, fichiers et collaborateurs."
+        },
+        {
+          "slug": "merge-requests",
+          "title": "Demandes de fusion",
+          "description": "Les routes des demandes de fusion."
+        },
+        {
+          "slug": "tickets",
+          "title": "Tickets, étiquettes et jalons",
+          "description": "Les routes des tickets."
+        },
+        {
+          "slug": "ci-cd",
+          "title": "Pipelines et runners",
+          "description": "Les routes des pipelines, jobs, variables et runners."
+        },
+        {
+          "slug": "releases-et-wikis",
+          "title": "Releases et wikis",
+          "description": "Les routes des releases, tags et wikis."
+        },
+        {
+          "slug": "webhooks-et-notifications",
+          "title": "Webhooks et notifications",
+          "description": "Les routes des webhooks et des notifications."
+        },
+        {
+          "slug": "administration",
+          "title": "Administration",
+          "description": "Les routes réservées aux administrateurs."
+        },
+        {
+          "slug": "api-publique",
+          "title": "API publique",
+          "description": "Les routes anonymes des pages publiques."
+        }
+      ]
+    }
+  ]
+}

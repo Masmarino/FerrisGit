@@ -1,13 +1,11 @@
 @use '../../shared/layout/prose';
 @use '../../shared/layout/card';
+@use '../../shared/layout/list-page';
 
 $row-height: 40px;
 
-// Header and layout share the 1440px frame, so the h1 and its actions line up with the main column and the aside.
 :host {
-  display: block;
-  max-width: 1440px;
-  margin-inline: auto;
+  @include list-page.page-host;
 }
 
 .repository-tree-view__main {
@@ -283,12 +281,7 @@ gbt-card {
   }
 
   .repository-tree-view__latest-author ::ng-deep .gbt-user-chip__name {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
+    @include list-page.visually-hidden;
   }
 }
 

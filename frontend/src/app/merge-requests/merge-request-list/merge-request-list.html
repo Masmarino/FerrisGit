@@ -80,12 +80,14 @@
                 }
               </span>
 
-              <!-- Only open merge requests can be closed or merged, so all rows in a tab share the same trailing actions. -->
+              <!-- Only open merge requests can be closed or merged, so all rows in a tab share the same trailing actions. Merging also takes the Maintainer role. -->
               @if (canWrite() && row.mergeRequest.status === 'open') {
                 <span row-trailing class="merge-request-list__trailing">
                   <gbt-menu class="merge-request-list__menu" [label]="row.menuLabel" triggerIcon="ellipsis-vertical" align="end">
                     <button gbtMenuItem (click)="closeMr(row.mergeRequest)">Fermer</button>
-                    <button gbtMenuItem (click)="mergeMr(row.mergeRequest)">Fusionner</button>
+                    @if (canMerge()) {
+                      <button gbtMenuItem (click)="mergeMr(row.mergeRequest)">Fusionner</button>
+                    }
                   </gbt-menu>
                 </span>
               }

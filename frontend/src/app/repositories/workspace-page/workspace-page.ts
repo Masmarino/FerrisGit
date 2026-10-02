@@ -1,16 +1,17 @@
-import { Component, OnInit, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, OnInit, WritableSignal, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { forkJoin } from 'rxjs';
+import { Observable, forkJoin } from 'rxjs';
 import { Button, Icon, PageHeader, PageLayout, Panel, SegmentedControl, SegmentedControlOption, GbtToastService } from '@masmarino/gabarit';
 import { GroupMembership, GroupsService } from '../../groups/groups.service';
 import { Repository, RepositoriesService } from '../repositories.service';
+import { CreateGroupModal } from '../../groups/create-group-modal/create-group-modal';
 import { CreateRepositoryModal } from '../create-repository-modal/create-repository-modal';
 import { PageTitleService } from '../../shell/page-title.service';
 import { WorkspaceGrid, WorkspaceGroupItem } from '../workspace-grid/workspace-grid';
 import { WorkspaceGridFilters } from '../workspace-grid/workspace-grid-filters';
 
 type TabId = 'all' | 'groups' | 'mine' | 'starred';
-const TAB_IDS: TabId[] = ['all', 'groups', 'mine', 'starred'];
 
 const TAB_TEXTS: Record<TabId, { label: string; searchLabel: string; emptyHeading: string; emptyMessage: string }> = {
   all: {
@@ -28,6 +29,8 @@ const TAB_ORDER: TabId[] = ['all', 'mine', 'starred', 'groups'];
 
 const GROUP_SHORTCUTS = 6;
 
+const LOAD_REPOSITORIES_ERROR = 'Impossible de charger les dépôts. Réessayez plus tard.';
+
 const NO_GROUPS: WorkspaceGroupItem[] = [];
 const NO_REPOSITORIES: Repository[] = [];
 
@@ -38,7 +41,7 @@ function toWorkspaceGroupItem(g: GroupMembership): WorkspaceGroupItem {
 @Component({
   selector: 'fg-workspace-page',
   standalone: true,
-  imports: [RouterLink, Button, Icon, SegmentedControl, PageHeader, PageLayout, Panel, CreateRepositoryModal, WorkspaceGrid, WorkspaceGridFilters],
+  imports: [RouterLink, Button, Icon, SegmentedControl, PageHeader, PageLayout, Panel, CreateGroupModal, CreateRepositoryModal, WorkspaceGrid, WorkspaceGridFilters],
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.scss',
 })
@@ -49,8 +52,10 @@ export class WorkspacePage implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private toast = inject(GbtToastService);
+  private destroyRef = inject(DestroyRef);
 
   protected createModalOpen = signal(false);
+  protected createGroupOpen = signal(false);
   protected activeTab = signal<TabId>('all');
 
   protected allRepos = signal<Repository[]>([]);
@@ -132,9 +137,9 @@ export class WorkspacePage implements OnInit {
 
   ngOnInit(): void {
     this.pageTitle.set('Dépôts');
-    this.route.queryParamMap.subscribe((params) => {
+    this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const tab = params.get('tab');
-      const resolved: TabId = (TAB_IDS as string[]).includes(tab ?? '') ? (tab as TabId) : 'all';
+      const resolved: TabId = (TAB_ORDER as string[]).includes(tab ?? '') ? (tab as TabId) : 'all';
       this.activeTab.set(resolved);
       this.ensureLoaded(resolved);
     });
@@ -151,6 +156,11 @@ export class WorkspacePage implements OnInit {
 
   onRepoCreated(): void {
     this.createModalOpen.set(false);
+    this.reloadLoaded();
+  }
+
+  onGroupCreated(): void {
+    this.createGroupOpen.set(false);
     this.reloadLoaded();
   }
 
@@ -184,66 +194,42 @@ export class WorkspacePage implements OnInit {
 
     switch (tab) {
       case 'all':
-        this.allLoading.set(true);
-        forkJoin({ repos: this.repositories.list(), groups: this.groups.listMember() }).subscribe({
-          next: ({ repos, groups }) => {
+        this.fetchTab(
+          'all',
+          this.allLoading,
+          forkJoin({ repos: this.repositories.list(), groups: this.groups.listMember() }),
+          ({ repos, groups }) => {
             this.allRepos.set(repos);
             this.allGroups.set(groups.map(toWorkspaceGroupItem));
-            this.allLoading.set(false);
-            this.settle('all', true);
           },
-          error: () => {
-            this.allLoading.set(false);
-            this.settle('all', false);
-            this.toast.show('Impossible de charger les dépôts. Réessayez plus tard.', 'error');
-          },
-        });
+          LOAD_REPOSITORIES_ERROR,
+        );
         break;
       case 'groups':
-        this.groupsLoading.set(true);
-        this.groups.listMember().subscribe({
-          next: (groups) => {
-            this.groupsList.set(groups.map(toWorkspaceGroupItem));
-            this.groupsLoading.set(false);
-            this.settle('groups', true);
-          },
-          error: () => {
-            this.groupsLoading.set(false);
-            this.settle('groups', false);
-            this.toast.show('Impossible de charger les groupes. Réessayez plus tard.', 'error');
-          },
-        });
+        this.fetchTab('groups', this.groupsLoading, this.groups.listMember(), (groups) => this.groupsList.set(groups.map(toWorkspaceGroupItem)), 'Impossible de charger les groupes. Réessayez plus tard.');
         break;
       case 'mine':
-        this.mineLoading.set(true);
-        this.repositories.list().subscribe({
-          next: (repos) => {
-            this.mineRepos.set(repos.filter((r) => r.role === 'owner'));
-            this.mineLoading.set(false);
-            this.settle('mine', true);
-          },
-          error: () => {
-            this.mineLoading.set(false);
-            this.settle('mine', false);
-            this.toast.show('Impossible de charger les dépôts. Réessayez plus tard.', 'error');
-          },
-        });
+        this.fetchTab('mine', this.mineLoading, this.repositories.list(), (repos) => this.mineRepos.set(repos.filter((r) => r.role === 'owner')), LOAD_REPOSITORIES_ERROR);
         break;
       case 'starred':
-        this.starredLoading.set(true);
-        this.repositories.list({ starred: true }).subscribe({
-          next: (repos) => {
-            this.starredRepos.set(repos);
-            this.starredLoading.set(false);
-            this.settle('starred', true);
-          },
-          error: () => {
-            this.starredLoading.set(false);
-            this.settle('starred', false);
-            this.toast.show('Impossible de charger les dépôts. Réessayez plus tard.', 'error');
-          },
-        });
+        this.fetchTab('starred', this.starredLoading, this.repositories.list({ starred: true }), (repos) => this.starredRepos.set(repos), LOAD_REPOSITORIES_ERROR);
         break;
     }
+  }
+
+  private fetchTab<T>(tab: TabId, loading: WritableSignal<boolean>, request: Observable<T>, store: (data: T) => void, errorMessage: string): void {
+    loading.set(true);
+    request.subscribe({
+      next: (data) => {
+        store(data);
+        loading.set(false);
+        this.settle(tab, true);
+      },
+      error: () => {
+        loading.set(false);
+        this.settle(tab, false);
+        this.toast.show(errorMessage, 'error');
+      },
+    });
   }
 }

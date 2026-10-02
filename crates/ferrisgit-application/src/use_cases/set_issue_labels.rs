@@ -7,7 +7,7 @@ use ferrisgit_domain::label::{Label, LabelStorePort};
 use ferrisgit_domain::repository::Repository;
 use uuid::Uuid;
 
-use crate::scope_check::is_in_repository_scope;
+use super::require_in_scope::require_labels_in_scope;
 
 pub struct SetIssueLabelsUseCase {
     issues: Arc<dyn IssueStorePort>,
@@ -39,25 +39,7 @@ impl SetIssueLabelsUseCase {
             .await?
             .ok_or_else(|| DomainError::NotFound("issue".to_string()))?;
 
-        for label_id in &label_ids {
-            let label = self
-                .labels
-                .find_by_id(*label_id)
-                .await?
-                .ok_or_else(|| DomainError::NotFound("label".to_string()))?;
-            if !is_in_repository_scope(
-                &self.groups,
-                repository,
-                label.repository_id,
-                label.group_id,
-            )
-            .await?
-            {
-                return Err(DomainError::Validation(format!(
-                    "label {label_id} is not usable on this repository"
-                )));
-            }
-        }
+        require_labels_in_scope(self.labels.as_ref(), &self.groups, repository, &label_ids).await?;
         self.labels
             .set_labels_for_issue(issue_id, &label_ids)
             .await?;
@@ -69,39 +51,18 @@ impl SetIssueLabelsUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeGroups, FakeIssues, FakeLabels};
-    use chrono::Utc;
-    use ferrisgit_domain::issue::{Issue, IssueKind, IssueStatus};
+    use crate::use_cases::fixtures;
+    use ferrisgit_domain::issue::Issue;
     use ferrisgit_domain::label::NewLabel;
-    use ferrisgit_domain::repository::RepositoryVisibility;
 
     fn repository(id: Uuid) -> Repository {
-        Repository {
-            id,
-            owner_id: Uuid::new_v4(),
-            name: "r".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "r.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }
+        fixtures::repository_with_id(id, Uuid::new_v4())
     }
 
     fn issue(id: Uuid, repository_id: Uuid) -> Issue {
         Issue {
             id,
-            repository_id,
-            number: 1,
-            author_id: Uuid::new_v4(),
-            assignee_id: None,
-            milestone_id: None,
-            title: "t".to_string(),
-            description: String::new(),
-            status: IssueStatus::Todo,
-            kind: IssueKind::Bug,
-            parent_issue_id: None,
-            created_at: Utc::now(),
-            closed_at: None,
+            ..fixtures::issue(repository_id, Uuid::new_v4())
         }
     }
 

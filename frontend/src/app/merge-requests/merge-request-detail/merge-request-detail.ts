@@ -1,8 +1,9 @@
 import { Component, computed, inject, input, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { Observable } from 'rxjs';
 import { Comment, FileDiff, MergeRequestSummary, MergeRequestsService, ReviewSummary, TimelineResponse } from '../merge-requests.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { injectRepositoryPermissions } from '../../repositories/repository-role';
 import { FileDiffView } from '../file-diff-view/file-diff-view';
 import { MergeRequestTimeline } from '../merge-request-timeline/merge-request-timeline';
 import { MrApprovalsPanel } from '../mr-approvals-panel/mr-approvals-panel';
@@ -32,6 +33,7 @@ import {
 } from '@masmarino/gabarit';
 import { UserRef } from '../../shared/user-ref';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
+import { mergeRequestEnd } from '../merge-request-presentation';
 import { reviewStatus } from '../review-status';
 
 interface FileChangePresentation {
@@ -56,6 +58,9 @@ interface DiffEntry {
 }
 
 const OVERVIEW_TAB = 0;
+
+const LOAD_ERROR = 'Impossible de charger cette demande de fusion.';
+const COMMENT_ERROR = 'Impossible d’envoyer votre commentaire — cette ligne ne fait peut-être plus partie du diff. Rechargez et réessayez.';
 
 @Component({
   selector: 'fg-merge-request-detail',
@@ -93,7 +98,7 @@ export class MergeRequestDetail implements OnInit {
 
   private mergeRequests = inject(MergeRequestsService);
   private pageTitle = inject(PageTitleService);
-  private repositoryContext = inject(RepositoryContextService);
+  private permissions = injectRepositoryPermissions();
   private labelsService = inject(LabelsService);
   private milestonesService = inject(MilestonesService);
   private toast = inject(GbtToastService);
@@ -107,8 +112,9 @@ export class MergeRequestDetail implements OnInit {
   protected timeline = signal<TimelineResponse>({ author: null, items: [] });
   protected mergeConflict = signal(false);
   protected reviewSummary = signal<ReviewSummary | null>(null);
-  protected role = computed(() => this.repositoryContext.current()?.role ?? null);
-  protected canWrite = computed(() => this.role() === 'owner' || this.role() === 'contributor' || this.role() === 'maintainer');
+  protected canWrite = this.permissions.canWrite;
+  /** The server merges only for the owner and Maintainers (`POST /merge-requests/{id}/merge`): a Contributor does not get the button. */
+  protected canMerge = this.permissions.canMaintain;
   protected labels = signal<Label[]>([]);
   protected milestones = signal<Milestone[]>([]);
 
@@ -119,10 +125,7 @@ export class MergeRequestDetail implements OnInit {
   });
   protected ended = computed(() => {
     const mr = this.mergeRequest();
-    if (!mr?.closedAt || mr.status === 'open') {
-      return null;
-    }
-    return { verb: mr.status === 'merged' ? 'fusionnée' : 'fermée', at: mr.closedAt };
+    return mr ? mergeRequestEnd(mr) : null;
   });
   protected commentCountLabel = computed(() => {
     const count = this.comments().length;
@@ -196,24 +199,19 @@ export class MergeRequestDetail implements OnInit {
       },
       error: () => {
         this.loadFailed.set(true);
-        this.toast.show('Impossible de charger cette demande de fusion.', 'error');
+        this.toast.show(LOAD_ERROR, 'error');
       },
     });
-    this.mergeRequests.diff(this.mergeRequestId()).subscribe({
-      next: (diffs) => this.diffs.set(diffs),
-      error: () => this.toast.show('Impossible de charger cette demande de fusion.', 'error'),
-    });
+    this.loadInto(this.mergeRequests.diff(this.mergeRequestId()), this.diffs);
     this.reloadComments();
     this.reloadReviews();
     this.reloadTimeline();
-    this.labelsService.listForRepository(this.repositoryId()).subscribe({
-      next: (labels) => this.labels.set(labels),
-      error: () => this.toast.show('Impossible de charger cette demande de fusion.', 'error'),
-    });
-    this.milestonesService.listForRepository(this.repositoryId()).subscribe({
-      next: (milestones) => this.milestones.set(milestones),
-      error: () => this.toast.show('Impossible de charger cette demande de fusion.', 'error'),
-    });
+    this.loadInto(this.labelsService.listForRepository(this.repositoryId()), this.labels);
+    this.loadInto(this.milestonesService.listForRepository(this.repositoryId()), this.milestones);
+  }
+
+  private loadInto<T>(request: Observable<T>, target: { set(value: T): void }): void {
+    request.subscribe({ next: (value) => target.set(value), error: () => this.toast.show(LOAD_ERROR, 'error') });
   }
 
   protected onLabelsChange(labelIds: string[]): void {
@@ -243,17 +241,11 @@ export class MergeRequestDetail implements OnInit {
   }
 
   private reloadComments(): void {
-    this.mergeRequests.listComments(this.mergeRequestId()).subscribe({
-      next: (comments) => this.comments.set(comments),
-      error: () => this.toast.show('Impossible de charger cette demande de fusion.', 'error'),
-    });
+    this.loadInto(this.mergeRequests.listComments(this.mergeRequestId()), this.comments);
   }
 
   private reloadTimeline(): void {
-    this.mergeRequests.timeline(this.mergeRequestId()).subscribe({
-      next: (timeline) => this.timeline.set(timeline),
-      error: () => this.toast.show('Impossible de charger cette demande de fusion.', 'error'),
-    });
+    this.loadInto(this.mergeRequests.timeline(this.mergeRequestId()), this.timeline);
   }
 
   // The overview (timeline) and the Modifications tab read separate payloads, so a change made in
@@ -264,10 +256,7 @@ export class MergeRequestDetail implements OnInit {
   }
 
   private reloadReviews(): void {
-    this.mergeRequests.listReviews(this.mergeRequestId()).subscribe({
-      next: (summary) => this.reviewSummary.set(summary),
-      error: () => this.toast.show('Impossible de charger cette demande de fusion.', 'error'),
-    });
+    this.loadInto(this.mergeRequests.listReviews(this.mergeRequestId()), this.reviewSummary);
   }
 
   protected onTimelineComment(body: string): void {
@@ -290,7 +279,7 @@ export class MergeRequestDetail implements OnInit {
           this.reloadDiscussion();
           this.toast.show('Commentaire ajouté.');
         },
-        error: () => this.toast.show('Impossible d’envoyer votre commentaire — cette ligne ne fait peut-être plus partie du diff. Rechargez et réessayez.', 'error'),
+        error: () => this.toast.show(COMMENT_ERROR, 'error'),
       });
   }
 
@@ -300,7 +289,7 @@ export class MergeRequestDetail implements OnInit {
         this.reloadDiscussion();
         this.toast.show('Réponse ajoutée.');
       },
-      error: () => this.toast.show('Impossible d’envoyer votre commentaire — cette ligne ne fait peut-être plus partie du diff. Rechargez et réessayez.', 'error'),
+      error: () => this.toast.show(COMMENT_ERROR, 'error'),
     });
   }
 
@@ -311,7 +300,7 @@ export class MergeRequestDetail implements OnInit {
         this.reloadDiscussion();
         this.toast.show(event.resolved ? 'Commentaire résolu.' : 'Commentaire non résolu.');
       },
-      error: () => this.toast.show('Impossible d’envoyer votre commentaire — cette ligne ne fait peut-être plus partie du diff. Rechargez et réessayez.', 'error'),
+      error: () => this.toast.show(COMMENT_ERROR, 'error'),
     });
   }
 
@@ -321,7 +310,7 @@ export class MergeRequestDetail implements OnInit {
         this.reloadDiscussion();
         this.toast.show('Suggestion appliquée.');
       },
-      error: () => this.toast.show('Impossible d’envoyer votre commentaire — cette ligne ne fait peut-être plus partie du diff. Rechargez et réessayez.', 'error'),
+      error: () => this.toast.show(COMMENT_ERROR, 'error'),
     });
   }
 

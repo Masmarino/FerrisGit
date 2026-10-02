@@ -53,22 +53,15 @@ impl DeleteTagUseCase {
 
 #[cfg(test)]
 mod tests {
-    use ferrisgit_domain::release::Release;
-    use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
-
     use super::*;
     use crate::test_support::{FakeReleases, FakeRepositories, FakeTagCreator};
+    use crate::use_cases::fixtures::{self, release};
+    use ferrisgit_domain::repository::Repository;
 
     fn repository() -> Repository {
         Repository {
-            id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
             disk_path: "alice/hello.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: chrono::Utc::now(),
+            ..fixtures::repository(Uuid::new_v4())
         }
     }
 
@@ -96,18 +89,7 @@ mod tests {
     #[tokio::test]
     async fn refuses_to_delete_a_tag_still_referenced_by_a_release() {
         let repo = repository();
-        let release = Release {
-            id: Uuid::new_v4(),
-            repository_id: repo.id,
-            tag_name: "v1.0.0".to_string(),
-            title: "First".to_string(),
-            notes: String::new(),
-            draft: false,
-            prerelease: false,
-            author_id: Some(Uuid::new_v4()),
-            created_at: chrono::Utc::now(),
-            published_at: Some(chrono::Utc::now()),
-        };
+        let release = release(Uuid::new_v4(), repo.id);
         let tag_creator = Arc::new(FakeTagCreator::default());
         let use_case = DeleteTagUseCase::new(
             Arc::new(FakeRepositories::new(vec![repo.clone()])),

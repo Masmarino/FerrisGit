@@ -1,3 +1,5 @@
+@use '../../shared/layout/list-page';
+
 :host {
   display: block;
 }
@@ -48,13 +50,24 @@
   margin: 0;
 }
 
-.public-layout__account {
+.public-layout__end {
   grid-area: account;
   justify-self: end;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+// On a phone the book icon alone says "documentation"; the label stays for assistive technology.
+.public-layout__docs-label {
+  @container public-layout (max-width: 599px) {
+    @include list-page.visually-hidden;
+  }
 }
 
 // A comfortable tap target on a phone.
 @media (pointer: coarse) {
+  .public-layout__docs,
   .public-layout__account-link {
     min-height: 44px;
   }
@@ -69,4 +82,8 @@
   @container public-layout (max-width: 599px) {
     padding: 1rem;
   }
+}
+
+.public-layout__content--full {
+  max-width: none;
 }

@@ -1,0 +1,32 @@
+@use '../../shared/layout/settings-section';
+@use '../fields';
+
+:host {
+  @include settings-section.section;
+}
+
+@include fields.fields;
+
+.admin-settings__hints {
+  display: flex;
+  flex: 1 1 16rem;
+  flex-direction: column;
+  gap: 0.25rem;
+  min-width: 0;
+
+  .admin-settings__hint {
+    flex: none;
+  }
+}
+
+.admin-settings__detected {
+  color: var(--color-success-text);
+}
+
+.admin-settings__hint--warning gbt-icon {
+  color: var(--color-warning-text);
+}
+
+.admin-settings__count ::ng-deep .gbt-input__wrapper {
+  max-width: 8rem;
+}

@@ -6,6 +6,7 @@ import { provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Icon, GbtToastService } from '@masmarino/gabarit';
 import { AdminSettings } from './admin-settings';
+import { SecuritySettings } from '../security-settings/security-settings';
 import { SystemSettings } from '../settings.service';
 import { PageTitleService } from '../../shell/page-title.service';
 
@@ -112,12 +113,12 @@ describe('AdminSettings', () => {
       expect(links.map((a) => a.getAttribute('aria-current'))).toEqual(['page', null, null]);
     });
 
-    it('shows the execution section by default: the engine and Kubernetes cards, each with its icon', async () => {
+    it('shows the execution section by default: the engine, Docker runners, Kubernetes and job log cards, each with its icon', async () => {
       const { harness, el } = await setup();
 
       const cards = harness.routeDebugElement!.queryAll(By.css('gbt-card'));
-      expect(cards.map((card) => text(card.nativeElement.querySelector('h2')))).toEqual(["Moteur d'exécution", 'Kubernetes']);
-      expect(cards.map((card) => (card.query(By.directive(Icon))?.componentInstance as Icon | undefined)?.name())).toEqual(['server', 'layers']);
+      expect(cards.map((card) => text(card.nativeElement.querySelector('h2')))).toEqual(["Moteur d'exécution", 'Runners Docker', 'Kubernetes', 'Journaux des jobs']);
+      expect(cards.map((card) => (card.query(By.directive(Icon))?.componentInstance as Icon | undefined)?.name())).toEqual(['server', 'key', 'layers', 'clock']);
       expect(cards.every((card) => !!text(card.nativeElement.querySelector('.gbt-card__description')))).toBe(true);
       expect(el().querySelector('gbt-slider')).toBeNull();
     });
@@ -199,7 +200,7 @@ describe('AdminSettings', () => {
       http.expectOne('/api/admin/settings').flush(SETTINGS);
       await settle(harness);
       expect(el.querySelector('[aria-busy="true"]')).toBeNull();
-      expect(el.querySelectorAll('gbt-card')).toHaveLength(2);
+      expect(el.querySelectorAll('gbt-card')).toHaveLength(4);
     });
 
     it('shows a toast and a retry card when loading fails; retrying loads again', async () => {
@@ -263,6 +264,324 @@ describe('AdminSettings', () => {
       expect(checkedEngine(el())).toBe('Docker / runners');
       expect(text(saveState(el(), 'executionEngine'))).toBe('Non enregistré');
       expect(saveState(el(), 'executionEngine')?.getAttribute('data-state')).toBe('error');
+      expect(toastStub.show).toHaveBeenCalledWith("Échec de l'enregistrement. Réessayez.", 'error');
+    });
+  });
+
+  describe('Docker runners', () => {
+    const CONFIGURED: SystemSettings = { ...SETTINGS, runnerRegistrationTokenConfigured: true };
+    const tokenField = (root: HTMLElement) => root.querySelector('[data-field="runnerRegistrationToken"]')!;
+    const buttonNamed = (root: ParentNode, label: string) => Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find((b) => text(b) === label);
+    const dialog = (root: HTMLElement) => root.querySelector('gbt-confirm-danger-modal');
+
+    describe('registration token', () => {
+      it('says that no token is configured, and offers no removal', async () => {
+        const { el } = await setup();
+
+        expect(text(tokenField(el()).querySelector('gbt-badge'))).toBe('Non configuré');
+        expect(text(tokenField(el()).querySelector('gbt-input label'))).toBe('Définir un jeton');
+        expect(buttonNamed(tokenField(el()), 'Supprimer le jeton')).toBeUndefined();
+      });
+
+      it('says that a token is configured without ever showing it: the field is masked and empty', async () => {
+        const { el } = await setup(SETTINGS_URL, CONFIGURED);
+
+        expect(text(tokenField(el()).querySelector('gbt-badge'))).toBe('Configuré');
+        expect(text(tokenField(el()).querySelector('gbt-input label'))).toBe('Remplacer le jeton');
+        expect(buttonNamed(tokenField(el()), 'Supprimer le jeton')).toBeDefined();
+        expect(fieldLabelled(el(), 'Remplacer le jeton').type).toBe('password');
+        expect(fieldLabelled(el(), 'Remplacer le jeton').value).toBe('');
+      });
+
+      it('saves the token typed on blur, empties the field, and never shows it again', async () => {
+        const { harness, el, http } = await setup();
+
+        const field = fieldLabelled(el(), 'Définir un jeton');
+        field.value = '  mon-jeton-secret  ';
+        field.dispatchEvent(new Event('input'));
+        await settle(harness); // as in a browser, the page renders between typing and leaving the field
+        field.dispatchEvent(new Event('blur'));
+        const saved = http.expectOne('/api/admin/settings');
+        expect(saved.request.method).toBe('PUT');
+        expect(saved.request.body).toEqual({ runnerRegistrationToken: 'mon-jeton-secret' });
+        saved.flush(CONFIGURED);
+        await settle(harness);
+
+        expect(text(saveState(el(), 'runnerRegistrationToken'))).toBe('Enregistré');
+        expect(text(tokenField(el()).querySelector('gbt-badge'))).toBe('Configuré');
+        expect(fieldLabelled(el(), 'Remplacer le jeton').value).toBe('');
+        expect(el().textContent).not.toContain('mon-jeton-secret');
+        expect(tokenField(el()).querySelector('gbt-secret-reveal')).toBeNull();
+      });
+
+      it('saves nothing for an empty field: removing the token has its own button', async () => {
+        const { el, http } = await setup(SETTINGS_URL, CONFIGURED);
+
+        commit(fieldLabelled(el(), 'Remplacer le jeton'), '   ');
+
+        http.expectNone('/api/admin/settings');
+      });
+
+      it('says "Non enregistré" with a toast when the save is refused', async () => {
+        const { harness, el, http, toastStub } = await setup();
+
+        commit(fieldLabelled(el(), 'Définir un jeton'), 'abc');
+        http.expectOne('/api/admin/settings').flush({ message: 'boom' }, { status: 500, statusText: 'Server Error' });
+        await settle(harness);
+
+        expect(text(saveState(el(), 'runnerRegistrationToken'))).toBe('Non enregistré');
+        expect(toastStub.show).toHaveBeenCalledWith("Échec de l'enregistrement. Réessayez.", 'error');
+        expect(text(tokenField(el()).querySelector('gbt-badge'))).toBe('Non configuré');
+      });
+
+      it('generates a random 256-bit token with one click when none exists, and shows it once', async () => {
+        const { harness, el, http } = await setup();
+
+        buttonNamed(tokenField(el()), 'Générer un jeton')!.click();
+        await settle(harness);
+        const saved = http.expectOne('/api/admin/settings');
+        const token = (saved.request.body as { runnerRegistrationToken: string }).runnerRegistrationToken;
+        expect(token).toMatch(/^[0-9a-f]{64}$/);
+        expect(dialog(el())).toBeNull();
+        expect(tokenField(el()).querySelector('gbt-secret-reveal')).toBeNull();
+
+        saved.flush(CONFIGURED);
+        await settle(harness);
+        const reveal = tokenField(el()).querySelector('gbt-secret-reveal');
+        expect(reveal).not.toBeNull();
+        expect(text(reveal)).toContain(token);
+        expect(text(tokenField(el()))).toContain('Copiez-le maintenant : il ne sera plus jamais affiché.');
+
+        buttonNamed(tokenField(el()), "J'ai copié le jeton")!.click();
+        await settle(harness);
+        expect(tokenField(el()).querySelector('gbt-secret-reveal')).toBeNull();
+        expect(el().textContent).not.toContain(token);
+      });
+
+      it('generates a different token each time', async () => {
+        const { harness, el, http } = await setup();
+        const generated = async () => {
+          buttonNamed(tokenField(el()), 'Générer un jeton')!.click();
+          await settle(harness);
+          const request = http.expectOne('/api/admin/settings');
+          request.flush(SETTINGS); // not configured: the next click generates without a confirmation
+          await settle(harness);
+          return (request.request.body as { runnerRegistrationToken: string }).runnerRegistrationToken;
+        };
+
+        const first = await generated();
+        const second = await generated();
+
+        expect(first).not.toBe(second);
+      });
+
+      it('does not show a generated token whose save was refused', async () => {
+        const { harness, el, http } = await setup();
+
+        buttonNamed(tokenField(el()), 'Générer un jeton')!.click();
+        http.expectOne('/api/admin/settings').flush({ message: 'boom' }, { status: 500, statusText: 'Server Error' });
+        await settle(harness);
+
+        expect(tokenField(el()).querySelector('gbt-secret-reveal')).toBeNull();
+      });
+
+      it('asks before replacing an existing token by a generated one, and saves nothing on cancel', async () => {
+        const { harness, el, http } = await setup(SETTINGS_URL, CONFIGURED);
+
+        buttonNamed(tokenField(el()), 'Générer un nouveau jeton')!.click();
+        await settle(harness);
+        http.expectNone('/api/admin/settings');
+        expect(text(dialog(el()))).toContain("Remplacer le jeton d'enregistrement");
+        expect(text(dialog(el()))).toContain('ne permettra plus d\'enregistrer de nouveaux runners');
+
+        buttonNamed(dialog(el())!, 'Annuler')!.click();
+        await settle(harness);
+        expect(dialog(el())).toBeNull();
+        http.expectNone('/api/admin/settings');
+      });
+
+      it('replaces the token once confirmed, and shows the new one once', async () => {
+        const { harness, el, http } = await setup(SETTINGS_URL, CONFIGURED);
+        buttonNamed(tokenField(el()), 'Générer un nouveau jeton')!.click();
+        await settle(harness);
+
+        buttonNamed(dialog(el())!, 'Générer un jeton')!.click();
+        await settle(harness);
+        const saved = http.expectOne('/api/admin/settings');
+        const token = (saved.request.body as { runnerRegistrationToken: string }).runnerRegistrationToken;
+        expect(token).toMatch(/^[0-9a-f]{64}$/);
+        saved.flush(CONFIGURED);
+        await settle(harness);
+
+        expect(dialog(el())).toBeNull();
+        expect(text(tokenField(el()).querySelector('gbt-secret-reveal'))).toContain(token);
+      });
+
+      it('removes the token after a confirmation that says its consequence', async () => {
+        const { harness, el, http } = await setup(SETTINGS_URL, CONFIGURED);
+
+        buttonNamed(tokenField(el()), 'Supprimer le jeton')!.click();
+        await settle(harness);
+        http.expectNone('/api/admin/settings');
+        expect(text(dialog(el()))).toContain("Supprimer le jeton d'enregistrement");
+        expect(text(dialog(el()))).toContain("ne pourront plus s'enregistrer eux-mêmes");
+
+        buttonNamed(dialog(el())!, 'Supprimer le jeton')!.click();
+        await settle(harness);
+        const saved = http.expectOne('/api/admin/settings');
+        expect(saved.request.body).toEqual({ runnerRegistrationToken: null });
+        saved.flush(SETTINGS);
+        await settle(harness);
+
+        expect(text(tokenField(el()).querySelector('gbt-badge'))).toBe('Non configuré');
+        expect(dialog(el())).toBeNull();
+      });
+
+      it('keeps the token when the removal is cancelled', async () => {
+        const { harness, el, http } = await setup(SETTINGS_URL, CONFIGURED);
+        buttonNamed(tokenField(el()), 'Supprimer le jeton')!.click();
+        await settle(harness);
+
+        buttonNamed(dialog(el())!, 'Annuler')!.click();
+        await settle(harness);
+
+        http.expectNone('/api/admin/settings');
+        expect(text(tokenField(el()).querySelector('gbt-badge'))).toBe('Configuré');
+      });
+    });
+
+    describe('simultaneous jobs', () => {
+      const error = (root: HTMLElement) => text(root.querySelector('[data-field="maxConcurrentJobs"] .gbt-input__error'));
+
+      it('is labelled for Docker runners, empty means unlimited, and says it does not apply to Kubernetes', async () => {
+        const { el } = await setup();
+
+        expect(fieldLabelled(el(), 'Jobs simultanés (runners Docker)').value).toBe('');
+        expect(fieldLabelled(el(), 'Jobs simultanés (runners Docker)').placeholder).toBe('Illimité');
+        expect(text(el().querySelector('[data-field="maxConcurrentJobs"]'))).toContain('ne s\'applique pas aux jobs lancés par Kubernetes');
+      });
+
+      it('shows the saved ceiling', async () => {
+        const { el } = await setup(SETTINGS_URL, { ...SETTINGS, maxConcurrentJobs: 4 });
+        expect(fieldLabelled(el(), 'Jobs simultanés (runners Docker)').value).toBe('4');
+      });
+
+      it('saves a whole number on blur', async () => {
+        const { harness, el, http } = await setup();
+
+        commit(fieldLabelled(el(), 'Jobs simultanés (runners Docker)'), '3');
+        const saved = http.expectOne('/api/admin/settings');
+        expect(saved.request.body).toEqual({ maxConcurrentJobs: 3 });
+        saved.flush({ ...SETTINGS, maxConcurrentJobs: 3 });
+        await settle(harness);
+
+        expect(text(saveState(el(), 'maxConcurrentJobs'))).toBe('Enregistré');
+      });
+
+      it('saves an emptied field as null: no limit', async () => {
+        const { el, http } = await setup(SETTINGS_URL, { ...SETTINGS, maxConcurrentJobs: 4 });
+
+        commit(fieldLabelled(el(), 'Jobs simultanés (runners Docker)'), '  ');
+
+        expect(http.expectOne('/api/admin/settings').request.body).toEqual({ maxConcurrentJobs: null });
+      });
+
+      it('saves nothing when the value is unchanged', async () => {
+        const { el, http } = await setup(SETTINGS_URL, { ...SETTINGS, maxConcurrentJobs: 4 });
+
+        commit(fieldLabelled(el(), 'Jobs simultanés (runners Docker)'), '4');
+
+        http.expectNone('/api/admin/settings');
+      });
+
+      // A number field cannot hold letters, so only numbers that are not whole counts reach the handler.
+      it.each(['0', '-2', '1.5'])('explains that "%s" is not valid instead of saving it', async (value) => {
+        const { harness, el, http } = await setup();
+
+        commit(fieldLabelled(el(), 'Jobs simultanés (runners Docker)'), value);
+        await settle(harness);
+
+        expect(error(el())).toBe('Entrez un nombre entier, 1 ou plus, ou laissez vide pour ne pas limiter');
+        http.expectNone('/api/admin/settings');
+      });
+
+      it('clears the message once the value is valid, and puts the saved value back when the save is refused', async () => {
+        const { harness, el, http } = await setup(SETTINGS_URL, { ...SETTINGS, maxConcurrentJobs: 4 });
+        commit(fieldLabelled(el(), 'Jobs simultanés (runners Docker)'), '0');
+        await settle(harness);
+        expect(error(el())).toBeDefined();
+
+        commit(fieldLabelled(el(), 'Jobs simultanés (runners Docker)'), '8');
+        await settle(harness);
+        expect(error(el())).toBeUndefined();
+        http.expectOne('/api/admin/settings').flush({ message: 'boom' }, { status: 500, statusText: 'Server Error' });
+        await settle(harness);
+
+        expect(fieldLabelled(el(), 'Jobs simultanés (runners Docker)').value).toBe('4');
+        expect(text(saveState(el(), 'maxConcurrentJobs'))).toBe('Non enregistré');
+      });
+    });
+  });
+
+  describe('job log retention', () => {
+    const LABEL = 'Durée de conservation des journaux (jours)';
+    const error = (root: HTMLElement) => text(root.querySelector('[data-field="logRetentionDays"] .gbt-input__error'));
+
+    it('is empty when the logs are kept forever, and explains what the retention deletes and keeps', async () => {
+      const { el } = await setup();
+
+      expect(fieldLabelled(el(), LABEL).value).toBe('');
+      expect(fieldLabelled(el(), LABEL).placeholder).toBe('Illimitée');
+      const hint = text(el().querySelector('[data-field="logRetentionDays"]'));
+      expect(hint).toContain("Le journal d'un job terminé depuis plus longtemps est supprimé");
+      expect(hint).toContain('Les pipelines, les jobs et leurs statuts sont conservés');
+    });
+
+    it('shows the saved retention', async () => {
+      const { el } = await setup(SETTINGS_URL, { ...SETTINGS, logRetentionDays: 30 });
+      expect(fieldLabelled(el(), LABEL).value).toBe('30');
+    });
+
+    it('saves a whole number of days on blur', async () => {
+      const { harness, el, http } = await setup();
+
+      commit(fieldLabelled(el(), LABEL), '90');
+      const saved = http.expectOne('/api/admin/settings');
+      expect(saved.request.body).toEqual({ logRetentionDays: 90 });
+      saved.flush({ ...SETTINGS, logRetentionDays: 90 });
+      await settle(harness);
+
+      expect(text(saveState(el(), 'logRetentionDays'))).toBe('Enregistré');
+    });
+
+    it('saves an emptied field as null: keep the logs without limit', async () => {
+      const { el, http } = await setup(SETTINGS_URL, { ...SETTINGS, logRetentionDays: 30 });
+
+      commit(fieldLabelled(el(), LABEL), '');
+
+      expect(http.expectOne('/api/admin/settings').request.body).toEqual({ logRetentionDays: null });
+    });
+
+    it.each(['0', '-1', '2.5'])('explains that "%s" is not valid instead of saving it', async (value) => {
+      const { harness, el, http } = await setup();
+
+      commit(fieldLabelled(el(), LABEL), value);
+      await settle(harness);
+
+      expect(error(el())).toBe('Entrez un nombre entier de jours, 1 ou plus, ou laissez vide pour tout conserver');
+      http.expectNone('/api/admin/settings');
+    });
+
+    it('puts the saved value back when the save is refused', async () => {
+      const { harness, el, http, toastStub } = await setup(SETTINGS_URL, { ...SETTINGS, logRetentionDays: 30 });
+
+      commit(fieldLabelled(el(), LABEL), '7');
+      await settle(harness);
+      http.expectOne('/api/admin/settings').flush({ message: 'boom' }, { status: 500, statusText: 'Server Error' });
+      await settle(harness);
+
+      expect(fieldLabelled(el(), LABEL).value).toBe('30');
+      expect(text(saveState(el(), 'logRetentionDays'))).toBe('Non enregistré');
       expect(toastStub.show).toHaveBeenCalledWith("Échec de l'enregistrement. Réessayez.", 'error');
     });
   });
@@ -607,7 +926,8 @@ describe('AdminSettings', () => {
 
   describe('public pages', () => {
     const toggle = (root: HTMLElement, field: string) => root.querySelector<HTMLInputElement>(`[data-field="${field}"] input[role="switch"]`)!;
-    const PAGES_HELP = 'Toute personne peut parcourir les dépôts publics sans compte : catalogue, fichiers, commits et releases.';
+    const PAGES_HELP =
+      "Toute personne peut parcourir les dépôts publics sans compte : catalogue, fichiers, commits et releases. Cela inclut le clonage Git anonyme, wiki compris. Désactivé, ces dépôts ne sont plus lisibles qu'une fois connecté.";
     const SEO_HELP = 'Autorise les moteurs de recherche à indexer les pages publiques. Nécessite les pages publiques.';
 
     it('is a card "Pages publiques" with its two switches and what each one does', async () => {
@@ -679,7 +999,7 @@ describe('AdminSettings', () => {
       const { harness, el, http } = await setup(SECURITY_URL);
       expect(sliderValue(el())).toBe('100 Mio');
 
-      harness.routeDebugElement!.componentInstance.setMaxPushSizeMb(250);
+      harness.routeDebugElement!.query(By.directive(SecuritySettings)).componentInstance.setMaxPushSizeMb(250);
       await settle(harness);
       const saved = http.expectOne('/api/admin/settings');
       expect(saved.request.body).toEqual({ maxPushSizeMb: 250 });
@@ -693,7 +1013,7 @@ describe('AdminSettings', () => {
     it('puts the slider back on the saved maximum when the save fails', async () => {
       const { harness, el, http } = await setup(SECURITY_URL);
 
-      harness.routeDebugElement!.componentInstance.setMaxPushSizeMb(250);
+      harness.routeDebugElement!.query(By.directive(SecuritySettings)).componentInstance.setMaxPushSizeMb(250);
       await settle(harness);
       const refused = http.expectOne('/api/admin/settings');
       expect(sliderValue(el())).toBe('250 Mio');

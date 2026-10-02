@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::registration::RegistrationSettingsPort;
@@ -22,7 +23,7 @@ impl RegistrationSettingsPort for PostgresRegistrationSettingsStore {
             sqlx::query_scalar("SELECT registration_enabled FROM system_settings WHERE id = true")
                 .fetch_optional(&self.pool)
                 .await
-                .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+                .map_err(infra)?;
         // The singleton row is created lazily (by the first settings read or write): no row means the default, off.
         Ok(enabled.unwrap_or(false))
     }
@@ -33,7 +34,7 @@ impl RegistrationSettingsPort for PostgresRegistrationSettingsStore {
             .bind(enabled)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(())
     }
 }

@@ -1,4 +1,5 @@
 <gbt-page-header heading="Dépôts">
+  <gbt-button header-actions variant="secondary" iconName="folder" text="Nouveau groupe" (clicked)="createGroupOpen.set(true)" />
   <gbt-button header-actions iconName="plus" text="Nouveau dépôt" (clicked)="createModalOpen.set(true)" />
 </gbt-page-header>
 
@@ -51,4 +52,8 @@
 <!-- Built on each opening and destroyed on close: a closed dialog never keeps a draft. -->
 @if (createModalOpen()) {
   <fg-create-repository-modal (close)="createModalOpen.set(false)" (created)="onRepoCreated()" />
+}
+
+@if (createGroupOpen()) {
+  <fg-create-group-modal (close)="createGroupOpen.set(false)" (created)="onGroupCreated()" />
 }

@@ -4,16 +4,13 @@ import { FormsModule } from '@angular/forms';
 import { Alert, Button, GbtInput, Icon, ListCard, PageHeader, GbtToastService } from '@masmarino/gabarit';
 import { SaveWikiPageOptions, WikiList, WikiService, WikiPageSummary } from '../wiki.service';
 import { WikiLayout } from '../wiki-layout/wiki-layout';
+import { titleFromSlug, wikiLink } from '../wiki-links';
 import { PageTitleService } from '../../shell/page-title.service';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 
 const SLUG_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,99}$/;
 
 const CONFLICT_MESSAGE = "Quelqu'un d'autre a modifié cette page depuis que vous l'avez ouverte. Rechargez et réappliquez vos changements.";
-
-function titleFromSlug(slug: string): string {
-  return slug.replace(/-/g, ' ');
-}
 
 let nextId = 0;
 
@@ -104,7 +101,7 @@ export class WikiPageEditor implements OnInit {
     this.wiki.save(this.repositoryId(), slug, options).subscribe({
       next: () => {
         this.toast.show(this.isCreate() ? 'Page wiki créée.' : 'Page wiki mise à jour.');
-        this.router.navigate(['/repositories', ...this.path(), '-', 'wiki', slug]);
+        this.router.navigate(wikiLink(this.path(), slug));
       },
       error: (err: { status?: number }) => {
         this.saving.set(false);
@@ -121,7 +118,7 @@ export class WikiPageEditor implements OnInit {
 
   protected cancel(): void {
     const back = this.isCreate() ? [] : [this.slug()!];
-    void this.router.navigate(['/repositories', ...this.path(), '-', 'wiki', ...back]);
+    void this.router.navigate(wikiLink(this.path(), ...back));
   }
 
   protected readonly conflictMessage = CONFLICT_MESSAGE;

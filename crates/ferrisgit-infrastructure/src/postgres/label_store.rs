@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::label::{Label, LabelStorePort, NewLabel};
@@ -62,7 +63,7 @@ impl LabelStorePort for PostgresLabelStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row.into())
     }
 
@@ -74,7 +75,7 @@ impl LabelStorePort for PostgresLabelStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row.map(Into::into))
     }
 
@@ -87,7 +88,7 @@ impl LabelStorePort for PostgresLabelStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -95,7 +96,7 @@ impl LabelStorePort for PostgresLabelStore {
         sqlx::query!("DELETE FROM labels WHERE id = $1", id)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(())
     }
 
@@ -103,7 +104,7 @@ impl LabelStorePort for PostgresLabelStore {
         let rows = sqlx::query_as!(Row, "SELECT id, name, color, repository_id, group_id, created_at FROM labels WHERE repository_id = $1 ORDER BY name ASC", repository_id)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
@@ -111,7 +112,7 @@ impl LabelStorePort for PostgresLabelStore {
         let rows = sqlx::query_as!(Row, "SELECT id, name, color, repository_id, group_id, created_at FROM labels WHERE group_id = $1 ORDER BY name ASC", group_id)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
@@ -120,15 +121,11 @@ impl LabelStorePort for PostgresLabelStore {
         issue_id: Uuid,
         label_ids: &[Uuid],
     ) -> Result<(), DomainError> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let mut tx = self.pool.begin().await.map_err(infra)?;
         sqlx::query!("DELETE FROM issue_labels WHERE issue_id = $1", issue_id)
             .execute(&mut *tx)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         for label_id in dedup_label_ids(label_ids) {
             sqlx::query!(
                 "INSERT INTO issue_labels (issue_id, label_id) VALUES ($1, $2)",
@@ -137,11 +134,9 @@ impl LabelStorePort for PostgresLabelStore {
             )
             .execute(&mut *tx)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         }
-        tx.commit()
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        tx.commit().await.map_err(infra)?;
         Ok(())
     }
 
@@ -154,7 +149,7 @@ impl LabelStorePort for PostgresLabelStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
@@ -176,7 +171,7 @@ impl LabelStorePort for PostgresLabelStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows
             .into_iter()
             .map(|r| {
@@ -200,18 +195,14 @@ impl LabelStorePort for PostgresLabelStore {
         merge_request_id: Uuid,
         label_ids: &[Uuid],
     ) -> Result<(), DomainError> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let mut tx = self.pool.begin().await.map_err(infra)?;
         sqlx::query!(
             "DELETE FROM merge_request_labels WHERE merge_request_id = $1",
             merge_request_id
         )
         .execute(&mut *tx)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         for label_id in dedup_label_ids(label_ids) {
             sqlx::query!(
                 "INSERT INTO merge_request_labels (merge_request_id, label_id) VALUES ($1, $2)",
@@ -220,11 +211,9 @@ impl LabelStorePort for PostgresLabelStore {
             )
             .execute(&mut *tx)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         }
-        tx.commit()
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        tx.commit().await.map_err(infra)?;
         Ok(())
     }
 
@@ -240,7 +229,7 @@ impl LabelStorePort for PostgresLabelStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
@@ -265,7 +254,7 @@ impl LabelStorePort for PostgresLabelStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows
             .into_iter()
             .map(|r| {
@@ -288,31 +277,10 @@ impl LabelStorePort for PostgresLabelStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::postgres::test_support::seed_owned_repository;
 
     async fn seed_repository(pool: &PgPool) -> Uuid {
-        let owner_id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)",
-            owner_id,
-            "owner",
-            "owner@example.com",
-            "not-a-real-hash"
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        let repository_id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO repositories (id, owner_id, name, disk_path) VALUES ($1, $2, $3, $4)",
-            repository_id,
-            owner_id,
-            "hello",
-            "hello.git"
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        repository_id
+        seed_owned_repository(pool, "owner").await.1
     }
 
     async fn seed_issue(pool: &PgPool, repository_id: Uuid) -> Uuid {

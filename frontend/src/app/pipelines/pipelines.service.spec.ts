@@ -26,8 +26,9 @@ describe('PipelinesService', () => {
         finishedAt: '2026-01-01T00:04:10Z',
         triggeredBy: { id: 'user-1', username: 'alice' },
         commitMessage: 'Paginer la liste des tickets',
+        error: null,
       },
-      { id: 'pipeline-0', commitSha: 'cafebabe', status: 'running', createdAt: '2025-01-01T00:00:00Z', finishedAt: null, triggeredBy: null, commitMessage: null },
+      { id: 'pipeline-0', commitSha: 'cafebabe', status: 'running', createdAt: '2025-01-01T00:00:00Z', finishedAt: null, triggeredBy: null, commitMessage: null, error: null },
     ];
     http.expectOne({ url: '/api/repositories/repo-1/pipelines', method: 'GET' }).flush(pipelines);
     expect(result).toEqual(pipelines);
@@ -47,6 +48,7 @@ describe('PipelinesService', () => {
       finishedAt: null,
       triggeredBy: { id: 'user-1', username: 'alice' },
       commitMessage: 'Paginer la liste des tickets',
+      error: null,
       jobs: [
         {
           id: 'job-1',

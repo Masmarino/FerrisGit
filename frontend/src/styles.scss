@@ -1,4 +1,4 @@
-@use './styles/tokens';
+@use '@masmarino/gabarit/tokens';
 
 * {
   box-sizing: border-box;
@@ -49,7 +49,6 @@ body {
     min-height: 44px;
   }
 }
-
 
 // The shell's breadcrumb already shows the page title. The page heading stays in the DOM, so assistive technology
 // still gets its one `h1`, but it is not drawn. The header then keeps only what the breadcrumb does not say (badges,

@@ -26,6 +26,29 @@ impl UpdateSystemSettingsUseCase {
         &self,
         mut update: SystemSettingsUpdate,
     ) -> Result<SystemSettings, DomainError> {
+        // `None` (the field cleared) means "no retention" / "no ceiling"; a value must be a positive count.
+        if let Some(Some(days)) = update.log_retention_days
+            && days < 1
+        {
+            return Err(DomainError::Validation(
+                "log_retention_days must be at least 1".to_string(),
+            ));
+        }
+        if let Some(Some(jobs)) = update.max_concurrent_jobs
+            && jobs < 1
+        {
+            return Err(DomainError::Validation(
+                "max_concurrent_jobs must be at least 1".to_string(),
+            ));
+        }
+        // An empty token would let anyone register a runner by sending nothing.
+        if let Some(Some(token)) = &update.runner_registration_token
+            && token.trim().is_empty()
+        {
+            return Err(DomainError::Validation(
+                "runner_registration_token must not be empty".to_string(),
+            ));
+        }
         // Stored like API and runner tokens (a SHA-256 hash, never the plaintext). Anyone who has this value can
         // register a runner, which in turn can claim jobs and read every repository's decrypted CI variables.
         update.runner_registration_token = update
@@ -60,22 +83,9 @@ mod tests {
         }
     }
 
-    fn default_settings() -> SystemSettings {
-        SystemSettings {
-            execution_engine: ExecutionEngine::DockerRunners,
-            k8s_namespace: None,
-            k8s_cache_storage_class: None,
-            runner_registration_token: None,
-            log_retention_days: None,
-            max_concurrent_jobs: None,
-            jwt_ttl_hours: 12,
-            max_push_size_mb: 500,
-        }
-    }
-
     #[tokio::test]
     async fn updating_jwt_ttl_hours_immediately_pushes_the_new_value_to_the_token_issuer() {
-        let system_settings = Arc::new(FakeSystemSettings::new(default_settings()));
+        let system_settings = Arc::new(FakeSystemSettings::default());
         let token_issuer = Arc::new(FakeTokenIssuer::default());
         let use_case = UpdateSystemSettingsUseCase::new(system_settings, token_issuer.clone());
 
@@ -92,7 +102,7 @@ mod tests {
 
     #[tokio::test]
     async fn updating_an_unrelated_field_still_pushes_the_current_ttl_so_the_issuer_never_drifts() {
-        let system_settings = Arc::new(FakeSystemSettings::new(default_settings()));
+        let system_settings = Arc::new(FakeSystemSettings::default());
         let token_issuer = Arc::new(FakeTokenIssuer::default());
         let use_case = UpdateSystemSettingsUseCase::new(system_settings, token_issuer.clone());
 
@@ -113,7 +123,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_runner_registration_token_is_stored_hashed_not_in_plaintext() {
-        let system_settings = Arc::new(FakeSystemSettings::new(default_settings()));
+        let system_settings = Arc::new(FakeSystemSettings::default());
         let token_issuer = Arc::new(FakeTokenIssuer::default());
         let use_case = UpdateSystemSettingsUseCase::new(system_settings, token_issuer);
 
@@ -131,5 +141,98 @@ mod tests {
             "the plaintext registration token must never be persisted"
         );
         assert_eq!(stored, hash_token("shared-secret-123"));
+    }
+
+    #[tokio::test]
+    async fn log_retention_days_and_max_concurrent_jobs_must_be_positive() {
+        for update in [
+            SystemSettingsUpdate {
+                log_retention_days: Some(Some(0)),
+                ..Default::default()
+            },
+            SystemSettingsUpdate {
+                log_retention_days: Some(Some(-3)),
+                ..Default::default()
+            },
+            SystemSettingsUpdate {
+                max_concurrent_jobs: Some(Some(0)),
+                ..Default::default()
+            },
+        ] {
+            let use_case = UpdateSystemSettingsUseCase::new(
+                Arc::new(FakeSystemSettings::default()),
+                Arc::new(FakeTokenIssuer::default()),
+            );
+            assert!(matches!(
+                use_case.execute(update).await,
+                Err(DomainError::Validation(_))
+            ));
+        }
+    }
+
+    #[tokio::test]
+    async fn a_positive_value_is_stored_and_none_clears_the_field() {
+        let use_case = UpdateSystemSettingsUseCase::new(
+            Arc::new(FakeSystemSettings::default()),
+            Arc::new(FakeTokenIssuer::default()),
+        );
+
+        let set = use_case
+            .execute(SystemSettingsUpdate {
+                log_retention_days: Some(Some(30)),
+                max_concurrent_jobs: Some(Some(4)),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(set.log_retention_days, Some(30));
+        assert_eq!(set.max_concurrent_jobs, Some(4));
+
+        let cleared = use_case
+            .execute(SystemSettingsUpdate {
+                log_retention_days: Some(None),
+                max_concurrent_jobs: Some(None),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(cleared.log_retention_days, None);
+        assert_eq!(cleared.max_concurrent_jobs, None);
+    }
+
+    #[tokio::test]
+    async fn an_empty_runner_registration_token_is_refused_but_none_removes_it() {
+        let use_case = UpdateSystemSettingsUseCase::new(
+            Arc::new(FakeSystemSettings::default()),
+            Arc::new(FakeTokenIssuer::default()),
+        );
+        use_case
+            .execute(SystemSettingsUpdate {
+                runner_registration_token: Some(Some("a-secret".to_string())),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+
+        for empty in ["", "   "] {
+            assert!(matches!(
+                use_case
+                    .execute(SystemSettingsUpdate {
+                        runner_registration_token: Some(Some(empty.to_string())),
+                        ..Default::default()
+                    })
+                    .await,
+                Err(DomainError::Validation(_))
+            ));
+        }
+
+        let removed = use_case
+            .execute(SystemSettingsUpdate {
+                runner_registration_token: Some(None),
+                ..Default::default()
+            })
+            .await
+            .unwrap();
+        assert_eq!(removed.runner_registration_token, None);
     }
 }

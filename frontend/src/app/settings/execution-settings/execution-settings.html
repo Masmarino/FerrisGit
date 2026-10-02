@@ -1,0 +1,86 @@
+@let s = settings();
+
+<gbt-card variant="outlined" icon="server" heading="Moteur d'exécution" description="Où s'exécutent les jobs des pipelines. Chaque réglage est enregistré dès que vous le modifiez.">
+  <div class="admin-settings__field" data-field="executionEngine">
+    <gbt-segmented-control ariaLabel="Moteur d'exécution" tinted [options]="engineOptions" [value]="engineShown()" (valueChange)="setEngine($event)" />
+    <div class="admin-settings__field-footer">
+      <p class="admin-settings__hint">
+        {{
+          engineShown() === 'kubernetes'
+            ? 'Chaque job est lancé dans un pod du cluster, dans le namespace indiqué ci-dessous.'
+            : 'Les jobs sont confiés aux runners enregistrés, qui les lancent dans des conteneurs Docker.'
+        }}
+      </p>
+      <fg-field-save-state field="executionEngine" />
+    </div>
+  </div>
+</gbt-card>
+
+<gbt-card variant="outlined" icon="key" heading="Runners Docker" description="Comment les runners s'enregistrent et combien de jobs tournent en même temps. Sans effet avec le moteur Kubernetes.">
+  <div class="admin-settings__form">
+    <fg-runner-registration-token />
+
+    <div class="admin-settings__field admin-settings__count" data-field="maxConcurrentJobs">
+      <gbt-input type="number" min="1" label="Jobs simultanés (runners Docker)" placeholder="Illimité" [errorMessage]="maxJobsError()" [ngModel]="maxJobsShown()" (committed)="setMaxConcurrentJobs($event)" />
+      <div class="admin-settings__field-footer">
+        <p class="admin-settings__hint">
+          Nombre maximal de jobs en cours sur l'ensemble des runners Docker ; les autres attendent. Vide : pas de limite. Ce plafond ne s'applique pas aux jobs lancés par Kubernetes.
+        </p>
+        <fg-field-save-state field="maxConcurrentJobs" />
+      </div>
+    </div>
+  </div>
+</gbt-card>
+
+<gbt-card
+  variant="outlined"
+  icon="layers"
+  heading="Kubernetes"
+  [description]="s.executionEngine === 'kubernetes' ? 'Où sont créés les pods des jobs, et le volume de leur cache.' : 'Sans effet tant que le moteur d\'exécution est Docker / runners.'"
+>
+  <div class="admin-settings__form">
+    <div class="admin-settings__field" data-field="k8sNamespace">
+      <gbt-input label="Namespace Kubernetes" mono placeholder="ferrisgit-ci" [ngModel]="namespaceShown()" (ngModelChange)="markEdited('k8sNamespace')" (committed)="setK8sNamespace($event)" />
+      <div class="admin-settings__field-footer">
+        <p class="admin-settings__hint">
+          @if (!s.k8sNamespace && s.detectedK8sNamespace) {
+            <gbt-icon class="admin-settings__detected" name="check-circle" aria-hidden="true" />Détecté automatiquement depuis le cluster : {{ s.detectedK8sNamespace }}.
+          } @else {
+            Le namespace où les pods des jobs sont créés.
+          }
+        </p>
+        <fg-field-save-state field="k8sNamespace" />
+      </div>
+    </div>
+
+    <div class="admin-settings__field" data-field="k8sCacheStorageClass">
+      <gbt-input label="StorageClass pour le cache (RWX requis)" mono placeholder="standard-rwx" [ngModel]="storageClassShown()" (ngModelChange)="markEdited('k8sCacheStorageClass')" (committed)="setK8sCacheStorageClass($event)" />
+      <div class="admin-settings__field-footer">
+        <div class="admin-settings__hints">
+          @if (!s.k8sCacheStorageClass && s.detectedK8sDefaultStorageClass) {
+            <!-- Gabarit gap: a compact hint that isn't assertive (a `gbt-alert` warning is role=alert and full size). -->
+            <p class="admin-settings__hint admin-settings__hint--warning">
+              <gbt-icon name="alert-triangle" aria-hidden="true" />Détecté automatiquement depuis le cluster : {{ s.detectedK8sDefaultStorageClass }} — vérifiez qu'elle supporte bien
+              ReadWriteMany avant de l'utiliser.
+            </p>
+          }
+          <p class="admin-settings__hint">Un job qui déclare des clés <code>cache:</code> échouera explicitement si aucune StorageClass n'est configurée ici.</p>
+        </div>
+        <fg-field-save-state field="k8sCacheStorageClass" />
+      </div>
+    </div>
+  </div>
+</gbt-card>
+
+<gbt-card variant="outlined" icon="clock" heading="Journaux des jobs" description="Combien de temps le texte des journaux est gardé une fois le job terminé.">
+  <div class="admin-settings__field admin-settings__count" data-field="logRetentionDays">
+    <gbt-input type="number" min="1" label="Durée de conservation des journaux (jours)" placeholder="Illimitée" [errorMessage]="retentionError()" [ngModel]="retentionShown()" (committed)="setLogRetentionDays($event)" />
+    <div class="admin-settings__field-footer">
+      <p class="admin-settings__hint">
+        Le journal d'un job terminé depuis plus longtemps est supprimé (vérification au démarrage du serveur, puis toutes les 24 h). Les pipelines, les jobs et leurs statuts sont conservés. Vide : les journaux sont
+        conservés sans limite.
+      </p>
+      <fg-field-save-state field="logRetentionDays" />
+    </div>
+  </div>
+</gbt-card>

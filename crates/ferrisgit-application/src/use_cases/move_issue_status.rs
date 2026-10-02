@@ -26,24 +26,12 @@ impl MoveIssueStatusUseCase {
 mod tests {
     use super::*;
     use crate::test_support::FakeIssues;
-    use chrono::Utc;
-    use ferrisgit_domain::issue::IssueKind;
+    use crate::use_cases::fixtures;
 
     fn issue(id: Uuid) -> Issue {
         Issue {
             id,
-            repository_id: Uuid::new_v4(),
-            number: 1,
-            author_id: Uuid::new_v4(),
-            assignee_id: None,
-            milestone_id: None,
-            title: "t".to_string(),
-            description: String::new(),
-            status: IssueStatus::Todo,
-            kind: IssueKind::Bug,
-            parent_issue_id: None,
-            created_at: Utc::now(),
-            closed_at: None,
+            ..fixtures::issue(Uuid::new_v4(), Uuid::new_v4())
         }
     }
 

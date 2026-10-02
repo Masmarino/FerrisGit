@@ -1,3 +1,4 @@
+use crate::error::infra;
 use aes_gcm::aead::{Aead, Generate, Nonce};
 use aes_gcm::{Aes256Gcm, KeyInit};
 use ferrisgit_domain::error::DomainError;
@@ -24,7 +25,7 @@ impl SecretEncryptorPort for AesGcmSecretEncryptor {
         let ciphertext = self
             .cipher
             .encrypt(&nonce, plaintext.as_bytes())
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         let mut result = nonce.to_vec();
         result.extend_from_slice(&ciphertext);
         Ok(result)
@@ -40,11 +41,8 @@ impl SecretEncryptorPort for AesGcmSecretEncryptor {
         let nonce = Nonce::<Aes256Gcm>::try_from(nonce_bytes).map_err(|_| {
             DomainError::Infrastructure("ciphertext too short to contain a nonce".to_string())
         })?;
-        let plaintext_bytes = self
-            .cipher
-            .decrypt(&nonce, encrypted)
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        String::from_utf8(plaintext_bytes).map_err(|e| DomainError::Infrastructure(e.to_string()))
+        let plaintext_bytes = self.cipher.decrypt(&nonce, encrypted).map_err(infra)?;
+        String::from_utf8(plaintext_bytes).map_err(infra)
     }
 }
 

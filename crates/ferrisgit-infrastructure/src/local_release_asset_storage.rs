@@ -1,5 +1,6 @@
 use std::path::PathBuf;
 
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::release_asset_storage::ReleaseAssetStoragePort;
@@ -30,6 +31,14 @@ impl LocalReleaseAssetStorage {
     }
 }
 
+/// Deleting something that is already gone is a success.
+fn ignore_not_found(result: std::io::Result<()>) -> Result<(), DomainError> {
+    match result {
+        Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(infra(e)),
+        _ => Ok(()),
+    }
+}
+
 #[async_trait]
 impl ReleaseAssetStoragePort for LocalReleaseAssetStorage {
     async fn write(
@@ -45,13 +54,9 @@ impl ReleaseAssetStoragePort for LocalReleaseAssetStorage {
             format!("release-assets/{repository_id}/{release_id}/{asset_id}-{safe_name}");
         let absolute = self.storage_root.join(&relative_path);
         if let Some(parent) = absolute.parent() {
-            tokio::fs::create_dir_all(parent)
-                .await
-                .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            tokio::fs::create_dir_all(parent).await.map_err(infra)?;
         }
-        tokio::fs::write(&absolute, &data)
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        tokio::fs::write(&absolute, &data).await.map_err(infra)?;
         Ok(relative_path)
     }
 
@@ -61,11 +66,7 @@ impl ReleaseAssetStoragePort for LocalReleaseAssetStorage {
 
     async fn delete(&self, disk_path: &str) -> Result<(), DomainError> {
         let absolute = self.storage_root.join(disk_path);
-        match tokio::fs::remove_file(&absolute).await {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(DomainError::Infrastructure(e.to_string())),
-        }
+        ignore_not_found(tokio::fs::remove_file(&absolute).await)
     }
 
     async fn delete_all_for_repository(&self, repository_id: Uuid) -> Result<(), DomainError> {
@@ -73,11 +74,7 @@ impl ReleaseAssetStoragePort for LocalReleaseAssetStorage {
             .storage_root
             .join("release-assets")
             .join(repository_id.to_string());
-        match tokio::fs::remove_dir_all(&dir).await {
-            Ok(()) => Ok(()),
-            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
-            Err(e) => Err(DomainError::Infrastructure(e.to_string())),
-        }
+        ignore_not_found(tokio::fs::remove_dir_all(&dir).await)
     }
 }
 

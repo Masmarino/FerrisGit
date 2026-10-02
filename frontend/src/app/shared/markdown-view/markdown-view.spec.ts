@@ -2,6 +2,7 @@ import { ErrorHandler } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
+import { Router } from '@angular/router';
 import { decodeFragment, MarkdownOutlineEntry, MarkdownView } from './markdown-view';
 
 describe('MarkdownView', () => {
@@ -464,6 +465,66 @@ describe('MarkdownView', () => {
 
       expect(click(el, link)).toBe(false);
     });
+  });
+});
+
+describe('MarkdownView routed links (opt-in)', () => {
+  function render(content: string, prefix: string | null) {
+    const navigateByUrl = vi.fn(() => Promise.resolve(true));
+    TestBed.configureTestingModule({ providers: [{ provide: Router, useValue: { navigateByUrl } }] });
+    const fixture = TestBed.createComponent(MarkdownView);
+    fixture.componentRef.setInput('content', content);
+    fixture.componentRef.setInput('routedLinkPrefix', prefix);
+    fixture.detectChanges();
+    const el = fixture.nativeElement as HTMLElement;
+    // Records whether the view took the click, then stops jsdom from following the link.
+    const click = (href: string, init: MouseEventInit = {}) => {
+      let prevented = false;
+      const record = (event: Event) => {
+        prevented = event.defaultPrevented;
+        event.preventDefault();
+      };
+      el.addEventListener('click', record);
+      el.querySelector(`a[href="${href}"]`)!.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true, button: 0, ...init }));
+      el.removeEventListener('click', record);
+      return prevented;
+    };
+    return { click, navigateByUrl };
+  }
+
+  const LINKS = '[ref](/docs/ci-cd/reference-yaml#variables) [accueil](/docs) [autre](/docsearch) [dépôt](/repositories/a/b) [site](https://example.com/docs/x)';
+
+  it('sends a link under the prefix, fragment included, through the router', () => {
+    const { click, navigateByUrl } = render(LINKS, '/docs');
+
+    expect(click('/docs/ci-cd/reference-yaml#variables')).toBe(true);
+    expect(click('/docs')).toBe(true);
+    expect(navigateByUrl.mock.calls).toEqual([['/docs/ci-cd/reference-yaml#variables'], ['/docs']]);
+  });
+
+  it('leaves other paths, look-alike prefixes and external links to the browser', () => {
+    const { click, navigateByUrl } = render(LINKS, '/docs');
+
+    for (const href of ['/docsearch', '/repositories/a/b', 'https://example.com/docs/x']) {
+      expect(click(href), href).toBe(false);
+    }
+    expect(navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('leaves modified and middle clicks to the browser (new tab)', () => {
+    const { click, navigateByUrl } = render(LINKS, '/docs');
+
+    expect(click('/docs', { ctrlKey: true })).toBe(false);
+    expect(click('/docs', { metaKey: true })).toBe(false);
+    expect(click('/docs', { button: 1 })).toBe(false);
+    expect(navigateByUrl).not.toHaveBeenCalled();
+  });
+
+  it('is off by default: a README link reloads as before', () => {
+    const { click, navigateByUrl } = render(LINKS, null);
+
+    expect(click('/docs/ci-cd/reference-yaml#variables')).toBe(false);
+    expect(navigateByUrl).not.toHaveBeenCalled();
   });
 });
 

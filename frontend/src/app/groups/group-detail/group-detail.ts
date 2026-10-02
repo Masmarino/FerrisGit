@@ -19,16 +19,12 @@ import {
   Textarea,
   UserChip,
 } from '@masmarino/gabarit';
-import { GroupsService, Group, GroupMember } from '../groups.service';
+import { Group, GROUP_ROLE_LABELS, groupCreationError, GroupMember, GroupsService, isGroupRole } from '../groups.service';
 import { RepositoriesService, Repository } from '../../repositories/repositories.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { CreateRepositoryModal } from '../../repositories/create-repository-modal/create-repository-modal';
 import { WorkspaceGrid, WorkspaceGroupItem } from '../../repositories/workspace-grid/workspace-grid';
 import { WorkspaceGridFilters } from '../../repositories/workspace-grid/workspace-grid-filters';
-
-type Role = 'reader' | 'contributor' | 'maintainer';
-
-const ROLE_LABELS: Record<string, string> = { reader: 'Lecteur', contributor: 'Contributeur', maintainer: 'Mainteneur' };
 
 const MEMBER_PREVIEW = 5;
 
@@ -81,7 +77,10 @@ export class GroupDetail implements OnInit {
 
   protected name = computed(() => this.path().at(-1) ?? '');
   protected fullPath = computed(() => this.path().join('/'));
-  protected roleLabel = computed(() => ROLE_LABELS[this.role() ?? ''] ?? null);
+  protected roleLabel = computed(() => {
+    const role = this.role();
+    return isGroupRole(role) ? GROUP_ROLE_LABELS[role] : null;
+  });
 
   private pathTemplate = viewChild.required<TemplateRef<unknown>>('pathTemplate');
   private roleTemplate = viewChild.required<TemplateRef<unknown>>('roleTemplate');
@@ -93,17 +92,18 @@ export class GroupDetail implements OnInit {
   protected membersLink = computed(() => ['/groups', this.groupId(), 'members']);
 
   // A maintainer of a group maintains its whole subtree: the subgroups' rows get the same role.
-  protected workspaceGroups = computed<WorkspaceGroupItem[]>(() =>
-    this.children().map((g) => ({
+  protected workspaceGroups = computed<WorkspaceGroupItem[]>(() => {
+    const role = this.role();
+    return this.children().map((g) => ({
       id: g.id,
       name: g.name,
       link: this.childLink(g.name),
       path: [...this.path(), g.name].join('/'),
-      role: this.isRole(this.role()) ? (this.role() as Role) : undefined,
+      role: isGroupRole(role) ? role : undefined,
       description: g.description,
       createdAt: g.createdAt,
-    })),
-  );
+    }));
+  });
   protected summary = computed(() => `${plural(this.children().length, 'sous-groupe', 'sous-groupes')} · ${plural(this.repos().length, 'dépôt', 'dépôts')}`);
   protected showFilters = computed(() => !this.loading() && !this.loadFailed() && this.children().length + this.repos().length > 0);
 
@@ -127,11 +127,7 @@ export class GroupDetail implements OnInit {
   }
 
   protected roleName(role: string): string {
-    return ROLE_LABELS[role] ?? role;
-  }
-
-  private isRole(role: string | null): boolean {
-    return role === 'reader' || role === 'contributor' || role === 'maintainer';
+    return isGroupRole(role) ? GROUP_ROLE_LABELS[role] : role;
   }
 
   ngOnInit(): void {
@@ -213,13 +209,7 @@ export class GroupDetail implements OnInit {
       },
       error: (err: HttpErrorResponse) => {
         this.creatingGroup.set(false);
-        if (err.status === 400) {
-          this.createGroupError.set('Nom invalide : lettres, chiffres, - et _ uniquement');
-        } else if (err.status === 409) {
-          this.createGroupError.set('Ce nom est déjà utilisé');
-        } else {
-          this.createGroupError.set('Impossible de créer le sous-groupe. Réessayez plus tard.');
-        }
+        this.createGroupError.set(groupCreationError(err.status, 'le sous-groupe'));
       },
     });
   }

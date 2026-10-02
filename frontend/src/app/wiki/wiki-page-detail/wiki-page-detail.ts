@@ -21,14 +21,11 @@ import {
 } from '@masmarino/gabarit';
 import { WikiPageDetail as WikiPageDetailResponse, WikiRevision, WikiService } from '../wiki.service';
 import { WikiLayout } from '../wiki-layout/wiki-layout';
+import { titleFromSlug, wikiLink } from '../wiki-links';
 import { WikiOutline, hasOutline } from '../wiki-outline/wiki-outline';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { MarkdownOutlineEntry, MarkdownView } from '../../shared/markdown-view/markdown-view';
-
-function titleFromSlug(slug: string): string {
-  return slug.replace(/-/g, ' ');
-}
 
 const plural = (count: number, one: string, many: string) => (count === 1 ? `1 ${one}` : `${count} ${many}`);
 
@@ -130,8 +127,8 @@ export class WikiPageDetail implements OnInit {
     return this.page() !== null && (this.showOutline() || this.revisions().length > 0);
   });
 
-  protected wikiLink = computed(() => ['/repositories', ...this.path(), '-', 'wiki']);
-  protected viewLink = computed(() => [...this.wikiLink(), this.slug()]);
+  protected indexLink = computed(() => wikiLink(this.path()));
+  protected viewLink = computed(() => wikiLink(this.path(), this.slug()));
   protected historyLink = computed(() => [...this.viewLink(), 'history']);
   protected editLink = computed(() => [...this.viewLink(), 'edit']);
 
@@ -216,7 +213,7 @@ export class WikiPageDetail implements OnInit {
       next: () => {
         this.confirmingDelete.set(false);
         this.toast.show('Page wiki supprimée.');
-        void this.router.navigate(this.wikiLink());
+        void this.router.navigate(this.indexLink());
       },
       error: () => {
         this.confirmingDelete.set(false);

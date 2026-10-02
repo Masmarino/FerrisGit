@@ -4,7 +4,7 @@ use uuid::Uuid;
 
 use crate::error::DomainError;
 
-/// The instance switches behind the anonymous pages of public repositories.
+/// The instance switches behind the anonymous pages of public repositories, and behind their anonymous git reads.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct PublicPagesSettings {
     pub public_pages_enabled: bool,

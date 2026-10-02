@@ -1,24 +1,20 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
-import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
+import { moduleMetadata } from '@storybook/angular-vite';
 import { expect, waitFor } from 'storybook/test';
-import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 import { MergeRequestDetail } from './merge-request-detail';
 import { Comment, FileDiff, MergeAttemptResult, MergeRequestSummary, MergeRequestsService, ReviewSummary, TimelineItem, TimelineResponse } from '../merge-requests.service';
 import { Label, LabelsService } from '../../labels/labels.service';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { withRouterAndIcons } from '../../repositories/repository-story-fixtures';
 import { GbtToastService } from '@masmarino/gabarit';
-import { provideFerrisgitIcons } from '../../shared/register-icons';
-import { inShellContentArea } from '../../shared/layout/page-story-helpers';
-import { daysAgo, hoursAgo, minutesAgo } from '../timeline-story-helpers';
+import { daysAgo, hoursAgo, inShellContentArea, minutesAgo } from '../../shared/layout/page-story-helpers';
+import { fakeToast } from '../../shared/layout/settings-story-helpers';
+import { ALICE, BOB, commentFixture as comment, fakeRepositoryContext, label, mergeRequestFixture, milestone } from '../merge-request-fixtures';
 
-const label = (id: string, name: string, color: string): Label => ({ id, name, color, repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' });
 const sampleLabels: Label[] = [label('l1', 'Backend', '#2563eb'), label('l2', 'sécurité', '#dc2626'), label('l3', 'interface', '#6366f1'), label('l4', 'documentation', '#0ea5e9')];
-const sampleMilestones: Milestone[] = [
-  { id: 'm1', title: 'v1.0', description: '', dueDate: null, state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'm2', title: 'v1.1 — authentification unifiée', description: '', dueDate: null, state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-02-01T00:00:00Z' },
-];
+const sampleMilestones: Milestone[] = [milestone({ id: 'm1', title: 'v1.0' }), milestone({ id: 'm2', title: 'v1.1 — authentification unifiée', createdAt: '2026-02-01T00:00:00Z' })];
 
 const sampleDiff: FileDiff[] = [
   {
@@ -87,28 +83,11 @@ const reviewDiff: FileDiff[] = [
   { path: 'frontend/src/assets/providers/keycloak.png', change: 'binary', hunks: [] },
 ];
 
-const alice = { id: 'u1', username: 'alice' };
-const bob = { id: 'u2', username: 'bob' };
 const camille = { id: 'u5', username: 'camille.de-la-fontaine-desrosiers' };
 
-const comment = (fields: Partial<Comment> & { id: string; author: Comment['author']; body: string; createdAt: string }): Comment => ({
-  authorId: fields.author?.id ?? 'gone',
-  replyToId: null,
-  filePath: null,
-  lineNumber: null,
-  endLine: null,
-  side: null,
-  outdated: false,
-  resolved: false,
-  suggestedContent: null,
-  appliedAt: null,
-  appliedCommitSha: null,
-  ...fields,
-});
-
 const sampleComments: Comment[] = [
-  comment({ id: 'c1', author: bob, body: 'Bien vu, merci pour la revue rapide !', createdAt: hoursAgo(20) }),
-  comment({ id: 'c2', author: alice, body: 'Pourquoi ce changement ici ?', createdAt: hoursAgo(6), filePath: 'src/main.rs', lineNumber: 2, side: 'new' }),
+  comment({ id: 'c1', author: BOB, body: 'Bien vu, merci pour la revue rapide !', createdAt: hoursAgo(20) }),
+  comment({ id: 'c2', author: ALICE, body: 'Pourquoi ce changement ici ?', createdAt: hoursAgo(6), filePath: 'src/main.rs', lineNumber: 2, side: 'new' }),
 ];
 
 const blockedReviewSummary: ReviewSummary = {
@@ -139,28 +118,28 @@ const inlineThread: TimelineItem = {
 };
 
 const mixedTimeline: TimelineResponse = {
-  author: alice,
+  author: ALICE,
   items: [
-    { type: 'event', id: 'e1', createdAt: daysAgo(3), actor: alice, kind: 'labels_changed', payload: { added: [{ id: 'l1', name: 'Backend', color: '#2563eb' }], removed: [] } },
-    { type: 'comment', id: 'c1', createdAt: hoursAgo(20), author: bob, body: 'Bien vu, merci pour la revue rapide !' },
+    { type: 'event', id: 'e1', createdAt: daysAgo(3), actor: ALICE, kind: 'labels_changed', payload: { added: [{ id: 'l1', name: 'Backend', color: '#2563eb' }], removed: [] } },
+    { type: 'comment', id: 'c1', createdAt: hoursAgo(20), author: BOB, body: 'Bien vu, merci pour la revue rapide !' },
     inlineThread,
-    { type: 'event', id: 'e2', createdAt: hoursAgo(2), actor: alice, kind: 'commits_pushed', payload: { fromSha: '1a2b3c4d5e6f', toSha: '9f8e7d6c5b4a' } },
+    { type: 'event', id: 'e2', createdAt: hoursAgo(2), actor: ALICE, kind: 'commits_pushed', payload: { fromSha: '1a2b3c4d5e6f', toSha: '9f8e7d6c5b4a' } },
     { type: 'event', id: 'e3', createdAt: minutesAgo(35), actor: { id: 'u3', username: 'carol' }, kind: 'review_submitted', payload: { decision: 'approved' } },
   ],
 };
 
 const mergedTimeline: TimelineResponse = {
-  author: alice,
+  author: ALICE,
   items: [
-    { type: 'comment', id: 'c1', createdAt: hoursAgo(20), author: bob, body: 'Tout est bon pour moi.' },
-    { type: 'event', id: 'e1', createdAt: hoursAgo(3), actor: bob, kind: 'review_submitted', payload: { decision: 'approved' } },
-    { type: 'event', id: 'e2', createdAt: minutesAgo(12), actor: alice, kind: 'merged', payload: { mergeCommitSha: 'c0ffee1234567' } },
+    { type: 'comment', id: 'c1', createdAt: hoursAgo(20), author: BOB, body: 'Tout est bon pour moi.' },
+    { type: 'event', id: 'e1', createdAt: hoursAgo(3), actor: BOB, kind: 'review_submitted', payload: { decision: 'approved' } },
+    { type: 'event', id: 'e2', createdAt: minutesAgo(12), actor: ALICE, kind: 'merged', payload: { mergeCommitSha: 'c0ffee1234567' } },
   ],
 };
 
 const changesRequestedTimeline: TimelineResponse = {
-  author: alice,
-  items: [inlineThread, { type: 'event', id: 'e1', createdAt: hoursAgo(4), actor: bob, kind: 'review_submitted', payload: { decision: 'changes_requested' } }],
+  author: ALICE,
+  items: [inlineThread, { type: 'event', id: 'e1', createdAt: hoursAgo(4), actor: BOB, kind: 'review_submitted', payload: { decision: 'changes_requested' } }],
 };
 
 const changesRequestedReviewSummary: ReviewSummary = {
@@ -185,21 +164,16 @@ const satisfiedReviewSummary: ReviewSummary = {
 
 const noReviews: ReviewSummary = { reviews: [], requiredApprovals: 0, liveApprovalCount: 0, blocked: false };
 
-const openMergeRequest: MergeRequestSummary = {
+const openMergeRequest = mergeRequestFixture({
   id: 'mr-1',
-  sourceBranch: 'feature/sso-login',
-  targetBranch: 'main',
   title: 'Ajoute la connexion via SSO',
+  sourceBranch: 'feature/sso-login',
   description: 'Implémente le flux OAuth pour la connexion.',
-  status: 'open',
-  mergeCommitSha: null,
   createdAt: daysAgo(3),
-  closedAt: null,
   milestoneId: 'm1',
   labels: [sampleLabels[0]],
-  author: alice,
   commentCount: 2,
-};
+});
 
 const mergedMergeRequest: MergeRequestSummary = {
   ...openMergeRequest,
@@ -251,15 +225,13 @@ function fakeMergeRequestsService(mr: MergeRequestSummary, options: DataOptions 
   };
 }
 
-const fakeToast = { show: () => {}, dismiss: () => {} };
-
-function withData(mr: MergeRequestSummary, role: 'owner' | 'reader', options: DataOptions = {}, labels: Label[] = sampleLabels, milestones: Milestone[] = sampleMilestones) {
+function withData(mr: MergeRequestSummary, role: 'owner' | 'reader' | 'contributor', options: DataOptions = {}, labels: Label[] = sampleLabels, milestones: Milestone[] = sampleMilestones) {
   return moduleMetadata({
     providers: [
       { provide: MergeRequestsService, useValue: fakeMergeRequestsService(mr, options) },
       { provide: LabelsService, useValue: { listForRepository: () => of(labels), setForMergeRequest: () => of(labels) } },
       { provide: MilestonesService, useValue: { listForRepository: () => of(milestones) } },
-      { provide: RepositoryContextService, useValue: { current: () => ({ repositoryId: 'repo-1', path: ['acme', 'widget'], role, ancestors: [], groupId: null }) } },
+      { provide: RepositoryContextService, useValue: fakeRepositoryContext(role, ['acme', 'widget']) },
       { provide: GbtToastService, useValue: fakeToast },
     ],
   });
@@ -328,7 +300,7 @@ const meta: Meta<MergeRequestDetail> = {
     repositoryId: 'repo-1',
     mergeRequestId: 'mr-1',
   },
-  decorators: [applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] }), inShellContentArea],
+  decorators: [withRouterAndIcons, inShellContentArea],
 };
 
 export default meta;
@@ -341,7 +313,7 @@ export const Populated: Story = {
     const primaries = context.canvasElement.querySelectorAll('.gbt-button--primary');
     await expect(primaries.length, 'one primary button').toBe(1);
     await expect(button(context.canvasElement, '.gbt-page-header__actions button', 'Fusionner').disabled).toBe(true);
-    await expect(context.canvasElement.querySelectorAll('.mr-detail__people li').length, 'alice, bob, carol').toBe(3);
+    await expect(context.canvasElement.querySelectorAll('.mr-detail__people li').length, 'alice, BOB, carol').toBe(3);
   },
 };
 
@@ -384,7 +356,7 @@ export const Closed: Story = {
     withData(
       closedMergeRequest,
       'owner',
-      { comments: [], timeline: { author: alice, items: [{ type: 'event', id: 'e1', createdAt: minutesAgo(8), actor: alice, kind: 'closed', payload: {} }] }, reviewSummary: noReviews },
+      { comments: [], timeline: { author: ALICE, items: [{ type: 'event', id: 'e1', createdAt: minutesAgo(8), actor: ALICE, kind: 'closed', payload: {} }] }, reviewSummary: noReviews },
       [],
       [],
     ),
@@ -399,6 +371,18 @@ export const ReadOnly: Story = {
     await expect(context.canvasElement.querySelector('.gbt-page-header__actions button')).toBeNull();
     await expect(context.canvasElement.querySelector('.gbt-select__trigger')).toBeNull();
     await expect(context.canvasElement.querySelector('.mr-approvals__actions')).toBeNull();
+  },
+};
+
+/** A Contributor reviews and closes but cannot merge: the header keeps Fermer only. */
+export const ContributorCannotMerge: Story = {
+  decorators: [withData(openMergeRequest, 'contributor', { reviewSummary: satisfiedReviewSummary })],
+  play: async (context) => {
+    await expectPageLayout()(context);
+    await expect(button(context.canvasElement, '.gbt-page-header__actions button', 'Fermer')).toBeTruthy();
+    await expect(
+      Array.from(context.canvasElement.querySelectorAll('.gbt-page-header__actions button')).some((b) => b.textContent?.trim() === 'Fusionner'),
+    ).toBe(false);
   },
 };
 

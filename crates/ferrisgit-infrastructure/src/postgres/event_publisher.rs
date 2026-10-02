@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::audit::{EventPublisherPort, SecurityEvent};
 use ferrisgit_domain::error::DomainError;
@@ -26,8 +27,7 @@ impl EventPublisherPort for PostgresEventPublisher {
         event: SecurityEvent,
         actor_id: Option<Uuid>,
     ) -> Result<(), DomainError> {
-        let payload =
-            serde_json::to_value(&event).map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let payload = serde_json::to_value(&event).map_err(infra)?;
 
         // Use the event's subject id when it names one, so the audit log can filter by aggregate_id. Only
         // events with no natural subject (anonymous actor) get a fresh id.
@@ -53,15 +53,11 @@ impl EventPublisherPort for PostgresEventPublisher {
             }
         };
 
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let mut tx = self.pool.begin().await.map_err(infra)?;
         sqlx::query!("SELECT pg_advisory_xact_lock(hashtext($1))", aggregate_id)
             .execute(&mut *tx)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
 
         let current_version: i64 = sqlx::query_scalar!(
             "SELECT version FROM domain_events WHERE aggregate_type = 'Security' AND aggregate_id = $1 ORDER BY version DESC LIMIT 1 FOR UPDATE",
@@ -69,7 +65,7 @@ impl EventPublisherPort for PostgresEventPublisher {
         )
         .fetch_optional(&mut *tx)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
+        .map_err(infra)?
         .unwrap_or(0);
 
         sqlx::query!(
@@ -82,11 +78,9 @@ impl EventPublisherPort for PostgresEventPublisher {
         )
         .execute(&mut *tx)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
 
-        tx.commit()
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        tx.commit().await.map_err(infra)?;
         Ok(())
     }
 }
@@ -122,7 +116,8 @@ impl PipelineEventPublisherPort for PostgresEventPublisher {
     }
 }
 
-/// Advisory-lock-then-append shared by `publish_security_event` and the `Pipeline`/`Job` events.
+/// Advisory-lock-then-append for the `Pipeline` and `Job` events. `publish_security_event` repeats the same steps
+/// with a literal `'Security'` aggregate type, which keeps its queries in the offline `.sqlx` cache.
 async fn publish_versioned_event<E: serde::Serialize>(
     pool: &sqlx::PgPool,
     aggregate_type: &str,
@@ -131,17 +126,13 @@ async fn publish_versioned_event<E: serde::Serialize>(
     event: &E,
     actor_id: Option<Uuid>,
 ) -> Result<(), DomainError> {
-    let payload =
-        serde_json::to_value(event).map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+    let payload = serde_json::to_value(event).map_err(infra)?;
 
-    let mut tx = pool
-        .begin()
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+    let mut tx = pool.begin().await.map_err(infra)?;
     sqlx::query!("SELECT pg_advisory_xact_lock(hashtext($1))", aggregate_id)
         .execute(&mut *tx)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
 
     let current_version: i64 = sqlx::query_scalar!(
         "SELECT version FROM domain_events WHERE aggregate_type = $1 AND aggregate_id = $2 ORDER BY version DESC LIMIT 1 FOR UPDATE",
@@ -150,7 +141,7 @@ async fn publish_versioned_event<E: serde::Serialize>(
     )
     .fetch_optional(&mut *tx)
     .await
-    .map_err(|e| DomainError::Infrastructure(e.to_string()))?
+    .map_err(infra)?
     .unwrap_or(0);
 
     sqlx::query!(
@@ -164,11 +155,9 @@ async fn publish_versioned_event<E: serde::Serialize>(
     )
     .execute(&mut *tx)
     .await
-    .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+    .map_err(infra)?;
 
-    tx.commit()
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+    tx.commit().await.map_err(infra)?;
     Ok(())
 }
 

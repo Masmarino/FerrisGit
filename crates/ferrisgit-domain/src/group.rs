@@ -11,8 +11,7 @@ pub struct Group {
     pub parent_group_id: Option<Uuid>,
     pub name: String,
     pub description: String,
-    /// `None` once the creator's account was deleted (`ON DELETE SET NULL`). Informational only, never an access
-    /// grant.
+    /// `None` once the creator's account was deleted. Informational only, never an access grant.
     pub created_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }

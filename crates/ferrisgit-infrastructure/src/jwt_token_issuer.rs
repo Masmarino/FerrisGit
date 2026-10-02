@@ -1,5 +1,6 @@
 use std::sync::RwLock;
 
+use crate::error::infra;
 use chrono::{Duration, Utc};
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::user::TokenIssuerPort;
@@ -55,7 +56,7 @@ impl TokenIssuerPort for JwtTokenIssuer {
             &claims,
             &EncodingKey::from_secret(self.secret.as_bytes()),
         )
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     fn verify(&self, token: &str) -> Result<(Uuid, i32), DomainError> {

@@ -1,5 +1,5 @@
 import { JobSummary } from './pipelines.service';
-import { activeStageIndex, durationLabel, formatDuration, groupByStage, isNearBottom } from './pipeline-helpers';
+import { STATUS_LABELS, activeStageIndex, durationLabel, formatDuration, groupByStage, isNearBottom, jobDurationLabel, jobGlyphStatus, jobGraphStatus } from './pipeline-helpers';
 
 const job = (id: string, stage: string, status: JobSummary['status']): JobSummary => ({
   id,
@@ -72,5 +72,33 @@ describe('isNearBottom', () => {
 
   it('is false once scrolled up', () => {
     expect(isNearBottom(1000, 100, 100)).toBe(false);
+  });
+});
+
+describe('skipped jobs', () => {
+  it('are labelled "Ignoré"', () => {
+    expect(STATUS_LABELS.skipped).toBe('Ignoré');
+  });
+
+  it('wear the grey cross of a canceled job in Gabarit glyphs, and keep every other status', () => {
+    expect(jobGlyphStatus('skipped')).toBe('canceled');
+    expect(jobGlyphStatus('failed')).toBe('failed');
+    expect(jobGlyphStatus('running')).toBe('running');
+  });
+
+  it('keep their own status in the job graph, whose screen-reader label comes from it', () => {
+    expect(jobGraphStatus('skipped')).toBe('skipped');
+  });
+
+  it('show "ignoré" instead of a duration, others keep theirs', () => {
+    const now = Date.parse('2026-01-01T00:01:00Z');
+    expect(jobDurationLabel({ status: 'skipped', startedAt: null, finishedAt: null }, now)).toBe('ignoré');
+    expect(jobDurationLabel({ status: 'success', startedAt: '2026-01-01T00:00:00Z', finishedAt: '2026-01-01T00:00:45Z' }, now)).toBe('45s');
+    expect(jobDurationLabel({ status: 'pending', startedAt: null, finishedAt: null }, now)).toBe('—');
+  });
+
+  it('do not count as a success when finding the active stage', () => {
+    const groups = groupByStage([job('a', 'p', 'failed'), job('b', 'c', 'skipped')]);
+    expect(activeStageIndex(groups)).toBe(0);
   });
 });

@@ -1,7 +1,9 @@
 import { Component, ElementRef, afterRenderEffect, computed, input, linkedSignal, output, viewChild } from '@angular/core';
-import { JobStatus, Stepper, StepperStep } from '@masmarino/gabarit';
+import { JobStatus, Stepper } from '@masmarino/gabarit';
 import { JobSummary } from '../pipelines.service';
-import { STATUS_LABELS, StageGroup, durationLabel, isNearBottom } from '../pipeline-helpers';
+import { STATUS_LABELS, StageGroup, isNearBottom, jobDurationLabel, jobGlyphStatus, stageIndexOf, stageSteps } from '../pipeline-helpers';
+
+const PURGE_DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
 
 @Component({
   selector: 'fg-pipeline-job',
@@ -23,16 +25,18 @@ export class PipelineJob {
   private readonly logElement = viewChild<ElementRef<HTMLElement>>('logs');
 
   protected statusLabel = computed(() => STATUS_LABELS[this.job().status]);
-  protected duration = computed(() => durationLabel(this.job().startedAt, this.job().finishedAt, this.now()));
-
-  protected steps = computed<StepperStep[]>(() =>
-    this.groups().map((group) => ({ label: group.name, hasError: group.jobs.some((job) => job.status === 'failed') })),
-  );
-
-  protected selectedIndex = computed<number | null>(() => {
-    const index = this.groups().findIndex((group) => group.name === this.job().stage);
-    return index === -1 ? null : index;
+  protected glyph = computed(() => jobGlyphStatus(this.job().status));
+  protected duration = computed(() => jobDurationLabel(this.job(), this.now()));
+  protected logPlaceholder = computed(() => {
+    const { status, logsPurgedAt } = this.job();
+    if (logsPurgedAt) {
+      return `Journal supprimé le ${PURGE_DATE.format(new Date(logsPurgedAt))} (rétention des journaux de l'instance).`;
+    }
+    return status === 'skipped' ? "Ce job n'a pas démarré : un job dont il dépend n'a pas réussi." : '(pas encore de logs)';
   });
+
+  protected steps = computed(() => stageSteps(this.groups()));
+  protected selectedIndex = computed(() => stageIndexOf(this.groups(), this.job().stage));
 
   constructor() {
     afterRenderEffect(() => {

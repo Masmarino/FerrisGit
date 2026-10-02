@@ -1,89 +1,22 @@
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
+mod common;
+
+use common::git::git;
+
+use common::http::post_json;
+
+use common::http::login;
+use ferrisgit_api::state::AppState;
 use ferrisgit_domain::pipeline::NewPipeline;
 use ferrisgit_domain::settings::ExecutionEngine;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use std::net::SocketAddr;
-use std::process::Command;
 use std::time::Duration;
 use uuid::Uuid;
 
 async fn spawn_server(pool: PgPool) -> (SocketAddr, AppState) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap().keep();
-    let static_dir = tempfile::tempdir().unwrap().keep();
-    std::fs::write(static_dir.join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-    let state_for_fixtures = state.clone();
-
-    let app = build_router(state, &static_dir);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
-    (addr, state_for_fixtures)
-}
-
-async fn login(
-    client: &reqwest::Client,
-    addr: SocketAddr,
-    username: &str,
-    password: &str,
-) -> String {
-    let res: Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": username, "password": password }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    res["token"].as_str().unwrap().to_string()
-}
-
-/// Runs `git <args>` in `cwd` on a blocking thread (the in-process server shares the runtime,
-/// so a blocking git call would deadlock the clone/push it is waiting on).
-async fn git(args: &[&str], cwd: &std::path::Path) -> String {
-    let args: Vec<String> = args.iter().map(|s| s.to_string()).collect();
-    let cwd = cwd.to_path_buf();
-    let output = tokio::task::spawn_blocking(move || {
-        Command::new("git").args(&args).current_dir(&cwd).output()
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(
-        output.status.success(),
-        "git failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8_lossy(&output.stdout).trim().to_string()
+    let app = common::spawn_app(pool).await;
+    (app.addr, app.state)
 }
 
 struct Fixture {
@@ -101,27 +34,17 @@ async fn fixture(pool: PgPool) -> Fixture {
     let (addr, state) = spawn_server(pool).await;
     let client = reqwest::Client::new();
     let jwt = login(&client, addr, "admin", "adminpassword123").await;
-    let token_res: Value = client
-        .post(format!("http://{addr}/api/tokens"))
-        .bearer_auth(&jwt)
-        .json(&json!({ "name": "ci" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let token_res: Value =
+        post_json(&client, addr, &jwt, "/tokens", &json!({ "name": "ci" })).await;
     let plain_token = token_res["token"].as_str().unwrap().to_string();
-    let repo_res: Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(&jwt)
-        .json(&json!({ "name": "hello", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let repo_res: Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
     let repo_id = repo_res["id"].as_str().unwrap().to_string();
     let repository_id: Uuid = repo_id.parse().unwrap();
     let admin_id = state

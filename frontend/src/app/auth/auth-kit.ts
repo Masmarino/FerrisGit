@@ -1,6 +1,6 @@
 import type { Provider } from '@angular/core';
 import { AUTH_PORT, MFA_PORT, TOTP_QR_RENDERER, provideAuthLabels } from '@masmarino/gabarit';
-import { MfaService } from '../account/mfa.service';
+import { MfaService } from './mfa.service';
 import { AuthService } from './auth.service';
 import { FR_AUTH_LABELS } from './auth-labels.fr';
 import { renderTotpQr } from './totp-qr-renderer';

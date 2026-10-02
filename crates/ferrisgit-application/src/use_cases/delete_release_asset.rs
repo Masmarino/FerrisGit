@@ -40,25 +40,14 @@ impl DeleteReleaseAssetUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chrono::Utc;
-    use ferrisgit_domain::release::ReleaseAsset;
-
     use crate::test_support::{FakeReleases, FakeStorage};
+    use crate::use_cases::fixtures::release_asset;
 
     #[tokio::test]
     async fn deleting_an_asset_deletes_the_row_then_the_file() {
-        let asset_id = Uuid::new_v4();
         let release_id = Uuid::new_v4();
-        let asset = ReleaseAsset {
-            id: asset_id,
-            release_id,
-            filename: "a.txt".to_string(),
-            content_type: "text/plain".to_string(),
-            size_bytes: 1,
-            disk_path: "release-assets/x/y/z".to_string(),
-            uploaded_by: Some(Uuid::new_v4()),
-            created_at: Utc::now(),
-        };
+        let asset = release_asset(release_id, "release-assets/x/y/z");
+        let asset_id = asset.id;
         let releases = Arc::new(FakeReleases::empty().with_assets(vec![asset]));
         let storage = Arc::new(FakeStorage::new());
         let use_case = DeleteReleaseAssetUseCase::new(releases.clone(), storage.clone());

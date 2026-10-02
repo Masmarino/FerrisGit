@@ -1,3 +1,4 @@
+use crate::error::{conflict_on_duplicate, infra};
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
@@ -50,14 +51,9 @@ impl RepositoryCollaboratorStorePort for PostgresRepositoryCollaboratorStore {
         sqlx::query!("INSERT INTO repository_collaborators (repository_id, user_id, role) VALUES ($1, $2, $3)", repository_id, user_id, role.as_str())
             .execute(&self.pool)
             .await
-            .map_err(|e| {
-                if let sqlx::Error::Database(db_err) = &e
-                    && db_err.is_unique_violation()
-                {
-                    return DomainError::Conflict("already a collaborator".to_string());
-                }
-                DomainError::Infrastructure(e.to_string())
-            })?;
+            .map_err(conflict_on_duplicate(|| {
+                "already a collaborator".to_string()
+            }))?;
         Ok(())
     }
 
@@ -70,7 +66,7 @@ impl RepositoryCollaboratorStorePort for PostgresRepositoryCollaboratorStore {
         let result = sqlx::query!("UPDATE repository_collaborators SET role = $1 WHERE repository_id = $2 AND user_id = $3", role.as_str(), repository_id, user_id)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("collaborator".to_string()));
         }
@@ -85,7 +81,7 @@ impl RepositoryCollaboratorStorePort for PostgresRepositoryCollaboratorStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -102,7 +98,7 @@ impl RepositoryCollaboratorStorePort for PostgresRepositoryCollaboratorStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter().map(TryFrom::try_from).collect()
     }
 
@@ -118,7 +114,7 @@ impl RepositoryCollaboratorStorePort for PostgresRepositoryCollaboratorStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         row.map(|r| CollaboratorRole::parse(&r.role)).transpose()
     }
 
@@ -132,7 +128,7 @@ impl RepositoryCollaboratorStorePort for PostgresRepositoryCollaboratorStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows.into_iter().map(|r| r.repository_id).collect())
     }
 
@@ -151,7 +147,7 @@ impl RepositoryCollaboratorStorePort for PostgresRepositoryCollaboratorStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter()
             .map(|row| {
                 Ok(CollaboratedRepository {
@@ -176,40 +172,7 @@ impl RepositoryCollaboratorStorePort for PostgresRepositoryCollaboratorStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ferrisgit_domain::repository::{NewRepository, RepositoryStorePort, RepositoryVisibility};
-    use ferrisgit_domain::user::{NewUser, UserRepositoryPort};
-
-    async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
-        let users = crate::postgres::user_repository::PostgresUserRepository::new(pool.clone());
-        users
-            .create(NewUser {
-                username: username.to_string(),
-                email: format!("{username}@example.com"),
-                password_hash: "h".to_string(),
-                is_admin: false,
-            })
-            .await
-            .unwrap()
-            .id
-    }
-
-    async fn seed_repository(pool: &PgPool, owner_id: Uuid, name: &str) -> Uuid {
-        let repos = crate::postgres::repository_store::PostgresRepositoryStore::new(pool.clone());
-        repos
-            .create(
-                NewRepository {
-                    owner_id,
-                    name: name.to_string(),
-                    group_id: None,
-                    description: String::new(),
-                    visibility: RepositoryVisibility::Private,
-                },
-                format!("{name}-path"),
-            )
-            .await
-            .unwrap()
-            .id
-    }
+    use crate::postgres::test_support::{seed_repository, seed_user};
 
     #[sqlx::test(migrations = "../../migrations")]
     async fn adding_then_listing_a_collaborator_returns_their_username_and_role(pool: PgPool) {

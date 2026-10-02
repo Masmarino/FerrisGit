@@ -112,14 +112,8 @@ mod tests {
 
     fn public_repo(id: Uuid, owner_id: Uuid) -> Repository {
         Repository {
-            id,
-            owner_id,
-            name: "r".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "r.git".to_string(),
             visibility: RepositoryVisibility::Public,
-            created_at: Utc::now(),
+            ..repo(id, owner_id, None)
         }
     }
 

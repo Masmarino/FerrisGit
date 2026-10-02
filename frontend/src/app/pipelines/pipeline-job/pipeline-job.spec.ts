@@ -50,6 +50,36 @@ describe('PipelineJob', () => {
     expect(glyph?.querySelector('.sr-only')?.textContent?.trim()).toBe(label);
   });
 
+  it('shows a skipped job as "Ignoré", with the cross glyph, and says why there are no logs', () => {
+    const el = setup(job('deploy', 'report', 'skipped')).nativeElement as HTMLElement;
+    const glyph = el.querySelector('h2 gbt-job-status');
+    expect(glyph?.getAttribute('data-status')).toBe('canceled');
+    expect(glyph?.querySelector('.sr-only')?.textContent?.trim()).toBe('Ignoré');
+    expect(el.querySelector('.pipeline-job__meta')?.textContent).toContain('Ignoré');
+    expect(el.querySelector('.pipeline-job__duration')?.textContent?.trim()).toBe('ignoré');
+    expect(el.querySelector('.pipeline-job__logs')?.textContent).toContain("n'a pas démarré");
+  });
+
+  it('keeps the usual placeholder for a job that has no logs yet', () => {
+    const el = setup(job('app-health', 'check', 'pending')).nativeElement as HTMLElement;
+    expect(el.querySelector('.pipeline-job__logs')?.textContent).toContain('(pas encore de logs)');
+  });
+
+  it('says that the log was deleted by the retention, with the date, instead of "no logs yet"', () => {
+    const el = setup(job('a', 'check', 'success', { logs: '', logsPurgedAt: '2026-03-12T12:00:00Z' })).nativeElement as HTMLElement;
+
+    const text = el.querySelector('.pipeline-job__logs')?.textContent ?? '';
+    expect(text).toContain('Journal supprimé le 12 mars 2026');
+    expect(text).toContain('rétention');
+    expect(text).not.toContain('(pas encore de logs)');
+  });
+
+  it('keeps showing the log when there is one, even if a purge date is set', () => {
+    const el = setup(job('a', 'check', 'success', { logs: 'still here', logsPurgedAt: null })).nativeElement as HTMLElement;
+
+    expect(el.querySelector('.pipeline-job__logs')?.textContent).toContain('still here');
+  });
+
   it('lists the jobs it depends on', () => {
     const el = setup(job('summary', 'report', 'pending', { needs: ['a', 'b'] })).nativeElement as HTMLElement;
     expect(el.querySelector('.pipeline-job__needs')?.textContent).toContain('a, b');

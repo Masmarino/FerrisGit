@@ -25,29 +25,36 @@ import { AdminUser, AdminUsersService } from '../admin-users.service';
 import { AuthService } from '../../auth/auth.service';
 import { MeService } from '../../shell/me.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { LinkMailFailed, MailedLinkKind } from './link-mail-failed/link-mail-failed';
+import { LinkMailFailed, MailFailure } from './link-mail-failed/link-mail-failed';
 import { InviteUserModal } from './invite-user-modal/invite-user-modal';
+import { RowDate, rowDate } from '../row-date';
 import {
   ACCOUNT_GONE,
   accountState,
   adminAction,
+  ALREADY_ACTIVE,
   apiMessage,
   DEMOTE_FAILED,
   DEMOTE_HEADING,
   demotedToast,
   demoteMessage,
+  invitationResentToast,
   LAST_ADMIN_DEMOTE_REFUSED,
+  MFA_RESET_DONE,
+  MFA_RESET_FAILED,
   mfaPresentation,
   mfaResetMessage,
+  NOT_ACTIVATED,
   OWN_PASSWORD_REFUSED,
+  PASSWORD_RESET_FAILED,
   passwordResetMessage,
+  passwordResetToast,
   PENDING_ACTIVATION_REFUSED,
   plural,
   Presentation,
   PROMOTE_FAILED,
   promotedToast,
-  RowDate,
-  rowDate,
+  RESEND_FAILED,
   SELF_DEMOTED_TOAST,
   SUPER_ADMIN,
 } from './admin-user-presentation';
@@ -77,13 +84,6 @@ interface UserRow {
   /** Null for the signed-in administrator's own account. */
   link: string[] | null;
   busy: string | null;
-}
-
-interface MailFailure {
-  kind: MailedLinkKind;
-  username: string;
-  url?: string;
-  emailError?: string;
 }
 
 /**
@@ -298,7 +298,7 @@ export class AdminUsers implements OnInit {
         this.list.update((list) => list.map((item) => (item.id === result.user.id ? result.user : item)));
         if (result.emailSent) {
           this.mailFailure.set(null);
-          this.toast.show(`Invitation renvoyée à ${result.user.email}.`);
+          this.toast.show(invitationResentToast(result.user.email));
           this.focusRowAction(user.id);
         } else {
           this.showMailFailure({ kind: 'invitation', username: result.user.username, url: result.activationUrl, emailError: result.emailError });
@@ -308,10 +308,10 @@ export class AdminUsers implements OnInit {
         this.setBusy(user.id, null);
         this.focusRowAction(user.id);
         if (err.status === 400) {
-          this.toast.show("Ce compte est déjà activé : il n'y a plus d'invitation à renvoyer.", 'error');
+          this.toast.show(ALREADY_ACTIVE, 'error');
           this.refresh();
         } else {
-          this.toast.show("L'invitation n'a pas pu être renvoyée. Réessayez plus tard.", 'error');
+          this.toast.show(RESEND_FAILED, 'error');
         }
       },
     });
@@ -380,13 +380,13 @@ export class AdminUsers implements OnInit {
           return;
         }
         this.list.update((list) => list.map((item) => (item.id === target.id ? { ...item, mfaEnabled: false } : item)));
-        this.toast.show('Double authentification réinitialisée.');
+        this.toast.show(MFA_RESET_DONE);
         this.focusRowAction(target.id);
       },
       error: () => {
         this.resetting.set(false);
         this.resetTarget.set(null);
-        this.toast.show("La double authentification n'a pas pu être réinitialisée. Réessayez plus tard.", 'error');
+        this.toast.show(MFA_RESET_FAILED, 'error');
         this.focusRowAction(target.id);
       },
     });
@@ -416,7 +416,7 @@ export class AdminUsers implements OnInit {
         this.passwordResetTarget.set(null);
         if (result.emailSent) {
           this.mailFailure.set(null);
-          this.toast.show(`Mot de passe réinitialisé. Un lien pour en choisir un nouveau a été envoyé à ${target.email}.`);
+          this.toast.show(passwordResetToast(target.email));
           this.focusRowAction(target.id);
         } else {
           // The reset went through and the old password no longer works, so this link is the user's only way back in.
@@ -430,15 +430,13 @@ export class AdminUsers implements OnInit {
         if (err.status === 400 && apiMessage(err) === OWN_PASSWORD_REFUSED) {
           this.toast.show('Changez votre propre mot de passe depuis les paramètres de votre compte.', 'error');
         } else if (err.status === 400 && apiMessage(err) === PENDING_ACTIVATION_REFUSED) {
-          this.toast.show("Ce compte n'est pas encore activé : renvoyez-lui plutôt l'invitation.", 'error');
+          this.toast.show(NOT_ACTIVATED, 'error');
           this.refresh();
-        } else if (err.status === 400) {
-          this.toast.show("Le mot de passe n'a pas pu être réinitialisé. Réessayez plus tard.", 'error');
         } else if (err.status === 404) {
           this.toast.show(ACCOUNT_GONE, 'error');
           this.refresh();
         } else {
-          this.toast.show("Le mot de passe n'a pas pu être réinitialisé. Réessayez plus tard.", 'error');
+          this.toast.show(PASSWORD_RESET_FAILED, 'error');
         }
       },
     });

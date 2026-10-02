@@ -7,7 +7,7 @@ use ferrisgit_domain::milestone::MilestoneStorePort;
 use ferrisgit_domain::repository::RepositoryStorePort;
 use uuid::Uuid;
 
-use crate::scope_check::is_in_repository_scope;
+use super::require_in_scope::require_milestone_in_scope;
 
 pub struct UpdateIssueUseCase {
     issues: Arc<dyn IssueStorePort>,
@@ -46,28 +46,18 @@ impl UpdateIssueUseCase {
             .ok_or_else(|| DomainError::NotFound("issue".to_string()))?;
 
         if let Some(milestone_id) = milestone_id {
-            let milestone = self
-                .milestones
-                .find_by_id(milestone_id)
-                .await?
-                .ok_or_else(|| DomainError::NotFound("milestone".to_string()))?;
             let repository = self
                 .repositories
                 .find_by_id(existing.repository_id)
                 .await?
                 .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
-            if !is_in_repository_scope(
+            require_milestone_in_scope(
+                self.milestones.as_ref(),
                 &self.groups,
                 &repository,
-                milestone.repository_id,
-                milestone.group_id,
+                milestone_id,
             )
-            .await?
-            {
-                return Err(DomainError::Validation(format!(
-                    "milestone {milestone_id} is not usable on this repository"
-                )));
-            }
+            .await?;
         }
 
         self.issues
@@ -85,40 +75,21 @@ impl UpdateIssueUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeGroups, FakeIssues, FakeMilestones, FakeRepositories};
-    use chrono::Utc;
+    use crate::use_cases::fixtures;
     use ferrisgit_domain::group::Group;
-    use ferrisgit_domain::issue::IssueStatus;
     use ferrisgit_domain::milestone::NewMilestone;
-    use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
+    use ferrisgit_domain::repository::Repository;
 
     fn repository(id: Uuid) -> Repository {
-        Repository {
-            id,
-            owner_id: Uuid::new_v4(),
-            name: "r".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "r.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }
+        fixtures::repository_with_id(id, Uuid::new_v4())
     }
 
     fn issue(id: Uuid, repository_id: Uuid) -> Issue {
         Issue {
             id,
-            repository_id,
-            number: 1,
-            author_id: Uuid::new_v4(),
-            assignee_id: None,
-            milestone_id: None,
             title: "old title".to_string(),
             description: "old description".to_string(),
-            status: IssueStatus::Todo,
-            kind: IssueKind::Bug,
-            parent_issue_id: None,
-            created_at: Utc::now(),
-            closed_at: None,
+            ..fixtures::issue(repository_id, Uuid::new_v4())
         }
     }
 

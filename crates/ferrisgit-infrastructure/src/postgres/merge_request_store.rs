@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::diff::DiffSide;
 use ferrisgit_domain::error::DomainError;
@@ -38,21 +39,23 @@ struct Row {
     closed_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-impl Row {
-    fn into_domain(self) -> Result<MergeRequest, DomainError> {
+impl TryFrom<Row> for MergeRequest {
+    type Error = DomainError;
+
+    fn try_from(row: Row) -> Result<Self, DomainError> {
         Ok(MergeRequest {
-            id: self.id,
-            repository_id: self.repository_id,
-            author_id: self.author_id,
-            source_branch: self.source_branch,
-            target_branch: self.target_branch,
-            title: self.title,
-            description: self.description,
-            status: MergeRequestStatus::parse(&self.status)?,
-            merge_commit_sha: self.merge_commit_sha,
-            milestone_id: self.milestone_id,
-            created_at: self.created_at,
-            closed_at: self.closed_at,
+            id: row.id,
+            repository_id: row.repository_id,
+            author_id: row.author_id,
+            source_branch: row.source_branch,
+            target_branch: row.target_branch,
+            title: row.title,
+            description: row.description,
+            status: MergeRequestStatus::parse(&row.status)?,
+            merge_commit_sha: row.merge_commit_sha,
+            milestone_id: row.milestone_id,
+            created_at: row.created_at,
+            closed_at: row.closed_at,
         })
     }
 }
@@ -75,35 +78,28 @@ struct CommentRow {
     applied_commit_sha: Option<String>,
 }
 
-impl CommentRow {
-    fn into_domain(self) -> Result<MergeRequestComment, DomainError> {
+impl TryFrom<CommentRow> for MergeRequestComment {
+    type Error = DomainError;
+
+    fn try_from(row: CommentRow) -> Result<Self, DomainError> {
         Ok(MergeRequestComment {
-            id: self.id,
-            merge_request_id: self.merge_request_id,
-            author_id: self.author_id,
-            body: self.body,
-            created_at: self.created_at,
-            reply_to_id: self.reply_to_id,
-            file_path: self.file_path,
-            line_number: self.line_number,
-            side: self.side.map(|s| DiffSide::parse(&s)).transpose()?,
-            anchor_content: self.anchor_content,
-            resolved: self.resolved,
-            end_line: self.end_line,
-            suggested_content: self.suggested_content,
-            applied_at: self.applied_at,
-            applied_commit_sha: self.applied_commit_sha,
+            id: row.id,
+            merge_request_id: row.merge_request_id,
+            author_id: row.author_id,
+            body: row.body,
+            created_at: row.created_at,
+            reply_to_id: row.reply_to_id,
+            file_path: row.file_path,
+            line_number: row.line_number,
+            side: row.side.map(|s| DiffSide::parse(&s)).transpose()?,
+            anchor_content: row.anchor_content,
+            resolved: row.resolved,
+            end_line: row.end_line,
+            suggested_content: row.suggested_content,
+            applied_at: row.applied_at,
+            applied_commit_sha: row.applied_commit_sha,
         })
     }
-}
-
-struct UpsertReviewRow {
-    merge_request_id: Uuid,
-    user_id: Uuid,
-    decision: String,
-    source_sha: String,
-    created_at: chrono::DateTime<chrono::Utc>,
-    username: String,
 }
 
 struct ReviewRow {
@@ -115,15 +111,17 @@ struct ReviewRow {
     created_at: chrono::DateTime<chrono::Utc>,
 }
 
-impl ReviewRow {
-    fn into_domain(self) -> Result<MergeRequestReview, DomainError> {
+impl TryFrom<ReviewRow> for MergeRequestReview {
+    type Error = DomainError;
+
+    fn try_from(row: ReviewRow) -> Result<Self, DomainError> {
         Ok(MergeRequestReview {
-            merge_request_id: self.merge_request_id,
-            user_id: self.user_id,
-            username: self.username,
-            decision: ReviewDecision::parse(&self.decision)?,
-            source_sha: self.source_sha,
-            created_at: self.created_at,
+            merge_request_id: row.merge_request_id,
+            user_id: row.user_id,
+            username: row.username,
+            decision: ReviewDecision::parse(&row.decision)?,
+            source_sha: row.source_sha,
+            created_at: row.created_at,
         })
     }
 }
@@ -143,13 +141,13 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.into_domain()
+        .map_err(infra)?;
+        MergeRequest::try_from(row)
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<MergeRequest>, DomainError> {
-        let row = sqlx::query_as!(Row, "SELECT id, repository_id, author_id, source_branch, target_branch, title, description, status, merge_commit_sha, milestone_id, created_at, closed_at FROM merge_requests WHERE id = $1", id).fetch_optional(&self.pool).await.map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.map(Row::into_domain).transpose()
+        let row = sqlx::query_as!(Row, "SELECT id, repository_id, author_id, source_branch, target_branch, title, description, status, merge_commit_sha, milestone_id, created_at, closed_at FROM merge_requests WHERE id = $1", id).fetch_optional(&self.pool).await.map_err(infra)?;
+        row.map(MergeRequest::try_from).transpose()
     }
 
     async fn list_for_repository_filtered(
@@ -173,8 +171,8 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+        .map_err(infra)?;
+        rows.into_iter().map(MergeRequest::try_from).collect()
     }
 
     async fn update_fields(
@@ -191,7 +189,7 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -203,7 +201,7 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -215,7 +213,7 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::Conflict(
                 "merge request is no longer open".to_string(),
@@ -231,7 +229,7 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::Conflict(
                 "merge request is no longer open".to_string(),
@@ -259,8 +257,8 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+        .map_err(infra)?;
+        rows.into_iter().map(MergeRequest::try_from).collect()
     }
 
     async fn list_authored_by(
@@ -280,8 +278,8 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+        .map_err(infra)?;
+        rows.into_iter().map(MergeRequest::try_from).collect()
     }
 
     /// `IS DISTINCT FROM`, not `!=`: a merge request whose author's account was deleted (`author_id` NULL) still
@@ -304,8 +302,8 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+        .map_err(infra)?;
+        rows.into_iter().map(MergeRequest::try_from).collect()
     }
 }
 
@@ -342,8 +340,8 @@ impl MergeRequestCommentPort for PostgresMergeRequestStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.into_domain()
+        .map_err(infra)?;
+        MergeRequestComment::try_from(row)
     }
 
     async fn list_comments(
@@ -353,8 +351,10 @@ impl MergeRequestCommentPort for PostgresMergeRequestStore {
         let rows = sqlx::query_as!(CommentRow, "SELECT * FROM merge_request_comments WHERE merge_request_id = $1 ORDER BY created_at ASC", merge_request_id)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(CommentRow::into_domain).collect()
+            .map_err(infra)?;
+        rows.into_iter()
+            .map(MergeRequestComment::try_from)
+            .collect()
     }
 
     async fn set_comment_resolved(
@@ -369,7 +369,7 @@ impl MergeRequestCommentPort for PostgresMergeRequestStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("comment".to_string()));
         }
@@ -389,9 +389,10 @@ impl MergeRequestCommentPort for PostgresMergeRequestStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.ok_or_else(|| DomainError::NotFound("comment".to_string()))?
-            .into_domain()
+        .map_err(infra)?;
+        MergeRequestComment::try_from(
+            row.ok_or_else(|| DomainError::NotFound("comment".to_string()))?,
+        )
     }
 
     async fn comment_counts(
@@ -405,7 +406,7 @@ impl MergeRequestCommentPort for PostgresMergeRequestStore {
             .bind(merge_request_ids)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(rows.into_iter().collect())
     }
 }
@@ -421,7 +422,7 @@ impl MergeRequestReviewPort for PostgresMergeRequestStore {
     ) -> Result<MergeRequestReview, DomainError> {
         let decision_str = decision.as_str().to_string();
         let row = sqlx::query_as!(
-            UpsertReviewRow,
+            ReviewRow,
             "INSERT INTO merge_request_reviews (merge_request_id, user_id, decision, source_sha) \
              VALUES ($1, $2, $3, $4) \
              ON CONFLICT (merge_request_id, user_id) DO UPDATE SET decision = $3, source_sha = $4, created_at = now() \
@@ -434,16 +435,8 @@ impl MergeRequestReviewPort for PostgresMergeRequestStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-
-        Ok(MergeRequestReview {
-            merge_request_id: row.merge_request_id,
-            user_id: row.user_id,
-            username: row.username,
-            decision: ReviewDecision::parse(&row.decision)?,
-            source_sha: row.source_sha,
-            created_at: row.created_at,
-        })
+        .map_err(infra)?;
+        MergeRequestReview::try_from(row)
     }
 
     async fn list_reviews(
@@ -459,44 +452,20 @@ impl MergeRequestReviewPort for PostgresMergeRequestStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(ReviewRow::into_domain).collect()
+        .map_err(infra)?;
+        rows.into_iter().map(MergeRequestReview::try_from).collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ferrisgit_domain::repository::{NewRepository, RepositoryStorePort, RepositoryVisibility};
+    use crate::postgres::test_support::seed_owned_repository;
+    use ferrisgit_domain::repository::{RepositoryStorePort, RepositoryVisibility};
     use ferrisgit_domain::user::{NewUser, UserRepositoryPort};
 
     async fn seed_repository(pool: &PgPool) -> Uuid {
-        let users = crate::postgres::user_repository::PostgresUserRepository::new(pool.clone());
-        let owner_id = users
-            .create(NewUser {
-                username: "florian".to_string(),
-                email: "f@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-            })
-            .await
-            .unwrap()
-            .id;
-        let repos = crate::postgres::repository_store::PostgresRepositoryStore::new(pool.clone());
-        repos
-            .create(
-                NewRepository {
-                    owner_id,
-                    name: "hello".to_string(),
-                    group_id: None,
-                    description: String::new(),
-                    visibility: RepositoryVisibility::Private,
-                },
-                "path".to_string(),
-            )
-            .await
-            .unwrap()
-            .id
+        seed_owned_repository(pool, "florian").await.1
     }
 
     async fn seed_second_user(pool: &PgPool, username: &str) -> Uuid {

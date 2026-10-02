@@ -32,6 +32,7 @@ function makePipeline(overrides: Partial<PipelineDetailModel> = {}): PipelineDet
     finishedAt: null,
     triggeredBy: null,
     commitMessage: null,
+    error: null,
     jobs: [],
     ...overrides,
   };
@@ -99,8 +100,23 @@ const failedPipeline = makePipeline({
       finishedAt: at(62),
       logs: "cargo clippy\nthread 'main' panicked at src/lib.rs:42\ntest result: FAILED. 3 passed; 1 failed\n",
     }),
-    makeJob({ id: 'job-5', stage: 'report', name: 'summary', status: 'canceled', needs: ['parallel-a', 'parallel-b'], logs: '' }),
+    makeJob({ id: 'job-5', stage: 'report', name: 'summary', status: 'skipped', needs: ['parallel-a', 'parallel-b'], logs: '' }),
   ],
+});
+
+const invalidPipeline = makePipeline({
+  status: 'failed',
+  commitMessage: 'Ajouter une étape de déploiement',
+  triggeredBy: { id: 'u1', username: 'alice' },
+  createdAt: at(0),
+  finishedAt: at(0),
+  error: "job 'deploy' needs 'build', but that job's stage does not come before 'deploy''s own stage",
+  jobs: [],
+});
+
+const invalidYamlPipeline = makePipeline({
+  ...invalidPipeline,
+  error: 'invalid YAML: jobs.compile: missing field `image` at line 4 column 3',
 });
 
 function fakePipelinesService(pipeline: PipelineDetailModel) {
@@ -166,6 +182,37 @@ export const Failed: Story = {
       ],
     }),
   ],
+};
+
+/** A pipeline file that does not parse: the pipeline failed at once, without job, and says why. */
+export const InvalidPipelineFile: Story = {
+  decorators: [
+    applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation())] }),
+    moduleMetadata({
+      providers: [
+        { provide: PipelinesService, useValue: fakePipelinesService(invalidPipeline) },
+        { provide: RepositoryContextService, useValue: fakeRepositoryContext('contributor') },
+      ],
+    }),
+  ],
+};
+
+export const InvalidYaml: Story = {
+  decorators: [
+    applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation())] }),
+    moduleMetadata({
+      providers: [
+        { provide: PipelinesService, useValue: fakePipelinesService(invalidYamlPipeline) },
+        { provide: RepositoryContextService, useValue: fakeRepositoryContext('contributor') },
+      ],
+    }),
+  ],
+};
+
+/** The failed job, and the job behind it that never started: "Ignoré". */
+export const SkippedJob: Story = {
+  args: { jobId: 'job-5' },
+  decorators: Failed.decorators,
 };
 
 export const StageSelected: Story = {

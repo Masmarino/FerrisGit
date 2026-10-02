@@ -20,6 +20,8 @@ use uuid::Uuid;
 
 use crate::job_execution_resolver::JobExecutionResolver;
 use crate::use_cases::create_pipeline::CreatePipelineUseCase;
+use crate::use_cases::event_context::EventContext;
+use crate::use_cases::source_branch_tip::source_branch_tip;
 
 #[derive(Debug)]
 pub enum MergeMergeRequestResult {
@@ -123,36 +125,8 @@ impl MergeMergeRequestUseCase {
             .get_or_create_default(repo.id)
             .await?;
         if settings.required_approvals > 0 {
-            let branches = self.branch_reader.list_branches(&repo.disk_path).await?;
-            let tip_sha = branches
-                .into_iter()
-                .find(|b| b.name == mr.source_branch)
-                .map(|b| b.tip_sha)
-                .ok_or_else(|| {
-                    DomainError::Validation("source branch no longer exists".to_string())
-                })?;
-            let reviews = self.merge_request_reviews.list_reviews(mr.id).await?;
-            let live: Vec<_> = reviews.iter().filter(|r| r.source_sha == tip_sha).collect();
-
-            if let Some(blocker) = live
-                .iter()
-                .find(|r| r.decision == ReviewDecision::ChangesRequested)
-            {
-                return Err(DomainError::Validation(format!(
-                    "changes requested by {}",
-                    blocker.username
-                )));
-            }
-            let approvals = live
-                .iter()
-                .filter(|r| r.decision == ReviewDecision::Approved)
-                .count();
-            if approvals < settings.required_approvals as usize {
-                return Err(DomainError::Validation(format!(
-                    "{approvals}/{} approvals",
-                    settings.required_approvals
-                )));
-            }
+            self.require_approvals(&mr, &repo.disk_path, settings.required_approvals as usize)
+                .await?;
         }
 
         let message = format!(
@@ -200,16 +174,16 @@ impl MergeMergeRequestUseCase {
                     .await?
                     .ok_or_else(|| DomainError::NotFound("merge request".to_string()))?;
 
-                if let Some(owner) = self.users.find_by_id(repo.owner_id).await.ok().flatten()
-                    && let Some(actor) = self.users.find_by_id(user_id).await.ok().flatten()
+                if let Some(ctx) =
+                    EventContext::for_repository(self.users.as_ref(), repo, user_id).await
                 {
                     self.webhooks
                         .dispatch(
                             mr.repository_id,
                             WebhookEvent::MergeRequestMerged {
-                                repository_owner: owner.username.clone(),
-                                repository_name: repo.name.clone(),
-                                actor_username: actor.username.clone(),
+                                repository_owner: ctx.owner_username.clone(),
+                                repository_name: ctx.repository.name.clone(),
+                                actor_username: ctx.actor_username.clone(),
                                 merge_request_id: mr.id,
                                 merge_request_title: mr.title.clone(),
                             },
@@ -223,19 +197,12 @@ impl MergeMergeRequestUseCase {
                     {
                         self.notifications
                             .create(NewNotification {
-                                recipient_id: mr_author_id,
-                                kind: NotificationKind::MergeRequestMerged,
-                                repository_owner: owner.username,
-                                repository_name: repo.name,
-                                actor_username: Some(actor.username),
                                 merge_request_id: Some(mr.id),
                                 merge_request_title: Some(mr.title),
-                                pipeline_id: None,
-                                commit_sha: None,
-                                role: None,
-                                issue_id: None,
-                                issue_number: None,
-                                issue_title: None,
+                                ..ctx.notification(
+                                    NotificationKind::MergeRequestMerged,
+                                    mr_author_id,
+                                )
                             })
                             .await
                             .ok();
@@ -245,6 +212,43 @@ impl MergeMergeRequestUseCase {
                 Ok(MergeMergeRequestResult::Merged(Box::new(merged)))
             }
         }
+    }
+
+    /// Only reviews of the source branch's current tip count: a push after a review makes it stale.
+    async fn require_approvals(
+        &self,
+        mr: &MergeRequest,
+        repository_disk_path: &str,
+        required: usize,
+    ) -> Result<(), DomainError> {
+        let tip_sha = source_branch_tip(
+            self.branch_reader.as_ref(),
+            repository_disk_path,
+            &mr.source_branch,
+        )
+        .await?;
+        let reviews = self.merge_request_reviews.list_reviews(mr.id).await?;
+        let live: Vec<_> = reviews.iter().filter(|r| r.source_sha == tip_sha).collect();
+
+        if let Some(blocker) = live
+            .iter()
+            .find(|r| r.decision == ReviewDecision::ChangesRequested)
+        {
+            return Err(DomainError::Validation(format!(
+                "changes requested by {}",
+                blocker.username
+            )));
+        }
+        let approvals = live
+            .iter()
+            .filter(|r| r.decision == ReviewDecision::Approved)
+            .count();
+        if approvals < required {
+            return Err(DomainError::Validation(format!(
+                "{approvals}/{required} approvals"
+            )));
+        }
+        Ok(())
     }
 }
 
@@ -256,13 +260,14 @@ mod tests {
         FakeNotifications, FakePipelines, FakeRepositories, FakeRepositorySettings,
         FakeSystemSettings, FakeUsers, FakeWebhooks,
     };
+    use crate::use_cases::fixtures;
     use async_trait::async_trait;
     use chrono::Utc;
     use ferrisgit_domain::branch::BranchInfo;
     use ferrisgit_domain::job::Job;
     use ferrisgit_domain::job_execution::JobExecutionPort;
     use ferrisgit_domain::merge_request::{MergeRequestReview, ReviewDecision};
-    use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
+    use ferrisgit_domain::repository::Repository;
     use ferrisgit_domain::settings::RepositorySettings;
     use ferrisgit_domain::user::User;
     use ferrisgit_domain::webhook_event::WebhookEvent;
@@ -285,10 +290,36 @@ mod tests {
         }
     }
 
+    fn review(
+        mr: &MergeRequest,
+        username: &str,
+        decision: ReviewDecision,
+        source_sha: &str,
+    ) -> MergeRequestReview {
+        MergeRequestReview {
+            merge_request_id: mr.id,
+            user_id: Uuid::new_v4(),
+            username: username.to_string(),
+            decision,
+            source_sha: source_sha.to_string(),
+            created_at: Utc::now(),
+        }
+    }
+
     struct FakeMergeExecutor {
         outcome: MergeOutcome,
         calls: Mutex<Vec<(String, String, String)>>,
     }
+
+    impl FakeMergeExecutor {
+        fn new(outcome: MergeOutcome) -> Self {
+            Self {
+                outcome,
+                calls: Mutex::new(vec![]),
+            }
+        }
+    }
+
     #[async_trait]
     impl MergeExecutorPort for FakeMergeExecutor {
         async fn merge(
@@ -320,98 +351,125 @@ mod tests {
         }
     }
 
-    fn repository(id: Uuid) -> Repository {
-        Repository {
-            id,
-            owner_id: Uuid::new_v4(),
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
+    /// What a test decides about the world; everything else is a plain default (a clean merge, no approval required).
+    struct Scenario {
+        mr: MergeRequest,
+        outcome: MergeOutcome,
+        reviews: Vec<MergeRequestReview>,
+        /// Tip of the source branch, `None` when the repository has no branch at all.
+        source_tip: Option<&'static str>,
+        required_approvals: i32,
+        /// Accounts that exist besides the repository owner.
+        accounts: Vec<Uuid>,
+        owner_has_an_account: bool,
+    }
+
+    impl Scenario {
+        fn new(mr: MergeRequest) -> Self {
+            Self {
+                mr,
+                outcome: MergeOutcome::Merged {
+                    commit_sha: "deadbeef".to_string(),
+                },
+                reviews: vec![],
+                source_tip: None,
+                required_approvals: 0,
+                accounts: vec![],
+                owner_has_an_account: false,
+            }
+        }
+
+        fn build(self) -> Harness {
+            let repo = fixtures::repository_with_id(self.mr.repository_id, Uuid::new_v4());
+            let mr_store =
+                Arc::new(FakeMergeRequests::new(vec![self.mr.clone()]).with_reviews(self.reviews));
+            let executor = Arc::new(FakeMergeExecutor::new(self.outcome));
+            let branches = self
+                .source_tip
+                .map(|tip_sha| BranchInfo {
+                    name: "feature".to_string(),
+                    tip_sha: tip_sha.to_string(),
+                    is_default: false,
+                })
+                .into_iter()
+                .collect();
+            let owner = self.owner_has_an_account.then_some(repo.owner_id);
+            let users = owner
+                .into_iter()
+                .chain(self.accounts)
+                .map(|id| User {
+                    id,
+                    ..fixtures::user("florian")
+                })
+                .collect();
+            let pipelines = Arc::new(FakePipelines::empty());
+            let notifications = Arc::new(FakeNotifications::empty());
+            let webhooks = Arc::new(FakeWebhooks::default());
+            let docker: Arc<dyn JobExecutionPort> = Arc::new(NoopExecutor);
+            let use_case = MergeMergeRequestUseCase::new(
+                mr_store.clone(),
+                mr_store.clone(),
+                executor.clone(),
+                Arc::new(FakeRepositories::new(vec![repo.clone()])),
+                Arc::new(FakeRepositorySettings::new(RepositorySettings {
+                    repository_id: Uuid::new_v4(),
+                    pipeline_file_path: ".ferrisgit-ci.yml".to_string(),
+                    ci_enabled: false,
+                    required_approvals: self.required_approvals,
+                })),
+                Arc::new(FakeSystemSettings::default()),
+                pipelines.clone(),
+                Arc::new(FakeJobs::empty()),
+                Arc::new(FakeFileReader::none()),
+                Arc::new(FakeEvents::new()),
+                Arc::new(JobExecutionResolver::new(docker.clone(), docker)),
+                Arc::new(FakeBranchReader::new(branches)),
+                Arc::new(FakeUsers::new(users)),
+                notifications.clone(),
+                webhooks.clone(),
+            );
+            Harness {
+                use_case,
+                mr: self.mr,
+                repo,
+                mr_store,
+                executor,
+                pipelines,
+                notifications,
+                webhooks,
+            }
         }
     }
 
-    fn user(id: Uuid) -> User {
-        User {
-            id,
-            username: "florian".to_string(),
-            email: "florian@example.com".to_string(),
-            password_hash: "hash".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
-    }
-
-    #[allow(clippy::too_many_arguments)]
-    fn use_case(
+    struct Harness {
+        use_case: MergeMergeRequestUseCase,
+        mr: MergeRequest,
+        repo: Repository,
         mr_store: Arc<FakeMergeRequests>,
         executor: Arc<FakeMergeExecutor>,
-        repo: Repository,
         pipelines: Arc<FakePipelines>,
-        jobs: Arc<FakeJobs>,
-        required_approvals: i32,
-        branch_reader: Arc<FakeBranchReader>,
-        users: Arc<FakeUsers>,
         notifications: Arc<FakeNotifications>,
         webhooks: Arc<FakeWebhooks>,
-    ) -> MergeMergeRequestUseCase {
-        let docker: Arc<dyn JobExecutionPort> = Arc::new(NoopExecutor);
-        MergeMergeRequestUseCase::new(
-            mr_store.clone(),
-            mr_store,
-            executor,
-            Arc::new(FakeRepositories::new(vec![repo])),
-            Arc::new(FakeRepositorySettings::new(RepositorySettings {
-                repository_id: Uuid::new_v4(),
-                pipeline_file_path: ".ferrisgit-ci.yml".to_string(),
-                ci_enabled: false,
-                required_approvals,
-            })),
-            Arc::new(FakeSystemSettings::default()),
-            pipelines,
-            jobs,
-            Arc::new(FakeFileReader::none()),
-            Arc::new(FakeEvents::new()),
-            Arc::new(JobExecutionResolver::new(docker.clone(), docker)),
-            branch_reader,
-            users,
-            notifications,
-            webhooks,
-        )
+    }
+
+    impl Harness {
+        /// Merges as the merge request's own author.
+        async fn merge_as_author(&self) -> Result<MergeMergeRequestResult, DomainError> {
+            self.use_case
+                .execute(self.mr.id, self.mr.author_id.unwrap())
+                .await
+        }
+
+        fn executor_calls(&self) -> usize {
+            self.executor.calls.lock().unwrap().len()
+        }
     }
 
     #[tokio::test]
     async fn a_clean_merge_marks_the_request_merged_and_triggers_a_pipeline() {
-        let mr = merge_request(MergeRequestStatus::Open);
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr.clone()]));
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "deadbeef".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let pipelines = Arc::new(FakePipelines::empty());
-        let jobs = Arc::new(FakeJobs::empty());
-        let use_case = use_case(
-            mr_store.clone(),
-            executor.clone(),
-            repo.clone(),
-            pipelines.clone(),
-            jobs.clone(),
-            0,
-            Arc::new(FakeBranchReader::new(vec![])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Scenario::new(merge_request(MergeRequestStatus::Open)).build();
 
-        let result = use_case
-            .execute(mr.id, mr.author_id.unwrap())
-            .await
-            .unwrap();
+        let result = h.merge_as_author().await.unwrap();
 
         let MergeMergeRequestResult::Merged(merged) = result else {
             panic!("expected a clean merge")
@@ -419,150 +477,79 @@ mod tests {
         assert_eq!(merged.status, MergeRequestStatus::Merged);
         assert_eq!(merged.merge_commit_sha, Some("deadbeef".to_string()));
         assert_eq!(
-            executor.calls.lock().unwrap()[0],
+            h.executor.calls.lock().unwrap()[0],
             (
-                repo.disk_path.clone(),
+                h.repo.disk_path.clone(),
                 "feature".to_string(),
                 "main".to_string()
             )
         );
         // CI is disabled in the fake, so no pipeline is created. This only checks that the use case was called with the
         // new commit.
-        assert!(pipelines.snapshot().is_empty());
+        assert!(h.pipelines.snapshot().is_empty());
     }
 
     #[tokio::test]
     async fn a_conflicting_merge_leaves_the_request_open_and_never_touches_the_store_or_a_pipeline()
     {
-        let mr = merge_request(MergeRequestStatus::Open);
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr.clone()]));
-        let executor = Arc::new(FakeMergeExecutor {
+        let h = Scenario {
             outcome: MergeOutcome::Conflicting,
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let pipelines = Arc::new(FakePipelines::empty());
-        let jobs = Arc::new(FakeJobs::empty());
-        let use_case = use_case(
-            mr_store.clone(),
-            executor,
-            repo,
-            pipelines.clone(),
-            jobs,
-            0,
-            Arc::new(FakeBranchReader::new(vec![])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+            ..Scenario::new(merge_request(MergeRequestStatus::Open))
+        }
+        .build();
 
-        let result = use_case
-            .execute(mr.id, mr.author_id.unwrap())
-            .await
-            .unwrap();
+        let result = h.merge_as_author().await.unwrap();
 
         assert_eq!(result, MergeMergeRequestResult::Conflicting);
         assert_eq!(
-            mr_store.get(mr.id).unwrap().status,
+            h.mr_store.get(h.mr.id).unwrap().status,
             MergeRequestStatus::Open,
             "mark_merged must never be called on a conflicting outcome"
         );
-        assert!(pipelines.snapshot().is_empty());
+        assert!(h.pipelines.snapshot().is_empty());
     }
 
     #[tokio::test]
     async fn merging_an_already_merged_request_is_a_validation_error() {
-        let mr = merge_request(MergeRequestStatus::Merged);
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr.clone()]));
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "x".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let use_case = use_case(
-            mr_store,
-            executor.clone(),
-            repo,
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            0,
-            Arc::new(FakeBranchReader::new(vec![])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Scenario::new(merge_request(MergeRequestStatus::Merged)).build();
 
-        let result = use_case.execute(mr.id, mr.author_id.unwrap()).await;
+        let result = h.merge_as_author().await;
 
         assert!(matches!(result, Err(DomainError::Validation(_))));
-        assert!(
-            executor.calls.lock().unwrap().is_empty(),
+        assert_eq!(
+            h.executor_calls(),
+            0,
             "the executor must never be invoked for an already-terminal merge request"
         );
     }
 
     #[tokio::test]
     async fn merging_a_non_existent_request_is_a_not_found_error() {
-        let use_case = use_case(
-            Arc::new(FakeMergeRequests::empty()),
-            Arc::new(FakeMergeExecutor {
-                outcome: MergeOutcome::Conflicting,
-                calls: Mutex::new(vec![]),
-            }),
-            repository(Uuid::new_v4()),
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            0,
-            Arc::new(FakeBranchReader::new(vec![])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Scenario::new(merge_request(MergeRequestStatus::Open)).build();
 
-        let result = use_case.execute(Uuid::new_v4(), Uuid::new_v4()).await;
+        let result = h.use_case.execute(Uuid::new_v4(), Uuid::new_v4()).await;
 
         assert!(matches!(result, Err(DomainError::NotFound(_))));
     }
 
     #[tokio::test]
     async fn merging_is_blocked_when_live_approvals_are_below_the_threshold() {
-        let mr = merge_request(MergeRequestStatus::Open);
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr.clone()]));
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "x".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "sha1".to_string(),
-            is_default: false,
-        }]));
-        let use_case = use_case(
-            mr_store,
-            executor.clone(),
-            repo,
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            1,
-            branch_reader,
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Scenario {
+            required_approvals: 1,
+            source_tip: Some("sha1"),
+            ..Scenario::new(merge_request(MergeRequestStatus::Open))
+        }
+        .build();
 
-        let result = use_case.execute(mr.id, mr.author_id.unwrap()).await;
+        let result = h.merge_as_author().await;
 
         assert!(
             matches!(&result, Err(DomainError::Validation(msg)) if msg.contains("0/1")),
             "expected a 0/1 approvals message, got {result:?}"
         );
-        assert!(
-            executor.calls.lock().unwrap().is_empty(),
+        assert_eq!(
+            h.executor_calls(),
+            0,
             "the executor must never be invoked while blocked"
         );
     }
@@ -570,144 +557,55 @@ mod tests {
     #[tokio::test]
     async fn merging_succeeds_once_enough_live_approvals_exist() {
         let mr = merge_request(MergeRequestStatus::Open);
-        let review = MergeRequestReview {
-            merge_request_id: mr.id,
-            user_id: Uuid::new_v4(),
-            username: "alice".to_string(),
-            decision: ReviewDecision::Approved,
-            source_sha: "sha1".to_string(),
-            created_at: Utc::now(),
-        };
-        let mr_store =
-            Arc::new(FakeMergeRequests::new(vec![mr.clone()]).with_reviews(vec![review]));
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "x".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "sha1".to_string(),
-            is_default: false,
-        }]));
-        let use_case = use_case(
-            mr_store,
-            executor.clone(),
-            repo,
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            1,
-            branch_reader,
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Scenario {
+            required_approvals: 1,
+            source_tip: Some("sha1"),
+            reviews: vec![review(&mr, "alice", ReviewDecision::Approved, "sha1")],
+            ..Scenario::new(mr)
+        }
+        .build();
 
-        let result = use_case
-            .execute(mr.id, mr.author_id.unwrap())
-            .await
-            .unwrap();
+        let result = h.merge_as_author().await.unwrap();
 
         assert!(matches!(result, MergeMergeRequestResult::Merged(_)));
-        assert_eq!(executor.calls.lock().unwrap().len(), 1);
+        assert_eq!(h.executor_calls(), 1);
     }
 
     #[tokio::test]
     async fn merging_is_blocked_by_a_live_change_request_even_with_enough_approvals() {
         let mr = merge_request(MergeRequestStatus::Open);
-        let approval = MergeRequestReview {
-            merge_request_id: mr.id,
-            user_id: Uuid::new_v4(),
-            username: "alice".to_string(),
-            decision: ReviewDecision::Approved,
-            source_sha: "sha1".to_string(),
-            created_at: Utc::now(),
-        };
-        let veto = MergeRequestReview {
-            merge_request_id: mr.id,
-            user_id: Uuid::new_v4(),
-            username: "bob".to_string(),
-            decision: ReviewDecision::ChangesRequested,
-            source_sha: "sha1".to_string(),
-            created_at: Utc::now(),
-        };
-        let mr_store =
-            Arc::new(FakeMergeRequests::new(vec![mr.clone()]).with_reviews(vec![approval, veto]));
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "x".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "sha1".to_string(),
-            is_default: false,
-        }]));
-        let use_case = use_case(
-            mr_store,
-            executor.clone(),
-            repo,
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            1,
-            branch_reader,
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Scenario {
+            required_approvals: 1,
+            source_tip: Some("sha1"),
+            reviews: vec![
+                review(&mr, "alice", ReviewDecision::Approved, "sha1"),
+                review(&mr, "bob", ReviewDecision::ChangesRequested, "sha1"),
+            ],
+            ..Scenario::new(mr)
+        }
+        .build();
 
-        let result = use_case.execute(mr.id, mr.author_id.unwrap()).await;
+        let result = h.merge_as_author().await;
 
         assert!(
             matches!(&result, Err(DomainError::Validation(msg)) if msg.contains("bob")),
             "expected a message naming the blocking reviewer, got {result:?}"
         );
-        assert!(executor.calls.lock().unwrap().is_empty());
+        assert_eq!(h.executor_calls(), 0);
     }
 
     #[tokio::test]
     async fn a_stale_approval_does_not_count_toward_the_threshold() {
         let mr = merge_request(MergeRequestStatus::Open);
-        let stale_approval = MergeRequestReview {
-            merge_request_id: mr.id,
-            user_id: Uuid::new_v4(),
-            username: "alice".to_string(),
-            decision: ReviewDecision::Approved,
-            source_sha: "old-sha".to_string(),
-            created_at: Utc::now(),
-        };
-        let mr_store =
-            Arc::new(FakeMergeRequests::new(vec![mr.clone()]).with_reviews(vec![stale_approval]));
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "x".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "new-sha".to_string(),
-            is_default: false,
-        }]));
-        let use_case = use_case(
-            mr_store,
-            executor.clone(),
-            repo,
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            1,
-            branch_reader,
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Scenario {
+            required_approvals: 1,
+            source_tip: Some("new-sha"),
+            reviews: vec![review(&mr, "alice", ReviewDecision::Approved, "old-sha")],
+            ..Scenario::new(mr)
+        }
+        .build();
 
-        let result = use_case.execute(mr.id, mr.author_id.unwrap()).await;
+        let result = h.merge_as_author().await;
 
         assert!(
             matches!(&result, Err(DomainError::Validation(msg)) if msg.contains("0/1")),
@@ -718,54 +616,18 @@ mod tests {
     #[tokio::test]
     async fn a_stale_change_request_does_not_block() {
         let mr = merge_request(MergeRequestStatus::Open);
-        let fresh_approval = MergeRequestReview {
-            merge_request_id: mr.id,
-            user_id: Uuid::new_v4(),
-            username: "alice".to_string(),
-            decision: ReviewDecision::Approved,
-            source_sha: "new-sha".to_string(),
-            created_at: Utc::now(),
-        };
-        let stale_veto = MergeRequestReview {
-            merge_request_id: mr.id,
-            user_id: Uuid::new_v4(),
-            username: "bob".to_string(),
-            decision: ReviewDecision::ChangesRequested,
-            source_sha: "old-sha".to_string(),
-            created_at: Utc::now(),
-        };
-        let mr_store = Arc::new(
-            FakeMergeRequests::new(vec![mr.clone()]).with_reviews(vec![fresh_approval, stale_veto]),
-        );
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "x".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "new-sha".to_string(),
-            is_default: false,
-        }]));
-        let use_case = use_case(
-            mr_store,
-            executor.clone(),
-            repo,
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            1,
-            branch_reader,
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Scenario {
+            required_approvals: 1,
+            source_tip: Some("new-sha"),
+            reviews: vec![
+                review(&mr, "alice", ReviewDecision::Approved, "new-sha"),
+                review(&mr, "bob", ReviewDecision::ChangesRequested, "old-sha"),
+            ],
+            ..Scenario::new(mr)
+        }
+        .build();
 
-        let result = use_case
-            .execute(mr.id, mr.author_id.unwrap())
-            .await
-            .unwrap();
+        let result = h.merge_as_author().await.unwrap();
 
         assert!(
             matches!(result, MergeMergeRequestResult::Merged(_)),
@@ -777,44 +639,18 @@ mod tests {
     async fn the_authors_own_approval_counts_toward_the_threshold() {
         let mr = merge_request(MergeRequestStatus::Open);
         let self_approval = MergeRequestReview {
-            merge_request_id: mr.id,
             user_id: mr.author_id.unwrap(),
-            username: "author".to_string(),
-            decision: ReviewDecision::Approved,
-            source_sha: "sha1".to_string(),
-            created_at: Utc::now(),
+            ..review(&mr, "author", ReviewDecision::Approved, "sha1")
         };
-        let mr_store =
-            Arc::new(FakeMergeRequests::new(vec![mr.clone()]).with_reviews(vec![self_approval]));
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "x".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "sha1".to_string(),
-            is_default: false,
-        }]));
-        let use_case = use_case(
-            mr_store,
-            executor.clone(),
-            repo,
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            1,
-            branch_reader,
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Scenario {
+            required_approvals: 1,
+            source_tip: Some("sha1"),
+            reviews: vec![self_approval],
+            ..Scenario::new(mr)
+        }
+        .build();
 
-        let result = use_case
-            .execute(mr.id, mr.author_id.unwrap())
-            .await
-            .unwrap();
+        let result = h.merge_as_author().await.unwrap();
 
         assert!(
             matches!(result, MergeMergeRequestResult::Merged(_)),
@@ -827,41 +663,24 @@ mod tests {
         let mr = merge_request(MergeRequestStatus::Open);
         let merger_id = Uuid::new_v4();
         assert_ne!(Some(merger_id), mr.author_id);
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr.clone()]));
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "deadbeef".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
         // Both the owner and the merger must resolve via `find_by_id` for the webhook/notification block.
-        let owner_id = repo.owner_id;
-        let notifications = Arc::new(FakeNotifications::empty());
-        let webhooks = Arc::new(FakeWebhooks::default());
-        let use_case = use_case(
-            mr_store,
-            executor.clone(),
-            repo,
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            0,
-            Arc::new(FakeBranchReader::new(vec![])),
-            Arc::new(FakeUsers::new(vec![user(owner_id), user(merger_id)])),
-            notifications.clone(),
-            webhooks.clone(),
-        );
+        let h = Scenario {
+            accounts: vec![merger_id],
+            owner_has_an_account: true,
+            ..Scenario::new(mr)
+        }
+        .build();
 
-        let result = use_case.execute(mr.id, merger_id).await.unwrap();
+        let result = h.use_case.execute(h.mr.id, merger_id).await.unwrap();
 
         assert!(matches!(result, MergeMergeRequestResult::Merged(_)));
-        let created = notifications.snapshot();
+        let created = h.notifications.snapshot();
         assert_eq!(created.len(), 1);
-        assert_eq!(created[0].recipient_id, mr.author_id.unwrap());
+        assert_eq!(created[0].recipient_id, h.mr.author_id.unwrap());
         assert_eq!(created[0].kind, NotificationKind::MergeRequestMerged);
-        let dispatched = webhooks.dispatched();
+        let dispatched = h.webhooks.dispatched();
         assert_eq!(dispatched.len(), 1);
-        assert_eq!(dispatched[0].0, mr.repository_id);
+        assert_eq!(dispatched[0].0, h.mr.repository_id);
         assert!(matches!(
             &dispatched[0].1,
             WebhookEvent::MergeRequestMerged { .. }
@@ -871,45 +690,27 @@ mod tests {
     #[tokio::test]
     async fn merging_your_own_merge_request_still_dispatches_a_webhook_with_no_notification() {
         let mr = merge_request(MergeRequestStatus::Open);
-        let author_id = mr.author_id.unwrap();
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr.clone()]));
-        let executor = Arc::new(FakeMergeExecutor {
-            outcome: MergeOutcome::Merged {
-                commit_sha: "deadbeef".to_string(),
-            },
-            calls: Mutex::new(vec![]),
-        });
-        let repo = repository(mr.repository_id);
-        let owner_id = repo.owner_id;
-        let notifications = Arc::new(FakeNotifications::empty());
-        let webhooks = Arc::new(FakeWebhooks::default());
-        let use_case = use_case(
-            mr_store,
-            executor.clone(),
-            repo,
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            0,
-            Arc::new(FakeBranchReader::new(vec![])),
-            Arc::new(FakeUsers::new(vec![user(owner_id), user(author_id)])),
-            notifications.clone(),
-            webhooks.clone(),
-        );
+        let h = Scenario {
+            accounts: vec![mr.author_id.unwrap()],
+            owner_has_an_account: true,
+            ..Scenario::new(mr)
+        }
+        .build();
 
-        let result = use_case.execute(mr.id, author_id).await.unwrap();
+        let result = h.merge_as_author().await.unwrap();
 
         assert!(matches!(result, MergeMergeRequestResult::Merged(_)));
         assert!(
-            notifications.snapshot().is_empty(),
+            h.notifications.snapshot().is_empty(),
             "merging your own MR must not notify yourself"
         );
-        let dispatched = webhooks.dispatched();
+        let dispatched = h.webhooks.dispatched();
         assert_eq!(
             dispatched.len(),
             1,
             "the webhook must still fire even with no one to notify"
         );
-        assert_eq!(dispatched[0].0, mr.repository_id);
+        assert_eq!(dispatched[0].0, h.mr.repository_id);
         assert!(matches!(
             &dispatched[0].1,
             WebhookEvent::MergeRequestMerged { .. }

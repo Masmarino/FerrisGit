@@ -1,0 +1,11 @@
+apiVersion: v2
+name: ferrisgit
+description: FerrisGit — self-hosted Git platform (server, PostgreSQL, Kubernetes CI execution engine)
+type: application
+version: 0.3.0
+# The image tag actually deployed is image.tag (CI sets it to the pushed release).
+appVersion: "0.1.0"
+keywords:
+  - git
+  - ci
+  - forge

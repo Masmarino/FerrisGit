@@ -1,8 +1,12 @@
 // `POST /api/pipelines/{id}/cancel`. Pipeline and job fixtures are seeded through the store ports, so no runner or Docker is needed.
 // Cancelling an already-terminal pipeline must leave its status untouched.
 
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
+mod common;
+
+use common::http::{create_user, get_json, post_empty, post_json, post_ok};
+
+use common::http::login;
+use ferrisgit_api::state::AppState;
 use ferrisgit_domain::job::{JobStatus, NewJob};
 use ferrisgit_domain::pipeline::{NewPipeline, PipelineStatus};
 use ferrisgit_domain::settings::ExecutionEngine;
@@ -12,63 +16,8 @@ use std::net::SocketAddr;
 use uuid::Uuid;
 
 async fn spawn_server(pool: PgPool) -> (SocketAddr, AppState) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap().keep();
-    let static_dir = tempfile::tempdir().unwrap().keep();
-    std::fs::write(static_dir.join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    // Cloned before `build_router` consumes `state`, to seed fixtures the HTTP API has no route to create.
-    let state_for_fixtures = state.clone();
-
-    let app = build_router(state, &static_dir);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
-    (addr, state_for_fixtures)
-}
-
-async fn login(
-    client: &reqwest::Client,
-    addr: SocketAddr,
-    username: &str,
-    password: &str,
-) -> String {
-    let res: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": username, "password": password }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    res["token"].as_str().unwrap().to_string()
+    let app = common::spawn_app(pool).await;
+    (app.addr, app.state)
 }
 
 #[sqlx::test]
@@ -77,16 +26,14 @@ async fn canceling_a_pending_pipeline_cancels_it_and_its_jobs_over_http(pool: Pg
     let client = reqwest::Client::new();
     let jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    let repo_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(&jwt)
-        .json(&json!({ "name": "hello", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let repo_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
     let repository_id: Uuid = repo_res["id"].as_str().unwrap().parse().unwrap();
 
     let admin_id: Uuid = state
@@ -126,26 +73,17 @@ async fn canceling_a_pending_pipeline_cancels_it_and_its_jobs_over_http(pool: Pg
         .unwrap();
     assert_eq!(job.status, JobStatus::Pending);
 
-    let cancel_res = client
-        .post(format!(
-            "http://{addr}/api/pipelines/{}/cancel",
-            pipeline.id
-        ))
-        .bearer_auth(&jwt)
-        .send()
-        .await
-        .unwrap();
+    let cancel_res = post_empty(
+        &client,
+        addr,
+        &jwt,
+        &format!("/pipelines/{}/cancel", pipeline.id),
+    )
+    .await;
     assert_eq!(cancel_res.status(), 204);
 
-    let detail: serde_json::Value = client
-        .get(format!("http://{addr}/api/pipelines/{}", pipeline.id))
-        .bearer_auth(&jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let detail: serde_json::Value =
+        get_json(&client, addr, &jwt, &format!("/pipelines/{}", pipeline.id)).await;
     assert_eq!(detail["status"], "canceled");
     let jobs = detail["jobs"].as_array().unwrap();
     assert_eq!(jobs.len(), 1);
@@ -173,16 +111,14 @@ async fn canceling_an_already_terminal_pipeline_over_http_is_a_no_op(pool: PgPoo
     let client = reqwest::Client::new();
     let jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    let repo_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(&jwt)
-        .json(&json!({ "name": "hello", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let repo_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
     let repository_id: Uuid = repo_res["id"].as_str().unwrap().parse().unwrap();
     let admin_id: Uuid = state
         .users
@@ -240,30 +176,21 @@ async fn canceling_an_already_terminal_pipeline_over_http_is_a_no_op(pool: PgPoo
             .await
             .unwrap();
 
-        let cancel_res = client
-            .post(format!(
-                "http://{addr}/api/pipelines/{}/cancel",
-                pipeline.id
-            ))
-            .bearer_auth(&jwt)
-            .send()
-            .await
-            .unwrap();
+        let cancel_res = post_empty(
+            &client,
+            addr,
+            &jwt,
+            &format!("/pipelines/{}/cancel", pipeline.id),
+        )
+        .await;
         assert_eq!(
             cancel_res.status(),
             204,
             "the cancel route itself must still report success even though it did nothing (mirrors the use case's own Ok(()) no-op)"
         );
 
-        let detail: serde_json::Value = client
-            .get(format!("http://{addr}/api/pipelines/{}", pipeline.id))
-            .bearer_auth(&jwt)
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
+        let detail: serde_json::Value =
+            get_json(&client, addr, &jwt, &format!("/pipelines/{}", pipeline.id)).await;
         assert_eq!(
             detail["status"],
             terminal_status.as_str(),
@@ -285,42 +212,29 @@ async fn canceling_a_pipeline_requires_contributor_access_to_its_repository(pool
     let client = reqwest::Client::new();
     let admin_jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    client
-        .post(format!("http://{addr}/api/admin/users"))
-        .bearer_auth(&admin_jwt)
-        .json(&json!({ "username": "reader", "email": "reader@example.com", "password": "password12345" }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    create_user(&client, addr, &admin_jwt, "reader").await;
     let reader_jwt = login(&client, addr, "reader", "password12345").await;
 
-    let repo_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(&admin_jwt)
-        .json(&json!({ "name": "hello", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let repo_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &admin_jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
     let repository_id: Uuid = repo_res["id"].as_str().unwrap().parse().unwrap();
     let repo_id_str = repo_res["id"].as_str().unwrap();
 
     // A Reader can see pipelines, but `cancel` requires Contributor+.
-    client
-        .post(format!(
-            "http://{addr}/api/repositories/{repo_id_str}/collaborators"
-        ))
-        .bearer_auth(&admin_jwt)
-        .json(&json!({ "username": "reader", "role": "reader" }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    post_ok(
+        &client,
+        addr,
+        &admin_jwt,
+        &format!("/repositories/{repo_id_str}/collaborators"),
+        &json!({ "username": "reader", "role": "reader" }),
+    )
+    .await;
 
     let admin_id: Uuid = state
         .users
@@ -340,29 +254,25 @@ async fn canceling_a_pipeline_requires_contributor_access_to_its_repository(pool
         .await
         .unwrap();
 
-    let reader_cancel_attempt = client
-        .post(format!(
-            "http://{addr}/api/pipelines/{}/cancel",
-            pipeline.id
-        ))
-        .bearer_auth(&reader_jwt)
-        .send()
-        .await
-        .unwrap();
+    let reader_cancel_attempt = post_empty(
+        &client,
+        addr,
+        &reader_jwt,
+        &format!("/pipelines/{}/cancel", pipeline.id),
+    )
+    .await;
     assert_eq!(
         reader_cancel_attempt.status(),
         404,
         "a Reader must not be able to cancel a pipeline (masked as NotFound, same convention as require_role_by_id elsewhere)"
     );
 
-    let detail: serde_json::Value = client
-        .get(format!("http://{addr}/api/pipelines/{}", pipeline.id))
-        .bearer_auth(&admin_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let detail: serde_json::Value = get_json(
+        &client,
+        addr,
+        &admin_jwt,
+        &format!("/pipelines/{}", pipeline.id),
+    )
+    .await;
     assert_eq!(detail["status"], "pending");
 }

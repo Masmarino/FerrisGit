@@ -20,15 +20,13 @@ pub struct ClaimedJob {
     pub masked_values: Vec<String>,
 }
 
-// `Canceled` is never constructed: nothing tells this runner to stop mid-execution, so a canceled job's container
-// runs to completion and reports what it observed. Reserved for when the runner can notice a cancellation.
-#[allow(dead_code)]
+/// Nothing tells this runner to stop mid-execution, so a canceled job still runs to completion and reports what it
+/// observed.
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum JobResultStatus {
     Success,
     Failed,
-    Canceled,
 }
 
 pub struct RunnerClient {

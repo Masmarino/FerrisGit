@@ -1,0 +1,67 @@
+<div class="admin-settings__field" data-field="runnerRegistrationToken">
+  <div class="admin-settings__token-status">
+    <span class="admin-settings__token-label">Jeton d'enregistrement</span>
+    @if (configured()) {
+      <gbt-badge variant="success" icon="check-circle">Configuré</gbt-badge>
+    } @else {
+      <gbt-badge variant="neutral">Non configuré</gbt-badge>
+    }
+  </div>
+  <gbt-input
+    type="password"
+    label="{{ configured() ? 'Remplacer le jeton' : 'Définir un jeton' }}"
+    autocomplete="new-password"
+    mono
+    [ngModel]="tokenDraft()"
+    (ngModelChange)="tokenDraft.set($event)"
+    (committed)="setToken($event)"
+  />
+  <div class="admin-settings__token-actions">
+    <gbt-button variant="secondary" size="small" iconName="refresh-cw" [text]="configured() ? 'Générer un nouveau jeton' : 'Générer un jeton'" (clicked)="askGenerate()" />
+    @if (configured()) {
+      <gbt-button variant="danger" size="small" iconName="trash-2" text="Supprimer le jeton" (clicked)="askRemove()" />
+    }
+  </div>
+  @if (generatedToken(); as token) {
+    <div class="admin-settings__generated" role="group" aria-label="Jeton généré">
+      <p class="admin-settings__generated-warning">Copiez-le maintenant : il ne sera plus jamais affiché.</p>
+      <gbt-secret-reveal
+        [value]="token"
+        [revealed]="true"
+        showLabel="Afficher le jeton"
+        hideLabel="Masquer le jeton"
+        hiddenLabel="Jeton masqué"
+        copyLabel="Copier le jeton"
+        copiedText="Jeton copié"
+        failedText="Copie impossible, jeton sélectionné"
+      />
+      <gbt-button variant="secondary" size="small" text="J'ai copié le jeton" (clicked)="dismissGenerated()" />
+    </div>
+  }
+  <div class="admin-settings__field-footer">
+    <p class="admin-settings__hint">
+      Un runner qui le présente à <code>POST /api/runner/register</code> reçoit son propre jeton. Sans jeton d'enregistrement, cette route est désactivée. Le jeton est conservé haché : il n'est jamais
+      réaffiché. Les runners déjà enregistrés ne sont pas touchés.
+    </p>
+    <fg-field-save-state field="runnerRegistrationToken" />
+  </div>
+</div>
+
+@if (pendingAction(); as action) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    [heading]="action === 'remove' ? 'Supprimer le jeton d\'enregistrement' : 'Remplacer le jeton d\'enregistrement'"
+    [message]="
+      action === 'remove'
+        ? 'Les runners ne pourront plus s\'enregistrer eux-mêmes auprès de cette instance. Les runners déjà enregistrés continuent de fonctionner.'
+        : 'Le jeton actuel ne permettra plus d\'enregistrer de nouveaux runners. Les runners déjà enregistrés continuent de fonctionner. Le nouveau jeton ne sera affiché qu\'une seule fois.'
+    "
+    [confirmLabel]="action === 'remove' ? 'Supprimer le jeton' : 'Générer un jeton'"
+    [confirmIcon]="action === 'remove' ? 'trash-2' : 'refresh-cw'"
+    [tone]="action === 'remove' ? 'danger' : 'warning'"
+    cancelLabel="Annuler"
+    closeLabel="Fermer"
+    (confirmed)="confirmAction()"
+    (closed)="cancelAction()"
+  />
+}

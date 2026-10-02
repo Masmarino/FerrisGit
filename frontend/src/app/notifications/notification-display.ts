@@ -46,20 +46,17 @@ export function notificationSentence(n: Notification): string {
 // can point to an unrelated personal repository of the creator with the same name. A real fix needs a repository id on
 // the notification. The `-` marker only makes personal-repository links correct.
 export function notificationLink(n: Notification): string[] {
+  const repository = ['/repositories', n.repositoryOwner, n.repositoryName, '-'];
   if (n.mergeRequestId) {
-    return ['/repositories', n.repositoryOwner, n.repositoryName, '-', 'merge-requests', n.mergeRequestId];
-  } else if (n.pipelineId) {
-    return ['/repositories', n.repositoryOwner, n.repositoryName, '-', 'pipelines', n.pipelineId];
-  } else if (n.kind === 'issue_assigned' || n.kind === 'issue_commented' || n.kind === 'issue_closed') {
-    if (n.issueNumber !== null) {
-      return ['/repositories', n.repositoryOwner, n.repositoryName, '-', 'issues', String(n.issueNumber)];
-    }
-    return ['/repositories', n.repositoryOwner, n.repositoryName, '-', 'issues'];
-  } else if (n.kind === 'collaborator_removed') {
-    return ['/repositories'];
-  } else {
-    return ['/repositories', n.repositoryOwner, n.repositoryName, '-', 'settings'];
+    return [...repository, 'merge-requests', n.mergeRequestId];
   }
+  if (n.pipelineId) {
+    return [...repository, 'pipelines', n.pipelineId];
+  }
+  if (n.kind === 'issue_assigned' || n.kind === 'issue_commented' || n.kind === 'issue_closed') {
+    return n.issueNumber !== null ? [...repository, 'issues', String(n.issueNumber)] : [...repository, 'issues'];
+  }
+  return n.kind === 'collaborator_removed' ? ['/repositories'] : [...repository, 'settings'];
 }
 
 const COLLABORATORS_SECTION: Readonly<Record<string, string>> = Object.freeze({ section: 'collaborators' });

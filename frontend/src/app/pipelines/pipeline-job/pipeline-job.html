@@ -1,7 +1,7 @@
 <section class="pipeline-job">
   <header class="pipeline-job__header">
     <h2>
-      <gbt-job-status [status]="job().status" [label]="statusLabel()" />
+      <gbt-job-status [status]="glyph()" [label]="statusLabel()" />
       {{ job().name }}
     </h2>
     <p class="pipeline-job__meta">
@@ -32,5 +32,5 @@
     tabindex="0"
     [attr.aria-label]="'Logs de ' + job().name"
     (scroll)="onScroll(logs)"
-  >{{ job().logs || '(pas encore de logs)' }}</pre>
+  >{{ job().logs || logPlaceholder() }}</pre>
 </section>

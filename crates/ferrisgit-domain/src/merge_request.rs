@@ -38,7 +38,7 @@ impl MergeRequestStatus {
 pub struct MergeRequest {
     pub id: Uuid,
     pub repository_id: Uuid,
-    /// `None` once the author's account was deleted (`ON DELETE SET NULL`): the merge request outlives them.
+    /// `None` once the author's account was deleted: the merge request outlives them.
     pub author_id: Option<Uuid>,
     pub source_branch: String,
     pub target_branch: String,

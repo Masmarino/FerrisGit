@@ -15,6 +15,7 @@ import {
   SkeletonList,
 } from '@masmarino/gabarit';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
+import { createSettingsList } from '../settings-list';
 
 // A due date is a calendar day stored as UTC midnight, so it is formatted in UTC: formatting in
 // local time would show the previous day west of UTC.
@@ -33,17 +34,14 @@ export class RepositoryMilestonesSettings implements OnInit {
   private milestonesService = inject(MilestonesService);
   private toast = inject(GbtToastService);
 
-
-  protected milestones = signal<Milestone[]>([]);
-  /** 'loading' until the first list arrives. If a later refresh fails, the list stays on screen. */
-  protected listState = signal<'loading' | 'loaded' | 'failed'>('loading');
+  protected list = createSettingsList(() => this.milestonesService.listForRepository(this.repositoryId()));
   protected newMilestoneTitle = signal('');
   protected newMilestoneDueDate = signal<Date | null>(null);
   protected milestonePendingDelete = signal<Milestone | null>(null);
 
   protected rows = computed(() => {
     const today = this.todayUtc();
-    return this.milestones().map((milestone) => {
+    return this.list.items().map((milestone) => {
       const due = milestone.dueDate ? new Date(milestone.dueDate) : null;
       const validDue = due && !Number.isNaN(due.getTime()) ? due : null;
       return {
@@ -55,27 +53,7 @@ export class RepositoryMilestonesSettings implements OnInit {
   });
 
   ngOnInit(): void {
-    this.refresh();
-  }
-
-  refresh(): void {
-    this.milestonesService.listForRepository(this.repositoryId()).subscribe({
-      next: (m) => {
-        this.milestones.set(m);
-        this.listState.set('loaded');
-      },
-      error: () => {
-        if (this.listState() !== 'loaded') {
-          this.listState.set('failed');
-        }
-        this.toast.show('Impossible de charger les réglages. Réessayez plus tard.', 'error');
-      },
-    });
-  }
-
-  protected retry(): void {
-    this.listState.set('loading');
-    this.refresh();
+    this.list.refresh();
   }
 
   private todayUtc(): number {
@@ -104,7 +82,7 @@ export class RepositoryMilestonesSettings implements OnInit {
       next: () => {
         this.newMilestoneTitle.set('');
         this.newMilestoneDueDate.set(null);
-        this.refresh();
+        this.list.refresh();
         this.toast.show('Milestone créé.');
       },
       error: () => this.toast.show('Impossible de créer ce milestone.', 'error'),
@@ -123,7 +101,7 @@ export class RepositoryMilestonesSettings implements OnInit {
     this.milestonesService.delete(milestone.id).subscribe({
       next: () => {
         this.milestonePendingDelete.set(null);
-        this.refresh();
+        this.list.refresh();
         this.toast.show('Milestone supprimé.');
       },
       error: () => {

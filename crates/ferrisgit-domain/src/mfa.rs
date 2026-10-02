@@ -32,17 +32,14 @@ impl std::fmt::Debug for TotpCredential {
 pub trait TotpCredentialPort: Send + Sync {
     async fn get(&self, user_id: Uuid) -> Result<Option<TotpCredential>, DomainError>;
     /// Inserts or replaces the user's credential as given, `confirmed` and `last_used_step` included, but never
-    /// overwrites a row that is already `confirmed`. Returns `false` when it did not write (for example
-    /// `ON CONFLICT (user_id) DO UPDATE ... WHERE totp_credentials.confirmed = false`).
+    /// overwrites one that is already `confirmed`. Returns `false` when it did not write.
     async fn upsert(&self, credential: &TotpCredential) -> Result<bool, DomainError>;
     /// Atomic compare-and-swap: advances `last_used_step` only when `step` is strictly greater than the
     /// stored one (or none is stored). `false` means a concurrent call already claimed that step.
     async fn set_last_used_step(&self, user_id: Uuid, step: i64) -> Result<bool, DomainError>;
-    /// Marks the credential confirmed only if the row is still unconfirmed and its `last_used_step` equals
-    /// `expected_step` (for example
-    /// `UPDATE ... SET confirmed = true WHERE user_id = $1 AND confirmed = false AND last_used_step = $2`). So it can
-    /// only confirm the credential whose code was just verified. `false` means the row was replaced, reset or already
-    /// confirmed.
+    /// Marks the credential confirmed only if it is still unconfirmed and its `last_used_step` equals `expected_step`,
+    /// so it can only confirm the credential whose code was just verified. `false` means it was replaced, reset or
+    /// already confirmed.
     async fn confirm(&self, user_id: Uuid, expected_step: i64) -> Result<bool, DomainError>;
     async fn delete(&self, user_id: Uuid) -> Result<(), DomainError>;
     /// Which of these users have a confirmed credential. Never decrypts a secret: it is a plain existence check,

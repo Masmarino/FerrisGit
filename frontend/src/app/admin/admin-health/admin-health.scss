@@ -47,7 +47,6 @@
   }
 }
 
-// Gabarit sets its own text colour on the card root; hand it back to the page.
 gbt-card {
   @include card.inherit-text;
 }

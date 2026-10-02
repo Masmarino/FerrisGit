@@ -15,6 +15,7 @@ use uuid::Uuid;
 
 use crate::auth_middleware::RunnerAuth;
 use crate::error::ApiError;
+use crate::routes::user_ref::require_user;
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -40,6 +41,7 @@ async fn claim(
 ) -> Result<Response, ApiError> {
     let use_case = ClaimNextJobUseCase::new(
         state.jobs.clone(),
+        state.pipelines.clone(),
         state.pipeline_events.clone(),
         state.system_settings.clone(),
     );
@@ -57,11 +59,7 @@ async fn claim(
         .find_by_id(pipeline.repository_id)
         .await?
         .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
-    let owner = state
-        .users
-        .find_by_id(repository.owner_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+    let owner = require_user(&state, repository.owner_id).await?;
     let ci_variables = state
         .repository_settings
         .resolve_ci_variables_plaintext(repository.id)

@@ -1,3 +1,4 @@
+use crate::error::infra;
 use chrono::{Duration, Utc};
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::mfa::{MfaPendingTokenPort, PendingToken};
@@ -63,7 +64,7 @@ impl MfaPendingTokenPort for JwtMfaPendingTokenIssuer {
             &claims,
             &EncodingKey::from_secret(&self.key),
         )
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     fn verify(&self, token: &str) -> Result<PendingToken, DomainError> {

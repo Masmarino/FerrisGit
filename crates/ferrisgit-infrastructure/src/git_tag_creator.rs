@@ -1,9 +1,9 @@
 use std::path::{Path, PathBuf};
 
+use crate::git_cli::{self, is_plausible_commit_sha};
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::tag::TagCreatorPort;
-use tokio::process::Command;
 
 pub struct GitTagCreator {
     storage_root: PathBuf,
@@ -16,26 +16,8 @@ impl GitTagCreator {
 }
 
 async fn run_git(repo_path: &Path, args: &[&str]) -> Result<(bool, String, String), DomainError> {
-    let output = Command::new("git")
-        .args(args)
-        .current_dir(repo_path)
-        .output()
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-    Ok((
-        output.status.success(),
-        String::from_utf8_lossy(&output.stdout).trim().to_string(),
-        String::from_utf8_lossy(&output.stderr).trim().to_string(),
-    ))
-}
-
-/// Accepts a plausible short or full git object id (7 to 40 lowercase hex characters), so nothing
-/// else can become a positional `git update-ref` argument.
-fn is_plausible_commit_sha(value: &str) -> bool {
-    (7..=40).contains(&value.len())
-        && value
-            .bytes()
-            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    let output = git_cli::run(repo_path, args, &[], None).await?;
+    Ok((output.success, output.stdout_trimmed(), output.stderr))
 }
 
 #[async_trait]
@@ -93,37 +75,14 @@ impl TagCreatorPort for GitTagCreator {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_git::{git, git_stdout};
 
     fn init_repo_with_a_commit(dir: &Path) -> String {
-        let run = |args: &[&str]| {
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(dir)
-                .status()
-                .unwrap()
-        };
-        assert!(run(&["init", "-q"]).success());
+        git(dir, &["init", "-q"]);
         std::fs::write(dir.join("README.md"), "hello\n").unwrap();
-        assert!(run(&["add", "."]).success());
-        assert!(
-            run(&[
-                "-c",
-                "user.email=t@t.com",
-                "-c",
-                "user.name=t",
-                "commit",
-                "-q",
-                "-m",
-                "root"
-            ])
-            .success()
-        );
-        let output = std::process::Command::new("git")
-            .args(["rev-parse", "HEAD"])
-            .current_dir(dir)
-            .output()
-            .unwrap();
-        String::from_utf8_lossy(&output.stdout).trim().to_string()
+        git(dir, &["add", "."]);
+        git(dir, &["commit", "-q", "-m", "root"]);
+        git_stdout(dir, &["rev-parse", "HEAD"])
     }
 
     #[tokio::test]
@@ -135,12 +94,10 @@ mod tests {
 
         creator.create_tag(disk_path, "v1.0.0", &sha).await.unwrap();
 
-        let output = std::process::Command::new("git")
-            .args(["rev-parse", "refs/tags/v1.0.0"])
-            .current_dir(tmp.path())
-            .output()
-            .unwrap();
-        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), sha);
+        assert_eq!(
+            git_stdout(tmp.path(), &["rev-parse", "refs/tags/v1.0.0"]),
+            sha
+        );
     }
 
     #[tokio::test]
@@ -166,15 +123,8 @@ mod tests {
 
         creator.delete_tag(disk_path, "v1.0.0").await.unwrap();
 
-        let output = std::process::Command::new("git")
-            .args(["tag"])
-            .current_dir(tmp.path())
-            .output()
-            .unwrap();
-        assert!(
-            String::from_utf8_lossy(&output.stdout).trim().is_empty(),
-            "the tag must be gone"
-        );
+        let tags = git_stdout(tmp.path(), &["tag"]);
+        assert!(tags.is_empty(), "the tag must be gone");
     }
 
     #[tokio::test]
@@ -200,12 +150,7 @@ mod tests {
 
         creator.delete_tag(disk_path, "v1.0.0").await.unwrap();
 
-        let output = std::process::Command::new("git")
-            .args(["tag"])
-            .current_dir(tmp.path())
-            .output()
-            .unwrap();
-        assert_eq!(String::from_utf8_lossy(&output.stdout).trim(), "v2.0.0");
+        assert_eq!(git_stdout(tmp.path(), &["tag"]), "v2.0.0");
     }
 
     #[tokio::test]
@@ -218,34 +163,7 @@ mod tests {
         let result = creator.create_tag(disk_path, "v1.0.0", "--not-a-sha").await;
         assert!(matches!(result, Err(DomainError::Validation(_))));
 
-        let output = std::process::Command::new("git")
-            .args(["tag"])
-            .current_dir(tmp.path())
-            .output()
-            .unwrap();
-        assert!(
-            String::from_utf8_lossy(&output.stdout).trim().is_empty(),
-            "no tag must have been created"
-        );
-    }
-
-    #[test]
-    fn is_plausible_commit_sha_accepts_short_and_full_lowercase_hex_and_rejects_everything_else() {
-        assert!(is_plausible_commit_sha("abc1234"));
-        assert!(is_plausible_commit_sha(&"a".repeat(40)));
-        assert!(!is_plausible_commit_sha("abc123"), "too short");
-        assert!(!is_plausible_commit_sha(&"a".repeat(41)), "too long");
-        assert!(
-            !is_plausible_commit_sha("ABC1234"),
-            "uppercase hex must be rejected"
-        );
-        assert!(
-            !is_plausible_commit_sha("main"),
-            "a branch name is not a sha"
-        );
-        assert!(
-            !is_plausible_commit_sha("--upload-pack=x"),
-            "must not look like a flag"
-        );
+        let tags = git_stdout(tmp.path(), &["tag"]);
+        assert!(tags.is_empty(), "no tag must have been created");
     }
 }

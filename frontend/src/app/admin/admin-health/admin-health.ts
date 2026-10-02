@@ -22,8 +22,9 @@ import {
 } from '@masmarino/gabarit';
 import { AdminMetricsService, HealthStatus } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';
+import { ABSOLUTE_OPTIONS } from '../row-date';
 
-const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;
+const bytes = (value: number) => formatBytes(value, 'fr', { binaryUnits: 'legacy' });
 
 interface StatusBadge {
   label: string;
@@ -50,6 +51,9 @@ interface HealthCard {
 
 const UP_ICON = 'circle-check';
 const DOWN_ICON = 'circle-x';
+
+const componentStatus = (status: 'up' | 'down', upLabel: string): StatusBadge =>
+  status === 'up' ? { label: upLabel, variant: 'success', icon: UP_ICON } : { label: 'Indisponible', variant: 'error', icon: DOWN_ICON };
 
 @Component({
   selector: 'fg-admin-health',
@@ -84,7 +88,7 @@ export class AdminHealth implements OnInit {
         key: 'database',
         heading: 'Base de données',
         icon: 'database',
-        status: database.status === 'up' ? { label: 'Opérationnelle', variant: 'success', icon: UP_ICON } : { label: 'Indisponible', variant: 'error', icon: DOWN_ICON },
+        status: componentStatus(database.status, 'Opérationnelle'),
         detail: database.detail,
         facts:
           database.status === 'up'
@@ -102,14 +106,14 @@ export class AdminHealth implements OnInit {
         key: 'storage',
         heading: 'Stockage',
         icon: 'hard-drive',
-        status: storage.status === 'up' ? { label: 'Opérationnel', variant: 'success', icon: UP_ICON } : { label: 'Indisponible', variant: 'error', icon: DOWN_ICON },
+        status: componentStatus(storage.status, 'Opérationnel'),
         detail: storage.detail,
         facts:
           storage.status === 'up'
             ? [
-                { term: 'Utilisé', value: formatBytes(storage.usedBytes, 'fr', { binaryUnits: 'legacy' }) },
-                { term: 'Libre', value: formatBytes(storage.freeBytes, 'fr', { binaryUnits: 'legacy' }) },
-                { term: 'Total', value: formatBytes(storage.totalBytes, 'fr', { binaryUnits: 'legacy' }) },
+                { term: 'Utilisé', value: bytes(storage.usedBytes) },
+                { term: 'Libre', value: bytes(storage.freeBytes) },
+                { term: 'Total', value: bytes(storage.totalBytes) },
               ]
             : [],
         gauge:
@@ -118,7 +122,7 @@ export class AdminHealth implements OnInit {
                 label: 'Espace utilisé',
                 value: storage.usedBytes,
                 max: storage.totalBytes,
-                formatted: `${formatBytes(storage.usedBytes, 'fr', { binaryUnits: 'legacy' })} sur ${formatBytes(storage.totalBytes, 'fr', { binaryUnits: 'legacy' })} · ${formatPercent(storage.totalBytes > 0 ? storage.usedBytes / storage.totalBytes : 0, 'fr')}`,
+                formatted: `${bytes(storage.usedBytes)} sur ${bytes(storage.totalBytes)} · ${formatPercent(storage.totalBytes > 0 ? storage.usedBytes / storage.totalBytes : 0, 'fr')}`,
               }
             : null,
       },

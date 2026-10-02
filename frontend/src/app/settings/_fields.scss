@@ -1,0 +1,39 @@
+@use '../shared/layout/settings-section';
+
+// A settings field with its hint and save state, as the admin settings sections draw it. Each section
+// includes this once: the classes belong to the section that includes it.
+@mixin fields {
+  .admin-settings__form {
+    @include settings-section.form;
+  }
+
+  .admin-settings__field {
+    @include settings-section.field;
+    max-width: 32rem;
+  }
+
+  .admin-settings__field-footer {
+    @include settings-section.field-footer;
+    align-items: flex-start;
+  }
+
+  .admin-settings__hint {
+    @include settings-section.hint;
+    flex: 1 1 14rem;
+    min-width: 0;
+
+    code {
+      padding: 0 0.25rem;
+      border-radius: 4px;
+      background: var(--bg-hover);
+      font-family: var(--gbt-font-mono);
+      font-size: 0.75rem;
+    }
+
+    gbt-icon {
+      margin-right: 0.375rem;
+      font-size: 0.75rem;
+      vertical-align: -0.0625rem;
+    }
+  }
+}

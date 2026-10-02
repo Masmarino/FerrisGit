@@ -2,6 +2,7 @@ import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Alert, Badge, Button, Card, ConfirmDangerModal, EmptyState, GbtInput, Icon, ListRow, SkeletonList, GbtToastService } from '@masmarino/gabarit';
 import { CiVariableSummary, RepositorySettingsService } from '../repository-settings.service';
+import { createSettingsList } from '../settings-list';
 
 @Component({
   selector: 'fg-repository-ci-variables',
@@ -16,10 +17,7 @@ export class RepositoryCiVariables implements OnInit {
   private repositorySettings = inject(RepositorySettingsService);
   private toast = inject(GbtToastService);
 
-
-  protected variables = signal<CiVariableSummary[]>([]);
-  /** 'loading' until the first list arrives. If a later refresh fails, the list stays on screen. */
-  protected listState = signal<'loading' | 'loaded' | 'failed'>('loading');
+  protected list = createSettingsList(() => this.repositorySettings.listCiVariables(this.repositoryId()));
   protected newVariableKey = signal('');
   protected newVariableValue = signal('');
   protected variablePendingDelete = signal<CiVariableSummary | null>(null);
@@ -27,27 +25,7 @@ export class RepositoryCiVariables implements OnInit {
   protected deleting = signal(false);
 
   ngOnInit(): void {
-    this.refresh();
-  }
-
-  refresh(): void {
-    this.repositorySettings.listCiVariables(this.repositoryId()).subscribe({
-      next: (v) => {
-        this.variables.set(v);
-        this.listState.set('loaded');
-      },
-      error: () => {
-        if (this.listState() !== 'loaded') {
-          this.listState.set('failed');
-        }
-        this.toast.show('Impossible de charger les réglages. Réessayez plus tard.', 'error');
-      },
-    });
-  }
-
-  protected retry(): void {
-    this.listState.set('loading');
-    this.refresh();
+    this.list.refresh();
   }
 
   addVariable(): void {
@@ -60,7 +38,7 @@ export class RepositoryCiVariables implements OnInit {
       next: () => {
         this.newVariableKey.set('');
         this.newVariableValue.set('');
-        this.refresh();
+        this.list.refresh();
         this.toast.show('Variable ajoutée.');
       },
       error: () => this.toast.show("Impossible d'ajouter la variable.", 'error'),
@@ -80,7 +58,7 @@ export class RepositoryCiVariables implements OnInit {
       next: () => {
         this.deleting.set(false);
         this.variablePendingDelete.set(null);
-        this.refresh();
+        this.list.refresh();
         this.toast.show('Variable supprimée.');
       },
       // The confirmation covers the page, so an error must close it first to be visible.

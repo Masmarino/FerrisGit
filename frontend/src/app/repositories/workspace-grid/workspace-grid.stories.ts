@@ -1,18 +1,14 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
-import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
+import { moduleMetadata } from '@storybook/angular-vite';
 import { expect, userEvent, waitFor } from 'storybook/test';
 import { of } from 'rxjs';
-import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { WorkspaceGrid, WorkspaceGroupItem } from './workspace-grid';
 import { RepositoriesService } from '../repositories.service';
 import { GroupsService } from '../../groups/groups.service';
 import { GbtToastService } from '@masmarino/gabarit';
-import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { inShellContentArea } from '../../shared/layout/page-story-helpers';
+import { withRouterAndIcons } from '../repository-story-fixtures';
 import { LONG_REPOSITORIES, MANY_REPOSITORIES, REPOSITORIES, expectWorkspaceLayout } from './workspace-story-helpers';
-
-// `EnvironmentProviders` only fit in an `ApplicationConfig`, not in `moduleMetadata`'s `Provider[]`.
-const withApp = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
 
 const withServices = moduleMetadata({
   providers: [
@@ -49,7 +45,7 @@ const meta: Meta<WorkspaceGrid> = {
     failed: false,
     heading: null,
   },
-  decorators: [withApp, withServices, inShellContentArea],
+  decorators: [withRouterAndIcons, withServices, inShellContentArea],
 };
 
 export default meta;

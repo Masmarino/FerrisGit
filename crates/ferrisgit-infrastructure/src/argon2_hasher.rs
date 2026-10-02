@@ -1,3 +1,4 @@
+use crate::error::infra;
 use argon2::Argon2;
 use argon2::password_hash::phc::PasswordHash;
 use argon2::password_hash::{PasswordHasher, PasswordVerifier};
@@ -23,12 +24,11 @@ impl PasswordHasherPort for Argon2PasswordHasher {
         Argon2::default()
             .hash_password(plain.as_bytes())
             .map(|hash| hash.to_string())
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     fn verify(&self, plain: &str, hash: &str) -> Result<bool, DomainError> {
-        let parsed =
-            PasswordHash::new(hash).map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let parsed = PasswordHash::new(hash).map_err(infra)?;
         Ok(Argon2::default()
             .verify_password(plain.as_bytes(), &parsed)
             .is_ok())

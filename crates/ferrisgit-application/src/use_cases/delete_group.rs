@@ -54,22 +54,8 @@ impl DeleteGroupUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeGroups, FakeRepositories};
-    use chrono::Utc;
-    use ferrisgit_domain::group::Group;
-    use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
-
-    fn repository() -> Repository {
-        Repository {
-            id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "g/hello.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }
-    }
+    use crate::use_cases::fixtures::{group, repository};
+    use ferrisgit_domain::repository::Repository;
 
     #[tokio::test]
     async fn deletes_an_empty_group() {
@@ -87,14 +73,7 @@ mod tests {
     async fn refuses_to_delete_a_group_with_a_child_group() {
         let group_id = Uuid::new_v4();
         // A real child of `group_id`, so the assertion shows that `list_children` filters by the group being deleted.
-        let child = Group {
-            id: Uuid::new_v4(),
-            parent_group_id: Some(group_id),
-            name: "child".to_string(),
-            description: String::new(),
-            created_by: Some(Uuid::new_v4()),
-            created_at: Utc::now(),
-        };
+        let child = group(Some(group_id), "child");
         let groups = Arc::new(FakeGroups::new(vec![child]));
         let use_case =
             DeleteGroupUseCase::new(groups.clone(), Arc::new(FakeRepositories::new(vec![])));
@@ -113,7 +92,7 @@ mod tests {
             groups.clone(),
             Arc::new(FakeRepositories::new(vec![Repository {
                 group_id: Some(group_id),
-                ..repository()
+                ..repository(Uuid::new_v4())
             }])),
         );
 

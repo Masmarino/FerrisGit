@@ -104,8 +104,8 @@ fn reject_if_disallowed_ip(ip: IpAddr) -> Result<(), DomainError> {
     Ok(())
 }
 
-/// A typo or outdated integration would otherwise silently subscribe to nothing. An immediate 400 naming the bad value
-/// is easier to diagnose.
+/// A typo or outdated integration would otherwise silently subscribe to nothing. Failing right away with the bad value
+/// named is easier to diagnose.
 pub(crate) fn validate_event_kinds(events: &[String]) -> Result<(), DomainError> {
     let unknown: Vec<&str> = events
         .iter()

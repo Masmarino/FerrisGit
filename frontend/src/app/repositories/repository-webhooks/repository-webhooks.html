@@ -30,15 +30,15 @@
   </form>
 </gbt-card>
 
-<gbt-card variant="outlined" icon="globe" heading="Webhooks" description="Les adresses prévenues des événements de ce dépôt." [count]="listState() === 'loaded' ? webhooks().length : null" [flush]="listState() !== 'failed'">
-  @switch (listState()) {
+<gbt-card variant="outlined" icon="globe" heading="Webhooks" description="Les adresses prévenues des événements de ce dépôt." [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+  @switch (list.state()) {
     @case ('loading') {
       <gbt-skeleton-list [rows]="2" leadingSize="1rem" loadingLabel="Chargement des webhooks…" />
     }
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les webhooks n'ont pas pu être chargés.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="list.retry()" />
       </gbt-alert>
     }
     @default {

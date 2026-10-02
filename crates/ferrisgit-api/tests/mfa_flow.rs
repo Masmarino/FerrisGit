@@ -1,69 +1,17 @@
 // Mandatory-MFA login: login only returns an `mfa-pending` token. The session comes from verify or the first-enrolment confirm.
 // `mfa_enforced` stays true here, unlike the other flow files.
 
-use async_trait::async_trait;
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::mailer::Mailer;
-use ferrisgit_application::mfa_crypto::generate_code_at;
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
-use ferrisgit_domain::email::EmailPort;
-use ferrisgit_domain::error::DomainError;
+mod common;
+
+use common::{
+    ADMIN_PASSWORD, RecordingEmail, next_step_code, totp_code, wait_for_attempts, wrong_code,
+};
+
+use ferrisgit_api::state::AppState;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
-
-const ADMIN_PASSWORD: &str = "adminpassword123";
-
-struct RecordingEmail {
-    sent: Mutex<Vec<(String, String)>>,
-    attempts: std::sync::atomic::AtomicUsize,
-}
-
-impl RecordingEmail {
-    fn new() -> Arc<Self> {
-        Arc::new(Self {
-            sent: Mutex::new(Vec::new()),
-            attempts: std::sync::atomic::AtomicUsize::new(0),
-        })
-    }
-
-    fn attempts(&self) -> usize {
-        self.attempts.load(std::sync::atomic::Ordering::SeqCst)
-    }
-}
-
-#[async_trait]
-impl EmailPort for RecordingEmail {
-    async fn send(
-        &self,
-        to: &str,
-        subject: &str,
-        _text_body: &str,
-        _html_body: &str,
-    ) -> Result<(), DomainError> {
-        self.attempts
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        self.sent
-            .lock()
-            .unwrap()
-            .push((to.to_string(), subject.to_string()));
-        Ok(())
-    }
-}
-
-async fn wait_for_attempts(mailer: &RecordingEmail, count: usize) {
-    for _ in 0..100 {
-        if mailer.attempts() >= count {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-    panic!(
-        "expected {count} delivery attempt(s), saw {}",
-        mailer.attempts()
-    );
-}
+use std::sync::Arc;
 
 struct Server {
     addr: SocketAddr,
@@ -216,84 +164,14 @@ struct Enrolled {
     backup_codes: Vec<String>,
 }
 
-fn now_unix() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-}
-
-fn totp_code(secret: &str) -> String {
-    generate_code_at(secret, now_unix())
-}
-
-/// Accepted with the server's skew of one step, and later than the step the enrolment consumed.
-fn next_step_code(secret: &str) -> String {
-    generate_code_at(secret, now_unix() + 30)
-}
-
-fn wrong_code(secret: &str) -> String {
-    let valid: Vec<String> = (-3i64..=3)
-        .map(|step| generate_code_at(secret, (now_unix() as i64 + step * 30) as u64))
-        .collect();
-    (0..1_000_000)
-        .map(|n| format!("{n:06}"))
-        .find(|candidate| !valid.contains(candidate))
-        .unwrap()
-}
-
 async fn spawn_server(pool: PgPool) -> Server {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap().keep();
-    let static_dir = tempfile::tempdir().unwrap().keep();
-    std::fs::write(static_dir.join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some(ADMIN_PASSWORD.to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mailer = RecordingEmail::new();
-    let mut state = AppState::new(pool.clone(), config.clone()).await;
-    assert!(
-        state.mfa_enforced,
-        "AppState::new must enforce MFA: production has no way to turn it off"
-    );
-    state.mailer = Arc::new(Mailer::new(mailer.clone()));
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state.clone(), &static_dir);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await
-        .unwrap();
-    });
+    let started = common::spawn_server(pool).await;
     Server {
-        addr,
-        state,
-        pool,
-        mailer,
-        client: reqwest::Client::new(),
+        addr: started.addr,
+        state: started.state,
+        pool: started.pool,
+        mailer: started.mailer,
+        client: started.client,
     }
 }
 
@@ -482,7 +360,7 @@ async fn confirm_sends_the_enrolled_mail_when_the_address_is_a_valid_mailbox(poo
 
     assert_eq!(res.status(), 200);
     wait_for_attempts(&server.mailer, 1).await;
-    let sent = server.mailer.sent.lock().unwrap().clone();
+    let sent = server.mailer.sent();
     assert_eq!(sent.len(), 1, "exactly one enrolment mail: {sent:?}");
     assert_eq!(sent[0].0, "x@example.com");
     assert!(!sent[0].1.is_empty());

@@ -4,6 +4,7 @@ import { expect, userEvent, within } from 'storybook/test';
 import { inShellContentArea } from '../../shared/layout/page-story-helpers';
 import { FileDiffView } from './file-diff-view';
 import { Comment, FileDiff, SplitDiffRow } from '../merge-requests.service';
+import { commentFixture } from '../merge-request-fixtures';
 
 type RowKind = SplitDiffRow['kind'];
 
@@ -152,24 +153,17 @@ const manyHunksFile: FileDiff = {
 };
 
 function makeComment(overrides: Partial<Comment> = {}): Comment {
-  return {
+  return commentFixture({
     id: 'c1',
     authorId: 'u2',
     author: null,
     body: 'Commentaire',
     createdAt: '2026-09-23T10:00:00Z',
-    replyToId: null,
     filePath: 'src/auth/session.rs',
     lineNumber: 16,
-    endLine: null,
     side: 'new',
-    outdated: false,
-    resolved: false,
-    suggestedContent: null,
-    appliedAt: null,
-    appliedCommitSha: null,
     ...overrides,
-  };
+  });
 }
 
 const inlineComments: Comment[] = [

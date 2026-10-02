@@ -21,8 +21,8 @@ pub struct NewLabel {
     pub group_id: Option<Uuid>,
 }
 
-/// Scoped to exactly one of `repository_id`/`group_id` (DB `CHECK`). Assignment-time scope validation lives in the
-/// application use cases.
+/// Scoped to exactly one of `repository_id`/`group_id` (the store rejects anything else). Assignment-time scope
+/// validation lives in the application use cases.
 #[async_trait]
 pub trait LabelStorePort: Send + Sync {
     async fn create(&self, new_label: NewLabel) -> Result<Label, DomainError>;

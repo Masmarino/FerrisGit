@@ -1,8 +1,8 @@
 import { Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { JobGraph, JobGraphStage, JobGraphStatus, JobStatus, Stepper, StepperStep } from '@masmarino/gabarit';
+import { JobGraph, JobGraphStage, JobStatus, Stepper } from '@masmarino/gabarit';
 import { JobSummary } from '../pipelines.service';
-import { STATUS_LABELS, StageGroup, durationLabel } from '../pipeline-helpers';
+import { STATUS_LABELS, StageGroup, jobDurationLabel, jobGlyphStatus, jobGraphStatus, pipelineLink, stageIndexOf, stageSteps } from '../pipeline-helpers';
 
 @Component({
   selector: 'fg-pipeline-summary',
@@ -22,16 +22,12 @@ export class PipelineSummary {
   stageSelected = output<string>();
   jobOpened = output<string>();
 
-  protected readonly statusLabels: Record<JobGraphStatus, string> = STATUS_LABELS;
+  // Gabarit types the labels by its five statuses; ours also has `skipped`, which the graph reads at run time.
+  protected readonly statusLabels = STATUS_LABELS;
+  protected readonly glyph = jobGlyphStatus;
 
-  protected steps = computed<StepperStep[]>(() =>
-    this.groups().map((group) => ({ label: group.name, hasError: group.jobs.some((job) => job.status === 'failed') })),
-  );
-
-  protected selectedIndex = computed<number | null>(() => {
-    const index = this.groups().findIndex((group) => group.name === this.selectedStage());
-    return index === -1 ? null : index;
-  });
+  protected steps = computed(() => stageSteps(this.groups()));
+  protected selectedIndex = computed(() => stageIndexOf(this.groups(), this.selectedStage()));
 
   protected selectedGroup = computed<StageGroup | null>(() => this.groups().find((group) => group.name === this.selectedStage()) ?? null);
 
@@ -41,7 +37,7 @@ export class PipelineSummary {
       jobs: group.jobs.map((job) => ({
         id: job.id,
         name: job.name,
-        status: job.status,
+        status: jobGraphStatus(job.status),
         durationLabel: this.duration(job),
         needs: job.needs,
       })),
@@ -56,10 +52,10 @@ export class PipelineSummary {
   }
 
   protected jobLink(jobId: string): string[] {
-    return ['/repositories', ...this.path(), '-', 'pipelines', this.pipelineId(), 'jobs', jobId];
+    return pipelineLink(this.path(), this.pipelineId(), 'jobs', jobId);
   }
 
   protected duration(job: JobSummary): string {
-    return durationLabel(job.startedAt, job.finishedAt, this.now());
+    return jobDurationLabel(job, this.now());
   }
 }

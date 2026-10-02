@@ -1,8 +1,7 @@
-import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { RepositoryPipelineSettings } from './repository-pipeline-settings';
 import { RepositorySettings as RepositorySettingsModel, RepositorySettingsService } from '../repository-settings.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { createSettingsSection } from '../settings-section-testing';
 
 describe('RepositoryPipelineSettings', () => {
   function setup() {
@@ -10,16 +9,7 @@ describe('RepositoryPipelineSettings', () => {
       get: vi.fn(() => of<RepositorySettingsModel>({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 })),
       update: vi.fn(() => of<RepositorySettingsModel>({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 1 })),
     };
-    const toastStub = { show: vi.fn() };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: RepositorySettingsService, useValue: repositorySettingsStub },
-        { provide: GbtToastService, useValue: toastStub },
-      ],
-    });
-    const fixture = TestBed.createComponent(RepositoryPipelineSettings);
-    fixture.componentRef.setInput('repositoryId', 'repo-1');
-    return { fixture, component: fixture.componentInstance, repositorySettingsStub, toastStub };
+    return { ...createSettingsSection(RepositoryPipelineSettings, [{ provide: RepositorySettingsService, useValue: repositorySettingsStub }]), repositorySettingsStub };
   }
 
   it('loads and displays the pipeline settings for the given repository', () => {
@@ -29,6 +19,16 @@ describe('RepositoryPipelineSettings', () => {
     expect(repositorySettingsStub.get).toHaveBeenCalledWith('repo-1');
     // The value is bound via [ngModel] into gbt-input's own <input>, so assert on the loaded signal, not the DOM text.
     expect(component['settings']()?.pipelineFilePath).toBe('.ferrisgit-ci.yml');
+  });
+
+  it('says the pipeline file is read on the default branch after every push, not on the pushed branch', () => {
+    const { fixture } = setup();
+    fixture.detectChanges();
+
+    const text = (fixture.nativeElement as HTMLElement).textContent ?? '';
+    expect(text).toContain('Il est lu sur la branche par défaut après chaque push.');
+    expect(text).toContain('si le fichier ci-dessous existe sur la branche par défaut');
+    expect(text).not.toContain('branche poussée');
   });
 
   it('surfaces an error when loading the pipeline settings fails', () => {

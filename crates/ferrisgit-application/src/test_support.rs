@@ -1,7 +1,8 @@
 //! Test-only doubles shared across `use_cases`' unit tests.
 
+use std::cmp::Reverse;
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -22,7 +23,7 @@ use ferrisgit_domain::issue::{
     Issue, IssueComment, IssueKind, IssueStatus, IssueStorePort, NewIssue, NewIssueComment,
 };
 use ferrisgit_domain::issue_comment::IssueCommentPort;
-use ferrisgit_domain::job::{Job, JobStatus, JobStorePort, NewJob};
+use ferrisgit_domain::job::{Job, JobStatus, JobStorePort, NewJob, runnable_jobs};
 use ferrisgit_domain::job_execution::JobExecutionPort;
 use ferrisgit_domain::label::{Label, LabelStorePort, NewLabel};
 use ferrisgit_domain::merge_request::{
@@ -74,14 +75,46 @@ use ferrisgit_domain::webhook_event::WebhookEvent;
 use ferrisgit_domain::wiki::{NewWiki, Wiki, WikiStorePort};
 use ferrisgit_domain::wiki_page::{WikiRevision, WikiWriterPort};
 
+/// The first row matching `matches`, cloned out from under the lock.
+fn find_in<T: Clone>(rows: &Mutex<Vec<T>>, matches: impl Fn(&T) -> bool) -> Option<T> {
+    rows.lock()
+        .unwrap()
+        .iter()
+        .find(|row| matches(row))
+        .cloned()
+}
+
+/// Every row matching `keep`, in insertion order.
+fn filter_in<T: Clone>(rows: &Mutex<Vec<T>>, keep: impl Fn(&T) -> bool) -> Vec<T> {
+    rows.lock()
+        .unwrap()
+        .iter()
+        .filter(|row| keep(row))
+        .cloned()
+        .collect()
+}
+
+/// Applies `change` to the first row matching `matches`. A no-op when none does, like an SQL `UPDATE` that matches zero
+/// rows.
+fn update_in<T>(rows: &Mutex<Vec<T>>, matches: impl Fn(&T) -> bool, change: impl FnOnce(&mut T)) {
+    if let Some(row) = rows.lock().unwrap().iter_mut().find(|row| matches(row)) {
+        change(row);
+    }
+}
+
+/// A SQL `LIMIT` as a row count: a negative limit selects nothing.
+fn row_limit(limit: i64) -> usize {
+    limit.max(0) as usize
+}
+
 pub struct FakeUsers {
     users: Mutex<Vec<User>>,
     token_epochs: Mutex<HashMap<Uuid, i32>>,
     fail_next_password_update: Mutex<bool>,
     /// Pending invitations and password resets do not count as admins: such an admin cannot sign in.
-    invitations: Option<std::sync::Arc<FakeInvitations>>,
-    password_resets: Option<std::sync::Arc<FakePasswordResets>>,
-    repositories: Option<std::sync::Arc<FakeRepositories>>,
+    invitations: Option<Arc<FakeInvitations>>,
+    password_resets: Option<Arc<FakePasswordResets>>,
+    repositories: Option<Arc<FakeRepositories>>,
 }
 
 impl FakeUsers {
@@ -96,20 +129,17 @@ impl FakeUsers {
         }
     }
 
-    pub fn with_invitations(mut self, invitations: std::sync::Arc<FakeInvitations>) -> Self {
+    pub fn with_invitations(mut self, invitations: Arc<FakeInvitations>) -> Self {
         self.invitations = Some(invitations);
         self
     }
 
-    pub fn with_password_resets(
-        mut self,
-        password_resets: std::sync::Arc<FakePasswordResets>,
-    ) -> Self {
+    pub fn with_password_resets(mut self, password_resets: Arc<FakePasswordResets>) -> Self {
         self.password_resets = Some(password_resets);
         self
     }
 
-    pub fn with_repositories(mut self, repositories: std::sync::Arc<FakeRepositories>) -> Self {
+    pub fn with_repositories(mut self, repositories: Arc<FakeRepositories>) -> Self {
         self.repositories = Some(repositories);
         self
     }
@@ -150,12 +180,7 @@ impl FakeUsers {
     }
 
     pub fn get(&self, id: Uuid) -> Option<User> {
-        self.users
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|u| u.id == id)
-            .cloned()
+        find_in(&self.users, |u| u.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<User> {
@@ -175,23 +200,11 @@ impl FakeUsers {
 #[async_trait]
 impl UserRepositoryPort for FakeUsers {
     async fn find_by_username(&self, username: &str) -> Result<Option<User>, DomainError> {
-        Ok(self
-            .users
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|u| u.username == username)
-            .cloned())
+        Ok(find_in(&self.users, |u| u.username == username))
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, DomainError> {
-        Ok(self
-            .users
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|u| u.id == id)
-            .cloned())
+        Ok(find_in(&self.users, |u| u.id == id))
     }
 
     async fn create(&self, new_user: NewUser) -> Result<User, DomainError> {
@@ -295,7 +308,7 @@ impl UserRepositoryPort for FakeUsers {
             .unwrap()
             .iter()
             .filter(|u| u.username.to_lowercase().contains(&query))
-            .take(limit.max(0) as usize)
+            .take(row_limit(limit))
             .cloned()
             .collect())
     }
@@ -306,39 +319,26 @@ impl UserRepositoryPort for FakeUsers {
         &self,
         username: &str,
     ) -> Result<Option<User>, DomainError> {
-        Ok(self
-            .users
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|u| u.username.to_lowercase() == username.to_lowercase())
-            .cloned())
+        Ok(find_in(&self.users, |u| {
+            u.username.to_lowercase() == username.to_lowercase()
+        }))
     }
 
     async fn find_by_email_ignore_case(&self, email: &str) -> Result<Option<User>, DomainError> {
-        Ok(self
-            .users
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|u| u.email.to_lowercase() == email.to_lowercase())
-            .cloned())
+        Ok(find_in(&self.users, |u| {
+            u.email.to_lowercase() == email.to_lowercase()
+        }))
     }
 
     async fn list(&self, limit: i64) -> Result<Vec<User>, DomainError> {
         let mut users = self.users.lock().unwrap().clone();
         users.sort_by_key(|u| (u.created_at, u.id));
-        users.truncate(limit.max(0) as usize);
+        users.truncate(row_limit(limit));
         Ok(users)
     }
 
     async fn get_token_epoch(&self, user_id: Uuid) -> Result<i32, DomainError> {
-        Ok(*self
-            .token_epochs
-            .lock()
-            .unwrap()
-            .get(&user_id)
-            .unwrap_or(&0))
+        Ok(self.token_epoch_of(user_id))
     }
 
     async fn bump_token_epoch(&self, user_id: Uuid) -> Result<(), DomainError> {
@@ -370,12 +370,7 @@ impl FakeRepositories {
     }
 
     pub fn get(&self, id: Uuid) -> Option<Repository> {
-        self.repos
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|r| r.id == id)
-            .cloned()
+        find_in(&self.repos, |r| r.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<Repository> {
@@ -387,7 +382,7 @@ impl FakeRepositories {
     }
 
     /// Removes and returns `owner_id`'s personal repositories; hands its group repositories to `heir_id`.
-    pub fn remove_owned_by(&self, owner_id: Uuid, heir_id: Uuid) -> Vec<Repository> {
+    fn remove_owned_by(&self, owner_id: Uuid, heir_id: Uuid) -> Vec<Repository> {
         let mut repos = self.repos.lock().unwrap();
         let (removed, mut kept): (Vec<Repository>, Vec<Repository>) = repos
             .drain(..)
@@ -449,14 +444,9 @@ impl RepositoryStorePort for FakeRepositories {
     }
 
     async fn list_for_owner(&self, owner_id: Uuid) -> Result<Vec<Repository>, DomainError> {
-        Ok(self
-            .repos
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|r| r.owner_id == owner_id && r.group_id.is_none())
-            .cloned()
-            .collect())
+        Ok(filter_in(&self.repos, |r| {
+            r.owner_id == owner_id && r.group_id.is_none()
+        }))
     }
 
     async fn find_by_owner_and_name(
@@ -464,13 +454,9 @@ impl RepositoryStorePort for FakeRepositories {
         owner_id: Uuid,
         name: &str,
     ) -> Result<Option<Repository>, DomainError> {
-        Ok(self
-            .repos
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|r| r.owner_id == owner_id && r.group_id.is_none() && r.name == name)
-            .cloned())
+        Ok(find_in(&self.repos, |r| {
+            r.owner_id == owner_id && r.group_id.is_none() && r.name == name
+        }))
     }
 
     async fn find_by_group_and_name(
@@ -478,23 +464,13 @@ impl RepositoryStorePort for FakeRepositories {
         group_id: Uuid,
         name: &str,
     ) -> Result<Option<Repository>, DomainError> {
-        Ok(self
-            .repos
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|r| r.group_id == Some(group_id) && r.name == name)
-            .cloned())
+        Ok(find_in(&self.repos, |r| {
+            r.group_id == Some(group_id) && r.name == name
+        }))
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Repository>, DomainError> {
-        Ok(self
-            .repos
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|r| r.id == id)
-            .cloned())
+        Ok(find_in(&self.repos, |r| r.id == id))
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), DomainError> {
@@ -504,14 +480,7 @@ impl RepositoryStorePort for FakeRepositories {
     }
 
     async fn list_for_group(&self, group_id: Uuid) -> Result<Vec<Repository>, DomainError> {
-        let mut repos: Vec<Repository> = self
-            .repos
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|r| r.group_id == Some(group_id))
-            .cloned()
-            .collect();
+        let mut repos: Vec<Repository> = filter_in(&self.repos, |r| r.group_id == Some(group_id));
         repos.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(repos)
     }
@@ -549,7 +518,7 @@ impl RepositoryStorePort for FakeRepositories {
                     && (r.name.to_lowercase().contains(&query)
                         || r.description.to_lowercase().contains(&query))
             })
-            .take(limit.max(0) as usize)
+            .take(row_limit(limit))
             .cloned()
             .collect())
     }
@@ -581,12 +550,7 @@ impl FakeGroups {
     }
 
     pub fn get(&self, id: Uuid) -> Option<Group> {
-        self.groups
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|g| g.id == id)
-            .cloned()
+        find_in(&self.groups, |g| g.id == id)
     }
 
     pub fn has_member(&self, group_id: Uuid, user_id: Uuid, role: CollaboratorRole) -> bool {
@@ -661,13 +625,7 @@ impl GroupStorePort for FakeGroups {
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Group>, DomainError> {
-        Ok(self
-            .groups
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|g| g.id == id)
-            .cloned())
+        Ok(find_in(&self.groups, |g| g.id == id))
     }
 
     async fn find_child_by_name(
@@ -675,24 +633,13 @@ impl GroupStorePort for FakeGroups {
         parent_id: Option<Uuid>,
         name: &str,
     ) -> Result<Option<Group>, DomainError> {
-        Ok(self
-            .groups
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|g| g.parent_group_id == parent_id && g.name == name)
-            .cloned())
+        Ok(find_in(&self.groups, |g| {
+            g.parent_group_id == parent_id && g.name == name
+        }))
     }
 
     async fn list_children(&self, parent_id: Option<Uuid>) -> Result<Vec<Group>, DomainError> {
-        Ok(self
-            .groups
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|g| g.parent_group_id == parent_id)
-            .cloned()
-            .collect())
+        Ok(filter_in(&self.groups, |g| g.parent_group_id == parent_id))
     }
 
     async fn ancestor_chain(&self, group_id: Uuid) -> Result<Vec<Group>, DomainError> {
@@ -715,36 +662,19 @@ impl GroupStorePort for FakeGroups {
         let mut result: Vec<GroupWithPath> = vec![];
         let mut seen = HashSet::new();
         for root_id in maintainer_root_ids {
-            let Some(root) = groups.iter().find(|g| g.id == root_id).cloned() else {
-                continue;
-            };
-            let chain = Self::chain_within(&groups, root.id);
-            let base_path = chain
-                .iter()
-                .map(|g| g.name.as_str())
-                .collect::<Vec<_>>()
-                .join("/");
-            if seen.insert(root.id) {
-                result.push(GroupWithPath {
-                    group: root.clone(),
-                    path: base_path.clone(),
-                });
-            }
-            for descendant_id in Self::descendants_of(&groups, root.id) {
-                if seen.insert(descendant_id) {
-                    let descendant = groups
-                        .iter()
-                        .find(|g| g.id == descendant_id)
-                        .cloned()
-                        .expect("descendants_of only returns ids present in groups");
-                    let descendant_chain = Self::chain_within(&groups, descendant_id);
-                    let path = descendant_chain
+            let in_tree = std::iter::once(root_id).chain(Self::descendants_of(&groups, root_id));
+            for group_id in in_tree {
+                let Some(group) = groups.iter().find(|g| g.id == group_id) else {
+                    continue;
+                };
+                if seen.insert(group_id) {
+                    let path = Self::chain_within(&groups, group_id)
                         .iter()
                         .map(|g| g.name.as_str())
                         .collect::<Vec<_>>()
                         .join("/");
                     result.push(GroupWithPath {
-                        group: descendant,
+                        group: group.clone(),
                         path,
                     });
                 }
@@ -885,7 +815,6 @@ pub struct FakeIssues {
     issues: Mutex<Vec<Issue>>,
     comments: Mutex<Vec<IssueComment>>,
     list_assigned_to_calls: Mutex<Vec<(Uuid, Vec<Uuid>)>>,
-    list_authored_by_calls: Mutex<Vec<(Uuid, Vec<Uuid>)>>,
 }
 
 impl FakeIssues {
@@ -894,7 +823,6 @@ impl FakeIssues {
             issues: Mutex::new(issues),
             comments: Mutex::new(vec![]),
             list_assigned_to_calls: Mutex::new(vec![]),
-            list_authored_by_calls: Mutex::new(vec![]),
         }
     }
 
@@ -903,12 +831,7 @@ impl FakeIssues {
     }
 
     pub fn get(&self, id: Uuid) -> Option<Issue> {
-        self.issues
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|i| i.id == id)
-            .cloned()
+        find_in(&self.issues, |i| i.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<Issue> {
@@ -919,10 +842,6 @@ impl FakeIssues {
     /// return the same rows for a wrongly-scoped call.
     pub fn list_assigned_to_calls(&self) -> Vec<(Uuid, Vec<Uuid>)> {
         self.list_assigned_to_calls.lock().unwrap().clone()
-    }
-
-    pub fn list_authored_by_calls(&self) -> Vec<(Uuid, Vec<Uuid>)> {
-        self.list_authored_by_calls.lock().unwrap().clone()
     }
 }
 
@@ -955,13 +874,7 @@ impl IssueStorePort for FakeIssues {
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Issue>, DomainError> {
-        Ok(self
-            .issues
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|i| i.id == id)
-            .cloned())
+        Ok(find_in(&self.issues, |i| i.id == id))
     }
 
     async fn find_by_number(
@@ -969,24 +882,13 @@ impl IssueStorePort for FakeIssues {
         repository_id: Uuid,
         number: i32,
     ) -> Result<Option<Issue>, DomainError> {
-        Ok(self
-            .issues
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|i| i.repository_id == repository_id && i.number == number)
-            .cloned())
+        Ok(find_in(&self.issues, |i| {
+            i.repository_id == repository_id && i.number == number
+        }))
     }
 
     async fn list_for_repository(&self, repository_id: Uuid) -> Result<Vec<Issue>, DomainError> {
-        let mut issues: Vec<Issue> = self
-            .issues
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|i| i.repository_id == repository_id)
-            .cloned()
-            .collect();
+        let mut issues: Vec<Issue> = filter_in(&self.issues, |i| i.repository_id == repository_id);
         issues.sort_by_key(|i| i.number);
         Ok(issues)
     }
@@ -1002,17 +904,10 @@ impl IssueStorePort for FakeIssues {
         if label_ids.is_some_and(|ids| !ids.is_empty()) {
             return Ok(vec![]);
         }
-        let mut issues: Vec<Issue> = self
-            .issues
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|i| {
-                i.repository_id == repository_id
-                    && milestone_id.is_none_or(|m| i.milestone_id == Some(m))
-            })
-            .cloned()
-            .collect();
+        let mut issues: Vec<Issue> = filter_in(&self.issues, |i| {
+            i.repository_id == repository_id
+                && milestone_id.is_none_or(|m| i.milestone_id == Some(m))
+        });
         issues.sort_by_key(|i| i.number);
         Ok(issues)
     }
@@ -1025,53 +920,73 @@ impl IssueStorePort for FakeIssues {
         description: String,
         kind: IssueKind,
     ) -> Result<(), DomainError> {
-        if let Some(issue) = self.issues.lock().unwrap().iter_mut().find(|i| i.id == id) {
-            issue.title = title;
-            issue.description = description;
-            issue.kind = kind;
-        }
+        update_in(
+            &self.issues,
+            |i| i.id == id,
+            |issue| {
+                issue.title = title;
+                issue.description = description;
+                issue.kind = kind;
+            },
+        );
         Ok(())
     }
 
     async fn update_status(&self, id: Uuid, status: IssueStatus) -> Result<(), DomainError> {
-        if let Some(issue) = self.issues.lock().unwrap().iter_mut().find(|i| i.id == id) {
-            issue.closed_at = if status == IssueStatus::Done {
-                issue.closed_at.or_else(|| Some(Utc::now()))
-            } else {
-                None
-            };
-            issue.status = status;
-        }
+        update_in(
+            &self.issues,
+            |i| i.id == id,
+            |issue| {
+                issue.closed_at = if status == IssueStatus::Done {
+                    issue.closed_at.or_else(|| Some(Utc::now()))
+                } else {
+                    None
+                };
+                issue.status = status;
+            },
+        );
         Ok(())
     }
 
     async fn assign(&self, id: Uuid, assignee_id: Option<Uuid>) -> Result<(), DomainError> {
-        if let Some(issue) = self.issues.lock().unwrap().iter_mut().find(|i| i.id == id) {
-            issue.assignee_id = assignee_id;
-        }
+        update_in(
+            &self.issues,
+            |i| i.id == id,
+            |issue| issue.assignee_id = assignee_id,
+        );
         Ok(())
     }
 
     async fn set_milestone(&self, id: Uuid, milestone_id: Option<Uuid>) -> Result<(), DomainError> {
-        if let Some(issue) = self.issues.lock().unwrap().iter_mut().find(|i| i.id == id) {
-            issue.milestone_id = milestone_id;
-        }
+        update_in(
+            &self.issues,
+            |i| i.id == id,
+            |issue| issue.milestone_id = milestone_id,
+        );
         Ok(())
     }
 
     async fn close(&self, id: Uuid) -> Result<(), DomainError> {
-        if let Some(issue) = self.issues.lock().unwrap().iter_mut().find(|i| i.id == id) {
-            issue.status = IssueStatus::Done;
-            issue.closed_at = Some(Utc::now());
-        }
+        update_in(
+            &self.issues,
+            |i| i.id == id,
+            |issue| {
+                issue.status = IssueStatus::Done;
+                issue.closed_at = Some(Utc::now());
+            },
+        );
         Ok(())
     }
 
     async fn reopen(&self, id: Uuid) -> Result<(), DomainError> {
-        if let Some(issue) = self.issues.lock().unwrap().iter_mut().find(|i| i.id == id) {
-            issue.status = IssueStatus::Todo;
-            issue.closed_at = None;
-        }
+        update_in(
+            &self.issues,
+            |i| i.id == id,
+            |issue| {
+                issue.status = IssueStatus::Todo;
+                issue.closed_at = None;
+            },
+        );
         Ok(())
     }
 
@@ -1093,7 +1008,7 @@ impl IssueStorePort for FakeIssues {
                     && (i.title.to_lowercase().contains(&query)
                         || i.description.to_lowercase().contains(&query))
             })
-            .take(limit.max(0) as usize)
+            .take(row_limit(limit))
             .cloned()
             .collect())
     }
@@ -1108,20 +1023,13 @@ impl IssueStorePort for FakeIssues {
             .lock()
             .unwrap()
             .push((user_id, repository_ids.to_vec()));
-        let mut issues: Vec<Issue> = self
-            .issues
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|i| {
-                i.assignee_id == Some(user_id)
-                    && i.status != IssueStatus::Done
-                    && repository_ids.contains(&i.repository_id)
-            })
-            .cloned()
-            .collect();
-        issues.sort_by_key(|i| std::cmp::Reverse(i.created_at));
-        issues.truncate(limit.max(0) as usize);
+        let mut issues: Vec<Issue> = filter_in(&self.issues, |i| {
+            i.assignee_id == Some(user_id)
+                && i.status != IssueStatus::Done
+                && repository_ids.contains(&i.repository_id)
+        });
+        issues.sort_by_key(|i| Reverse(i.created_at));
+        issues.truncate(row_limit(limit));
         Ok(issues)
     }
 
@@ -1131,24 +1039,13 @@ impl IssueStorePort for FakeIssues {
         repository_ids: &[Uuid],
         limit: i64,
     ) -> Result<Vec<Issue>, DomainError> {
-        self.list_authored_by_calls
-            .lock()
-            .unwrap()
-            .push((user_id, repository_ids.to_vec()));
-        let mut issues: Vec<Issue> = self
-            .issues
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|i| {
-                i.author_id == user_id
-                    && i.status != IssueStatus::Done
-                    && repository_ids.contains(&i.repository_id)
-            })
-            .cloned()
-            .collect();
-        issues.sort_by_key(|i| std::cmp::Reverse(i.created_at));
-        issues.truncate(limit.max(0) as usize);
+        let mut issues: Vec<Issue> = filter_in(&self.issues, |i| {
+            i.author_id == user_id
+                && i.status != IssueStatus::Done
+                && repository_ids.contains(&i.repository_id)
+        });
+        issues.sort_by_key(|i| Reverse(i.created_at));
+        issues.truncate(row_limit(limit));
         Ok(issues)
     }
 }
@@ -1168,14 +1065,7 @@ impl IssueCommentPort for FakeIssues {
     }
 
     async fn list_comments(&self, issue_id: Uuid) -> Result<Vec<IssueComment>, DomainError> {
-        Ok(self
-            .comments
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|c| c.issue_id == issue_id)
-            .cloned()
-            .collect())
+        Ok(filter_in(&self.comments, |c| c.issue_id == issue_id))
     }
 }
 
@@ -1229,16 +1119,10 @@ impl NotificationStorePort for FakeNotifications {
         recipient_id: Uuid,
         limit: i64,
     ) -> Result<Vec<Notification>, DomainError> {
-        let mut notifications: Vec<Notification> = self
-            .notifications
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|n| n.recipient_id == recipient_id)
-            .cloned()
-            .collect();
-        notifications.sort_by_key(|n| std::cmp::Reverse(n.created_at));
-        notifications.truncate(limit.max(0) as usize);
+        let mut notifications: Vec<Notification> =
+            filter_in(&self.notifications, |n| n.recipient_id == recipient_id);
+        notifications.sort_by_key(|n| Reverse(n.created_at));
+        notifications.truncate(row_limit(limit));
         Ok(notifications)
     }
 
@@ -1258,11 +1142,11 @@ impl NotificationStorePort for FakeNotifications {
         notification_id: Uuid,
         recipient_id: Uuid,
     ) -> Result<(), DomainError> {
-        if let Some(n) = self.notifications.lock().unwrap().iter_mut().find(|n| {
-            n.id == notification_id && n.recipient_id == recipient_id && n.read_at.is_none()
-        }) {
-            n.read_at = Some(Utc::now());
-        }
+        update_in(
+            &self.notifications,
+            |n| n.id == notification_id && n.recipient_id == recipient_id && n.read_at.is_none(),
+            |n| n.read_at = Some(Utc::now()),
+        );
         Ok(())
     }
 
@@ -1307,7 +1191,6 @@ pub struct FakeMergeRequests {
     merge_requests: Mutex<Vec<MergeRequest>>,
     comments: Mutex<Vec<MergeRequestComment>>,
     reviews: Mutex<Vec<MergeRequestReview>>,
-    list_authored_by_calls: Mutex<Vec<(Uuid, Vec<Uuid>)>>,
     list_awaiting_review_by_calls: Mutex<Vec<(Uuid, Vec<Uuid>)>>,
 }
 
@@ -1317,7 +1200,6 @@ impl FakeMergeRequests {
             merge_requests: Mutex::new(merge_requests),
             comments: Mutex::new(vec![]),
             reviews: Mutex::new(vec![]),
-            list_authored_by_calls: Mutex::new(vec![]),
             list_awaiting_review_by_calls: Mutex::new(vec![]),
         }
     }
@@ -1342,12 +1224,7 @@ impl FakeMergeRequests {
     }
 
     pub fn get(&self, id: Uuid) -> Option<MergeRequest> {
-        self.merge_requests
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|m| m.id == id)
-            .cloned()
+        find_in(&self.merge_requests, |m| m.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<MergeRequest> {
@@ -1359,10 +1236,6 @@ impl FakeMergeRequests {
     }
 
     /// Records calls so tests can assert on the scoping a use case passed down.
-    pub fn list_authored_by_calls(&self) -> Vec<(Uuid, Vec<Uuid>)> {
-        self.list_authored_by_calls.lock().unwrap().clone()
-    }
-
     pub fn list_awaiting_review_by_calls(&self) -> Vec<(Uuid, Vec<Uuid>)> {
         self.list_awaiting_review_by_calls.lock().unwrap().clone()
     }
@@ -1390,13 +1263,7 @@ impl MergeRequestStorePort for FakeMergeRequests {
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<MergeRequest>, DomainError> {
-        Ok(self
-            .merge_requests
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|m| m.id == id)
-            .cloned())
+        Ok(find_in(&self.merge_requests, |m| m.id == id))
     }
 
     /// Filters by `milestone_id` only: this fake has no merge-request-label association, so a non-empty
@@ -1410,18 +1277,11 @@ impl MergeRequestStorePort for FakeMergeRequests {
         if label_ids.is_some_and(|ids| !ids.is_empty()) {
             return Ok(vec![]);
         }
-        let mut mrs: Vec<MergeRequest> = self
-            .merge_requests
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|m| {
-                m.repository_id == repository_id
-                    && milestone_id.is_none_or(|mid| m.milestone_id == Some(mid))
-            })
-            .cloned()
-            .collect();
-        mrs.sort_by_key(|m| std::cmp::Reverse(m.created_at));
+        let mut mrs: Vec<MergeRequest> = filter_in(&self.merge_requests, |m| {
+            m.repository_id == repository_id
+                && milestone_id.is_none_or(|mid| m.milestone_id == Some(mid))
+        });
+        mrs.sort_by_key(|m| Reverse(m.created_at));
         Ok(mrs)
     }
 
@@ -1431,29 +1291,23 @@ impl MergeRequestStorePort for FakeMergeRequests {
         title: String,
         description: String,
     ) -> Result<(), DomainError> {
-        if let Some(mr) = self
-            .merge_requests
-            .lock()
-            .unwrap()
-            .iter_mut()
-            .find(|m| m.id == id)
-        {
-            mr.title = title;
-            mr.description = description;
-        }
+        update_in(
+            &self.merge_requests,
+            |m| m.id == id,
+            |mr| {
+                mr.title = title;
+                mr.description = description;
+            },
+        );
         Ok(())
     }
 
     async fn set_milestone(&self, id: Uuid, milestone_id: Option<Uuid>) -> Result<(), DomainError> {
-        if let Some(mr) = self
-            .merge_requests
-            .lock()
-            .unwrap()
-            .iter_mut()
-            .find(|m| m.id == id)
-        {
-            mr.milestone_id = milestone_id;
-        }
+        update_in(
+            &self.merge_requests,
+            |m| m.id == id,
+            |mr| mr.milestone_id = milestone_id,
+        );
         Ok(())
     }
 
@@ -1511,7 +1365,7 @@ impl MergeRequestStorePort for FakeMergeRequests {
                     && (m.title.to_lowercase().contains(&query)
                         || m.description.to_lowercase().contains(&query))
             })
-            .take(limit.max(0) as usize)
+            .take(row_limit(limit))
             .cloned()
             .collect())
     }
@@ -1522,24 +1376,13 @@ impl MergeRequestStorePort for FakeMergeRequests {
         repository_ids: &[Uuid],
         limit: i64,
     ) -> Result<Vec<MergeRequest>, DomainError> {
-        self.list_authored_by_calls
-            .lock()
-            .unwrap()
-            .push((user_id, repository_ids.to_vec()));
-        let mut mrs: Vec<MergeRequest> = self
-            .merge_requests
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|m| {
-                m.author_id == Some(user_id)
-                    && m.status == MergeRequestStatus::Open
-                    && repository_ids.contains(&m.repository_id)
-            })
-            .cloned()
-            .collect();
-        mrs.sort_by_key(|m| std::cmp::Reverse(m.created_at));
-        mrs.truncate(limit.max(0) as usize);
+        let mut mrs: Vec<MergeRequest> = filter_in(&self.merge_requests, |m| {
+            m.author_id == Some(user_id)
+                && m.status == MergeRequestStatus::Open
+                && repository_ids.contains(&m.repository_id)
+        });
+        mrs.sort_by_key(|m| Reverse(m.created_at));
+        mrs.truncate(row_limit(limit));
         Ok(mrs)
     }
 
@@ -1563,21 +1406,14 @@ impl MergeRequestStorePort for FakeMergeRequests {
             .filter(|r| r.user_id == user_id)
             .map(|r| r.merge_request_id)
             .collect();
-        let mut mrs: Vec<MergeRequest> = self
-            .merge_requests
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|m| {
-                m.status == MergeRequestStatus::Open
-                    && m.author_id != Some(user_id)
-                    && repository_ids.contains(&m.repository_id)
-                    && !reviewed_by_user.contains(&m.id)
-            })
-            .cloned()
-            .collect();
-        mrs.sort_by_key(|m| std::cmp::Reverse(m.created_at));
-        mrs.truncate(limit.max(0) as usize);
+        let mut mrs: Vec<MergeRequest> = filter_in(&self.merge_requests, |m| {
+            m.status == MergeRequestStatus::Open
+                && m.author_id != Some(user_id)
+                && repository_ids.contains(&m.repository_id)
+                && !reviewed_by_user.contains(&m.id)
+        });
+        mrs.sort_by_key(|m| Reverse(m.created_at));
+        mrs.truncate(row_limit(limit));
         Ok(mrs)
     }
 }
@@ -1623,14 +1459,8 @@ impl MergeRequestCommentPort for FakeMergeRequests {
         &self,
         merge_request_id: Uuid,
     ) -> Result<Vec<MergeRequestComment>, DomainError> {
-        let mut comments: Vec<MergeRequestComment> = self
-            .comments
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|c| c.merge_request_id == merge_request_id)
-            .cloned()
-            .collect();
+        let mut comments: Vec<MergeRequestComment> =
+            filter_in(&self.comments, |c| c.merge_request_id == merge_request_id);
         comments.sort_by_key(|c| c.created_at);
         Ok(comments)
     }
@@ -1702,14 +1532,8 @@ impl MergeRequestReviewPort for FakeMergeRequests {
         &self,
         merge_request_id: Uuid,
     ) -> Result<Vec<MergeRequestReview>, DomainError> {
-        let mut reviews: Vec<MergeRequestReview> = self
-            .reviews
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|r| r.merge_request_id == merge_request_id)
-            .cloned()
-            .collect();
+        let mut reviews: Vec<MergeRequestReview> =
+            filter_in(&self.reviews, |r| r.merge_request_id == merge_request_id);
         reviews.sort_by_key(|r| r.created_at);
         Ok(reviews)
     }
@@ -1735,16 +1559,42 @@ impl FakeLabels {
     }
 
     pub fn get(&self, id: Uuid) -> Option<Label> {
-        self.labels
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|l| l.id == id)
-            .cloned()
+        find_in(&self.labels, |l| l.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<Label> {
         self.labels.lock().unwrap().clone()
+    }
+
+    /// The labels linked to `owner_id`, by name.
+    fn labels_of(&self, links: &Mutex<Vec<(Uuid, Uuid)>>, owner_id: Uuid) -> Vec<Label> {
+        let mut labels: Vec<Label> = self
+            .labels_of_each(links, &[owner_id])
+            .into_iter()
+            .map(|(_, label)| label)
+            .collect();
+        labels.sort_by(|a, b| a.name.cmp(&b.name));
+        labels
+    }
+
+    /// `(owner, label)` for every link whose owner is in `owner_ids`, in link order.
+    fn labels_of_each(
+        &self,
+        links: &Mutex<Vec<(Uuid, Uuid)>>,
+        owner_ids: &[Uuid],
+    ) -> Vec<(Uuid, Label)> {
+        let links = links.lock().unwrap();
+        let labels = self.labels.lock().unwrap();
+        links
+            .iter()
+            .filter(|(owner, _)| owner_ids.contains(owner))
+            .filter_map(|(owner, label_id)| {
+                labels
+                    .iter()
+                    .find(|l| l.id == *label_id)
+                    .map(|l| (*owner, l.clone()))
+            })
+            .collect()
     }
 }
 
@@ -1764,20 +1614,18 @@ impl LabelStorePort for FakeLabels {
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Label>, DomainError> {
-        Ok(self
-            .labels
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|l| l.id == id)
-            .cloned())
+        Ok(find_in(&self.labels, |l| l.id == id))
     }
 
     async fn update(&self, id: Uuid, name: String, color: String) -> Result<(), DomainError> {
-        if let Some(label) = self.labels.lock().unwrap().iter_mut().find(|l| l.id == id) {
-            label.name = name;
-            label.color = color;
-        }
+        update_in(
+            &self.labels,
+            |l| l.id == id,
+            |label| {
+                label.name = name;
+                label.color = color;
+            },
+        );
         Ok(())
     }
 
@@ -1795,75 +1643,33 @@ impl LabelStorePort for FakeLabels {
     }
 
     async fn list_for_repository(&self, repository_id: Uuid) -> Result<Vec<Label>, DomainError> {
-        let mut labels: Vec<Label> = self
-            .labels
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|l| l.repository_id == Some(repository_id))
-            .cloned()
-            .collect();
+        let mut labels: Vec<Label> =
+            filter_in(&self.labels, |l| l.repository_id == Some(repository_id));
         labels.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(labels)
     }
 
     async fn list_for_group(&self, group_id: Uuid) -> Result<Vec<Label>, DomainError> {
-        let mut labels: Vec<Label> = self
-            .labels
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|l| l.group_id == Some(group_id))
-            .cloned()
-            .collect();
+        let mut labels: Vec<Label> = filter_in(&self.labels, |l| l.group_id == Some(group_id));
         labels.sort_by(|a, b| a.name.cmp(&b.name));
         Ok(labels)
     }
 
-    /// Replaces the whole link set. A repeated label id yields one link (the join table's primary key).
     async fn set_labels_for_issue(
         &self,
         issue_id: Uuid,
         label_ids: &[Uuid],
     ) -> Result<(), DomainError> {
-        let mut links = self.issue_links.lock().unwrap();
-        links.retain(|(i, _)| *i != issue_id);
-        let mut seen = HashSet::new();
-        links.extend(
-            label_ids
-                .iter()
-                .copied()
-                .filter(|id| seen.insert(*id))
-                .map(|label_id| (issue_id, label_id)),
-        );
+        set_links(&self.issue_links, issue_id, label_ids);
         Ok(())
     }
 
     async fn list_for_issue(&self, issue_id: Uuid) -> Result<Vec<Label>, DomainError> {
-        let links = self.issue_links.lock().unwrap();
-        let labels = self.labels.lock().unwrap();
-        let mut result: Vec<Label> = links
-            .iter()
-            .filter(|(i, _)| *i == issue_id)
-            .filter_map(|(_, label_id)| labels.iter().find(|l| l.id == *label_id).cloned())
-            .collect();
-        result.sort_by(|a, b| a.name.cmp(&b.name));
-        Ok(result)
+        Ok(self.labels_of(&self.issue_links, issue_id))
     }
 
     async fn list_for_issues(&self, issue_ids: &[Uuid]) -> Result<Vec<(Uuid, Label)>, DomainError> {
-        let links = self.issue_links.lock().unwrap();
-        let labels = self.labels.lock().unwrap();
-        Ok(links
-            .iter()
-            .filter(|(i, _)| issue_ids.contains(i))
-            .filter_map(|(i, label_id)| {
-                labels
-                    .iter()
-                    .find(|l| l.id == *label_id)
-                    .map(|l| (*i, l.clone()))
-            })
-            .collect())
+        Ok(self.labels_of_each(&self.issue_links, issue_ids))
     }
 
     async fn set_labels_for_merge_request(
@@ -1871,16 +1677,7 @@ impl LabelStorePort for FakeLabels {
         merge_request_id: Uuid,
         label_ids: &[Uuid],
     ) -> Result<(), DomainError> {
-        let mut links = self.mr_links.lock().unwrap();
-        links.retain(|(m, _)| *m != merge_request_id);
-        let mut seen = HashSet::new();
-        links.extend(
-            label_ids
-                .iter()
-                .copied()
-                .filter(|id| seen.insert(*id))
-                .map(|label_id| (merge_request_id, label_id)),
-        );
+        set_links(&self.mr_links, merge_request_id, label_ids);
         Ok(())
     }
 
@@ -1888,34 +1685,29 @@ impl LabelStorePort for FakeLabels {
         &self,
         merge_request_id: Uuid,
     ) -> Result<Vec<Label>, DomainError> {
-        let links = self.mr_links.lock().unwrap();
-        let labels = self.labels.lock().unwrap();
-        let mut result: Vec<Label> = links
-            .iter()
-            .filter(|(m, _)| *m == merge_request_id)
-            .filter_map(|(_, label_id)| labels.iter().find(|l| l.id == *label_id).cloned())
-            .collect();
-        result.sort_by(|a, b| a.name.cmp(&b.name));
-        Ok(result)
+        Ok(self.labels_of(&self.mr_links, merge_request_id))
     }
 
     async fn list_for_merge_requests(
         &self,
         merge_request_ids: &[Uuid],
     ) -> Result<Vec<(Uuid, Label)>, DomainError> {
-        let links = self.mr_links.lock().unwrap();
-        let labels = self.labels.lock().unwrap();
-        Ok(links
-            .iter()
-            .filter(|(m, _)| merge_request_ids.contains(m))
-            .filter_map(|(m, label_id)| {
-                labels
-                    .iter()
-                    .find(|l| l.id == *label_id)
-                    .map(|l| (*m, l.clone()))
-            })
-            .collect())
+        Ok(self.labels_of_each(&self.mr_links, merge_request_ids))
     }
+}
+
+/// Replaces everything linked to `owner_id`. A repeated label id yields one link (the join table's primary key).
+fn set_links(links: &Mutex<Vec<(Uuid, Uuid)>>, owner_id: Uuid, label_ids: &[Uuid]) {
+    let mut links = links.lock().unwrap();
+    links.retain(|(owner, _)| *owner != owner_id);
+    let mut seen = HashSet::new();
+    links.extend(
+        label_ids
+            .iter()
+            .copied()
+            .filter(|id| seen.insert(*id))
+            .map(|label_id| (owner_id, label_id)),
+    );
 }
 
 pub struct FakeReleases {
@@ -1945,12 +1737,7 @@ impl FakeReleases {
     }
 
     pub fn get(&self, id: Uuid) -> Option<Release> {
-        self.releases
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|r| r.id == id)
-            .cloned()
+        find_in(&self.releases, |r| r.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<Release> {
@@ -2007,15 +1794,10 @@ impl ReleaseStorePort for FakeReleases {
         repository_id: Uuid,
         include_drafts: bool,
     ) -> Result<Vec<Release>, DomainError> {
-        let mut releases: Vec<Release> = self
-            .releases
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|r| r.repository_id == repository_id && (!r.draft || include_drafts))
-            .cloned()
-            .collect();
-        releases.sort_by_key(|r| std::cmp::Reverse(r.published_at.unwrap_or(r.created_at)));
+        let mut releases: Vec<Release> = filter_in(&self.releases, |r| {
+            r.repository_id == repository_id && (!r.draft || include_drafts)
+        });
+        releases.sort_by_key(|r| Reverse(r.published_at.unwrap_or(r.created_at)));
         Ok(releases)
     }
 
@@ -2024,13 +1806,9 @@ impl ReleaseStorePort for FakeReleases {
         repository_id: Uuid,
         tag_name: &str,
     ) -> Result<Option<Release>, DomainError> {
-        Ok(self
-            .releases
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|r| r.repository_id == repository_id && r.tag_name == tag_name)
-            .cloned())
+        Ok(find_in(&self.releases, |r| {
+            r.repository_id == repository_id && r.tag_name == tag_name
+        }))
     }
 
     async fn update(
@@ -2097,14 +1875,7 @@ impl ReleaseStorePort for FakeReleases {
     }
 
     async fn list_assets(&self, release_id: Uuid) -> Result<Vec<ReleaseAsset>, DomainError> {
-        let mut assets: Vec<ReleaseAsset> = self
-            .assets
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|a| a.release_id == release_id)
-            .cloned()
-            .collect();
+        let mut assets: Vec<ReleaseAsset> = filter_in(&self.assets, |a| a.release_id == release_id);
         assets.sort_by_key(|a| a.created_at);
         Ok(assets)
     }
@@ -2114,13 +1885,9 @@ impl ReleaseStorePort for FakeReleases {
         id: Uuid,
         release_id: Uuid,
     ) -> Result<Option<ReleaseAsset>, DomainError> {
-        Ok(self
-            .assets
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|a| a.id == id && a.release_id == release_id)
-            .cloned())
+        Ok(find_in(&self.assets, |a| {
+            a.id == id && a.release_id == release_id
+        }))
     }
 
     async fn delete_asset(&self, id: Uuid, release_id: Uuid) -> Result<(), DomainError> {
@@ -2292,12 +2059,7 @@ impl FakeJobs {
     }
 
     pub fn get(&self, id: Uuid) -> Option<Job> {
-        self.jobs
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|j| j.id == id)
-            .cloned()
+        find_in(&self.jobs, |j| j.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<Job> {
@@ -2331,30 +2093,17 @@ impl JobStorePort for FakeJobs {
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Job>, DomainError> {
-        Ok(self
-            .jobs
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|j| j.id == id)
-            .cloned())
+        Ok(find_in(&self.jobs, |j| j.id == id))
     }
 
     async fn list_for_pipeline(&self, pipeline_id: Uuid) -> Result<Vec<Job>, DomainError> {
-        let mut jobs: Vec<Job> = self
-            .jobs
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|j| j.pipeline_id == pipeline_id)
-            .cloned()
-            .collect();
+        let mut jobs: Vec<Job> = filter_in(&self.jobs, |j| j.pipeline_id == pipeline_id);
         jobs.sort_by_key(|j| j.created_at);
         Ok(jobs)
     }
 
-    /// Claims the earliest-created `Pending` job whose `tags` are a subset of `runner_tags` and whose `needs`
-    /// all succeeded within the same pipeline.
+    /// Claims the earliest-created `Pending` job whose `tags` are a subset of `runner_tags` and that
+    /// `runnable_jobs` releases within its own pipeline.
     async fn claim_next(
         &self,
         runner_id: Uuid,
@@ -2362,22 +2111,26 @@ impl JobStorePort for FakeJobs {
     ) -> Result<Option<Job>, DomainError> {
         let mut jobs = self.jobs.lock().unwrap();
         let snapshot = jobs.clone();
-        let mut candidates: Vec<&Job> = snapshot
-            .iter()
-            .filter(|job| {
-                job.status == JobStatus::Pending
-                    && job.tags.iter().all(|t| runner_tags.contains(t))
-                    && job.needs.iter().all(|need| {
-                        snapshot.iter().any(|s| {
-                            s.pipeline_id == job.pipeline_id
-                                && &s.name == need
-                                && s.status == JobStatus::Success
-                        })
-                    })
-            })
-            .collect();
+        let mut pipeline_ids: Vec<Uuid> = snapshot.iter().map(|j| j.pipeline_id).collect();
+        pipeline_ids.sort();
+        pipeline_ids.dedup();
+        let mut candidates: Vec<Job> = Vec::new();
+        for pipeline_id in pipeline_ids {
+            let mut siblings: Vec<Job> = snapshot
+                .iter()
+                .filter(|j| j.pipeline_id == pipeline_id)
+                .cloned()
+                .collect();
+            siblings.sort_by_key(|j| j.created_at);
+            candidates.extend(
+                runnable_jobs(&siblings)
+                    .into_iter()
+                    .filter(|job| job.tags.iter().all(|t| runner_tags.contains(t)))
+                    .cloned(),
+            );
+        }
         candidates.sort_by_key(|j| j.created_at);
-        let Some(mut claimed) = candidates.into_iter().next().cloned() else {
+        let Some(mut claimed) = candidates.into_iter().next() else {
             return Ok(None);
         };
         claimed.status = JobStatus::Running;
@@ -2389,9 +2142,13 @@ impl JobStorePort for FakeJobs {
     }
 
     async fn append_logs(&self, id: Uuid, chunk: &str) -> Result<(), DomainError> {
-        if let Some(job) = self.jobs.lock().unwrap().iter_mut().find(|j| j.id == id) {
-            job.logs.push_str(chunk);
-        }
+        update_in(
+            &self.jobs,
+            |j| j.id == id,
+            |job| {
+                job.logs.push_str(chunk);
+            },
+        );
         Ok(())
     }
 
@@ -2402,10 +2159,7 @@ impl JobStorePort for FakeJobs {
         let Some(job) = jobs.iter_mut().find(|j| j.id == id) else {
             return Ok(false);
         };
-        if matches!(
-            job.status,
-            JobStatus::Success | JobStatus::Failed | JobStatus::Canceled
-        ) {
+        if job.status.is_terminal() {
             return Ok(false);
         }
         job.status = status;
@@ -2435,24 +2189,8 @@ impl JobStorePort for FakeJobs {
     }
 
     async fn list_runnable(&self, pipeline_id: Uuid) -> Result<Vec<Job>, DomainError> {
-        let snapshot = self.jobs.lock().unwrap().clone();
-        let mut runnable: Vec<Job> = snapshot
-            .iter()
-            .filter(|j| {
-                j.pipeline_id == pipeline_id
-                    && j.status == JobStatus::Pending
-                    && j.needs.iter().all(|need| {
-                        snapshot.iter().any(|s| {
-                            s.pipeline_id == pipeline_id
-                                && &s.name == need
-                                && s.status == JobStatus::Success
-                        })
-                    })
-            })
-            .cloned()
-            .collect();
-        runnable.sort_by_key(|j| j.created_at);
-        Ok(runnable)
+        let jobs = self.list_for_pipeline(pipeline_id).await?;
+        Ok(runnable_jobs(&jobs).into_iter().cloned().collect())
     }
 }
 
@@ -2472,12 +2210,7 @@ impl FakeMilestones {
     }
 
     pub fn get(&self, id: Uuid) -> Option<Milestone> {
-        self.milestones
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|m| m.id == id)
-            .cloned()
+        find_in(&self.milestones, |m| m.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<Milestone> {
@@ -2503,13 +2236,7 @@ impl MilestoneStorePort for FakeMilestones {
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Milestone>, DomainError> {
-        Ok(self
-            .milestones
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|m| m.id == id)
-            .cloned())
+        Ok(find_in(&self.milestones, |m| m.id == id))
     }
 
     async fn update(
@@ -2520,18 +2247,16 @@ impl MilestoneStorePort for FakeMilestones {
         due_date: Option<DateTime<Utc>>,
         state: MilestoneState,
     ) -> Result<(), DomainError> {
-        if let Some(milestone) = self
-            .milestones
-            .lock()
-            .unwrap()
-            .iter_mut()
-            .find(|m| m.id == id)
-        {
-            milestone.title = title;
-            milestone.description = description;
-            milestone.due_date = due_date;
-            milestone.state = state;
-        }
+        update_in(
+            &self.milestones,
+            |m| m.id == id,
+            |milestone| {
+                milestone.title = title;
+                milestone.description = description;
+                milestone.due_date = due_date;
+                milestone.state = state;
+            },
+        );
         Ok(())
     }
 
@@ -2544,27 +2269,15 @@ impl MilestoneStorePort for FakeMilestones {
         &self,
         repository_id: Uuid,
     ) -> Result<Vec<Milestone>, DomainError> {
-        let mut milestones: Vec<Milestone> = self
-            .milestones
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|m| m.repository_id == Some(repository_id))
-            .cloned()
-            .collect();
+        let mut milestones: Vec<Milestone> =
+            filter_in(&self.milestones, |m| m.repository_id == Some(repository_id));
         milestones.sort_by(|a, b| a.title.cmp(&b.title));
         Ok(milestones)
     }
 
     async fn list_for_group(&self, group_id: Uuid) -> Result<Vec<Milestone>, DomainError> {
-        let mut milestones: Vec<Milestone> = self
-            .milestones
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|m| m.group_id == Some(group_id))
-            .cloned()
-            .collect();
+        let mut milestones: Vec<Milestone> =
+            filter_in(&self.milestones, |m| m.group_id == Some(group_id));
         milestones.sort_by(|a, b| a.title.cmp(&b.title));
         Ok(milestones)
     }
@@ -2706,12 +2419,7 @@ impl FakeWebhookStore {
     }
 
     pub fn get(&self, id: Uuid) -> Option<Webhook> {
-        self.webhooks
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|w| w.id == id)
-            .cloned()
+        find_in(&self.webhooks, |w| w.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<Webhook> {
@@ -2745,24 +2453,13 @@ impl WebhookStorePort for FakeWebhookStore {
     }
 
     async fn list_for_repository(&self, repository_id: Uuid) -> Result<Vec<Webhook>, DomainError> {
-        Ok(self
-            .webhooks
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|w| w.repository_id == repository_id)
-            .cloned()
-            .collect())
+        Ok(filter_in(&self.webhooks, |w| {
+            w.repository_id == repository_id
+        }))
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Webhook>, DomainError> {
-        Ok(self
-            .webhooks
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|w| w.id == id)
-            .cloned())
+        Ok(find_in(&self.webhooks, |w| w.id == id))
     }
 
     async fn update(
@@ -2805,18 +2502,9 @@ impl WebhookStorePort for FakeWebhookStore {
         repository_id: Uuid,
         event_kind: &str,
     ) -> Result<Vec<Webhook>, DomainError> {
-        Ok(self
-            .webhooks
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|w| {
-                w.repository_id == repository_id
-                    && w.active
-                    && w.events.iter().any(|e| e == event_kind)
-            })
-            .cloned()
-            .collect())
+        Ok(filter_in(&self.webhooks, |w| {
+            w.repository_id == repository_id && w.active && w.events.iter().any(|e| e == event_kind)
+        }))
     }
 
     async fn resolve_secret_plaintext(&self, webhook_id: Uuid) -> Result<String, DomainError> {
@@ -2856,16 +2544,10 @@ impl WebhookStorePort for FakeWebhookStore {
         {
             return Err(DomainError::NotFound("webhook".to_string()));
         }
-        let mut deliveries: Vec<WebhookDelivery> = self
-            .deliveries
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|d| d.webhook_id == webhook_id)
-            .cloned()
-            .collect();
-        deliveries.sort_by_key(|d| std::cmp::Reverse(d.created_at));
-        deliveries.truncate(limit.max(0) as usize);
+        let mut deliveries: Vec<WebhookDelivery> =
+            filter_in(&self.deliveries, |d| d.webhook_id == webhook_id);
+        deliveries.sort_by_key(|d| Reverse(d.created_at));
+        deliveries.truncate(row_limit(limit));
         Ok(deliveries)
     }
 }
@@ -2936,12 +2618,7 @@ impl FakeWikis {
     }
 
     pub fn get(&self, repository_id: Uuid) -> Option<Wiki> {
-        self.wikis
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|w| w.repository_id == repository_id)
-            .cloned()
+        find_in(&self.wikis, |w| w.repository_id == repository_id)
     }
 }
 
@@ -2951,13 +2628,7 @@ impl WikiStorePort for FakeWikis {
         &self,
         repository_id: Uuid,
     ) -> Result<Option<Wiki>, DomainError> {
-        Ok(self
-            .wikis
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|w| w.repository_id == repository_id)
-            .cloned())
+        Ok(find_in(&self.wikis, |w| w.repository_id == repository_id))
     }
 
     /// An existing row wins unchanged: `new_wiki.disk_path` is only used the first time, like `ON CONFLICT`.
@@ -2985,7 +2656,6 @@ impl WikiStorePort for FakeWikis {
 #[derive(Default)]
 pub struct FakeWikiWriter {
     ensure_calls: Mutex<Vec<String>>,
-    heal_calls: Mutex<Vec<String>>,
     save_calls: Mutex<Vec<(String, String, Option<String>)>>,
     delete_calls: Mutex<Vec<(String, String, String)>>,
     heads: Mutex<HashMap<String, String>>,
@@ -3000,10 +2670,6 @@ impl FakeWikiWriter {
 
     pub fn ensure_calls(&self) -> Vec<String> {
         self.ensure_calls.lock().unwrap().clone()
-    }
-
-    pub fn heal_calls(&self) -> Vec<String> {
-        self.heal_calls.lock().unwrap().clone()
     }
 
     pub fn save_calls(&self) -> Vec<(String, String, Option<String>)> {
@@ -3113,11 +2779,7 @@ impl WikiWriterPort for FakeWikiWriter {
         Ok(())
     }
 
-    async fn heal_dangling_head(&self, wiki_disk_path: &str) -> Result<(), DomainError> {
-        self.heal_calls
-            .lock()
-            .unwrap()
-            .push(wiki_disk_path.to_string());
+    async fn heal_dangling_head(&self, _wiki_disk_path: &str) -> Result<(), DomainError> {
         Ok(())
     }
 }
@@ -3193,12 +2855,7 @@ impl FakePipelines {
     }
 
     pub fn get(&self, id: Uuid) -> Option<Pipeline> {
-        self.pipelines
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|p| p.id == id)
-            .cloned()
+        find_in(&self.pipelines, |p| p.id == id)
     }
 
     pub fn snapshot(&self) -> Vec<Pipeline> {
@@ -3224,45 +2881,61 @@ impl PipelineStorePort for FakePipelines {
             triggered_by: new_pipeline.triggered_by,
             created_at: Utc::now(),
             finished_at: None,
+            error: None,
         };
         self.pipelines.lock().unwrap().push(pipeline.clone());
         Ok(pipeline)
     }
 
+    async fn create_failed(
+        &self,
+        new_pipeline: NewPipeline,
+        error: &str,
+    ) -> Result<Pipeline, DomainError> {
+        let mut pipeline = self.create(new_pipeline).await?;
+        pipeline.status = PipelineStatus::Failed;
+        pipeline.finished_at = Some(Utc::now());
+        pipeline.error = Some(error.to_string());
+        update_in(
+            &self.pipelines,
+            |p| p.id == pipeline.id,
+            |stored| {
+                *stored = pipeline.clone();
+            },
+        );
+        Ok(pipeline)
+    }
+
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Pipeline>, DomainError> {
-        Ok(self
-            .pipelines
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|p| p.id == id)
-            .cloned())
+        Ok(find_in(&self.pipelines, |p| p.id == id))
     }
 
     async fn list_for_repository(&self, repository_id: Uuid) -> Result<Vec<Pipeline>, DomainError> {
-        let mut pipelines: Vec<Pipeline> = self
-            .pipelines
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|p| p.repository_id == repository_id)
-            .cloned()
-            .collect();
-        pipelines.sort_by_key(|p| std::cmp::Reverse(p.created_at));
+        let mut pipelines: Vec<Pipeline> =
+            filter_in(&self.pipelines, |p| p.repository_id == repository_id);
+        pipelines.sort_by_key(|p| Reverse(p.created_at));
         Ok(pipelines)
     }
 
     async fn update_status(&self, id: Uuid, status: PipelineStatus) -> Result<(), DomainError> {
-        if let Some(pipeline) = self
-            .pipelines
-            .lock()
-            .unwrap()
-            .iter_mut()
-            .find(|p| p.id == id)
-        {
-            pipeline.status = status;
-        }
+        update_in(
+            &self.pipelines,
+            |p| p.id == id,
+            |pipeline| pipeline.status = status,
+        );
         Ok(())
+    }
+
+    async fn mark_running(&self, id: Uuid) -> Result<bool, DomainError> {
+        let mut pipelines = self.pipelines.lock().unwrap();
+        let Some(pipeline) = pipelines
+            .iter_mut()
+            .find(|p| p.id == id && p.status == PipelineStatus::Pending)
+        else {
+            return Ok(false);
+        };
+        pipeline.status = PipelineStatus::Running;
+        Ok(true)
     }
 
     async fn count_created_since(&self, since: DateTime<Utc>) -> Result<i64, DomainError> {
@@ -3553,25 +3226,21 @@ impl RunnerRepositoryPort for FakeRunners {
     }
 
     async fn find_by_token_hash(&self, token_hash: &str) -> Result<Option<Runner>, DomainError> {
-        Ok(self
-            .runners
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|r| r.token_hash == token_hash)
-            .cloned())
+        Ok(find_in(&self.runners, |r| r.token_hash == token_hash))
     }
 
     async fn list(&self) -> Result<Vec<Runner>, DomainError> {
         let mut runners = self.runners.lock().unwrap().clone();
-        runners.sort_by_key(|r| std::cmp::Reverse(r.created_at));
+        runners.sort_by_key(|r| Reverse(r.created_at));
         Ok(runners)
     }
 
     async fn touch_heartbeat(&self, id: Uuid) -> Result<(), DomainError> {
-        if let Some(runner) = self.runners.lock().unwrap().iter_mut().find(|r| r.id == id) {
-            runner.last_heartbeat_at = Some(Utc::now());
-        }
+        update_in(
+            &self.runners,
+            |r| r.id == id,
+            |runner| runner.last_heartbeat_at = Some(Utc::now()),
+        );
         Ok(())
     }
 
@@ -3624,26 +3293,13 @@ impl ApiTokenRepositoryPort for FakeApiTokens {
     }
 
     async fn list_for_user(&self, user_id: Uuid) -> Result<Vec<ApiToken>, DomainError> {
-        let mut tokens: Vec<ApiToken> = self
-            .tokens
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|t| t.user_id == user_id)
-            .cloned()
-            .collect();
-        tokens.sort_by_key(|t| std::cmp::Reverse(t.created_at));
+        let mut tokens: Vec<ApiToken> = filter_in(&self.tokens, |t| t.user_id == user_id);
+        tokens.sort_by_key(|t| Reverse(t.created_at));
         Ok(tokens)
     }
 
     async fn find_by_hash(&self, token_hash: &str) -> Result<Option<ApiToken>, DomainError> {
-        Ok(self
-            .tokens
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|t| t.token_hash == token_hash)
-            .cloned())
+        Ok(find_in(&self.tokens, |t| t.token_hash == token_hash))
     }
 
     async fn revoke(&self, id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
@@ -3657,9 +3313,11 @@ impl ApiTokenRepositoryPort for FakeApiTokens {
     }
 
     async fn touch_last_used(&self, id: Uuid) -> Result<(), DomainError> {
-        if let Some(token) = self.tokens.lock().unwrap().iter_mut().find(|t| t.id == id) {
-            token.last_used_at = Some(Utc::now());
-        }
+        update_in(
+            &self.tokens,
+            |t| t.id == id,
+            |token| token.last_used_at = Some(Utc::now()),
+        );
         Ok(())
     }
 }
@@ -3729,23 +3387,16 @@ impl MetricsSnapshotRepositoryPort for FakeMetricsSnapshots {
     }
 
     async fn list_since(&self, since: DateTime<Utc>) -> Result<Vec<MetricsSnapshot>, DomainError> {
-        Ok(self
-            .0
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|s| s.recorded_at >= since)
-            .cloned()
-            .collect())
+        Ok(filter_in(&self.0, |s| s.recorded_at >= since))
     }
 }
 
 /// Maps each `disk_path` to a size. A path with no entry reports `0`, like the real `GitBackend::directory_size` does
 /// for an empty bare repo directory.
-pub struct FakeDirectorySize(std::collections::HashMap<String, u64>);
+pub struct FakeDirectorySize(HashMap<String, u64>);
 
 impl FakeDirectorySize {
-    pub fn new(sizes: std::collections::HashMap<String, u64>) -> Self {
+    pub fn new(sizes: HashMap<String, u64>) -> Self {
         Self(sizes)
     }
 }
@@ -3840,14 +3491,8 @@ impl MergeRequestEventPort for FakeMergeRequestEvents {
 
     async fn list(&self, merge_request_id: Uuid) -> Result<Vec<MergeRequestEvent>, DomainError> {
         self.check()?;
-        let mut events: Vec<MergeRequestEvent> = self
-            .events
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|e| e.merge_request_id == merge_request_id)
-            .cloned()
-            .collect();
+        let mut events: Vec<MergeRequestEvent> =
+            filter_in(&self.events, |e| e.merge_request_id == merge_request_id);
         events.sort_by_key(|e| (e.created_at, e.id));
         Ok(events)
     }
@@ -3963,14 +3608,7 @@ impl FakePasskeys {
     }
 
     pub fn of(&self, user_id: Uuid) -> Vec<StoredPasskey> {
-        let mut rows: Vec<StoredPasskey> = self
-            .rows
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|row| row.user_id == user_id)
-            .cloned()
-            .collect();
+        let mut rows: Vec<StoredPasskey> = filter_in(&self.rows, |row| row.user_id == user_id);
         rows.sort_by_key(|row| (row.created_at, row.id));
         rows
     }
@@ -4018,16 +3656,14 @@ impl WebauthnCredentialPort for FakePasskeys {
         id: Uuid,
         passkey_json: &str,
     ) -> Result<(), DomainError> {
-        if let Some(row) = self
-            .rows
-            .lock()
-            .unwrap()
-            .iter_mut()
-            .find(|row| row.id == id)
-        {
-            row.passkey_json = passkey_json.to_string();
-            row.last_used_at = Some(Utc::now());
-        }
+        update_in(
+            &self.rows,
+            |row| row.id == id,
+            |row| {
+                row.passkey_json = passkey_json.to_string();
+                row.last_used_at = Some(Utc::now());
+            },
+        );
         Ok(())
     }
 
@@ -4056,11 +3692,47 @@ impl WebauthnCredentialPort for FakePasskeys {
     }
 }
 
+/// One expiring token row per user, the storage both token fakes below share: `(user, token hash, expiry)`.
+#[derive(Default)]
+struct TokenRows(Mutex<Vec<(Uuid, String, DateTime<Utc>)>>);
+
+impl TokenRows {
+    /// Replaces the user's row, whatever its expiry.
+    fn insert(&self, user_id: Uuid, token_hash: &str, expires_at: DateTime<Utc>) {
+        let mut rows = self.0.lock().unwrap();
+        rows.retain(|(id, _, _)| *id != user_id);
+        rows.push((user_id, token_hash.to_string(), expires_at));
+    }
+
+    fn remove(&self, user_id: Uuid) {
+        self.0.lock().unwrap().retain(|(id, _, _)| *id != user_id);
+    }
+
+    fn snapshot(&self) -> Vec<(Uuid, String, DateTime<Utc>)> {
+        self.0.lock().unwrap().clone()
+    }
+
+    fn row_of(&self, user_id: Uuid) -> Option<(String, DateTime<Utc>)> {
+        find_in(&self.0, |(id, _, _)| *id == user_id)
+            .map(|(_, hash, expires_at)| (hash, expires_at))
+    }
+
+    /// Deletes and returns the row of an unexpired token. An expired row stays where it is and is never consumed.
+    fn consume(&self, token_hash: &str) -> Option<(Uuid, DateTime<Utc>)> {
+        let mut rows = self.0.lock().unwrap();
+        let position = rows
+            .iter()
+            .position(|(_, hash, expires_at)| hash == token_hash && *expires_at > Utc::now())?;
+        let (user_id, _, expires_at) = rows.remove(position);
+        Some((user_id, expires_at))
+    }
+}
+
 /// In-memory `UserInvitationPort` with the semantics of the real store: one row per user, and `consume` atomically
-/// deletes a row only if it has not expired. An expired row stays where it is and can never be consumed.
+/// deletes a row only if it has not expired.
 #[derive(Default)]
 pub struct FakeInvitations {
-    rows: Mutex<Vec<(Uuid, String, DateTime<Utc>)>>,
+    rows: TokenRows,
 }
 
 impl FakeInvitations {
@@ -4070,30 +3742,20 @@ impl FakeInvitations {
 
     /// Seeds a row as is (for example already expired).
     pub fn insert(&self, user_id: Uuid, token_hash: &str, expires_at: DateTime<Utc>) {
-        let mut rows = self.rows.lock().unwrap();
-        rows.retain(|(id, _, _)| *id != user_id);
-        rows.push((user_id, token_hash.to_string(), expires_at));
+        self.rows.insert(user_id, token_hash, expires_at);
     }
 
     /// Drops the user's row (what an activation consuming it does), for tests simulating that race.
     pub fn remove(&self, user_id: Uuid) {
-        self.rows
-            .lock()
-            .unwrap()
-            .retain(|(id, _, _)| *id != user_id);
+        self.rows.remove(user_id);
     }
 
     pub fn snapshot(&self) -> Vec<(Uuid, String, DateTime<Utc>)> {
-        self.rows.lock().unwrap().clone()
+        self.rows.snapshot()
     }
 
     pub fn row_of(&self, user_id: Uuid) -> Option<(String, DateTime<Utc>)> {
-        self.rows
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|(id, _, _)| *id == user_id)
-            .map(|(_, hash, expires_at)| (hash.clone(), *expires_at))
+        self.rows.row_of(user_id)
     }
 }
 
@@ -4115,7 +3777,7 @@ impl UserInvitationPort for FakeInvitations {
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<bool, DomainError> {
-        let mut rows = self.rows.lock().unwrap();
+        let mut rows = self.rows.0.lock().unwrap();
         let Some(row) = rows.iter_mut().find(|(id, _, _)| *id == user_id) else {
             return Ok(false);
         };
@@ -4124,28 +3786,19 @@ impl UserInvitationPort for FakeInvitations {
     }
 
     async fn consume(&self, token_hash: &str) -> Result<Option<Invitation>, DomainError> {
-        let mut rows = self.rows.lock().unwrap();
-        let Some(position) = rows
-            .iter()
-            .position(|(_, hash, expires_at)| hash == token_hash && *expires_at > Utc::now())
-        else {
-            return Ok(None);
-        };
-        let (user_id, _, expires_at) = rows.remove(position);
-        Ok(Some(Invitation {
-            user_id,
-            expires_at,
-        }))
+        Ok(self
+            .rows
+            .consume(token_hash)
+            .map(|(user_id, expires_at)| Invitation {
+                user_id,
+                expires_at,
+            }))
     }
 
     async fn expiries(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, DateTime<Utc>)>, DomainError> {
-        Ok(self
-            .rows
-            .lock()
-            .unwrap()
-            .iter()
-            .filter(|(id, _, _)| user_ids.contains(id))
-            .map(|(id, _, expires_at)| (*id, *expires_at))
+        Ok(filter_in(&self.rows.0, |(id, _, _)| user_ids.contains(id))
+            .into_iter()
+            .map(|(id, _, expires_at)| (id, expires_at))
             .collect())
     }
 }
@@ -4154,7 +3807,7 @@ impl UserInvitationPort for FakeInvitations {
 /// `consume` atomically deletes a row only if it has not expired.
 #[derive(Default)]
 pub struct FakePasswordResets {
-    rows: Mutex<Vec<(Uuid, String, DateTime<Utc>)>>,
+    rows: TokenRows,
 }
 
 impl FakePasswordResets {
@@ -4164,22 +3817,15 @@ impl FakePasswordResets {
 
     /// Seeds a row as is (for example already expired).
     pub fn insert(&self, user_id: Uuid, token_hash: &str, expires_at: DateTime<Utc>) {
-        let mut rows = self.rows.lock().unwrap();
-        rows.retain(|(id, _, _)| *id != user_id);
-        rows.push((user_id, token_hash.to_string(), expires_at));
+        self.rows.insert(user_id, token_hash, expires_at);
     }
 
     pub fn snapshot(&self) -> Vec<(Uuid, String, DateTime<Utc>)> {
-        self.rows.lock().unwrap().clone()
+        self.rows.snapshot()
     }
 
     pub fn row_of(&self, user_id: Uuid) -> Option<(String, DateTime<Utc>)> {
-        self.rows
-            .lock()
-            .unwrap()
-            .iter()
-            .find(|(id, _, _)| *id == user_id)
-            .map(|(_, hash, expires_at)| (hash.clone(), *expires_at))
+        self.rows.row_of(user_id)
     }
 }
 
@@ -4196,18 +3842,13 @@ impl PasswordResetPort for FakePasswordResets {
     }
 
     async fn consume(&self, token_hash: &str) -> Result<Option<PasswordReset>, DomainError> {
-        let mut rows = self.rows.lock().unwrap();
-        let Some(position) = rows
-            .iter()
-            .position(|(_, hash, expires_at)| hash == token_hash && *expires_at > Utc::now())
-        else {
-            return Ok(None);
-        };
-        let (user_id, _, expires_at) = rows.remove(position);
-        Ok(Some(PasswordReset {
-            user_id,
-            expires_at,
-        }))
+        Ok(self
+            .rows
+            .consume(token_hash)
+            .map(|(user_id, expires_at)| PasswordReset {
+                user_id,
+                expires_at,
+            }))
     }
 
     /// Any row, expired or not, like the SQL `EXISTS`.
@@ -4222,7 +3863,7 @@ impl PasswordResetPort for FakePasswordResets {
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<bool, DomainError> {
-        let mut rows = self.rows.lock().unwrap();
+        let mut rows = self.rows.0.lock().unwrap();
         if rows
             .iter()
             .any(|(id, hash, _)| *id == user_id || hash == token_hash)

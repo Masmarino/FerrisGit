@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::settings::{
@@ -26,17 +27,19 @@ struct Row {
     max_push_size_mb: i32,
 }
 
-impl Row {
-    fn into_domain(self) -> Result<SystemSettings, DomainError> {
+impl TryFrom<Row> for SystemSettings {
+    type Error = DomainError;
+
+    fn try_from(row: Row) -> Result<Self, DomainError> {
         Ok(SystemSettings {
-            execution_engine: ExecutionEngine::parse(&self.execution_engine)?,
-            k8s_namespace: self.k8s_namespace,
-            k8s_cache_storage_class: self.k8s_cache_storage_class,
-            runner_registration_token: self.runner_registration_token,
-            log_retention_days: self.log_retention_days,
-            max_concurrent_jobs: self.max_concurrent_jobs,
-            jwt_ttl_hours: self.jwt_ttl_hours,
-            max_push_size_mb: self.max_push_size_mb,
+            execution_engine: ExecutionEngine::parse(&row.execution_engine)?,
+            k8s_namespace: row.k8s_namespace,
+            k8s_cache_storage_class: row.k8s_cache_storage_class,
+            runner_registration_token: row.runner_registration_token,
+            log_retention_days: row.log_retention_days,
+            max_concurrent_jobs: row.max_concurrent_jobs,
+            jwt_ttl_hours: row.jwt_ttl_hours,
+            max_push_size_mb: row.max_push_size_mb,
         })
     }
 }
@@ -52,8 +55,8 @@ impl SystemSettingsStorePort for PostgresSystemSettingsStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.into_domain()
+        .map_err(infra)?;
+        SystemSettings::try_from(row)
     }
 
     /// Singly-optional fields use `COALESCE($n, column)`, so `None` leaves the column unchanged.
@@ -93,8 +96,8 @@ impl SystemSettingsStorePort for PostgresSystemSettingsStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.into_domain()
+        .map_err(infra)?;
+        SystemSettings::try_from(row)
     }
 }
 

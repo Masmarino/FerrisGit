@@ -1,5 +1,9 @@
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
+mod common;
+
+use common::git::git;
+
+use common::http::{create_user, get_json, login, post, post_empty, post_json};
+
 use serde_json::json;
 use sqlx::PgPool;
 use std::process::Command;
@@ -35,41 +39,7 @@ where
 
 #[sqlx::test]
 async fn notifications_are_created_for_merge_request_activity_and_pipeline_failure(pool: PgPool) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap();
-    let static_dir = tempfile::tempdir().unwrap();
-    std::fs::write(static_dir.path().join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.path().to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.path().to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, static_dir.path());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
+    let addr = common::spawn_app(pool).await.addr;
 
     let client = reqwest::Client::new();
     let run_git = |args: Vec<String>, cwd: std::path::PathBuf| {
@@ -78,41 +48,28 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
         })
     };
 
-    let owner_login: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "admin", "password": "adminpassword123" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let owner_jwt = owner_login["token"].as_str().unwrap();
+    let owner_jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    let repo_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "name": "hello", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let repo_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &owner_jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
     assert_eq!(repo_res["name"], "hello");
     assert_eq!(repo_res["owner"], "admin");
     let repo_id = repo_res["id"].as_str().unwrap().to_string();
 
-    let owner_token_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/tokens"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "name": "owner-ci" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let owner_token_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &owner_jwt,
+        "/tokens",
+        &json!({ "name": "owner-ci" }),
+    )
+    .await;
     let owner_plain_token = owner_token_res["token"].as_str().unwrap();
 
     let clone_parent = tempfile::tempdir().unwrap();
@@ -172,48 +129,23 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
         .success()
     );
 
-    client
-        .post(format!("http://{addr}/api/admin/users"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "username": "contributor", "email": "contributor@example.com", "password": "password12345" }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    create_user(&client, addr, &owner_jwt, "contributor").await;
 
-    let contributor_login: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "contributor", "password": "password12345" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let contributor_jwt = contributor_login["token"].as_str().unwrap();
+    let contributor_jwt = login(&client, addr, "contributor", "password12345").await;
 
-    let add_collaborator_status = client
-        .post(format!(
-            "http://{addr}/api/repositories/{repo_id}/collaborators"
-        ))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "username": "contributor", "role": "contributor" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let add_collaborator_status = post(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/repositories/{repo_id}/collaborators"),
+        &json!({ "username": "contributor", "role": "contributor" }),
+    )
+    .await
+    .status();
     assert_eq!(add_collaborator_status, 204);
 
-    let contributor_notifications_after_add: serde_json::Value = client
-        .get(format!("http://{addr}/api/notifications"))
-        .bearer_auth(contributor_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let contributor_notifications_after_add: serde_json::Value =
+        get_json(&client, addr, &contributor_jwt, "/notifications").await;
     let contributor_notifications_after_add =
         contributor_notifications_after_add.as_array().unwrap();
     assert_eq!(
@@ -232,15 +164,8 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
     assert_eq!(collaborator_added_notification["actorUsername"], "admin");
     assert_eq!(collaborator_added_notification["read"], false);
 
-    let owner_notifications_after_add: serde_json::Value = client
-        .get(format!("http://{addr}/api/notifications"))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let owner_notifications_after_add: serde_json::Value =
+        get_json(&client, addr, &owner_jwt, "/notifications").await;
     let owner_notifications_after_add = owner_notifications_after_add.as_array().unwrap();
     assert!(
         owner_notifications_after_add.is_empty(),
@@ -305,41 +230,26 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
         .success()
     );
 
-    let mr_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories/{repo_id}/merge-requests"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "sourceBranch": "feature", "targetBranch": "main", "title": "Add line two", "description": "" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let mr_res: serde_json::Value = post_json(&client, addr, &owner_jwt, &format!("/repositories/{repo_id}/merge-requests"), &json!({ "sourceBranch": "feature", "targetBranch": "main", "title": "Add line two", "description": "" })).await;
     let mr_id = mr_res["id"].as_str().unwrap().to_string();
     assert_eq!(mr_res["status"], "open");
     assert_eq!(mr_res["sourceBranch"], "feature");
 
-    let review_res = client
-        .post(format!("http://{addr}/api/merge-requests/{mr_id}/reviews"))
-        .bearer_auth(contributor_jwt)
-        .json(&json!({ "decision": "approved" }))
-        .send()
-        .await
-        .unwrap();
+    let review_res = post(
+        &client,
+        addr,
+        &contributor_jwt,
+        &format!("/merge-requests/{mr_id}/reviews"),
+        &json!({ "decision": "approved" }),
+    )
+    .await;
     assert_eq!(review_res.status(), 200);
     let review_body: serde_json::Value = review_res.json().await.unwrap();
     assert_eq!(review_body["decision"], "approved");
     assert_eq!(review_body["username"], "contributor");
 
-    let notifications_after_approval: serde_json::Value = client
-        .get(format!("http://{addr}/api/notifications"))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let notifications_after_approval: serde_json::Value =
+        get_json(&client, addr, &owner_jwt, "/notifications").await;
     let notifications_after_approval = notifications_after_approval.as_array().unwrap();
     assert_eq!(
         notifications_after_approval.len(),
@@ -355,51 +265,29 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
     assert_eq!(approval_notification["read"], false);
     let notification_id = approval_notification["id"].as_str().unwrap().to_string();
 
-    let unread_count_after_approval: serde_json::Value = client
-        .get(format!("http://{addr}/api/notifications/unread-count"))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let unread_count_after_approval: serde_json::Value =
+        get_json(&client, addr, &owner_jwt, "/notifications/unread-count").await;
     assert_eq!(unread_count_after_approval["count"], 1);
 
-    let mark_read_status = client
-        .post(format!(
-            "http://{addr}/api/notifications/{notification_id}/read"
-        ))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let mark_read_status = post_empty(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/notifications/{notification_id}/read"),
+    )
+    .await
+    .status();
     assert_eq!(mark_read_status, 204);
 
-    let unread_count_after_read: serde_json::Value = client
-        .get(format!("http://{addr}/api/notifications/unread-count"))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let unread_count_after_read: serde_json::Value =
+        get_json(&client, addr, &owner_jwt, "/notifications/unread-count").await;
     assert_eq!(
         unread_count_after_read["count"], 0,
         "marking the notification read must drop the unread count to zero"
     );
 
-    let notifications_after_read: serde_json::Value = client
-        .get(format!("http://{addr}/api/notifications"))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let notifications_after_read: serde_json::Value =
+        get_json(&client, addr, &owner_jwt, "/notifications").await;
     let notifications_after_read = notifications_after_read.as_array().unwrap();
     let reread_notification = notifications_after_read
         .iter()
@@ -410,16 +298,14 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
         "the marked-read notification must now report read == true"
     );
 
-    let runner_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/admin/runners"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "name": "test-runner", "tags": [] }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let runner_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &owner_jwt,
+        "/admin/runners",
+        &json!({ "name": "test-runner", "tags": [] }),
+    )
+    .await;
     let runner_token = runner_res["token"].as_str().unwrap().to_string();
 
     std::fs::write(
@@ -479,23 +365,7 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
         .success()
     );
 
-    let failing_commit_output = tokio::task::spawn_blocking({
-        let repo_path = repo_path.clone();
-        move || {
-            Command::new("git")
-                .args(["rev-parse", "HEAD"])
-                .current_dir(&repo_path)
-                .output()
-        }
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(failing_commit_output.status.success());
-    let failing_commit_sha = String::from_utf8(failing_commit_output.stdout)
-        .unwrap()
-        .trim()
-        .to_string();
+    let failing_commit_sha = git(&["rev-parse", "HEAD"], &repo_path).await;
 
     let pipelines = poll_until(
         || {
@@ -504,17 +374,13 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
             let failing_commit_sha = failing_commit_sha.clone();
             let repo_id = repo_id.clone();
             async move {
-                let res: serde_json::Value = client
-                    .get(format!(
-                        "http://{addr}/api/repositories/{repo_id}/pipelines"
-                    ))
-                    .bearer_auth(&jwt)
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let res: serde_json::Value = get_json(
+                    &client,
+                    addr,
+                    &jwt,
+                    &format!("/repositories/{repo_id}/pipelines"),
+                )
+                .await;
                 if res
                     .as_array()
                     .is_some_and(|a| a.iter().any(|p| p["commitSha"] == failing_commit_sha))
@@ -567,7 +433,7 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
             let pipeline_id = pipeline_id.clone();
             async move {
                 let res: serde_json::Value =
-                    client.get(format!("http://{addr}/api/pipelines/{pipeline_id}")).bearer_auth(&jwt).send().await.unwrap().json().await.unwrap();
+                    get_json(&client, addr, &jwt, &format!("/pipelines/{pipeline_id}")).await;
                 let status = res["status"].as_str().unwrap_or("");
                 if matches!(status, "success" | "failed" | "canceled") { Some(res) } else { None }
             }
@@ -594,15 +460,7 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
             let client = client.clone();
             let jwt = owner_jwt.to_string();
             async move {
-                let res: serde_json::Value = client
-                    .get(format!("http://{addr}/api/notifications"))
-                    .bearer_auth(&jwt)
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let res: serde_json::Value = get_json(&client, addr, &jwt, "/notifications").await;
                 res.as_array()
                     .is_some_and(|list| list.iter().any(|n| n["kind"] == "pipeline_failed"))
                     .then_some(res)

@@ -1,22 +1,13 @@
 // Storybook-only fixtures and layout guards for the workspace grid and the pages built on it.
 import { waitFor } from 'storybook/test';
 import { Repository } from '../repositories.service';
+import { repositoryFixture } from '../repository-fixtures';
 import { GroupMembership } from '../../groups/groups.service';
 import { daysAgo, hoursAgo } from '../../shared/layout/page-story-helpers';
 
 let nextId = 0;
 export function repository(fields: Partial<Repository> & Pick<Repository, 'path'>): Repository {
-  const name = fields.path.at(-1)!;
-  return {
-    id: `repo-${++nextId}`,
-    name,
-    description: '',
-    owner: fields.path[0],
-    role: 'owner',
-    visibility: 'private',
-    createdAt: daysAgo(3),
-    ...fields,
-  };
+  return repositoryFixture({ id: `repo-${++nextId}`, createdAt: daysAgo(3), ...fields });
 }
 
 export const REPOSITORIES: Repository[] = [

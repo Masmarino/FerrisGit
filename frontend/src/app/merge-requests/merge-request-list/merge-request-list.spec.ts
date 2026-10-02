@@ -7,6 +7,7 @@ import { provideRouter } from '@angular/router';
 import { EmptyState, GbtToastService, formatDateTime, formatRelativeTime } from '@masmarino/gabarit';
 import { MergeRequestList } from './merge-request-list';
 import { BranchInfo, MergeRequestSummary } from '../merge-requests.service';
+import { mergeRequestFixture } from '../merge-request-fixtures';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { PageTitleService } from '../../shell/page-title.service';
 
@@ -28,22 +29,7 @@ const BRANCHES: BranchInfo[] = [
 ];
 
 function mr(overrides: Partial<MergeRequestSummary> = {}): MergeRequestSummary {
-  return {
-    id: 'mr1',
-    sourceBranch: 'feat',
-    targetBranch: 'main',
-    title: 'Add feature',
-    description: '',
-    status: 'open',
-    mergeCommitSha: null,
-    createdAt: '2026-01-01T00:00:00Z',
-    closedAt: null,
-    milestoneId: null,
-    labels: [],
-    author: { id: 'u1', username: 'alice' },
-    commentCount: 0,
-    ...overrides,
-  };
+  return mergeRequestFixture({ id: 'mr1', sourceBranch: 'feat', title: 'Add feature', ...overrides });
 }
 
 function manyMergeRequests(count: number, status: MergeRequestSummary['status'] = 'open'): MergeRequestSummary[] {
@@ -632,6 +618,12 @@ describe('MergeRequestList', () => {
 
       expect(rows(el).length).toBe(1);
       expect(el.querySelector('.gbt-menu__trigger')).toBeNull();
+    });
+
+    it('offers a contributor "Fermer" but not "Fusionner", which only maintainers and the owner may do', () => {
+      const { fixture, el } = loaded(MIXED, { role: 'contributor' });
+
+      expect(openRowMenu(fixture, rows(el)[0]).map(text)).toEqual(['Fermer']);
     });
 
     it('offers "Fermer" and "Fusionner" on open merge requests only', () => {

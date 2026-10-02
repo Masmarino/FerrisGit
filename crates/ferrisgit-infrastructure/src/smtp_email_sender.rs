@@ -12,7 +12,7 @@ use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Address, AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
 /// E-mail-sized copy of the horizontal brand logo (440 px wide, twice the 220 px width the templates display it at).
-pub const LOGO_BYTES: &[u8] = include_bytes!("../assets/email-logo.png");
+const LOGO_BYTES: &[u8] = include_bytes!("../assets/email-logo.png");
 const LOGO_CONTENT_TYPE: &str = "image/png";
 const SMTP_TIMEOUT: Duration = Duration::from_secs(15);
 
@@ -55,19 +55,16 @@ fn build_message(
         )
     })?;
 
-    let html_part = if html_references_logo(html_body) {
+    let mut html_part = MultiPart::related().singlepart(SinglePart::html(html_body.to_string()));
+    if html_references_logo(html_body) {
         let logo = Attachment::new_inline(LOGO_CID.to_string()).body(
             Body::new(LOGO_BYTES.to_vec()),
             LOGO_CONTENT_TYPE.parse().map_err(|_| {
                 DomainError::Infrastructure("le type de contenu du logo est invalide".to_string())
             })?,
         );
-        MultiPart::related()
-            .singlepart(SinglePart::html(html_body.to_string()))
-            .singlepart(logo)
-    } else {
-        MultiPart::related().singlepart(SinglePart::html(html_body.to_string()))
-    };
+        html_part = html_part.singlepart(logo);
+    }
     let body = MultiPart::alternative()
         .singlepart(SinglePart::plain(text_body.to_string()))
         .multipart(html_part);

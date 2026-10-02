@@ -48,6 +48,9 @@
               >
 
               <span row-meta class="pipeline-list__meta">
+                @if (row.pipeline.error) {
+                  <span class="pipeline-list__invalid">Fichier de pipeline invalide</span>&ngsp;
+                }
                 <gbt-badge mono class="pipeline-list__sha" [fullText]="row.pipeline.commitSha">{{ row.shortSha }}</gbt-badge>&ngsp;
                 <span class="pipeline-list__triggered">
                   <span class="pipeline-list__when">déclenché <time [attr.datetime]="row.pipeline.createdAt" [title]="row.pipeline.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.pipeline.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time></span>

@@ -271,6 +271,7 @@ fn parse_cgi_response(raw: &[u8]) -> Result<SmartHttpResponse, GitBackendError> 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_git::{git_stdout, git_stdout_untrimmed, git_succeeds, push_one_commit};
 
     #[tokio::test]
     async fn info_refs_against_a_freshly_initialized_bare_repo_advertises_upload_pack() {
@@ -368,49 +369,6 @@ mod tests {
         );
     }
 
-    /// Pushes one commit to an arbitrary branch of a bare repo with a real `git` client.
-    fn push_one_commit(repo_path: &std::path::Path, branch: &str, file_name: &str, content: &str) {
-        let work_dir = tempfile::tempdir().unwrap();
-        let work_dir_path = work_dir.path().to_path_buf();
-        let run = |args: &[&str]| {
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(&work_dir_path)
-                .status()
-                .unwrap()
-        };
-        assert!(run(&["init", "-q"]).success());
-        std::fs::write(work_dir_path.join(file_name), content).unwrap();
-        assert!(run(&["add", "."]).success());
-        assert!(
-            run(&[
-                "-c",
-                "user.email=a@b.c",
-                "-c",
-                "user.name=A",
-                "commit",
-                "-q",
-                "-m",
-                "seed"
-            ])
-            .success()
-        );
-        let push_status = std::process::Command::new("git")
-            .args([
-                "push",
-                "-q",
-                repo_path.to_str().unwrap(),
-                &format!("HEAD:refs/heads/{branch}"),
-            ])
-            .current_dir(&work_dir_path)
-            .status()
-            .unwrap();
-        assert!(
-            push_status.success(),
-            "the raw push into the bare repo must succeed"
-        );
-    }
-
     /// Regression: a first push to a branch other than the initial `HEAD` target left `HEAD` dangling.
     /// The unusual branch name keeps the test independent of the host's git defaults.
     #[tokio::test]
@@ -422,36 +380,21 @@ mod tests {
 
         push_one_commit(&repo_path, "pushed-branch", "file.txt", "hello");
 
-        let before = tokio::process::Command::new("git")
-            .args(["rev-parse", "--verify", "--quiet", "HEAD"])
-            .current_dir(&repo_path)
-            .status()
-            .await
-            .unwrap();
         assert!(
-            !before.success(),
+            !git_succeeds(&repo_path, &["rev-parse", "--verify", "--quiet", "HEAD"]),
             "HEAD must be dangling before healing, or this test isn't exercising the bug"
         );
 
         backend.heal_dangling_head("owner/repo.git").await.unwrap();
 
-        let symref = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&symref.stdout).trim(),
+            git_stdout(&repo_path, &["symbolic-ref", "HEAD"]),
             "refs/heads/pushed-branch"
         );
-        let content = tokio::process::Command::new("git")
-            .args(["cat-file", "-p", "HEAD:file.txt"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
-        assert_eq!(String::from_utf8_lossy(&content.stdout), "hello");
+        assert_eq!(
+            git_stdout_untrimmed(&repo_path, &["cat-file", "-p", "HEAD:file.txt"]),
+            "hello"
+        );
     }
 
     #[tokio::test]
@@ -461,40 +404,18 @@ mod tests {
         backend.init_bare_repo("owner/repo.git").unwrap();
         let repo_path = tmp.path().join("owner/repo.git");
 
-        let default_branch = {
-            let symref = tokio::process::Command::new("git")
-                .args(["symbolic-ref", "HEAD"])
-                .current_dir(&repo_path)
-                .output()
-                .await
-                .unwrap();
-            String::from_utf8_lossy(&symref.stdout)
-                .trim()
-                .trim_start_matches("refs/heads/")
-                .to_string()
-        };
-        push_one_commit(&repo_path, &default_branch, "file.txt", "hello");
-        let before = tokio::process::Command::new("git")
-            .args(["rev-parse", "--verify", "--quiet", "HEAD"])
-            .current_dir(&repo_path)
-            .status()
-            .await
-            .unwrap();
+        let head = git_stdout(&repo_path, &["symbolic-ref", "HEAD"]);
+        let default_branch = head.trim_start_matches("refs/heads/");
+        push_one_commit(&repo_path, default_branch, "file.txt", "hello");
         assert!(
-            before.success(),
+            git_succeeds(&repo_path, &["rev-parse", "--verify", "--quiet", "HEAD"]),
             "HEAD must already resolve, or this test isn't exercising the no-op path"
         );
 
         backend.heal_dangling_head("owner/repo.git").await.unwrap();
 
-        let symref = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&symref.stdout).trim(),
+            git_stdout(&repo_path, &["symbolic-ref", "HEAD"]),
             format!("refs/heads/{default_branch}"),
             "healing an already-healthy HEAD must not move it"
         );
@@ -506,24 +427,12 @@ mod tests {
         let backend = GitBackend::new(tmp.path().to_path_buf());
         backend.init_bare_repo("owner/repo.git").unwrap();
         let repo_path = tmp.path().join("owner/repo.git");
-        let before = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
-        let before_target = String::from_utf8_lossy(&before.stdout).trim().to_string();
+        let before_target = git_stdout(&repo_path, &["symbolic-ref", "HEAD"]);
 
         backend.heal_dangling_head("owner/repo.git").await.unwrap();
 
-        let after = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&after.stdout).trim(),
+            git_stdout(&repo_path, &["symbolic-ref", "HEAD"]),
             before_target,
             "a genuinely empty repo has nothing to heal"
         );
@@ -538,40 +447,28 @@ mod tests {
 
         push_one_commit(&repo_path, "branch-a", "a.txt", "a");
         push_one_commit(&repo_path, "branch-b", "b.txt", "b");
-        let before = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
-        let before_target = String::from_utf8_lossy(&before.stdout).trim().to_string();
+        let before_target = git_stdout(&repo_path, &["symbolic-ref", "HEAD"]);
 
         backend.heal_dangling_head("owner/repo.git").await.unwrap();
 
-        let after = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&after.stdout).trim(),
+            git_stdout(&repo_path, &["symbolic-ref", "HEAD"]),
             before_target,
             "ambiguous which branch should be default — must leave HEAD alone"
         );
         for branch in ["branch-a", "branch-b"] {
-            let resolves = tokio::process::Command::new("git")
-                .args([
-                    "rev-parse",
-                    "--verify",
-                    "--quiet",
-                    &format!("refs/heads/{branch}"),
-                ])
-                .current_dir(&repo_path)
-                .status()
-                .await
-                .unwrap();
-            assert!(resolves.success(), "{branch} must be untouched");
+            assert!(
+                git_succeeds(
+                    &repo_path,
+                    &[
+                        "rev-parse",
+                        "--verify",
+                        "--quiet",
+                        &format!("refs/heads/{branch}"),
+                    ]
+                ),
+                "{branch} must be untouched"
+            );
         }
     }
 

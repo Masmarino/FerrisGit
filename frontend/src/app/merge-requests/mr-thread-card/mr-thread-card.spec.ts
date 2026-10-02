@@ -2,26 +2,19 @@ import { LOCALE_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MrThreadCard } from './mr-thread-card';
 import { Comment, TimelineThread } from '../merge-requests.service';
+import { ALICE, commentFixture } from '../merge-request-fixtures';
 
 function makeComment(overrides: Partial<Comment> = {}): Comment {
-  return {
+  return commentFixture({
     id: 'root',
-    authorId: 'u1',
-    author: { id: 'u1', username: 'alice' },
+    author: ALICE,
     body: 'Pourquoi ce changement ?',
     createdAt: '2026-09-23T10:00:00',
-    replyToId: null,
     filePath: 'src/lib.rs',
     lineNumber: 12,
-    endLine: null,
     side: 'new',
-    outdated: false,
-    resolved: false,
-    suggestedContent: null,
-    appliedAt: null,
-    appliedCommitSha: null,
     ...overrides,
-  };
+  });
 }
 
 function makeThread(overrides: Partial<TimelineThread> = {}): TimelineThread {

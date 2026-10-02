@@ -1,0 +1,15 @@
+// The source and target branch chips with an arrow between them, shared by the list rows and the detail header.
+// They shrink with the line they sit on, so a long branch name truncates instead of pushing its neighbours away.
+@mixin branches {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: normal;
+}
+
+@mixin arrow {
+  flex: none;
+  color: var(--text-secondary);
+}

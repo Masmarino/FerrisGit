@@ -3,6 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { MrSystemNote } from './mr-system-note';
 import { TimelineEvent } from '../merge-requests.service';
 import { describeEvent } from '../merge-request-events';
+import { eventFixture } from '../merge-request-fixtures';
 
 describe('MrSystemNote', () => {
   // Freeze "now" so the relative date cannot flip at a minute or hour boundary. Only Date is faked.
@@ -17,15 +18,7 @@ describe('MrSystemNote', () => {
   });
 
   function makeEvent(overrides: Partial<TimelineEvent> = {}): TimelineEvent {
-    return {
-      type: 'event',
-      id: 'e1',
-      createdAt: '2026-09-23T10:05:00',
-      actor: { id: 'u1', username: 'alice' },
-      kind: 'review_submitted',
-      payload: { decision: 'approved' },
-      ...overrides,
-    };
+    return eventFixture({ id: 'e1', createdAt: '2026-09-23T10:05:00', kind: 'review_submitted', payload: { decision: 'approved' }, ...overrides });
   }
 
   function setup(event: TimelineEvent) {

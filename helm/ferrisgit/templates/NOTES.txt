@@ -1,0 +1,70 @@
+FerrisGit {{ .Values.image.tag }} is deploying to {{ .Release.Namespace }}.
+
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ .Release.Name }}
+
+Public URL: {{ include "ferrisgit.publicUrl" . }}
+{{- if .Values.ingress.enabled }}
+It answers once the pod is ready (/readyz: the database responds).
+{{- if .Values.ingress.certResolver }}
+
+The certificate comes from Traefik's resolver {{ .Values.ingress.certResolver }} (HTTP-01; the first one takes a minute or two), which needs a DNS A record for {{ .Values.ingress.host }} pointing at the
+Traefik load balancer. There is no Certificate object to look at: check the Ingress and the Traefik logs.
+  kubectl get ingress {{ .Release.Name }} -n {{ .Release.Namespace }}
+  kubectl logs -n traefik <the Traefik pod> | grep -i acme
+{{- else if .Values.ingress.clusterIssuer }}
+
+The certificate (a minute or two on first install) is requested from the cert-manager ClusterIssuer {{ .Values.ingress.clusterIssuer }}, into the Secret {{ .Values.ingress.tlsSecretName | default (printf "%s-tls" .Release.Name) }}:
+  kubectl get certificate -n {{ .Release.Namespace }}
+{{- else }}
+
+No certificate is requested (ingress.certResolver and ingress.clusterIssuer are both empty): the Secret
+{{ .Values.ingress.tlsSecretName | default (printf "%s-tls" .Release.Name) }} must already hold one.
+{{- end }}
+{{- if eq .Values.ingress.className "traefik" }}
+{{- if or .Values.ingress.middlewares .Values.ingress.tlsOptions }}
+
+The ingress expects these Traefik resources to exist already (a missing one makes Traefik drop the route):
+{{- if .Values.ingress.middlewares }}
+  middlewares: {{ .Values.ingress.middlewares }}
+{{- end }}
+{{- if .Values.ingress.tlsOptions }}
+  TLSOption:   {{ .Values.ingress.tlsOptions }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+
+The database password, JWT_SECRET and SETTINGS_ENCRYPTION_KEY live in the {{ include "ferrisgit.secretName" . }} Secret,
+which `helm uninstall` leaves in place{{ if .Values.persistence.keepOnUninstall }}, like the two volumes ({{ .Release.Name }}-storage and {{ .Release.Name }}-postgres-data; delete them by hand to wipe the data){{ else }}. persistence.keepOnUninstall is false, so `helm uninstall` deletes the volumes and everything on them{{ end }}.
+Never delete the Secret while the database volume exists: SETTINGS_ENCRYPTION_KEY is what makes every stored CI
+variable, webhook secret, SMTP password and TOTP secret readable, and it cannot be rotated. If you render this chart with
+`helm template`, Argo CD or Flux instead of `helm upgrade`, `lookup` cannot see that Secret: pass secrets.postgresPassword,
+secrets.jwtSecret, secrets.settingsEncryptionKey and secrets.bootstrapAdminPassword yourself, or every render invents new ones.
+{{- if .Values.kubernetesExecutor.enabled }}
+
+Kubernetes execution engine: the pod runs as the ServiceAccount {{ include "ferrisgit.serviceAccountName" . }}, allowed to manage
+job Pods and cache claims in the namespace {{ include "ferrisgit.jobsNamespace" . }}. Select the engine under Admin > Réglages (Moteur d'exécution)
+{{- if ne (include "ferrisgit.jobsNamespace" .) .Release.Namespace }}, and set k8s_namespace to {{ include "ferrisgit.jobsNamespace" . }} (then restart the server){{ end }}.
+Jobs that declare `cache:` also need k8s_cache_storage_class (a ReadWriteMany StorageClass).
+{{- end }}
+
+Rolling the release back (`helm rollback`, `--atomic` or an older image tag) does not undo database migrations. The server applies
+the migrations it ships at every start and does not tolerate unknown ones: a release older than the newest migration recorded in
+the database stops at startup with "failed to run migrations: VersionMissing(<n>)", and the pod restarts in a loop. That includes
+the rollback that --atomic performs when a new release fails after its migrations ran. Only a restore of the database backup
+taken before the upgrade, or deploying a release that contains that migration, brings it back. Back up the database and the
+repositories volume before each upgrade.
+{{- if and .Values.ingress.enabled (not (include "ferrisgit.trustedProxyCidrs" .)) }}
+
+WARNING: ferrisgit.trustedProxyCidrs is empty and ferrisgit.allowSharedRateLimit is true, so every visitor shares one
+sign-in/registration rate-limit budget (they all appear to come from the ingress pod).
+Set ferrisgit.trustedProxyCidrs to the ingress controller's pod CIDR to give each client its own.
+{{- end }}
+{{- if .Values.ferrisgit.bootstrapAdminUsername }}
+
+Log in with:
+  username: {{ .Values.ferrisgit.bootstrapAdminUsername }}
+  password: kubectl get secret {{ include "ferrisgit.secretName" . }} -n {{ .Release.Namespace }} -o jsonpath='{.data.BOOTSTRAP_ADMIN_PASSWORD}' | base64 -d
+(it only works before the users table has its first row, the server ignores FERRISGIT_BOOTSTRAP_ADMIN_* after that;
+a second factor is mandatory, so you set one up at the first sign-in; change the password once logged in)
+{{- end }}

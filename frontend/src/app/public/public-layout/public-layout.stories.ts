@@ -42,7 +42,7 @@ async function expectHeader({ canvasElement }: { canvasElement: HTMLElement }) {
   const doc = canvasElement.ownerDocument.documentElement;
   await expect(doc.scrollWidth, 'no horizontal overflow').toBeLessThanOrEqual(doc.clientWidth + 1);
   const box = header.getBoundingClientRect();
-  for (const part of Array.from(header.querySelectorAll('.public-layout__home, .public-layout__search, .public-layout__account a'))) {
+  for (const part of Array.from(header.querySelectorAll('.public-layout__home, .public-layout__search, .public-layout__docs, .public-layout__account a'))) {
     const rect = part.getBoundingClientRect();
     await expect(rect.left >= box.left - 0.5 && rect.right <= box.right + 0.5, `${part.className} stays inside the header`).toBe(true);
   }

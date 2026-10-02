@@ -12,6 +12,7 @@ use ferrisgit_application::passkey_ceremonies::PasskeyCeremonies;
 use ferrisgit_application::single_use_tokens::SingleUseTokens;
 use ferrisgit_application::use_cases::mfa::MfaService;
 use ferrisgit_application::use_cases::passkeys::{PasskeyService, build_webauthn};
+use ferrisgit_application::use_cases::purge_expired_job_logs::PurgeExpiredJobLogsUseCase;
 use ferrisgit_application::use_cases::record_metrics_snapshot::RecordMetricsSnapshotUseCase;
 use ferrisgit_application::use_cases::report_job_result::{
     AppendJobLogsUseCase, ReportJobResultUseCase,
@@ -28,7 +29,7 @@ use ferrisgit_domain::health::{HealthCheckPort, StorageHealthCheckPort};
 use ferrisgit_domain::invitation::UserInvitationPort;
 use ferrisgit_domain::issue::IssueStorePort;
 use ferrisgit_domain::issue_comment::IssueCommentPort;
-use ferrisgit_domain::job::JobStorePort;
+use ferrisgit_domain::job::{JobLogRetentionPort, JobStorePort};
 use ferrisgit_domain::job_execution::JobExecutionPort;
 use ferrisgit_domain::label::LabelStorePort;
 use ferrisgit_domain::merge_executor::MergeExecutorPort;
@@ -86,6 +87,7 @@ use ferrisgit_infrastructure::postgres::event_publisher::PostgresEventPublisher;
 use ferrisgit_infrastructure::postgres::group_store::PostgresGroupStore;
 use ferrisgit_infrastructure::postgres::health_check::PostgresHealthCheck;
 use ferrisgit_infrastructure::postgres::issue_store::PostgresIssueStore;
+use ferrisgit_infrastructure::postgres::job_log_retention_store::PostgresJobLogRetentionStore;
 use ferrisgit_infrastructure::postgres::job_store::PostgresJobStore;
 use ferrisgit_infrastructure::postgres::label_store::PostgresLabelStore;
 use ferrisgit_infrastructure::postgres::merge_request_event_store::PostgresMergeRequestEventStore;
@@ -143,6 +145,7 @@ pub struct AppState {
     pub config: Arc<Config>,
     pub pipelines: Arc<dyn PipelineStorePort>,
     pub jobs: Arc<dyn JobStorePort>,
+    pub job_log_retention: Arc<dyn JobLogRetentionPort>,
     pub runners: Arc<dyn RunnerRepositoryPort>,
     pub pipeline_events: Arc<dyn PipelineEventPublisherPort>,
     pub system_settings: Arc<dyn SystemSettingsStorePort>,
@@ -216,13 +219,17 @@ pub struct AppState {
     pub started_at: std::time::Instant,
     /// Pre-built because the hourly scheduler in `main.rs` calls it outside any HTTP request.
     pub record_metrics_snapshot: Arc<RecordMetricsSnapshotUseCase>,
+    pub purge_expired_job_logs: Arc<PurgeExpiredJobLogsUseCase>,
 }
 
 impl AppState {
     pub async fn new(pool: PgPool, config: Config) -> Self {
+        let storage_root = PathBuf::from(&config.storage_root);
         let config = Arc::new(config);
         let started_at = std::time::Instant::now();
         let jobs: Arc<dyn JobStorePort> = Arc::new(PostgresJobStore::new(pool.clone()));
+        let job_log_retention: Arc<dyn JobLogRetentionPort> =
+            Arc::new(PostgresJobLogRetentionStore::new(pool.clone()));
         let pipelines: Arc<dyn PipelineStorePort> =
             Arc::new(PostgresPipelineStore::new(pool.clone()));
         let system_settings: Arc<dyn SystemSettingsStorePort> =
@@ -353,9 +360,7 @@ impl AppState {
             tokio::spawn(async move { watcher.run().await });
         }
 
-        let merge_request_reader = Arc::new(GixMergeRequestReader::new(PathBuf::from(
-            &config.storage_root,
-        )));
+        let merge_request_reader = Arc::new(GixMergeRequestReader::new(storage_root.clone()));
         let merge_request_store = Arc::new(PostgresMergeRequestStore::new(pool.clone()));
         let merge_request_events: Arc<dyn MergeRequestEventPort> =
             Arc::new(PostgresMergeRequestEventStore::new(pool.clone()));
@@ -364,28 +369,31 @@ impl AppState {
 
         let releases: Arc<dyn ReleaseStorePort> = Arc::new(PostgresReleaseStore::new(pool.clone()));
         let tag_creator: Arc<dyn TagCreatorPort> =
-            Arc::new(GitTagCreator::new(PathBuf::from(&config.storage_root)));
+            Arc::new(GitTagCreator::new(storage_root.clone()));
         let wikis: Arc<dyn WikiStorePort> = Arc::new(PostgresWikiStore::new(pool.clone()));
         let wiki_writer: Arc<dyn WikiWriterPort> =
-            Arc::new(GitWikiWriter::new(PathBuf::from(&config.storage_root)));
-        let release_asset_storage: Arc<dyn ReleaseAssetStoragePort> = Arc::new(
-            LocalReleaseAssetStorage::new(PathBuf::from(&config.storage_root)),
-        );
+            Arc::new(GitWikiWriter::new(storage_root.clone()));
+        let release_asset_storage: Arc<dyn ReleaseAssetStoragePort> =
+            Arc::new(LocalReleaseAssetStorage::new(storage_root.clone()));
 
         let metrics_snapshots: Arc<dyn MetricsSnapshotRepositoryPort> =
             Arc::new(PostgresMetricsSnapshotStore::new(pool.clone()));
         let health_check: Arc<dyn HealthCheckPort> =
             Arc::new(PostgresHealthCheck::new(pool.clone()));
-        let storage_health: Arc<dyn StorageHealthCheckPort> = Arc::new(
-            FilesystemStorageHealthCheck::new(PathBuf::from(&config.storage_root)),
-        );
-        let directory_size: Arc<dyn DirectorySizePort> =
-            Arc::new(GitBackend::new(PathBuf::from(&config.storage_root)));
+        let storage_health: Arc<dyn StorageHealthCheckPort> =
+            Arc::new(FilesystemStorageHealthCheck::new(storage_root.clone()));
+        let git_backend = Arc::new(GitBackend::new(storage_root.clone()));
+        let directory_size: Arc<dyn DirectorySizePort> = git_backend.clone();
         let record_metrics_snapshot = Arc::new(RecordMetricsSnapshotUseCase::new(
             repositories.clone(),
             users.clone(),
             directory_size.clone(),
             metrics_snapshots.clone(),
+        ));
+
+        let purge_expired_job_logs = Arc::new(PurgeExpiredJobLogsUseCase::new(
+            system_settings.clone(),
+            job_log_retention.clone(),
         ));
 
         Self {
@@ -401,10 +409,11 @@ impl AppState {
             hasher,
             token_issuer: Arc::new(JwtTokenIssuer::new(config.jwt_secret.clone())),
             events: Arc::new(PostgresEventPublisher::new(pool.clone())),
-            git_backend: Arc::new(GitBackend::new(PathBuf::from(&config.storage_root))),
+            git_backend,
             git_reader: Arc::new(GixRepositoryReader),
             pipelines,
             jobs: jobs.clone(),
+            job_log_retention,
             runners: Arc::new(PostgresRunnerRepository::new(pool.clone())),
             pipeline_events,
             system_settings,
@@ -415,9 +424,7 @@ impl AppState {
             smtp_settings,
             mailer,
             job_execution,
-            pipeline_file_reader: Arc::new(GixPipelineFileReader::new(PathBuf::from(
-                &config.storage_root,
-            ))),
+            pipeline_file_reader: Arc::new(GixPipelineFileReader::new(storage_root.clone())),
             merge_requests: merge_request_store.clone(),
             merge_request_comments: merge_request_store.clone(),
             merge_request_reviews: merge_request_store,
@@ -430,10 +437,8 @@ impl AppState {
             labels,
             branch_reader: merge_request_reader.clone(),
             diff_reader: merge_request_reader.clone(),
-            merge_executor: Arc::new(GitMergeExecutor::new(PathBuf::from(&config.storage_root))),
-            suggestion_executor: Arc::new(GitApplySuggestionExecutor::new(PathBuf::from(
-                &config.storage_root,
-            ))),
+            merge_executor: Arc::new(GitMergeExecutor::new(storage_root.clone())),
+            suggestion_executor: Arc::new(GitApplySuggestionExecutor::new(storage_root.clone())),
             webhooks,
             webhook_store,
             releases,
@@ -486,6 +491,7 @@ impl AppState {
             detected_k8s_default_storage_class,
             started_at,
             record_metrics_snapshot,
+            purge_expired_job_logs,
         }
     }
 }

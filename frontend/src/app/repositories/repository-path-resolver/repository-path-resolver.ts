@@ -2,8 +2,8 @@ import { Component, DestroyRef, OnDestroy, OnInit, inject, signal } from '@angul
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, map, of, switchMap } from 'rxjs';
 import { ActivatedRoute, UrlSegment } from '@angular/router';
-import { ResolvedPath, RepositoriesService } from '../repositories.service';
-import { RepositoryContextService } from '../repository-context.service';
+import { MemberRole, ResolvedPath, RepositoriesService } from '../repositories.service';
+import { RepositoryAncestor, RepositoryContextService } from '../repository-context.service';
 import { RepositoryDetail } from '../repository-detail/repository-detail';
 import { GroupDetail } from '../../groups/group-detail/group-detail';
 import { PipelineList } from '../../pipelines/pipeline-list/pipeline-list';
@@ -23,22 +23,17 @@ import { RepositoryTreeView } from '../repository-tree-view/repository-tree-view
 import { RepositoryBlobView } from '../repository-blob-view/repository-blob-view';
 import { EmptyState, Spinner } from '@masmarino/gabarit';
 
-interface BreadcrumbAncestor {
-  label: string;
-  link: string[];
-}
-
 interface RepositoryViewBase {
   repositoryId: string;
   path: string[];
-  ancestors: BreadcrumbAncestor[];
+  ancestors: RepositoryAncestor[];
   groupId: string | null;
 }
 
 type View =
   | { kind: 'loading' }
   | { kind: 'notFound' }
-  | { kind: 'group'; groupId: string; role: 'reader' | 'contributor' | 'maintainer' | null; path: string[] }
+  | { kind: 'group'; groupId: string; role: MemberRole | null; path: string[] }
   | ({ kind: 'repository' } & RepositoryViewBase)
   | ({ kind: 'pipelines' } & RepositoryViewBase)
   | ({ kind: 'pipelineDetail'; id: string; jobId: string | null } & RepositoryViewBase)
@@ -166,7 +161,7 @@ export class RepositoryPathResolver implements OnInit, OnDestroy {
     }
     const repositoryId = resolved.repositoryId;
     const chain = resolved.type === 'groupRepository' ? resolved.chain : [];
-    const ancestors: BreadcrumbAncestor[] = chain.map((entry, index) => ({
+    const ancestors: RepositoryAncestor[] = chain.map((entry, index) => ({
       label: entry.name,
       link: ['/repositories', ...chain.slice(0, index + 1).map((e) => e.name)],
     }));

@@ -13,6 +13,10 @@ use crate::account_rules::{
 };
 use crate::token_hash::hash_token;
 
+/// One error for unknown, expired, used or malformed tokens: telling them apart would only help someone probing
+/// links.
+const INVALID_INVITATION: &str = "invalid or expired invitation";
+
 /// A freshly invited (or re-invited) user and the plaintext activation token. The token exists only to build the
 /// activation URL: it is not stored (only its hash is) and is redacted from `Debug`.
 #[derive(Clone)]
@@ -158,9 +162,7 @@ impl ActivateAccountUseCase {
         // Hash before consuming: a rejected password or hasher failure must not burn the invitation. Garbage is
         // refused before anything expensive with the generic error.
         if !is_invitation_token_shaped(token) {
-            return Err(DomainError::Validation(
-                "invalid or expired invitation".to_string(),
-            ));
+            return Err(DomainError::Validation(INVALID_INVITATION.to_string()));
         }
         validate_password(password)?;
         let password_hash = hash_blocking(&self.hasher, password.to_string()).await?;
@@ -169,7 +171,7 @@ impl ActivateAccountUseCase {
             .invitations
             .consume(&token_hash)
             .await?
-            .ok_or_else(|| DomainError::Validation("invalid or expired invitation".to_string()))?;
+            .ok_or_else(|| DomainError::Validation(INVALID_INVITATION.to_string()))?;
         if let Err(error) = self
             .users
             .update_password_hash(invitation.user_id, password_hash)
@@ -191,6 +193,7 @@ impl ActivateAccountUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeGroups, FakeHasher, FakeInvitations, FakeUsers};
+    use crate::use_cases::fixtures::{group, is_hex64, user};
     use chrono::DateTime;
     use ferrisgit_domain::group::Group;
 
@@ -225,12 +228,8 @@ mod tests {
 
     fn existing(username: &str, email: &str) -> User {
         User {
-            id: Uuid::new_v4(),
-            username: username.to_string(),
             email: email.to_string(),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
+            ..user(username)
         }
     }
 
@@ -243,13 +242,6 @@ mod tests {
         f.invite
             .execute(username.to_string(), email.to_string(), is_admin)
             .await
-    }
-
-    fn is_hex64(token: &str) -> bool {
-        token.len() == 64
-            && token
-                .chars()
-                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
     }
 
     #[tokio::test]
@@ -349,15 +341,10 @@ mod tests {
 
     #[tokio::test]
     async fn inviting_refuses_duplicates_in_any_casing_and_root_group_names() {
-        let group = Group {
-            id: Uuid::new_v4(),
-            parent_group_id: None,
-            name: "acme".to_string(),
-            description: String::new(),
-            created_by: Some(Uuid::new_v4()),
-            created_at: Utc::now(),
-        };
-        let f = fixture(vec![existing("alice", "Alice@Example.com")], vec![group]);
+        let f = fixture(
+            vec![existing("alice", "Alice@Example.com")],
+            vec![group(None, "acme")],
+        );
 
         for (username, email) in [
             ("ALICE", "new@example.com"),
@@ -583,7 +570,7 @@ mod tests {
         let second = f.activate.execute(&invited.token, "another-password").await;
 
         assert!(
-            matches!(&second, Err(DomainError::Validation(m)) if m == "invalid or expired invitation"),
+            matches!(&second, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
             "{second:?}"
         );
         assert!(
@@ -610,7 +597,7 @@ mod tests {
         let result = f.activate.execute(&invited.token, "my-new-password").await;
 
         assert!(
-            matches!(&result, Err(DomainError::Validation(m)) if m == "invalid or expired invitation"),
+            matches!(&result, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
             "{result:?}"
         );
         assert_eq!(
@@ -634,7 +621,7 @@ mod tests {
         for token in ["", "deadbeef", &"0".repeat(64)] {
             let result = f.activate.execute(token, "my-new-password").await;
             assert!(
-                matches!(&result, Err(DomainError::Validation(m)) if m == "invalid or expired invitation"),
+                matches!(&result, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
                 "{token:?}: {result:?}"
             );
         }
@@ -765,7 +752,7 @@ mod tests {
         ] {
             let result = activate.execute(token, "my-new-password").await;
             assert!(
-                matches!(&result, Err(DomainError::Validation(m)) if m == "invalid or expired invitation"),
+                matches!(&result, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
                 "{result:?}"
             );
         }
@@ -782,7 +769,7 @@ mod tests {
         let result = f.activate.execute(&"a".repeat(64), "my-new-password").await;
 
         assert!(
-            matches!(&result, Err(DomainError::Validation(m)) if m == "invalid or expired invitation"),
+            matches!(&result, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
             "{result:?}"
         );
     }

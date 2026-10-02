@@ -49,20 +49,13 @@ impl DeleteRepositoryUseCase {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ferrisgit_domain::repository::RepositoryVisibility;
-
     use crate::test_support::{FakeRepositories, FakeStorage};
+    use crate::use_cases::fixtures;
 
     fn repository() -> Repository {
         Repository {
-            id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
             disk_path: "alice/hello.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: chrono::Utc::now(),
+            ..fixtures::repository(Uuid::new_v4())
         }
     }
 

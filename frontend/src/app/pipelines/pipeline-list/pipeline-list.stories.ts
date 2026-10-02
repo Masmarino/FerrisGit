@@ -27,6 +27,7 @@ function pipeline(fields: Partial<PipelineSummary> & { took?: number } = {}): Pi
     status: 'success',
     triggeredBy: ALICE,
     commitMessage: 'Paginer la liste des tickets',
+    error: null,
     ...rest,
     createdAt,
     finishedAt: rest.finishedAt !== undefined ? rest.finishedAt : took !== undefined ? secondsAfter(createdAt, took) : null,
@@ -193,6 +194,22 @@ export const ManyPipelines: Story = {
     await expectPageLayout(context);
     await expect(context.canvasElement.querySelectorAll('.pipeline-list__items > li').length).toBe(25);
     await expect(context.canvasElement.querySelector('gbt-pagination')).not.toBeNull();
+  },
+};
+
+/** The push contained a pipeline file that does not parse: failed from the start, no duration, and the reason is in the detail. */
+export const InvalidPipelineFile: Story = {
+  decorators: [
+    withData({
+      list: [
+        pipeline({ status: 'failed', commitMessage: 'Ajouter une étape de déploiement', createdAt: minutesAgo(2), took: 0, error: 'invalid YAML: boom' }),
+        pipeline({ status: 'success', commitMessage: 'Mettre en cache les avatars', createdAt: hoursAgo(5), took: 95, triggeredBy: BASTIEN }),
+      ],
+    }),
+  ],
+  play: async (context) => {
+    await expectPageLayout(context);
+    await expect(context.canvasElement.querySelectorAll('.pipeline-list__invalid').length).toBe(1);
   },
 };
 

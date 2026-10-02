@@ -24,15 +24,15 @@
   </form>
 </gbt-card>
 
-<gbt-card variant="outlined" icon="flag" heading="Milestones" description="Les milestones de ce dépôt, ouverts comme fermés." [count]="listState() === 'loaded' ? milestones().length : null" [flush]="listState() !== 'failed'">
-  @switch (listState()) {
+<gbt-card variant="outlined" icon="flag" heading="Milestones" description="Les milestones de ce dépôt, ouverts comme fermés." [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+  @switch (list.state()) {
     @case ('loading') {
       <gbt-skeleton-list [rows]="3" leadingSize="1rem" loadingLabel="Chargement des milestones…" />
     }
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les milestones n'ont pas pu être chargés.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="list.retry()" />
       </gbt-alert>
     }
     @default {

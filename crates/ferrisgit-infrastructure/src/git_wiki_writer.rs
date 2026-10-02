@@ -1,10 +1,10 @@
 use std::path::{Path, PathBuf};
 
+use crate::error::infra;
+use crate::git_cli::{self, is_plausible_commit_sha};
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::wiki_page::{WikiRevision, WikiWriterPort};
-use tokio::io::AsyncWriteExt;
-use tokio::process::Command;
 
 pub struct GitWikiWriter {
     storage_root: PathBuf,
@@ -18,31 +18,16 @@ impl GitWikiWriter {
 
 const DEFAULT_BRANCH: &str = "main";
 
-/// Strips one trailing newline rather than calling `.trim()`. A root file name ending in whitespace
-/// (possible through a raw `git push`) would otherwise get renamed on the next `save_page`.
-fn strip_trailing_newline(raw: &[u8]) -> String {
-    let s = String::from_utf8_lossy(raw);
-    s.strip_suffix('\n').unwrap_or(&s).to_string()
-}
-
 async fn run_git(
     repo_path: &Path,
     args: &[&str],
     envs: &[(&str, &str)],
 ) -> Result<(bool, String, String), DomainError> {
-    let mut cmd = Command::new("git");
-    cmd.args(args).current_dir(repo_path);
-    for (key, value) in envs {
-        cmd.env(key, value);
-    }
-    let output = cmd
-        .output()
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+    let output = git_cli::run(repo_path, args, envs, None).await?;
     Ok((
-        output.status.success(),
-        strip_trailing_newline(&output.stdout),
-        String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        output.success,
+        output.stdout_without_final_newline(),
+        output.stderr,
     ))
 }
 
@@ -51,40 +36,12 @@ async fn run_git_with_stdin(
     args: &[&str],
     stdin_data: &[u8],
 ) -> Result<(bool, String, String), DomainError> {
-    let mut child = Command::new("git")
-        .args(args)
-        .current_dir(repo_path)
-        .stdin(std::process::Stdio::piped())
-        .stdout(std::process::Stdio::piped())
-        .stderr(std::process::Stdio::piped())
-        .spawn()
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-    {
-        let mut stdin = child.stdin.take().expect("stdin was piped");
-        stdin
-            .write_all(stdin_data)
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        // `stdin` is dropped here, closing the pipe so the child sees EOF.
-    }
-    let output = child
-        .wait_with_output()
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+    let output = git_cli::run(repo_path, args, &[], Some(stdin_data)).await?;
     Ok((
-        output.status.success(),
-        strip_trailing_newline(&output.stdout),
-        String::from_utf8_lossy(&output.stderr).trim().to_string(),
+        output.success,
+        output.stdout_without_final_newline(),
+        output.stderr,
     ))
-}
-
-/// Checks `base_sha` before it becomes a positional `git ls-tree` argument. Given `--help`, git
-/// exits 0 and prints help text instead of a listing.
-fn is_plausible_commit_sha(value: &str) -> bool {
-    (7..=40).contains(&value.len())
-        && value
-            .bytes()
-            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
 }
 
 /// Builds the `git mktree` stdin with `slug`'s entry replaced or added. Entries are sorted by name
@@ -111,9 +68,7 @@ impl WikiWriterPort for GitWikiWriter {
             // cheap check that saves spawning three `git` processes on every page save
             return Ok(());
         }
-        tokio::fs::create_dir_all(&repo_path)
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        tokio::fs::create_dir_all(&repo_path).await.map_err(infra)?;
 
         let (ok, _, stderr) = run_git(&repo_path, &["init", "--bare"], &[]).await?;
         if !ok {
@@ -482,9 +437,29 @@ impl WikiWriterPort for GitWikiWriter {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::test_git::{git, git_stdout, git_stdout_untrimmed, git_succeeds};
 
     fn temp_storage_root() -> tempfile::TempDir {
         tempfile::tempdir().unwrap()
+    }
+
+    /// A working checkout holding one committed `Home.md`, as a user's clone would before a raw push.
+    fn checkout_with_home_page(content: &str) -> tempfile::TempDir {
+        let work_dir = tempfile::tempdir().unwrap();
+        git(work_dir.path(), &["init", "-q"]);
+        std::fs::write(work_dir.path().join("Home.md"), content).unwrap();
+        git(work_dir.path(), &["add", "."]);
+        git(work_dir.path(), &["commit", "-q", "-m", "seed"]);
+        work_dir
+    }
+
+    /// Pushes the checkout's `HEAD` straight into the bare wiki repo, bypassing `save_page`.
+    fn push_raw(work_dir: &Path, repo_path: &Path, branch: &str) {
+        let target = format!("HEAD:refs/heads/{branch}");
+        git(
+            work_dir,
+            &["push", "-q", repo_path.to_str().unwrap(), &target],
+        );
     }
 
     #[tokio::test]
@@ -526,13 +501,10 @@ mod tests {
         assert_eq!(revision.message, "Create Home");
 
         let repo_path = root.path().join("a/b.wiki.git");
-        let output = tokio::process::Command::new("git")
-            .args(["cat-file", "-p", "refs/heads/main:Home.md"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
-        assert_eq!(String::from_utf8_lossy(&output.stdout), "# Hello");
+        assert_eq!(
+            git_stdout_untrimmed(&repo_path, &["cat-file", "-p", "refs/heads/main:Home.md"]),
+            "# Hello"
+        );
     }
 
     #[tokio::test]
@@ -570,20 +542,14 @@ mod tests {
             .unwrap();
 
         let repo_path = root.path().join("a/b.wiki.git");
-        let home = tokio::process::Command::new("git")
-            .args(["cat-file", "-p", "refs/heads/main:Home.md"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
-        assert_eq!(String::from_utf8_lossy(&home.stdout), "# Hello");
-        let about = tokio::process::Command::new("git")
-            .args(["cat-file", "-p", "refs/heads/main:About.md"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
-        assert_eq!(String::from_utf8_lossy(&about.stdout), "# About");
+        assert_eq!(
+            git_stdout_untrimmed(&repo_path, &["cat-file", "-p", "refs/heads/main:Home.md"]),
+            "# Hello"
+        );
+        assert_eq!(
+            git_stdout_untrimmed(&repo_path, &["cat-file", "-p", "refs/heads/main:About.md"]),
+            "# About"
+        );
     }
 
     #[tokio::test]
@@ -683,21 +649,12 @@ mod tests {
             .unwrap();
 
         let repo_path = root.path().join("a/b.wiki.git");
-        let home = tokio::process::Command::new("git")
-            .args(["cat-file", "-p", "refs/heads/main:Home.md"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
-        assert_eq!(String::from_utf8_lossy(&home.stdout), "# Home");
-        let about_missing = tokio::process::Command::new("git")
-            .args(["cat-file", "-e", "refs/heads/main:About.md"])
-            .current_dir(&repo_path)
-            .status()
-            .await
-            .unwrap();
+        assert_eq!(
+            git_stdout_untrimmed(&repo_path, &["cat-file", "-p", "refs/heads/main:Home.md"]),
+            "# Home"
+        );
         assert!(
-            !about_missing.success(),
+            !git_succeeds(&repo_path, &["cat-file", "-e", "refs/heads/main:About.md"]),
             "About.md must no longer exist at HEAD"
         );
     }
@@ -737,14 +694,8 @@ mod tests {
             .unwrap();
 
         let repo_path = root.path().join("a/b.wiki.git");
-        let home_missing = tokio::process::Command::new("git")
-            .args(["cat-file", "-e", "refs/heads/main:Home.md"])
-            .current_dir(&repo_path)
-            .status()
-            .await
-            .unwrap();
         assert!(
-            !home_missing.success(),
+            !git_succeeds(&repo_path, &["cat-file", "-e", "refs/heads/main:Home.md"]),
             "Home.md must no longer exist at HEAD"
         );
     }
@@ -813,13 +764,10 @@ mod tests {
         );
 
         let repo_path = root.path().join("a/b.wiki.git");
-        let head = tokio::process::Command::new("git")
-            .args(["rev-parse", "--verify", "--quiet", "HEAD"])
-            .current_dir(&repo_path)
-            .status()
-            .await
-            .unwrap();
-        assert!(!head.success(), "no commit must have been created");
+        assert!(
+            !git_succeeds(&repo_path, &["rev-parse", "--verify", "--quiet", "HEAD"]),
+            "no commit must have been created"
+        );
     }
 
     #[tokio::test]
@@ -910,88 +858,30 @@ mod tests {
         let repo_path = root.path().join("a/b.wiki.git");
 
         // A real git client pushes straight to `master`, bypassing `save_page`.
-        let work_dir = tempfile::tempdir().unwrap();
-        let work_dir_path = work_dir.path().to_path_buf();
-        let run = |args: &[&str]| {
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(&work_dir_path)
-                .status()
-                .unwrap()
-        };
-        assert!(run(&["init", "-q"]).success());
-        std::fs::write(work_dir_path.join("Home.md"), "# Pushed from git").unwrap();
-        assert!(run(&["add", "."]).success());
-        assert!(
-            run(&[
-                "-c",
-                "user.email=a@b.c",
-                "-c",
-                "user.name=A",
-                "commit",
-                "-q",
-                "-m",
-                "seed"
-            ])
-            .success()
-        );
-        let push_status = std::process::Command::new("git")
-            .args([
-                "push",
-                "-q",
-                repo_path.to_str().unwrap(),
-                "HEAD:refs/heads/master",
-            ])
-            .current_dir(&work_dir_path)
-            .status()
-            .unwrap();
-        assert!(
-            push_status.success(),
-            "the raw push into the bare repo must succeed"
-        );
+        let work_dir = checkout_with_home_page("# Pushed from git");
+        push_raw(work_dir.path(), &repo_path, "master");
 
-        let before = tokio::process::Command::new("git")
-            .args(["rev-parse", "--verify", "--quiet", "HEAD"])
-            .current_dir(&repo_path)
-            .status()
-            .await
-            .unwrap();
         assert!(
-            !before.success(),
+            !git_succeeds(&repo_path, &["rev-parse", "--verify", "--quiet", "HEAD"]),
             "HEAD must be dangling before healing, or this test isn't exercising the bug"
         );
 
         writer.heal_dangling_head("a/b.wiki.git").await.unwrap();
 
-        let symref = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&symref.stdout).trim(),
+            git_stdout(&repo_path, &["symbolic-ref", "HEAD"]),
             "refs/heads/main",
             "HEAD must stay on main, not follow the pushed branch"
         );
-        let content = tokio::process::Command::new("git")
-            .args(["cat-file", "-p", "refs/heads/main:Home.md"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&content.stdout),
+            git_stdout_untrimmed(&repo_path, &["cat-file", "-p", "refs/heads/main:Home.md"]),
             "# Pushed from git"
         );
-        let old_branch_gone = tokio::process::Command::new("git")
-            .args(["rev-parse", "--verify", "--quiet", "refs/heads/master"])
-            .current_dir(&repo_path)
-            .status()
-            .await
-            .unwrap();
         assert!(
-            !old_branch_gone.success(),
+            !git_succeeds(
+                &repo_path,
+                &["rev-parse", "--verify", "--quiet", "refs/heads/master"]
+            ),
             "the old branch ref must be cleaned up after the rename"
         );
     }
@@ -1007,42 +897,8 @@ mod tests {
             .unwrap();
         let repo_path = root.path().join("a/b.wiki.git");
 
-        let work_dir = tempfile::tempdir().unwrap();
-        let work_dir_path = work_dir.path().to_path_buf();
-        let run = |args: &[&str]| {
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(&work_dir_path)
-                .status()
-                .unwrap()
-        };
-        assert!(run(&["init", "-q"]).success());
-        std::fs::write(work_dir_path.join("Home.md"), "# Pushed from git").unwrap();
-        assert!(run(&["add", "."]).success());
-        assert!(
-            run(&[
-                "-c",
-                "user.email=a@b.c",
-                "-c",
-                "user.name=A",
-                "commit",
-                "-q",
-                "-m",
-                "seed"
-            ])
-            .success()
-        );
-        let push_status = std::process::Command::new("git")
-            .args([
-                "push",
-                "-q",
-                repo_path.to_str().unwrap(),
-                "HEAD:refs/heads/master",
-            ])
-            .current_dir(&work_dir_path)
-            .status()
-            .unwrap();
-        assert!(push_status.success());
+        let work_dir = checkout_with_home_page("# Pushed from git");
+        push_raw(work_dir.path(), &repo_path, "master");
 
         writer.heal_dangling_head("a/b.wiki.git").await.unwrap();
 
@@ -1063,21 +919,12 @@ mod tests {
             .unwrap();
         assert!(!revision.commit_sha.is_empty());
 
-        let about = tokio::process::Command::new("git")
-            .args(["cat-file", "-p", "refs/heads/main:About.md"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
-        assert_eq!(String::from_utf8_lossy(&about.stdout), "# About");
-        let home = tokio::process::Command::new("git")
-            .args(["cat-file", "-p", "refs/heads/main:Home.md"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&home.stdout),
+            git_stdout_untrimmed(&repo_path, &["cat-file", "-p", "refs/heads/main:About.md"]),
+            "# About"
+        );
+        assert_eq!(
+            git_stdout_untrimmed(&repo_path, &["cat-file", "-p", "refs/heads/main:Home.md"]),
             "# Pushed from git",
             "the raw-pushed page must survive the web save"
         );
@@ -1107,14 +954,8 @@ mod tests {
         writer.heal_dangling_head("a/b.wiki.git").await.unwrap();
 
         let repo_path = root.path().join("a/b.wiki.git");
-        let symref = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&symref.stdout).trim(),
+            git_stdout(&repo_path, &["symbolic-ref", "HEAD"]),
             "refs/heads/main",
             "healing an already-healthy HEAD must not move it"
         );
@@ -1132,14 +973,8 @@ mod tests {
         writer.heal_dangling_head("a/b.wiki.git").await.unwrap();
 
         let repo_path = root.path().join("a/b.wiki.git");
-        let symref = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&symref.stdout).trim(),
+            git_stdout(&repo_path, &["symbolic-ref", "HEAD"]),
             "refs/heads/main",
             "zero branches means nothing to heal yet"
         );
@@ -1155,55 +990,15 @@ mod tests {
             .unwrap();
         let repo_path = root.path().join("a/b.wiki.git");
 
-        let work_dir = tempfile::tempdir().unwrap();
-        let work_dir_path = work_dir.path().to_path_buf();
-        let run = |args: &[&str]| {
-            std::process::Command::new("git")
-                .args(args)
-                .current_dir(&work_dir_path)
-                .status()
-                .unwrap()
-        };
-        assert!(run(&["init", "-q"]).success());
-        std::fs::write(work_dir_path.join("Home.md"), "# Pushed").unwrap();
-        assert!(run(&["add", "."]).success());
-        assert!(
-            run(&[
-                "-c",
-                "user.email=a@b.c",
-                "-c",
-                "user.name=A",
-                "commit",
-                "-q",
-                "-m",
-                "seed"
-            ])
-            .success()
-        );
+        let work_dir = checkout_with_home_page("# Pushed");
         for branch in ["master", "other"] {
-            let status = std::process::Command::new("git")
-                .args([
-                    "push",
-                    "-q",
-                    repo_path.to_str().unwrap(),
-                    &format!("HEAD:refs/heads/{branch}"),
-                ])
-                .current_dir(&work_dir_path)
-                .status()
-                .unwrap();
-            assert!(status.success());
+            push_raw(work_dir.path(), &repo_path, branch);
         }
 
         writer.heal_dangling_head("a/b.wiki.git").await.unwrap();
 
-        let symref = tokio::process::Command::new("git")
-            .args(["symbolic-ref", "HEAD"])
-            .current_dir(&repo_path)
-            .output()
-            .await
-            .unwrap();
         assert_eq!(
-            String::from_utf8_lossy(&symref.stdout).trim(),
+            git_stdout(&repo_path, &["symbolic-ref", "HEAD"]),
             "refs/heads/main",
             "an ambiguous HEAD must be left alone, not guessed at"
         );

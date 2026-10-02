@@ -20,11 +20,10 @@ import {
 import { AuthService } from '../../auth/auth.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { PublicConfigService } from '../public-config.service';
-import { PUBLIC_CATALOG_PAGE_SIZE, PublicCatalogPage, PublicCatalogQuery, PublicCatalogSort, PublicRepositoriesService, PublicRepositorySummary } from '../public-repositories.service';
-import { loginLink } from '../login-link';
+import { PUBLIC_CATALOG_MAX_QUERY_LENGTH as MAX_QUERY_LENGTH, PUBLIC_CATALOG_PAGE_SIZE, PublicCatalogPage, PublicCatalogQuery, PublicCatalogSort, PublicRepositoriesService, PublicRepositorySummary } from '../public-repositories.service';
+import { loginLink } from '../../auth/login-link';
 
 export const SEARCH_DEBOUNCE_MS = 300;
-const MAX_QUERY_LENGTH = 100;
 const SORTS: PublicCatalogSort[] = ['stars', 'name', 'created'];
 const DEFAULT_SORT: PublicCatalogSort = 'stars';
 

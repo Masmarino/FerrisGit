@@ -2,7 +2,7 @@ use std::collections::BTreeMap;
 use std::path::Path;
 use std::process::Stdio;
 
-use tokio::io::{AsyncBufReadExt, BufReader};
+use tokio::io::{AsyncBufReadExt, AsyncRead, BufReader};
 use tokio::process::Command;
 use uuid::Uuid;
 
@@ -61,6 +61,20 @@ fn redact_secrets(line: &str, secrets: &[&str]) -> String {
     redacted
 }
 
+/// Sends each line of `output` to the job's log endpoint as it is produced, secrets redacted.
+async fn forward_lines(
+    output: impl AsyncRead + Unpin,
+    client: &RunnerClient,
+    job_id: Uuid,
+    secrets: &[&str],
+) {
+    let mut lines = BufReader::new(output).lines();
+    while let Ok(Some(line)) = lines.next_line().await {
+        let redacted = redact_secrets(&line, secrets);
+        let _ = client.append_logs(job_id, &format!("{redacted}\n")).await;
+    }
+}
+
 /// Streams each line of combined stdout+stderr to the job's log endpoint as produced, not buffered until exit.
 async fn run_streamed(
     client: &RunnerClient,
@@ -88,22 +102,10 @@ async fn run_streamed(
 
     let stdout = child.stdout.take().expect("stdout piped");
     let stderr = child.stderr.take().expect("stderr piped");
-    let client_a = client;
-    let stdout_task = async {
-        let mut lines = BufReader::new(stdout).lines();
-        while let Ok(Some(line)) = lines.next_line().await {
-            let redacted = redact_secrets(&line, secrets);
-            let _ = client_a.append_logs(job_id, &format!("{redacted}\n")).await;
-        }
-    };
-    let stderr_task = async {
-        let mut lines = BufReader::new(stderr).lines();
-        while let Ok(Some(line)) = lines.next_line().await {
-            let redacted = redact_secrets(&line, secrets);
-            let _ = client_a.append_logs(job_id, &format!("{redacted}\n")).await;
-        }
-    };
-    tokio::join!(stdout_task, stderr_task);
+    tokio::join!(
+        forward_lines(stdout, client, job_id, secrets),
+        forward_lines(stderr, client, job_id, secrets),
+    );
 
     matches!(child.wait().await, Ok(status) if status.success())
 }
@@ -121,6 +123,16 @@ pub async fn run_job(
         return JobResultStatus::Failed;
     }
 
+    let status = run_in_workdir(client, job, &workdir).await;
+    let _ = std::fs::remove_dir_all(&workdir);
+    status
+}
+
+async fn run_in_workdir(
+    client: &RunnerClient,
+    job: &ClaimedJob,
+    workdir: &Path,
+) -> JobResultStatus {
     let mut secrets: Vec<&str> = vec![&client.token];
     secrets.extend(job.masked_values.iter().map(String::as_str));
 
@@ -130,52 +142,29 @@ pub async fn run_job(
         &job.repository_owner,
         &job.repository_name,
     );
-    if !run_streamed(
-        client,
-        job.id,
-        "git",
-        &["clone".to_string(), clone_url, ".".to_string()],
-        &workdir,
-        &secrets,
-    )
-    .await
-    {
-        let _ = std::fs::remove_dir_all(&workdir);
-        return JobResultStatus::Failed;
-    }
-    if !run_streamed(
-        client,
-        job.id,
-        "git",
-        &["checkout".to_string(), job.commit_sha.clone()],
-        &workdir,
-        &secrets,
-    )
-    .await
-    {
-        let _ = std::fs::remove_dir_all(&workdir);
-        return JobResultStatus::Failed;
+    let clone = ["clone".to_string(), clone_url, ".".to_string()];
+    let checkout = ["checkout".to_string(), job.commit_sha.clone()];
+    for git_args in [clone.as_slice(), checkout.as_slice()] {
+        if !run_streamed(client, job.id, "git", git_args, workdir, &secrets).await {
+            return JobResultStatus::Failed;
+        }
     }
 
     // Must run before the workdir is bind-mounted: `.git/config` holds the runner token.
-    if let Err(err) = strip_git_metadata(&workdir) {
+    if let Err(err) = strip_git_metadata(workdir) {
         let _ = client
             .append_logs(
                 job.id,
                 &format!("failed to strip git metadata from the workdir: {err}\n"),
             )
             .await;
-        let _ = std::fs::remove_dir_all(&workdir);
         return JobResultStatus::Failed;
     }
 
     let mut env = job.variables.clone();
     env.extend(job.ci_variables.clone());
-    let docker_args = build_docker_run_args(&job.image, &workdir, &env, &job.script);
-    let succeeded = run_streamed(client, job.id, "docker", &docker_args, &workdir, &secrets).await;
-
-    let _ = std::fs::remove_dir_all(&workdir);
-    if succeeded {
+    let docker_args = build_docker_run_args(&job.image, workdir, &env, &job.script);
+    if run_streamed(client, job.id, "docker", &docker_args, workdir, &secrets).await {
         JobResultStatus::Success
     } else {
         JobResultStatus::Failed

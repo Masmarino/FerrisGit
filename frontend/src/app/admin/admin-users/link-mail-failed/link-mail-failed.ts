@@ -3,6 +3,14 @@ import { Alert, CopyField } from '@masmarino/gabarit';
 
 export type MailedLinkKind = 'invitation' | 'password-reset';
 
+/** What the alert needs after the server could not mail a link: the link itself, when it sent one, and why the mail failed. */
+export interface MailFailure {
+  kind: MailedLinkKind;
+  username: string;
+  url?: string;
+  emailError?: string;
+}
+
 interface Wording {
   lifetime: string;
   reissue: string;

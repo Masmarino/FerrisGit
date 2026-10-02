@@ -9,6 +9,7 @@ import { ReleasesService, TagSummary } from '../releases/releases.service';
 import { GbtToastService } from '@masmarino/gabarit';
 import { provideFerrisgitIcons } from '../shared/register-icons';
 import { daysAgo, hoursAgo, minutesAgo } from '../shared/layout/page-story-helpers';
+import { fakeToast } from '../shared/layout/settings-story-helpers';
 
 // `EnvironmentProviders` only fit in an `ApplicationConfig`, not in `moduleMetadata`'s `Provider[]`.
 export const withRouterAndIcons = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
@@ -223,8 +224,6 @@ export const LOADING_REPOSITORIES: Partial<RepositoriesService> = {
   getLanguages: () => NEVER,
   cloneUrl: () => '',
 };
-
-const fakeToast = { show: () => {}, dismiss: () => {} };
 
 export function withRepository(repositories: Partial<RepositoriesService>, refs: { branches: BranchInfo[]; tags: TagSummary[] } = { branches: BRANCHES, tags: TAGS }) {
   return moduleMetadata({

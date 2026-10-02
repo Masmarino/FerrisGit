@@ -70,13 +70,24 @@ pub trait RepositoryStorePort: Send + Sync {
         name: &str,
     ) -> Result<Option<Repository>, DomainError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Repository>, DomainError>;
-    /// Cascades to every row referencing the repository (all foreign keys are `ON DELETE CASCADE`). Does not touch
+    /// Cascades to every row referencing the repository (nothing is left pointing at it). Does not touch
     /// disk: the caller removes the bare git directory, the wiki's, and release asset files. Defaulted to
     /// `unimplemented!` like `list_public`/`search` so test doubles need no stub.
     async fn delete(&self, _id: Uuid) -> Result<(), DomainError> {
         unimplemented!("delete")
     }
     async fn list_for_group(&self, group_id: Uuid) -> Result<Vec<Repository>, DomainError>;
+    /// Changes the description and/or the visibility (`None` leaves a field as is) and returns the updated
+    /// repository, `NotFound` if it does not exist. The name and owner never change here: they are part of the clone
+    /// URL. Defaulted to `unimplemented!` like `delete`.
+    async fn update_details(
+        &self,
+        _id: Uuid,
+        _description: Option<String>,
+        _visibility: Option<RepositoryVisibility>,
+    ) -> Result<Repository, DomainError> {
+        unimplemented!("update_details")
+    }
     /// Every repository regardless of owner or visibility, for admin-metrics aggregation. Defaulted to
     /// `unimplemented!` like `list_public`/`search`.
     async fn list_all(&self) -> Result<Vec<Repository>, DomainError> {

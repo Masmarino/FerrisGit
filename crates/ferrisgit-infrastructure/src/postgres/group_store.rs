@@ -1,3 +1,4 @@
+use crate::error::{conflict_on_duplicate, infra};
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::group::{Group, GroupMember, GroupStorePort, GroupWithPath, NewGroup};
@@ -25,15 +26,15 @@ struct Row {
     created_at: chrono::DateTime<chrono::Utc>,
 }
 
-impl Row {
-    fn into_domain(self) -> Group {
+impl From<Row> for Group {
+    fn from(row: Row) -> Self {
         Group {
-            id: self.id,
-            parent_group_id: self.parent_group_id,
-            name: self.name,
-            description: self.description,
-            created_by: self.created_by,
-            created_at: self.created_at,
+            id: row.id,
+            parent_group_id: row.parent_group_id,
+            name: row.name,
+            description: row.description,
+            created_by: row.created_by,
+            created_at: row.created_at,
         }
     }
 }
@@ -52,23 +53,18 @@ impl GroupStorePort for PostgresGroupStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| {
-            if let sqlx::Error::Database(db_err) = &e
-                && db_err.code().as_deref() == Some("23505")
-            {
-                return DomainError::Conflict(format!("a group named '{}' already exists here", new_group.name));
-            }
-            DomainError::Infrastructure(e.to_string())
-        })?;
-        Ok(row.into_domain())
+        .map_err(conflict_on_duplicate(|| {
+            format!("a group named '{}' already exists here", new_group.name)
+        }))?;
+        Ok(Group::from(row))
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Group>, DomainError> {
         let row = sqlx::query_as!(Row, "SELECT id, parent_group_id, name, description, created_by, created_at FROM groups WHERE id = $1", id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        Ok(row.map(Row::into_domain))
+            .map_err(infra)?;
+        Ok(row.map(Group::from))
     }
 
     async fn find_child_by_name(
@@ -85,8 +81,8 @@ impl GroupStorePort for PostgresGroupStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        Ok(row.map(Row::into_domain))
+        .map_err(infra)?;
+        Ok(row.map(Group::from))
     }
 
     async fn list_children(&self, parent_id: Option<Uuid>) -> Result<Vec<Group>, DomainError> {
@@ -98,8 +94,8 @@ impl GroupStorePort for PostgresGroupStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        Ok(rows.into_iter().map(Row::into_domain).collect())
+        .map_err(infra)?;
+        Ok(rows.into_iter().map(Group::from).collect())
     }
 
     async fn ancestor_chain(&self, group_id: Uuid) -> Result<Vec<Group>, DomainError> {
@@ -120,8 +116,8 @@ impl GroupStorePort for PostgresGroupStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        Ok(rows.into_iter().map(Row::into_domain).collect())
+        .map_err(infra)?;
+        Ok(rows.into_iter().map(Group::from).collect())
     }
 
     async fn list_writable_groups(&self, user_id: Uuid) -> Result<Vec<GroupWithPath>, DomainError> {
@@ -133,7 +129,7 @@ impl GroupStorePort for PostgresGroupStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
 
         struct DescendantRow {
             id: Uuid,
@@ -147,7 +143,7 @@ impl GroupStorePort for PostgresGroupStore {
 
         let mut result = Vec::new();
         for root in maintainer_roots {
-            let root = root.into_domain();
+            let root = Group::from(root);
             let ancestors = self.ancestor_chain(root.id).await?;
             let base_path = ancestors
                 .iter()
@@ -176,7 +172,7 @@ impl GroupStorePort for PostgresGroupStore {
             )
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
 
             for d in descendants {
                 let group = Group {
@@ -206,7 +202,7 @@ impl GroupStorePort for PostgresGroupStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
 
         let mut result: Vec<Uuid> = Vec::new();
         for root_id in direct_roots {
@@ -225,7 +221,7 @@ impl GroupStorePort for PostgresGroupStore {
             )
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
 
             result.extend(descendant_ids);
         }
@@ -239,7 +235,7 @@ impl GroupStorePort for PostgresGroupStore {
         sqlx::query!("DELETE FROM groups WHERE id = $1", id)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(())
     }
 
@@ -255,7 +251,7 @@ impl GroupStorePort for PostgresGroupStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(result.rows_affected() == 1)
     }
 }
@@ -276,14 +272,9 @@ impl GroupMembershipPort for PostgresGroupStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| {
-            if let sqlx::Error::Database(db_err) = &e
-                && db_err.code().as_deref() == Some("23505")
-            {
-                return DomainError::Conflict("already a member of this group".to_string());
-            }
-            DomainError::Infrastructure(e.to_string())
-        })?;
+        .map_err(conflict_on_duplicate(|| {
+            "already a member of this group".to_string()
+        }))?;
         Ok(())
     }
 
@@ -301,7 +292,7 @@ impl GroupMembershipPort for PostgresGroupStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("group member".to_string()));
         }
@@ -316,7 +307,7 @@ impl GroupMembershipPort for PostgresGroupStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -336,7 +327,7 @@ impl GroupMembershipPort for PostgresGroupStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter()
             .map(|r| {
                 Ok(GroupMember {
@@ -362,7 +353,7 @@ impl GroupMembershipPort for PostgresGroupStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         role.map(|r| CollaboratorRole::parse(&r)).transpose()
     }
 }
@@ -370,22 +361,8 @@ impl GroupMembershipPort for PostgresGroupStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::postgres::user_repository::PostgresUserRepository;
+    use crate::postgres::test_support::seed_user;
     use ferrisgit_domain::group_membership::GroupMembershipPort;
-    use ferrisgit_domain::user::{NewUser, UserRepositoryPort};
-
-    async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
-        PostgresUserRepository::new(pool.clone())
-            .create(NewUser {
-                username: username.to_string(),
-                email: format!("{username}@example.com"),
-                password_hash: "h".to_string(),
-                is_admin: false,
-            })
-            .await
-            .unwrap()
-            .id
-    }
 
     #[sqlx::test(migrations = "../../migrations")]
     async fn ancestor_chain_is_root_first_at_three_levels(pool: PgPool) {

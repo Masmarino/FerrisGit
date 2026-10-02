@@ -1,3 +1,4 @@
+import { shortSha } from '../repositories/commit-format';
 import { TimelineEvent } from './merge-requests.service';
 
 export interface LabelRef {
@@ -9,10 +10,6 @@ export interface LabelRef {
 export type EventSegment = { kind: 'text'; text: string } | { kind: 'labels'; labels: LabelRef[] } | { kind: 'quote'; text: string } | { kind: 'sha'; sha: string };
 
 export type EventTone = 'neutral' | 'success' | 'error';
-
-export function shortSha(sha: string): string {
-  return sha.slice(0, 7);
-}
 
 const text = (value: string): EventSegment => ({ kind: 'text', text: value });
 const quote = (value: unknown): EventSegment => ({ kind: 'quote', text: String(value) });

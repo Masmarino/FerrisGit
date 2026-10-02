@@ -83,11 +83,11 @@ impl CreateReleaseUseCase {
 mod tests {
     use super::*;
     use async_trait::async_trait;
-    use chrono::Utc;
-    use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
+    use ferrisgit_domain::repository::Repository;
     use ferrisgit_domain::tag::TagInfo;
 
     use crate::test_support::{FakeReleases, FakeRepositories, FakeTagCreator};
+    use crate::use_cases::fixtures::repository_with_id;
 
     struct FakeTagReader(Vec<TagInfo>);
     #[async_trait]
@@ -97,19 +97,6 @@ mod tests {
             _repository_disk_path: &str,
         ) -> Result<Vec<TagInfo>, DomainError> {
             Ok(self.0.clone())
-        }
-    }
-
-    fn repository(id: Uuid) -> Repository {
-        Repository {
-            id,
-            owner_id: Uuid::new_v4(),
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
         }
     }
 
@@ -131,7 +118,8 @@ mod tests {
     #[tokio::test]
     async fn creating_a_release_for_a_brand_new_tag_creates_the_tag_then_the_release() {
         let repo_id = Uuid::new_v4();
-        let (use_case, tag_creator, releases) = use_case(repository(repo_id), vec![]);
+        let (use_case, tag_creator, releases) =
+            use_case(repository_with_id(repo_id, Uuid::new_v4()), vec![]);
 
         use_case
             .execute(
@@ -165,7 +153,7 @@ mod tests {
      {
         let repo_id = Uuid::new_v4();
         let (use_case, tag_creator, releases) = use_case(
-            repository(repo_id),
+            repository_with_id(repo_id, Uuid::new_v4()),
             vec![TagInfo {
                 name: "v1.0.0".to_string(),
                 target_sha: "abc123".to_string(),
@@ -197,7 +185,7 @@ mod tests {
     async fn creating_a_release_for_a_tag_that_points_elsewhere_is_rejected() {
         let repo_id = Uuid::new_v4();
         let (use_case, tag_creator, releases) = use_case(
-            repository(repo_id),
+            repository_with_id(repo_id, Uuid::new_v4()),
             vec![TagInfo {
                 name: "v1.0.0".to_string(),
                 target_sha: "different-sha".to_string(),
@@ -227,7 +215,8 @@ mod tests {
 
     #[tokio::test]
     async fn an_unknown_repository_is_not_found() {
-        let (use_case, _tag_creator, _releases) = use_case(repository(Uuid::new_v4()), vec![]);
+        let (use_case, _tag_creator, _releases) =
+            use_case(repository_with_id(Uuid::new_v4(), Uuid::new_v4()), vec![]);
 
         let result = use_case
             .execute(

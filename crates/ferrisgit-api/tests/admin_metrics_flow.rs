@@ -1,80 +1,21 @@
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
-use serde_json::json;
+mod common;
+
+use common::http::{create_user, get, login};
+
 use sqlx::PgPool;
 
 /// The `AdminUser` guard rejects a non-admin on every handler.
 #[sqlx::test]
 async fn admin_metrics_endpoints_are_admin_gated_and_shaped_as_expected(pool: PgPool) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap();
-    let static_dir = tempfile::tempdir().unwrap();
-    std::fs::write(static_dir.path().join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.path().to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.path().to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, static_dir.path());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
+    let addr = common::spawn_app(pool).await.addr;
 
     let client = reqwest::Client::new();
 
-    let admin_login: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "admin", "password": "adminpassword123" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let admin_jwt = admin_login["token"].as_str().unwrap();
+    let admin_jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    client
-        .post(format!("http://{addr}/api/admin/users"))
-        .bearer_auth(admin_jwt)
-        .json(&json!({ "username": "regular", "email": "regular@example.com", "password": "password12345" }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    create_user(&client, addr, &admin_jwt, "regular").await;
 
-    let regular_login: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "regular", "password": "password12345" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let regular_jwt = regular_login["token"].as_str().unwrap();
+    let regular_jwt = login(&client, addr, "regular", "password12345").await;
 
     for path in [
         "/api/admin/stats",
@@ -83,7 +24,7 @@ async fn admin_metrics_endpoints_are_admin_gated_and_shaped_as_expected(pool: Pg
     ] {
         let res = client
             .get(format!("http://{addr}{path}"))
-            .bearer_auth(regular_jwt)
+            .bearer_auth(&regular_jwt)
             .send()
             .await
             .unwrap();
@@ -95,12 +36,7 @@ async fn admin_metrics_endpoints_are_admin_gated_and_shaped_as_expected(pool: Pg
         );
     }
 
-    let stats_res = client
-        .get(format!("http://{addr}/api/admin/stats"))
-        .bearer_auth(admin_jwt)
-        .send()
-        .await
-        .unwrap();
+    let stats_res = get(&client, addr, &admin_jwt, "/admin/stats").await;
     assert_eq!(stats_res.status(), reqwest::StatusCode::OK);
     let stats: serde_json::Value = stats_res.json().await.unwrap();
     assert!(
@@ -116,12 +52,7 @@ async fn admin_metrics_endpoints_are_admin_gated_and_shaped_as_expected(pool: Pg
         "stats missing pipelinesLast7Days: {stats}"
     );
 
-    let health_res = client
-        .get(format!("http://{addr}/api/admin/health"))
-        .bearer_auth(admin_jwt)
-        .send()
-        .await
-        .unwrap();
+    let health_res = get(&client, addr, &admin_jwt, "/admin/health").await;
     assert_eq!(health_res.status(), reqwest::StatusCode::OK);
     let health: serde_json::Value = health_res.json().await.unwrap();
     assert!(
@@ -137,12 +68,7 @@ async fn admin_metrics_endpoints_are_admin_gated_and_shaped_as_expected(pool: Pg
         "health missing uptimeSeconds: {health}"
     );
 
-    let history_res = client
-        .get(format!("http://{addr}/api/admin/metrics/history"))
-        .bearer_auth(admin_jwt)
-        .send()
-        .await
-        .unwrap();
+    let history_res = get(&client, addr, &admin_jwt, "/admin/metrics/history").await;
     assert_eq!(history_res.status(), reqwest::StatusCode::OK);
     let history: serde_json::Value = history_res.json().await.unwrap();
     assert!(
@@ -150,24 +76,20 @@ async fn admin_metrics_endpoints_are_admin_gated_and_shaped_as_expected(pool: Pg
         "history response should be a JSON array: {history}"
     );
 
-    let days_zero_res = client
-        .get(format!("http://{addr}/api/admin/metrics/history?days=0"))
-        .bearer_auth(admin_jwt)
-        .send()
-        .await
-        .unwrap();
+    let days_zero_res = get(&client, addr, &admin_jwt, "/admin/metrics/history?days=0").await;
     assert_eq!(
         days_zero_res.status(),
         reqwest::StatusCode::OK,
         "days=0 must be clamped rather than rejected"
     );
 
-    let days_huge_res = client
-        .get(format!("http://{addr}/api/admin/metrics/history?days=9999"))
-        .bearer_auth(admin_jwt)
-        .send()
-        .await
-        .unwrap();
+    let days_huge_res = get(
+        &client,
+        addr,
+        &admin_jwt,
+        "/admin/metrics/history?days=9999",
+    )
+    .await;
     assert_eq!(
         days_huge_res.status(),
         reqwest::StatusCode::OK,

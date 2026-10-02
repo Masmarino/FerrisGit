@@ -1,5 +1,6 @@
-import { BadgeVariant, formatDateTime, formatRelativeTime } from '@masmarino/gabarit';
+import { BadgeVariant, formatDateTime } from '@masmarino/gabarit';
 import { AdminUser } from '../admin-users.service';
+import { ABSOLUTE_OPTIONS, RowDate, rowDate } from '../row-date';
 
 export interface Presentation {
   label: string;
@@ -13,20 +14,6 @@ export const EXPIRED: Presentation = { label: 'Invitation expirée', variant: 'e
 const MFA_ON: Presentation = { label: 'Double authentification active', variant: 'success', icon: 'shield-check' };
 const MFA_OFF: Presentation = { label: 'Non configurée', variant: 'neutral', icon: 'shield-alert' };
 export const SUPER_ADMIN: Presentation = { label: 'Super-administrateur', variant: 'info', icon: 'shield-check' };
-
-export interface RowDate {
-  iso: string;
-  label: string;
-  title: string;
-}
-
-export const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;
-export const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;
-
-export function rowDate(iso: string, now: Date): RowDate {
-  const relative = formatRelativeTime(iso, 'fr', now, RELATIVE_OPTIONS);
-  return { iso, label: /^\d/.test(relative) ? `le ${relative}` : relative, title: formatDateTime(iso, 'fr', ABSOLUTE_OPTIONS) };
-}
 
 export function accountState(user: AdminUser, now: Date): { state: Presentation; expiry: RowDate | null } {
   if (user.state !== 'invited') {
@@ -70,6 +57,14 @@ export const PROMOTE_FAILED = "Les droits de super-administrateur n'ont pas pu �
 export const DEMOTE_FAILED = "Les droits de super-administrateur n'ont pas pu être retirés. Réessayez plus tard.";
 export const LAST_ADMIN_DEMOTE_REFUSED = "Impossible de retirer les droits de super-administrateur : l'instance n'aurait plus aucun super-administrateur actif.";
 export const ACCOUNT_GONE = "Ce compte n'existe plus.";
+export const ALREADY_ACTIVE = "Ce compte est déjà activé : il n'y a plus d'invitation à renvoyer.";
+export const NOT_ACTIVATED = "Ce compte n'est pas encore activé : renvoyez-lui plutôt l'invitation.";
+export const RESEND_FAILED = "L'invitation n'a pas pu être renvoyée. Réessayez plus tard.";
+export const MFA_RESET_DONE = 'Double authentification réinitialisée.';
+export const MFA_RESET_FAILED = "La double authentification n'a pas pu être réinitialisée. Réessayez plus tard.";
+export const PASSWORD_RESET_FAILED = "Le mot de passe n'a pas pu être réinitialisé. Réessayez plus tard.";
+export const invitationResentToast = (email: string) => `Invitation renvoyée à ${email}.`;
+export const passwordResetToast = (email: string) => `Mot de passe réinitialisé. Un lien pour en choisir un nouveau a été envoyé à ${email}.`;
 
 export const apiMessage = (err: { error?: unknown }) => (typeof err.error === 'object' && err.error !== null ? (err.error as { error?: unknown }).error : undefined);
 

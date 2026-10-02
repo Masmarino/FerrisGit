@@ -16,7 +16,7 @@ class Page {}
 const TOKEN_KEY = 'ferrisgit_token';
 const text = (el: Element | null | undefined) => el?.textContent?.replace(/\s+/g, ' ').trim();
 
-async function setup(url = '/explore', options: { signedIn?: boolean } = {}) {
+async function setup(url = '/explore', options: { signedIn?: boolean; data?: Record<string, unknown> } = {}) {
   if (options.signedIn) {
     localStorage.setItem(TOKEN_KEY, 'a-token');
   }
@@ -24,7 +24,7 @@ async function setup(url = '/explore', options: { signedIn?: boolean } = {}) {
     providers: [
       provideHttpClient(),
       provideHttpClientTesting(),
-      provideRouter([{ path: '', component: PublicLayout, children: [{ path: '**', component: Page }] }]),
+      provideRouter([{ path: '', component: PublicLayout, data: options.data, children: [{ path: '**', component: Page }] }]),
       { provide: RepositoryContextService, useClass: PublicRepositoryContextService },
     ],
   });
@@ -42,6 +42,18 @@ describe('PublicLayout', () => {
     expect(el().querySelector('header.public-layout__header')).not.toBeNull();
     expect(text(el().querySelector('main .page'))).toBe('contenu');
     expect(el().querySelector('nav')).toBeNull();
+  });
+
+  it('keeps the content in a centred column unless the route asks for the full width', async () => {
+    const { el } = await setup();
+
+    expect(el().querySelector('main')?.classList.contains('public-layout__content--full')).toBe(false);
+  });
+
+  it('lets a route fill the page with `width: full` in its data', async () => {
+    const { el } = await setup('/docs', { data: { width: 'full' } });
+
+    expect(el().querySelector('main')?.classList.contains('public-layout__content--full')).toBe(true);
   });
 
   it('shows the logo, linking to the catalog', async () => {
@@ -68,6 +80,20 @@ describe('PublicLayout', () => {
     harness.fixture.detectChanges();
 
     expect(el().querySelector('.public-layout__account a')?.getAttribute('href')).toBe('/login?returnUrl=%2Frepositories%2Falice%2Fhello');
+  });
+
+  it.each([false, true])('links the documentation, signed in or not (%s)', async (signedIn) => {
+    const { el } = await setup('/explore', { signedIn });
+
+    const link = el().querySelector<HTMLAnchorElement>('a.public-layout__docs')!;
+    expect(text(link)).toBe('Documentation');
+    expect(link.getAttribute('href')).toBe('/docs');
+  });
+
+  it('marks the documentation link as current on its pages', async () => {
+    const { el } = await setup('/docs/ci-cd/reference-yaml');
+
+    expect(el().querySelector('a.public-layout__docs')?.getAttribute('aria-current')).toBe('page');
   });
 
   it('offers a signed-in user their repositories instead', async () => {

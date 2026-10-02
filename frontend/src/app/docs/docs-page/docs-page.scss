@@ -1,0 +1,168 @@
+@use '../../shared/layout/prose';
+@use '../../shared/layout/card';
+
+// A documentation page in the main column of a wide `gbt-page-layout`. The reading styles are the README's
+// (`prose.markdown`), with what the docs add on top: callouts, roomier tables and code.
+
+:host {
+  display: block;
+}
+
+// Gabarit gap: its widest preset stops at 1440px and there is none that fills the page. The docs use the whole width:
+// navigation, text and outline all have room on a large screen. The extra attribute out-ranks the layout's own
+// `:host([data-width])` rule.
+gbt-page-layout[data-width] {
+  max-width: none;
+}
+
+// Gabarit gap: the outline needs the three-column layout (≥ 1101px wide). Below, the aside would land under the
+// page, far from what it outlines, so it goes; the in-page breadcrumb and headings remain.
+@container gbt-page-layout (max-width: 1100px) {
+  :host ::ng-deep .gbt-page-layout__aside {
+    display: none;
+  }
+}
+
+.docs-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.docs-page__breadcrumb {
+  display: block;
+  min-width: 0;
+}
+
+// The article is a size container: `gbt-card` is not one.
+.docs-page__article {
+  container: docs-article / inline-size;
+  min-width: 0;
+}
+
+// Gabarit gap: the card sets its own text styles on its root, so the page's are inherited instead.
+gbt-card {
+  @include card.inherit-text;
+}
+
+.docs-page__body {
+  padding: 1.75rem 2.25rem 2rem;
+
+  ::ng-deep {
+    @include prose.markdown;
+
+    .markdown-view {
+      font-size: 1rem;
+      line-height: 1.7;
+    }
+
+    // An outline link or a `#fragment` lands the heading just under the top edge.
+    h1,
+    h2,
+    h3,
+    h4 {
+      scroll-margin-top: 1rem;
+    }
+
+    // Reached by a link or a new page (focused programmatically): no ring around a whole heading.
+    [tabindex='-1']:focus {
+      outline: none;
+    }
+
+    pre {
+      font-size: 0.875rem;
+    }
+
+    table {
+      width: max-content;
+      min-width: 100%;
+    }
+
+    th {
+      background: var(--bg-panel);
+      font-weight: 600;
+    }
+
+    td code,
+    th code {
+      white-space: nowrap;
+    }
+
+    // `> **Note** : …` and `> **Attention** : …`, marked by the page after each render.
+    blockquote[data-callout] {
+      padding: 0.75rem 1rem;
+      border: 1px solid transparent;
+      border-left-width: 4px;
+      border-radius: var(--site-border-radius-sm);
+      color: var(--text-primary);
+
+      > :last-child {
+        margin-bottom: 0;
+      }
+    }
+
+    blockquote[data-callout='note'] {
+      border-color: color-mix(in srgb, var(--color-info-bg-text) 25%, transparent);
+      border-left-color: var(--color-info-bg-text);
+      background: color-mix(in srgb, var(--color-info-bg) 55%, var(--bg-principal));
+    }
+
+    blockquote[data-callout='warning'] {
+      border-color: color-mix(in srgb, var(--color-warning-bg-text) 25%, transparent);
+      border-left-color: var(--color-warning-bg-text);
+      background: color-mix(in srgb, var(--color-warning-bg) 55%, var(--bg-principal));
+    }
+  }
+}
+
+@container docs-article (max-width: 559px) {
+  .docs-page__body {
+    padding: 1.125rem 1rem 1.25rem;
+  }
+}
+
+.docs-page__pager {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.docs-page__neighbour--next {
+  grid-column: 2;
+  text-align: right;
+}
+
+.docs-page__neighbour-label {
+  display: block;
+  margin-bottom: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+
+.docs-page__neighbour-link {
+  color: var(--primary);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+@container gbt-page-layout (max-width: 559px) {
+  .docs-page__pager {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .docs-page__neighbour--next {
+    grid-column: auto;
+  }
+}
+
+.docs-page__not-found {
+  display: block;
+}
+
+.docs-page__loading-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.875rem;
+  padding: 1.75rem 2.25rem;
+}

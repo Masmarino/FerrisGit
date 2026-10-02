@@ -30,7 +30,7 @@
         @for (job of group.jobs; track job.id) {
           <li>
             <a [routerLink]="jobLink(job.id)" class="pipeline-summary__job-link">
-              <gbt-job-status [status]="job.status" [label]="statusLabels[job.status]" />
+              <gbt-job-status [status]="glyph(job.status)" [label]="statusLabels[job.status]" />
               <span class="pipeline-summary__job-name">{{ job.name }}</span>
               <span class="pipeline-summary__job-duration">{{ duration(job) }}</span>
             </a>

@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { Badge, GbtDateTimePipe, GbtRelativeTimePipe, ListCard, ListCardState, ListRow, PageHeader, PageLayout, UserChip } from '@masmarino/gabarit';
 import { CommitInfo, RepositoriesService } from '../repositories.service';
-import { commitTitle } from '../repository-tree-view/repository-tree-view';
+import { commitTitle, shortSha } from '../commit-format';
 import { PageTitleService } from '../../shell/page-title.service';
 
 /** The latest commits of a ref, newest first. Read-only: it only needs `RepositoriesService.commitsById`. */
@@ -46,7 +46,5 @@ export class RepositoryCommitList implements OnInit {
     });
   }
 
-  protected shortSha(sha: string): string {
-    return sha.slice(0, 7);
-  }
+  protected shortSha = shortSha;
 }

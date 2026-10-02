@@ -5,13 +5,15 @@ use ferrisgit_domain::job_execution::JobExecutionPort;
 
 pub struct UnavailableKubernetesExecutor;
 
+const UNAVAILABLE: &str = "Kubernetes execution engine is not available on this server (no cluster was reachable at startup)";
+
 #[async_trait]
 impl JobExecutionPort for UnavailableKubernetesExecutor {
     async fn submit(&self, _job: &Job) -> Result<(), DomainError> {
-        Err(DomainError::Infrastructure("Kubernetes execution engine is not available on this server (no cluster was reachable at startup)".to_string()))
+        Err(DomainError::Infrastructure(UNAVAILABLE.to_string()))
     }
     async fn cancel(&self, _job: &Job) -> Result<(), DomainError> {
-        Err(DomainError::Infrastructure("Kubernetes execution engine is not available on this server (no cluster was reachable at startup)".to_string()))
+        Err(DomainError::Infrastructure(UNAVAILABLE.to_string()))
     }
 }
 

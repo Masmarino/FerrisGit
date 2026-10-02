@@ -23,7 +23,8 @@ import {
   GbtToastService,
 } from '@masmarino/gabarit';
 import { GroupsService } from '../../groups/groups.service';
-import { Repository, RepositoriesService } from '../repositories.service';
+import { MemberRole, Repository, RepositoriesService, RepositoryRole } from '../repositories.service';
+import { canMaintain } from '../repository-role';
 
 /** Client-side pagination: the listings return every group and repository at once. */
 export const WORKSPACE_PAGE_SIZE = 25;
@@ -33,7 +34,7 @@ export interface WorkspaceGroupItem {
   name: string;
   link: string[];
   path: string;
-  role?: 'reader' | 'contributor' | 'maintainer';
+  role?: MemberRole;
   /** Known for a group's subgroups (`GET /groups/{id}/children`), not for the member groups. */
   description?: string;
   createdAt?: string;
@@ -46,7 +47,7 @@ const SORT_OPTIONS: ListToolbarSortOption<WorkspaceSortKey>[] = [
   { value: 'name', label: 'Nom' },
 ];
 
-const ROLE_LABELS: Record<Repository['role'], string> = {
+const ROLE_LABELS: Record<RepositoryRole, string> = {
   owner: 'Propriétaire',
   reader: 'Lecteur',
   contributor: 'Contributeur',
@@ -125,7 +126,7 @@ function repositoryRow(repository: Repository, basePath: string): WorkspaceRow {
     group: null,
     repository,
     hasMenu: true,
-    canDelete: repository.role === 'owner' || repository.role === 'maintainer',
+    canDelete: canMaintain(repository.role),
   };
 }
 

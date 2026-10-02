@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::pipeline::{NewPipeline, Pipeline, PipelineStatus, PipelineStorePort};
@@ -15,6 +16,8 @@ impl PostgresPipelineStore {
     }
 }
 
+// Runtime queries rather than `query!`: `SELECT *` would otherwise need every new column in the offline cache.
+#[derive(sqlx::FromRow)]
 struct Row {
     id: Uuid,
     repository_id: Uuid,
@@ -24,19 +27,23 @@ struct Row {
     triggered_by: Uuid,
     created_at: chrono::DateTime<chrono::Utc>,
     finished_at: Option<chrono::DateTime<chrono::Utc>>,
+    error: Option<String>,
 }
 
-impl Row {
-    fn into_domain(self) -> Result<Pipeline, DomainError> {
+impl TryFrom<Row> for Pipeline {
+    type Error = DomainError;
+
+    fn try_from(row: Row) -> Result<Self, DomainError> {
         Ok(Pipeline {
-            id: self.id,
-            repository_id: self.repository_id,
-            commit_sha: self.commit_sha,
-            execution_engine: ExecutionEngine::parse(&self.execution_engine)?,
-            status: PipelineStatus::parse(&self.status)?,
-            triggered_by: self.triggered_by,
-            created_at: self.created_at,
-            finished_at: self.finished_at,
+            id: row.id,
+            repository_id: row.repository_id,
+            commit_sha: row.commit_sha,
+            execution_engine: ExecutionEngine::parse(&row.execution_engine)?,
+            status: PipelineStatus::parse(&row.status)?,
+            triggered_by: row.triggered_by,
+            created_at: row.created_at,
+            finished_at: row.finished_at,
+            error: row.error,
         })
     }
 }
@@ -44,52 +51,81 @@ impl Row {
 #[async_trait]
 impl PipelineStorePort for PostgresPipelineStore {
     async fn create(&self, new_pipeline: NewPipeline) -> Result<Pipeline, DomainError> {
-        let row = sqlx::query_as!(
-            Row,
+        let row: Row = sqlx::query_as(
             "INSERT INTO pipelines (repository_id, commit_sha, execution_engine, triggered_by) VALUES ($1, $2, $3, $4) RETURNING *",
-            new_pipeline.repository_id,
-            new_pipeline.commit_sha,
-            new_pipeline.execution_engine.as_str(),
-            new_pipeline.triggered_by,
         )
+        .bind(new_pipeline.repository_id)
+        .bind(new_pipeline.commit_sha)
+        .bind(new_pipeline.execution_engine.as_str())
+        .bind(new_pipeline.triggered_by)
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.into_domain()
+        .map_err(infra)?;
+        Pipeline::try_from(row)
+    }
+
+    async fn create_failed(
+        &self,
+        new_pipeline: NewPipeline,
+        error: &str,
+    ) -> Result<Pipeline, DomainError> {
+        let row: Row = sqlx::query_as(
+            "INSERT INTO pipelines (repository_id, commit_sha, execution_engine, triggered_by, status, finished_at, error) VALUES ($1, $2, $3, $4, 'failed', now(), $5) RETURNING *",
+        )
+        .bind(new_pipeline.repository_id)
+        .bind(new_pipeline.commit_sha)
+        .bind(new_pipeline.execution_engine.as_str())
+        .bind(new_pipeline.triggered_by)
+        .bind(error)
+        .fetch_one(&self.pool)
+        .await
+        .map_err(infra)?;
+        Pipeline::try_from(row)
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Pipeline>, DomainError> {
-        let row = sqlx::query_as!(Row, "SELECT * FROM pipelines WHERE id = $1", id)
+        let row: Option<Row> = sqlx::query_as("SELECT * FROM pipelines WHERE id = $1")
+            .bind(id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.map(Row::into_domain).transpose()
+            .map_err(infra)?;
+        row.map(Pipeline::try_from).transpose()
     }
 
     async fn list_for_repository(&self, repository_id: Uuid) -> Result<Vec<Pipeline>, DomainError> {
-        let rows = sqlx::query_as!(
-            Row,
+        let rows: Vec<Row> = sqlx::query_as(
             "SELECT * FROM pipelines WHERE repository_id = $1 ORDER BY created_at DESC",
-            repository_id
         )
+        .bind(repository_id)
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+        .map_err(infra)?;
+        rows.into_iter().map(Pipeline::try_from).collect()
     }
 
     async fn update_status(&self, id: Uuid, status: PipelineStatus) -> Result<(), DomainError> {
-        sqlx::query!(
+        sqlx::query(
             "UPDATE pipelines SET status = $1::text, \
                  finished_at = CASE WHEN $1::text IN ('success', 'failed', 'canceled') THEN COALESCE(finished_at, now()) ELSE finished_at END \
              WHERE id = $2",
-            status.as_str(),
-            id
         )
+        .bind(status.as_str())
+        .bind(id)
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
+    }
+
+    async fn mark_running(&self, id: Uuid) -> Result<bool, DomainError> {
+        let result = sqlx::query(
+            "UPDATE pipelines SET status = 'running' WHERE id = $1 AND status = 'pending'",
+        )
+        .bind(id)
+        .execute(&self.pool)
+        .await
+        .map_err(infra)?;
+        Ok(result.rows_affected() > 0)
     }
 
     async fn count_created_since(
@@ -103,44 +139,18 @@ impl PipelineStorePort for PostgresPipelineStore {
         .fetch_one(&self.pool)
         .await
         .map(|count| count.unwrap_or(0))
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ferrisgit_domain::repository::{NewRepository, RepositoryStorePort, RepositoryVisibility};
+    use crate::postgres::test_support::seed_owned_repository;
     use ferrisgit_domain::user::{NewUser, UserRepositoryPort};
 
     async fn seed_repository(pool: &PgPool) -> (Uuid, Uuid) {
-        let users = crate::postgres::user_repository::PostgresUserRepository::new(pool.clone());
-        let owner_id = users
-            .create(NewUser {
-                username: "florian".to_string(),
-                email: "f@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-            })
-            .await
-            .unwrap()
-            .id;
-        let repos = crate::postgres::repository_store::PostgresRepositoryStore::new(pool.clone());
-        let repository_id = repos
-            .create(
-                NewRepository {
-                    owner_id,
-                    name: "hello".to_string(),
-                    group_id: None,
-                    description: String::new(),
-                    visibility: RepositoryVisibility::Private,
-                },
-                "path".to_string(),
-            )
-            .await
-            .unwrap()
-            .id;
-        (owner_id, repository_id)
+        seed_owned_repository(pool, "florian").await
     }
 
     #[sqlx::test(migrations = "../../migrations")]
@@ -341,5 +351,84 @@ mod tests {
 
         let count = store.count_created_since(cutoff).await.unwrap();
         assert_eq!(count, 1);
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn a_failed_pipeline_is_created_finished_with_its_error(pool: PgPool) {
+        let (owner_id, repository_id) = seed_repository(&pool).await;
+        let store = PostgresPipelineStore::new(pool);
+
+        let created = store
+            .create_failed(
+                NewPipeline {
+                    repository_id,
+                    commit_sha: "abc".to_string(),
+                    execution_engine: ExecutionEngine::DockerRunners,
+                    triggered_by: owner_id,
+                },
+                "invalid YAML: boom",
+            )
+            .await
+            .unwrap();
+        assert_eq!(created.status, PipelineStatus::Failed);
+
+        let found = store.find_by_id(created.id).await.unwrap().unwrap();
+        assert_eq!(found.status, PipelineStatus::Failed);
+        assert_eq!(found.error.as_deref(), Some("invalid YAML: boom"));
+        assert!(found.finished_at.is_some());
+        let listed = store.list_for_repository(repository_id).await.unwrap();
+        assert_eq!(listed[0].error.as_deref(), Some("invalid YAML: boom"));
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn a_regular_pipeline_has_no_error(pool: PgPool) {
+        let (owner_id, repository_id) = seed_repository(&pool).await;
+        let store = PostgresPipelineStore::new(pool);
+        let created = store
+            .create(NewPipeline {
+                repository_id,
+                commit_sha: "abc".to_string(),
+                execution_engine: ExecutionEngine::DockerRunners,
+                triggered_by: owner_id,
+            })
+            .await
+            .unwrap();
+        assert!(created.error.is_none());
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn mark_running_only_moves_a_pending_pipeline(pool: PgPool) {
+        let (owner_id, repository_id) = seed_repository(&pool).await;
+        let store = PostgresPipelineStore::new(pool);
+        let created = store
+            .create(NewPipeline {
+                repository_id,
+                commit_sha: "abc".to_string(),
+                execution_engine: ExecutionEngine::DockerRunners,
+                triggered_by: owner_id,
+            })
+            .await
+            .unwrap();
+
+        assert!(store.mark_running(created.id).await.unwrap());
+        assert_eq!(
+            store.find_by_id(created.id).await.unwrap().unwrap().status,
+            PipelineStatus::Running
+        );
+        assert!(
+            !store.mark_running(created.id).await.unwrap(),
+            "already running: nothing to announce"
+        );
+
+        store
+            .update_status(created.id, PipelineStatus::Canceled)
+            .await
+            .unwrap();
+        assert!(!store.mark_running(created.id).await.unwrap());
+        assert_eq!(
+            store.find_by_id(created.id).await.unwrap().unwrap().status,
+            PipelineStatus::Canceled,
+            "a finished pipeline must not be brought back to running"
+        );
     }
 }

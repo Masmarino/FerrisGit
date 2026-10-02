@@ -9,27 +9,25 @@ on:
       - "fix/**"
       - "release/**"
     tags: ["v*.*.*"]
-  # No branch filter here — PRs always just build+test; scan/docker build only happen on a direct push.
   pull_request:
   workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  # Only runs that never publish are superseded: a push to main or a tag can be mid-`docker push`, and cancelling it would leave `latest` and `sha-*` pointing at different images.
+  # A push to main or a tag may be in the middle of `docker push`: cancelling it would leave `latest` and `sha-*` on
+  # different images. Only runs that never publish are superseded.
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' && !startsWith(github.ref, 'refs/tags/') }}
 
 permissions:
   contents: read
 
 env:
-  # keep in sync with rust-toolchain.toml — that's the real source of truth
+  # Same version as rust-toolchain.toml (the reference) and the rust image of the Dockerfile.
   RUST_VERSION: "1.98.1"
   NODE_VERSION: "26"
   DOCKER_IMAGE: masmarino/ferrisgit
 
 jobs:
-  # ── Build & test ────────────────────────────────────────────────────────
-
   lint-backend:
     name: Backend format & lint
     runs-on: ubuntu-latest
@@ -69,8 +67,8 @@ jobs:
           --health-timeout 5s
           --health-retries 10
     env:
-      # Offline mode checks queries against the committed .sqlx cache — but sqlx::test still spins up a real (ephemeral) postgres per test,
-      # so DATABASE_URL must point at a role with CREATEDB (the service container's superuser has it).
+      # Offline mode checks the queries against the committed .sqlx cache, but sqlx::test still creates a throwaway database
+      # per test: DATABASE_URL needs a role with CREATEDB (the superuser of the service container has it).
       SQLX_OFFLINE: "true"
       DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
     steps:
@@ -85,9 +83,9 @@ jobs:
       - name: cargo build
         run: cargo build --workspace --all-targets --locked
 
-      # --test-threads=1: crates/ferrisgit-api/src/config.rs's from_env tests mutate process env vars and are racy under
-      # parallel execution. The suites gated behind the `kind-tests` feature (crates/ferrisgit-infrastructure/tests/) need a
-      # real `kind` cluster and are skipped here by design — see that crate's Cargo.toml.
+      # One test thread: the from_env tests of crates/ferrisgit-api/src/config.rs change process environment variables. The
+      # suites behind the `kind-tests` feature (crates/ferrisgit-infrastructure/tests/) need a real `kind` cluster and are
+      # not run here, see that crate's Cargo.toml.
       - name: cargo test
         run: cargo test --workspace --locked -- --test-threads=1
 
@@ -114,13 +112,56 @@ jobs:
       - name: Test
         run: npm test -- --watch=false
 
-  # ── Security scan: source & dependencies ───────────────────────────────
-  # Runs on every PR plus pushes to develop/main/release*/tags. feature/fix branches just get build+test until they open a PR.
+  lint-helm:
+    name: Helm chart lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      # The chart refuses to render without these two; the deploy job passes the real values.
+      - name: helm lint & template
+        run: |
+          set -o pipefail
+          args=(--set image.tag=0.0.0-ci --set-string ferrisgit.trustedProxyCidrs=10.42.0.0/16)
+          render() { helm template ferrisgit ./helm/ferrisgit --namespace ferrisgit "${args[@]}" "$@"; }
+          helm lint --strict ./helm/ferrisgit "${args[@]}"
+
+          # Defaults: Traefik's resolver, middlewares and TLSOption, and the /healthz and /readyz probes.
+          render > "$RUNNER_TEMP/default.yaml"
+          grep -q 'router.tls.certresolver: "letsencrypt-http"' "$RUNNER_TEMP/default.yaml"
+          grep -q 'router.tls.options: "traefik-mintls13@kubernetescrd"' "$RUNNER_TEMP/default.yaml"
+          grep -q 'router.middlewares: "traefik-https@kubernetescrd,traefik-headers@kubernetescrd"' "$RUNNER_TEMP/default.yaml"
+          grep -q 'path: /readyz' "$RUNNER_TEMP/default.yaml"
+          grep -q 'cert-manager.io/cluster-issuer' "$RUNNER_TEMP/default.yaml" && { echo "::error::cert-manager annotation in the default render"; exit 1; }
+          grep -q 'path: /health$' "$RUNNER_TEMP/default.yaml" && { echo "::error::a probe still calls /health"; exit 1; }
+
+          # cert-manager in place of the resolver.
+          render --set ingress.certResolver= --set ingress.clusterIssuer=letsencrypt-prod > "$RUNNER_TEMP/cert-manager.yaml"
+          grep -q 'cert-manager.io/cluster-issuer: "letsencrypt-prod"' "$RUNNER_TEMP/cert-manager.yaml"
+          grep -q 'router.tls.certresolver' "$RUNNER_TEMP/cert-manager.yaml" && { echo "::error::resolver annotation next to cert-manager"; exit 1; }
+
+          # Both at once is refused, and for that reason only.
+          if render --set ingress.clusterIssuer=letsencrypt-prod > /dev/null 2> "$RUNNER_TEMP/both.err"; then
+            echo "::error::the chart rendered with both ingress.certResolver and ingress.clusterIssuer set"; exit 1
+          fi
+          grep -q 'are both set' "$RUNNER_TEMP/both.err"
+
+          # The remaining switches still render.
+          render --set ingress.tlsOptions= --set ingress.middlewares= > /dev/null
+          render --set kubernetesExecutor.enabled=false > /dev/null
+          render --set networkPolicy.enabled=false > /dev/null
+          render --set image.digest=sha256:0000000000000000000000000000000000000000000000000000000000000000 > /dev/null
+          render --set ingress.enabled=false --set-string ferrisgit.trustedProxyCidrs= > /dev/null
+          render --set-string ferrisgit.trustedProxyCidrs= --set ferrisgit.allowSharedRateLimit=true > /dev/null
+
+  # Every pull request, plus pushes to main, develop, release/** and tags. A feature or fix branch only gets the build and
+  # tests until it has a pull request.
   security-scan-source:
     name: Security scan (source & dependencies)
     runs-on: ubuntu-latest
-    needs: [lint-backend, test-backend, test-frontend]
+    needs: [lint-backend, test-backend, test-frontend, lint-helm]
     if: >-
       github.event_name == 'pull_request' ||
       (github.event_name == 'push' &&
@@ -138,14 +179,14 @@ jobs:
         with:
           toolchain: ${{ env.RUST_VERSION }}
 
-      # Trivy/Grype only flag a vuln once indexed against the crate version — cargo-audit covers the gap by reading the RUSTSEC feed directly.
+      # Trivy and Grype only flag a crate once their database indexes that version; cargo audit reads the RustSec feed directly.
       - name: Install cargo-audit
         run: cargo install cargo-audit --version 0.22.2 --locked
 
       - name: cargo audit
         id: cargo-audit
         continue-on-error: true
-        # The one accepted advisory (RUSTSEC-2023-0071, RSA Marvin attack) and why is in .cargo/audit.toml.
+        # The one accepted advisory, and why, is in .cargo/audit.toml.
         run: cargo audit
 
       - name: Trivy filesystem scan
@@ -164,7 +205,7 @@ jobs:
 
       - name: Upload Trivy SARIF
         if: always()
-        # This upload can fail on its own (e.g. Advanced Security disabled) — not a reason to fail the job; the explicit check below is what actually gates it.
+        # The upload can fail by itself (code scanning disabled, for instance). The check below is what gates the job.
         continue-on-error: true
         uses: github/codeql-action/upload-sarif@2892aa5e19bbd11bc0cff5427e3b750a04d9e3c2 # v4.38.2
         with:
@@ -197,13 +238,12 @@ jobs:
           echo "See the job log (cargo audit) and the Security tab (Trivy/Grype) for details."
           exit 1
 
-  # ── Tag guard ───────────────────────────────────────────────────────────
-  # Anyone who can push a tag could otherwise publish any commit, from any branch, under a release tag. Runs before anything is built or pushed.
-
+  # Without this, anyone who can push a tag could publish any commit under a release tag. It runs before anything is built
+  # or pushed.
   verify-tag:
     name: Require the tagged commit to be on main
     runs-on: ubuntu-latest
-    # Runs on every push (a no-op outside tags) so that build-and-push can depend on it without being skipped along with it.
+    # Runs on every push and does nothing outside tags, so that build-and-push can depend on it without being skipped too.
     if: github.event_name == 'push'
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -217,12 +257,9 @@ jobs:
           git fetch --no-tags origin main
           git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$GITHUB_REF_NAME is not on main, refusing to publish it"; exit 1; }
 
-  # ── Build, scan & (conditionally) push the Docker image ────────────────
-  # Built once, scanned, then pushed as-is (never rebuilt) if it's main or a version tag AND the Docker Hub credentials are configured
-  # (repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN); without them the image is still built and scanned. release/* just
-  # builds+scans as a release-candidate check, never pushed.
-  # There is no deploy job: FerrisGit is deployed by hand from k8s/ (see the README).
-
+  # The image is built once, scanned, then pushed as it is, never rebuilt. It is pushed only from main or a version tag, and
+  # only when the repository secrets DOCKERHUB_USERNAME and DOCKERHUB_TOKEN exist; otherwise it is still built and scanned.
+  # A release/** branch is built and scanned as a release-candidate check and never pushed.
   build-and-push:
     name: Build, scan & push Docker image
     runs-on: ubuntu-latest
@@ -256,7 +293,7 @@ jobs:
 
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
-      - name: Build image (local only — not pushed yet)
+      - name: Build image (local, not pushed)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: .
@@ -329,7 +366,7 @@ jobs:
             [ -n "$tag" ] && docker push "$tag"
           done <<< "$TAGS"
 
-      # The registry's own digest for what was just pushed, for whoever deploys it: a tag moved afterwards changes nothing.
+      # The registry's digest of what was just pushed. The deploy job pins it, so a tag moved later changes nothing.
       - name: Resolve the pushed image digest
         id: digest
         if: env.IS_PUBLISHABLE == 'true'
@@ -340,9 +377,8 @@ jobs:
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "unexpected digest: $digest"; exit 1; }
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
-  # GitHub release for a version tag, with the CHANGELOG.md section of that version as its notes. After the image is
-  # pushed, so a failed build leaves no release; a missing section fails this job only.
-
+  # The release of a version tag, with the CHANGELOG.md section of that version as its notes. It waits for the image, so a
+  # failed build leaves no release; a missing section fails this job only.
   github-release:
     name: GitHub release
     runs-on: ubuntu-latest
@@ -375,3 +411,69 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" --verify-tag --title "$GITHUB_REF_NAME" --notes-file release-notes.md
           fi
+
+  # Upgrades the production release to the pushed image, by digest. Version tags only, and the commit must be on main (also
+  # checked before the image is published).
+  deploy:
+    name: Deploy to Kubernetes
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    if: startsWith(github.ref, 'refs/tags/v')
+    environment: production
+    # One deploy at a time, and a running one is never cancelled in the middle of a helm upgrade.
+    concurrency:
+      group: deploy-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+
+      # Without this check, anyone who can push a tag could ship any commit to production.
+      - name: Require the tagged commit to be on main
+        run: |
+          git fetch --no-tags origin main
+          git merge-base --is-ancestor "$GITHUB_SHA" origin/main || { echo "::error::$GITHUB_REF_NAME is not on main, refusing to deploy it"; exit 1; }
+
+      - uses: azure/setup-helm@9bc31f4ebc9c6b171d7bfbaa5d006ae7abdb4310 # v5.0.1
+
+      - name: Write kubeconfig
+        env:
+          KUBE_CONFIG: ${{ secrets.KUBE_CONFIG }}
+        run: |
+          install -m 600 /dev/null "$RUNNER_TEMP/kubeconfig.yaml"
+          printf '%s' "$KUBE_CONFIG" | base64 -d > "$RUNNER_TEMP/kubeconfig.yaml"
+
+      - name: helm upgrade --install
+        env:
+          KUBECONFIG: ${{ runner.temp }}/kubeconfig.yaml
+          IMAGE_TAG: ${{ needs.build-and-push.outputs.image_tag }}
+          IMAGE_DIGEST: ${{ needs.build-and-push.outputs.image_digest }}
+          # The ingress controller's pod CIDRs, comma-separated. The chart refuses to render without it.
+          TRUSTED_PROXY_CIDRS: ${{ vars.TRUSTED_PROXY_CIDRS }}
+          # Optional repository variables overriding helm/ferrisgit/values.yaml; empty keeps the chart default. A cert-manager
+          # ClusterIssuer replaces Traefik's resolver, since the chart refuses both at once.
+          INGRESS_HOST: ${{ vars.FERRISGIT_INGRESS_HOST }}
+          CERT_RESOLVER: ${{ vars.FERRISGIT_CERT_RESOLVER }}
+          CLUSTER_ISSUER: ${{ vars.FERRISGIT_CLUSTER_ISSUER }}
+        run: |
+          [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::no image digest from the build job"; exit 1; }
+          [[ -n "$TRUSTED_PROXY_CIDRS" ]] || { echo "::error::repository variable TRUSTED_PROXY_CIDRS is not set"; exit 1; }
+          [[ -z "$CERT_RESOLVER" || -z "$CLUSTER_ISSUER" ]] || { echo "::error::FERRISGIT_CERT_RESOLVER and FERRISGIT_CLUSTER_ISSUER are both set: pick one"; exit 1; }
+          # A values file rather than --set, which would split the CIDR list at its commas.
+          jq -n --arg cidrs "$TRUSTED_PROXY_CIDRS" --arg host "$INGRESS_HOST" --arg resolver "$CERT_RESOLVER" --arg issuer "$CLUSTER_ISSUER" '
+            {ferrisgit: {trustedProxyCidrs: $cidrs}}
+            + (if $host != "" or $resolver != "" or $issuer != "" then {ingress: ({}
+                + (if $host != "" then {host: $host} else {} end)
+                + (if $resolver != "" then {certResolver: $resolver} else {} end)
+                + (if $issuer != "" then {certResolver: "", clusterIssuer: $issuer} else {} end))} else {} end)
+          ' > "$RUNNER_TEMP/values-ci.json"
+          # --atomic rolls the release back when the upgrade fails, but migrations already applied are not undone and the older
+          # release refuses to start on them (README, "Deploying to Kubernetes").
+          helm upgrade --install ferrisgit ./helm/ferrisgit \
+            --namespace ferrisgit --create-namespace \
+            --values "$RUNNER_TEMP/values-ci.json" \
+            --set image.repository="$DOCKER_IMAGE" \
+            --set image.tag="$IMAGE_TAG" \
+            --set image.digest="$IMAGE_DIGEST" \
+            --atomic --cleanup-on-fail --timeout 10m

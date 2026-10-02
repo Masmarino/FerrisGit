@@ -1,31 +1,23 @@
-use std::collections::HashMap;
-
 use axum::extract::{Query, State};
 use axum::routing::get;
 use axum::{Json, Router};
-use chrono::{DateTime, Utc};
 use ferrisgit_application::use_cases::search::SearchUseCase;
-use ferrisgit_domain::error::DomainError;
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
 use crate::auth_middleware::AuthUser;
 use crate::error::ApiError;
 use crate::routes::repositories::repository_path;
+use crate::routes::summaries::{
+    IssueSummary, MergeRequestSummary, RepositoryRefs, issue_summaries, merge_request_summaries,
+};
+use crate::routes::user_ref::require_user;
 use crate::state::AppState;
 
 #[derive(Deserialize)]
 struct SearchQuery {
     #[serde(default)]
     q: String,
-}
-
-#[derive(Serialize, Clone)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct SearchRepositoryRef {
-    id: Uuid,
-    name: String,
-    path: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -40,30 +32,6 @@ struct SearchRepositoryResponse {
 
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct SearchIssueResponse {
-    id: Uuid,
-    number: i32,
-    title: String,
-    status: String,
-    kind: String,
-    created_at: DateTime<Utc>,
-    repository: SearchRepositoryRef,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-struct SearchMergeRequestResponse {
-    id: Uuid,
-    title: String,
-    status: String,
-    source_branch: String,
-    target_branch: String,
-    created_at: DateTime<Utc>,
-    repository: SearchRepositoryRef,
-}
-
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
 struct SearchUserResponse {
     id: Uuid,
     username: String,
@@ -73,38 +41,9 @@ struct SearchUserResponse {
 #[serde(rename_all = "camelCase")]
 struct SearchResponse {
     repositories: Vec<SearchRepositoryResponse>,
-    issues: Vec<SearchIssueResponse>,
-    merge_requests: Vec<SearchMergeRequestResponse>,
+    issues: Vec<IssueSummary>,
+    merge_requests: Vec<MergeRequestSummary>,
     users: Vec<SearchUserResponse>,
-}
-
-/// Cached by `repository_id`: results often share a repository and each resolution costs lookups.
-pub(crate) async fn repository_ref(
-    state: &AppState,
-    repository_id: Uuid,
-    cache: &mut HashMap<Uuid, SearchRepositoryRef>,
-) -> Result<SearchRepositoryRef, ApiError> {
-    if let Some(cached) = cache.get(&repository_id) {
-        return Ok(cached.clone());
-    }
-    let repo = state
-        .repositories
-        .find_by_id(repository_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
-    let owner = state
-        .users
-        .find_by_id(repo.owner_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
-    let path = repository_path(state, &repo, &owner.username).await?;
-    let result = SearchRepositoryRef {
-        id: repo.id,
-        name: repo.name,
-        path,
-    };
-    cache.insert(repository_id, result.clone());
-    Ok(result)
 }
 
 async fn search(
@@ -124,11 +63,7 @@ async fn search(
 
     let mut repositories = Vec::with_capacity(results.repositories.len());
     for repo in results.repositories {
-        let owner = state
-            .users
-            .find_by_id(repo.owner_id)
-            .await?
-            .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+        let owner = require_user(&state, repo.owner_id).await?;
         let path = repository_path(&state, &repo, &owner.username).await?;
         repositories.push(SearchRepositoryResponse {
             id: repo.id,
@@ -139,35 +74,10 @@ async fn search(
         });
     }
 
-    let mut repo_cache: HashMap<Uuid, SearchRepositoryRef> = HashMap::new();
-
-    let mut issues = Vec::with_capacity(results.issues.len());
-    for issue in results.issues {
-        let repository = repository_ref(&state, issue.repository_id, &mut repo_cache).await?;
-        issues.push(SearchIssueResponse {
-            id: issue.id,
-            number: issue.number,
-            title: issue.title,
-            status: issue.status.as_str().to_string(),
-            kind: issue.kind.as_str().to_string(),
-            created_at: issue.created_at,
-            repository,
-        });
-    }
-
-    let mut merge_requests = Vec::with_capacity(results.merge_requests.len());
-    for mr in results.merge_requests {
-        let repository = repository_ref(&state, mr.repository_id, &mut repo_cache).await?;
-        merge_requests.push(SearchMergeRequestResponse {
-            id: mr.id,
-            title: mr.title,
-            status: mr.status.as_str().to_string(),
-            source_branch: mr.source_branch,
-            target_branch: mr.target_branch,
-            created_at: mr.created_at,
-            repository,
-        });
-    }
+    let mut repo_cache = RepositoryRefs::new();
+    let issues = issue_summaries(&state, results.issues, &mut repo_cache).await?;
+    let merge_requests =
+        merge_request_summaries(&state, results.merge_requests, &mut repo_cache).await?;
 
     let users = results
         .users

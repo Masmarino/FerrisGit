@@ -2,8 +2,10 @@ pub mod aes_gcm_encryptor;
 pub mod argon2_hasher;
 pub mod disk_space_health;
 pub mod docker_runner_executor;
+mod error;
 pub mod git_apply_suggestion_executor;
 pub mod git_backend;
+mod git_cli;
 pub mod git_merge_executor;
 pub mod git_tag_creator;
 pub mod git_wiki_writer;
@@ -17,3 +19,6 @@ pub mod kubernetes;
 pub mod local_release_asset_storage;
 pub mod postgres;
 pub mod smtp_email_sender;
+
+#[cfg(test)]
+mod test_git;

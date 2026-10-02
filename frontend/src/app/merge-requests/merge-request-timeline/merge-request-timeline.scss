@@ -1,5 +1,6 @@
 @use '../timeline-rail' as rail;
 @use '../../shared/layout/card';
+@use '../../shared/layout/list-page';
 
 .mr-timeline-section {
   display: flex;
@@ -53,9 +54,7 @@
 }
 
 .mr-timeline {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  @include list-page.row-list;
   display: flex;
   flex-direction: column;
 }

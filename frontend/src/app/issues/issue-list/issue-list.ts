@@ -29,10 +29,9 @@ import {
   Textarea,
   UserChip,
 } from '@masmarino/gabarit';
-import { Issue, IssuesService } from '../issues.service';
+import { Issue, IssuesService, isClosed } from '../issues.service';
 import { CreatableIssueKind, ISSUE_KIND_OPTIONS, IssueKindPresentation, issueKindPresentation } from '../issue-kind';
-import { Label, LabelsService } from '../../labels/labels.service';
-import { Milestone, MilestonesService } from '../../milestones/milestones.service';
+import { createIssueFilters } from '../issue-filters';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { MeService } from '../../shell/me.service';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
@@ -61,11 +60,6 @@ interface IssueRow {
   kind: IssueKindPresentation;
   milestoneTitle: string | null;
   closed: boolean;
-}
-
-/** Closed means the API's `done` status. The backend always sets `closedAt` with it and clears it on reopen. */
-function isClosed(issue: Issue): boolean {
-  return issue.status === 'done' || issue.closedAt !== null;
 }
 
 @Component({
@@ -99,14 +93,12 @@ function isClosed(issue: Issue): boolean {
   styleUrl: './issue-list.scss',
 })
 export class IssueList implements OnInit {
-  private pageTitle = inject(PageTitleService);
   repositoryId = input.required<string>();
   path = input.required<string[]>();
 
+  private pageTitle = inject(PageTitleService);
   private router = inject(Router);
   private issuesService = inject(IssuesService);
-  private labelsService = inject(LabelsService);
-  private milestonesService = inject(MilestonesService);
   private repoContext = inject(RepositoryContextService);
   private me = inject(MeService);
   private toast = inject(GbtToastService);
@@ -114,10 +106,7 @@ export class IssueList implements OnInit {
   protected issues = signal<Issue[]>([]);
   protected loading = signal(true);
   protected loadFailed = signal(false);
-  protected labels = signal<Label[]>([]);
-  protected milestones = signal<Milestone[]>([]);
-  protected selectedLabelIds = signal<string[]>([]);
-  protected selectedMilestoneId = signal<string | null>(null);
+  protected filters = createIssueFilters(() => this.repositoryId(), () => this.load());
 
   private readonly searchSort = createListToolbarState<SortKey>({ sortOptions: SORT_OPTIONS, defaultSort: 'date' });
   protected search = this.searchSort.search;
@@ -143,14 +132,14 @@ export class IssueList implements OnInit {
   protected readonly pageSize = ISSUES_PAGE_SIZE;
   /** Back to page 1 whenever what the list shows changes (search, sort, tab, server filters). */
   protected page = linkedSignal<unknown, number>({
-    source: () => [this.search(), this.sortValue(), this.direction(), this.tab(), this.selectedLabelIds(), this.selectedMilestoneId()],
+    source: () => [this.search(), this.sortValue(), this.direction(), this.tab(), this.filters.selectedLabelIds(), this.filters.selectedMilestoneId()],
     computation: () => 1,
   });
   /** `page` clamped to the tab's page count: closing the only issue of the last page shrinks the tab under `page` and may unmount the pager, leaving an empty page. */
   protected currentPage = computed(() => Math.min(this.page(), Math.max(1, Math.ceil(this.tabIssues().length / ISSUES_PAGE_SIZE))));
   protected rows = computed<IssueRow[]>(() => {
     const start = (this.currentPage() - 1) * ISSUES_PAGE_SIZE;
-    const milestoneTitles = this.milestoneTitleById();
+    const milestoneTitles = this.filters.milestoneTitleById();
     return this.tabIssues()
       .slice(start, start + ISSUES_PAGE_SIZE)
       .map((issue) => ({
@@ -164,9 +153,8 @@ export class IssueList implements OnInit {
   });
   protected readonly pageLabel = (page: number) => `Page ${page}`;
 
-  protected hasServerFilters = computed(() => this.selectedLabelIds().length > 0 || this.selectedMilestoneId() !== null);
-  protected hasActiveFilters = computed(() => this.search().trim() !== '' || this.hasServerFilters());
-  protected isEmptyRepository = computed(() => !this.loading() && !this.loadFailed() && this.issues().length === 0 && !this.hasServerFilters());
+  protected hasActiveFilters = computed(() => this.search().trim() !== '' || this.filters.hasSelection());
+  protected isEmptyRepository = computed(() => !this.loading() && !this.loadFailed() && this.issues().length === 0 && !this.filters.hasSelection());
 
   protected cardState = computed<ListCardState>(() => (this.loading() ? 'loading' : this.loadFailed() ? 'failed' : this.isEmptyRepository() ? 'empty' : 'ready'));
 
@@ -174,13 +162,6 @@ export class IssueList implements OnInit {
     const role = this.repoContext.current()?.role;
     return role === 'owner' || role === 'contributor' || role === 'maintainer';
   });
-
-  protected labelOptions = computed<SelectOption<string>[]>(() => this.labels().map((label) => ({ value: label.id, label: label.name, color: label.color })));
-  protected milestoneOptions = computed<SelectOption<string | null>[]>(() => [
-    { value: null, label: 'Tous les milestones' },
-    ...this.milestones().map((milestone) => ({ value: milestone.id, label: milestone.title })),
-  ]);
-  private milestoneTitleById = computed(() => new Map(this.milestones().map((milestone) => [milestone.id, milestone.title])));
 
   protected createOpen = signal(false);
   protected creating = signal(false);
@@ -201,12 +182,11 @@ export class IssueList implements OnInit {
   ngOnInit(): void {
     this.pageTitle.set('Tickets');
     this.load();
-    this.labelsService.listForRepository(this.repositoryId()).subscribe({ next: (labels) => this.labels.set(labels) });
-    this.milestonesService.listForRepository(this.repositoryId()).subscribe({ next: (milestones) => this.milestones.set(milestones) });
+    this.filters.loadOptions();
   }
 
   protected load(): void {
-    this.issuesService.list(this.repositoryId(), { labelIds: this.selectedLabelIds(), milestoneId: this.selectedMilestoneId() ?? undefined }).subscribe({
+    this.issuesService.list(this.repositoryId(), this.filters.params()).subscribe({
       next: (issues) => {
         this.issues.set(issues);
         this.loading.set(false);
@@ -224,24 +204,9 @@ export class IssueList implements OnInit {
     });
   }
 
-  protected onLabelFilterChange(labelIds: string[]): void {
-    this.selectedLabelIds.set(labelIds);
-    this.load();
-  }
-
-  protected onMilestoneFilterChange(milestoneId: string | null): void {
-    this.selectedMilestoneId.set(milestoneId);
-    this.load();
-  }
-
   protected resetFilters(): void {
-    const refetch = this.hasServerFilters();
     this.search.set('');
-    this.selectedLabelIds.set([]);
-    this.selectedMilestoneId.set(null);
-    if (refetch) {
-      this.load();
-    }
+    this.filters.clear();
   }
 
   protected openCreate(): void {

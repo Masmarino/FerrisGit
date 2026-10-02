@@ -89,42 +89,13 @@ impl ResolvePathUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeGroups, FakeRepositories, FakeUsers};
-    use chrono::Utc;
-    use ferrisgit_domain::repository::RepositoryVisibility;
-    use ferrisgit_domain::user::User;
-
-    fn user(username: &str) -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: username.to_string(),
-            email: format!("{username}@example.com"),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
-    }
-
-    fn group(parent: Option<Uuid>, name: &str) -> Group {
-        Group {
-            id: Uuid::new_v4(),
-            parent_group_id: parent,
-            name: name.to_string(),
-            description: String::new(),
-            created_by: Some(Uuid::new_v4()),
-            created_at: Utc::now(),
-        }
-    }
+    use crate::use_cases::fixtures::{self, group, user};
 
     fn repo(owner_id: Uuid, group_id: Option<Uuid>, name: &str) -> Repository {
         Repository {
-            id: Uuid::new_v4(),
-            owner_id,
             group_id,
             name: name.to_string(),
-            description: String::new(),
-            disk_path: "path".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
+            ..fixtures::repository(owner_id)
         }
     }
 

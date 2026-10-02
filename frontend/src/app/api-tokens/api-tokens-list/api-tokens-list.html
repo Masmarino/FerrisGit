@@ -1,4 +1,4 @@
-<gbt-card variant="outlined" icon="plus" heading="Nouveau jeton" description="Un jeton remplace votre mot de passe pour l'API et pour Git en HTTPS. Nommez-le d'après l'outil qui s'en sert.">
+<gbt-card variant="outlined" icon="plus" heading="Nouveau jeton" description="Un jeton remplace votre mot de passe pour Git en HTTPS : cloner, récupérer et pousser. Il ne donne pas accès à l'API REST. Nommez-le d'après l'outil qui s'en sert.">
   <!-- ngNoForm keeps this a plain form, so Enter submits. Its field is a standalone ngModel. -->
   <form ngNoForm class="api-tokens-list__form" (submit)="$event.preventDefault(); create()">
     <gbt-input
@@ -106,7 +106,7 @@
   <gbt-confirm-danger-modal
     [isOpen]="true"
     heading="Révoquer le jeton"
-    [message]="'Les outils et scripts qui utilisent « ' + token.name + ' » ne pourront plus accéder à FerrisGit. Un jeton révoqué ne peut pas être réactivé.'"
+    [message]="'Les outils et scripts qui utilisent « ' + token.name + ' » ne pourront plus cloner, récupérer ni pousser. Un jeton révoqué ne peut pas être réactivé.'"
     confirmLabel="Révoquer"
     confirmIcon="trash-2"
     cancelLabel="Annuler"

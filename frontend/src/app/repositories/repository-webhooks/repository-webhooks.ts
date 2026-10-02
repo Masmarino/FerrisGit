@@ -20,6 +20,7 @@ import {
   SkeletonList,
 } from '@masmarino/gabarit';
 import { RepositorySettingsService, WebhookDelivery, WebhookSummary, WEBHOOK_EVENT_OPTIONS } from '../repository-settings.service';
+import { createSettingsList } from '../settings-list';
 
 type WebhookEvent = (typeof WEBHOOK_EVENT_OPTIONS)[number];
 
@@ -85,15 +86,13 @@ export class RepositoryWebhooks implements OnInit {
   }));
   protected readonly eventLabel = eventLabel;
 
-  protected webhooks = signal<WebhookSummary[]>([]);
-  /** 'loading' until the first list arrives. If a later refresh fails, the list stays on screen. */
-  protected listState = signal<'loading' | 'loaded' | 'failed'>('loading');
+  protected list = createSettingsList(() => this.repositorySettings.listWebhooks(this.repositoryId()));
   protected newWebhookUrl = signal('');
   protected newWebhookSecret = signal('');
   protected newWebhookEvents = signal<WebhookEvent[]>([]);
   protected expandedWebhookId = signal<string | null>(null);
   protected expandedWebhookHeading = computed(() => {
-    const webhook = this.webhooks().find((w) => w.id === this.expandedWebhookId());
+    const webhook = this.list.items().find((w) => w.id === this.expandedWebhookId());
     return webhook ? `Historique — ${webhook.url}` : 'Historique';
   });
   protected deliveriesByWebhook = signal<Record<string, WebhookDelivery[] | undefined>>({});
@@ -116,7 +115,7 @@ export class RepositoryWebhooks implements OnInit {
   });
 
   protected rows = computed(() =>
-    this.webhooks().map((webhook) => {
+    this.list.items().map((webhook) => {
       const labels = webhook.events.map(eventLabel);
       const hidden = labels.slice(VISIBLE_EVENTS);
       return { webhook, events: labels.slice(0, VISIBLE_EVENTS), more: hidden.length, moreTitle: hidden.join(', ') };
@@ -124,27 +123,7 @@ export class RepositoryWebhooks implements OnInit {
   );
 
   ngOnInit(): void {
-    this.refresh();
-  }
-
-  refresh(): void {
-    this.repositorySettings.listWebhooks(this.repositoryId()).subscribe({
-      next: (w) => {
-        this.webhooks.set(w);
-        this.listState.set('loaded');
-      },
-      error: () => {
-        if (this.listState() !== 'loaded') {
-          this.listState.set('failed');
-        }
-        this.toast.show('Impossible de charger les réglages. Réessayez plus tard.', 'error');
-      },
-    });
-  }
-
-  protected retry(): void {
-    this.listState.set('loading');
-    this.refresh();
+    this.list.refresh();
   }
 
   addWebhook(): void {
@@ -159,7 +138,7 @@ export class RepositoryWebhooks implements OnInit {
         this.newWebhookUrl.set('');
         this.newWebhookSecret.set('');
         this.newWebhookEvents.set([]);
-        this.refresh();
+        this.list.refresh();
         this.toast.show('Webhook ajouté.');
       },
       error: () => this.toast.show("Impossible d'ajouter ce webhook (URL invalide ou pointant vers une adresse interdite).", 'error'),
@@ -179,7 +158,7 @@ export class RepositoryWebhooks implements OnInit {
       next: () => {
         this.deleting.set(false);
         this.webhookPendingDelete.set(null);
-        this.refresh();
+        this.list.refresh();
         this.toast.show('Webhook supprimé.');
       },
       // The confirmation covers the page, so an error must close it first to be visible.

@@ -1,8 +1,7 @@
-import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { RepositoryMilestonesSettings } from './repository-milestones-settings';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { createSettingsSection } from '../settings-section-testing';
 
 describe('RepositoryMilestonesSettings', () => {
   function setup() {
@@ -22,16 +21,7 @@ describe('RepositoryMilestonesSettings', () => {
       ),
       delete: vi.fn(() => of<void>(undefined)),
     };
-    const toastStub = { show: vi.fn() };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: MilestonesService, useValue: milestonesServiceStub },
-        { provide: GbtToastService, useValue: toastStub },
-      ],
-    });
-    const fixture = TestBed.createComponent(RepositoryMilestonesSettings);
-    fixture.componentRef.setInput('repositoryId', 'repo-1');
-    return { fixture, component: fixture.componentInstance, milestonesServiceStub, toastStub };
+    return { ...createSettingsSection(RepositoryMilestonesSettings, [{ provide: MilestonesService, useValue: milestonesServiceStub }]), milestonesServiceStub };
   }
 
   it('lists configured milestones', () => {

@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { AUTH_LABELS, AUTH_PORT, MFA_PORT, TOTP_QR_RENDERER } from '@masmarino/gabarit';
 import { appConfig } from '../app.config';
-import { MfaService } from '../account/mfa.service';
+import { MfaService } from './mfa.service';
 import { AuthService } from './auth.service';
 import { provideFerrisgitAuth } from './auth-kit';
 import { FR_AUTH_LABELS } from './auth-labels.fr';

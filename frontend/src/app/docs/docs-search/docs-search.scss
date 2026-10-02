@@ -1,0 +1,60 @@
+@use '../../shared/layout/list-page';
+
+:host {
+  display: block;
+}
+
+// Gabarit gap: `gbt-autocomplete` has no option to hide its label. The field keeps it for assistive technology,
+// the placeholder and the "Documentation" heading above say the rest.
+.docs-search ::ng-deep .gbt-autocomplete__label {
+  @include list-page.visually-hidden;
+}
+
+// The result rows are rendered in Gabarit's floating panel, but from this component's template: these rules reach them.
+.docs-search__result {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+  text-align: left;
+}
+
+.docs-search__where {
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.docs-search__title {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.docs-search__heading {
+  color: var(--text-secondary);
+  font-weight: 500;
+}
+
+.docs-search__excerpt {
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+
+  mark {
+    padding: 0 0.0625rem;
+    border-radius: 2px;
+    background: color-mix(in srgb, var(--primary) 18%, transparent);
+    color: var(--text-primary);
+  }
+}

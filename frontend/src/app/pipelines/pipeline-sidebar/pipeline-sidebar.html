@@ -18,7 +18,7 @@
             [attr.aria-current]="selectedJobId() === job.id ? 'page' : null"
             [routerLink]="jobLink(job.id)"
           >
-            <gbt-job-status [status]="job.status" [label]="statusLabels[job.status]" />
+            <gbt-job-status [status]="glyph(job.status)" [label]="statusLabels[job.status]" />
             <span class="pipeline-sidebar__name">{{ job.name }}</span>
             <span class="pipeline-sidebar__duration">{{ duration(job) }}</span>
           </a>

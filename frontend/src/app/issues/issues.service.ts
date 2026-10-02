@@ -31,9 +31,18 @@ export interface IssueComment {
   createdAt: string;
 }
 
+/** Closed means the API's `done` status. The backend always sets `closedAt` with it and clears it on reopen. */
+export function isClosed(issue: Pick<Issue, 'status' | 'closedAt'>): boolean {
+  return issue.status === 'done' || issue.closedAt !== null;
+}
+
 @Injectable({ providedIn: 'root' })
 export class IssuesService {
   private http = inject(HttpClient);
+
+  private issueUrl(repositoryId: string, number: number): string {
+    return `/api/repositories/${repositoryId}/issues/${number}`;
+  }
 
   list(repositoryId: string, filters: { labelIds?: string[]; milestoneId?: string } = {}) {
     const params: Record<string, string> = {};
@@ -51,34 +60,34 @@ export class IssuesService {
   }
 
   detail(repositoryId: string, number: number) {
-    return this.http.get<Issue>(`/api/repositories/${repositoryId}/issues/${number}`);
+    return this.http.get<Issue>(this.issueUrl(repositoryId, number));
   }
 
   update(repositoryId: string, number: number, title: string, description: string, kind: string, milestoneId: string | null) {
-    return this.http.patch<Issue>(`/api/repositories/${repositoryId}/issues/${number}`, { title, description, kind, milestoneId });
+    return this.http.patch<Issue>(this.issueUrl(repositoryId, number), { title, description, kind, milestoneId });
   }
 
   updateStatus(repositoryId: string, number: number, status: string) {
-    return this.http.patch<Issue>(`/api/repositories/${repositoryId}/issues/${number}/status`, { status });
+    return this.http.patch<Issue>(`${this.issueUrl(repositoryId, number)}/status`, { status });
   }
 
   assign(repositoryId: string, number: number, assigneeId: string | null) {
-    return this.http.post<Issue>(`/api/repositories/${repositoryId}/issues/${number}/assign`, { assigneeId });
+    return this.http.post<Issue>(`${this.issueUrl(repositoryId, number)}/assign`, { assigneeId });
   }
 
   close(repositoryId: string, number: number) {
-    return this.http.post<Issue>(`/api/repositories/${repositoryId}/issues/${number}/close`, {});
+    return this.http.post<Issue>(`${this.issueUrl(repositoryId, number)}/close`, {});
   }
 
   reopen(repositoryId: string, number: number) {
-    return this.http.post<Issue>(`/api/repositories/${repositoryId}/issues/${number}/reopen`, {});
+    return this.http.post<Issue>(`${this.issueUrl(repositoryId, number)}/reopen`, {});
   }
 
   listComments(repositoryId: string, number: number) {
-    return this.http.get<IssueComment[]>(`/api/repositories/${repositoryId}/issues/${number}/comments`);
+    return this.http.get<IssueComment[]>(`${this.issueUrl(repositoryId, number)}/comments`);
   }
 
   addComment(repositoryId: string, number: number, body: string) {
-    return this.http.post<IssueComment>(`/api/repositories/${repositoryId}/issues/${number}/comments`, { body });
+    return this.http.post<IssueComment>(`${this.issueUrl(repositoryId, number)}/comments`, { body });
   }
 }

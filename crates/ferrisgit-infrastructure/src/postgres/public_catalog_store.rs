@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferrisgit_domain::error::DomainError;
@@ -64,10 +65,6 @@ fn sort_key(sort: PublicCatalogSort) -> &'static str {
     }
 }
 
-fn infrastructure(e: sqlx::Error) -> DomainError {
-    DomainError::Infrastructure(e.to_string())
-}
-
 #[async_trait]
 impl PublicCatalogPort for PostgresPublicCatalogStore {
     async fn search(&self, query: &PublicCatalogQuery) -> Result<PublicCatalogPage, DomainError> {
@@ -75,7 +72,7 @@ impl PublicCatalogPort for PostgresPublicCatalogStore {
             .bind(query.text.as_deref())
             .fetch_one(&self.pool)
             .await
-            .map_err(infrastructure)?;
+            .map_err(infra)?;
 
         let offset = i64::from(query.page.saturating_sub(1)) * i64::from(query.per_page);
         // Every sort ends on name, path and id so pages never overlap or skip a row.
@@ -93,7 +90,7 @@ impl PublicCatalogPort for PostgresPublicCatalogStore {
         .bind(offset)
         .fetch_all(&self.pool)
         .await
-        .map_err(infrastructure)?;
+        .map_err(infra)?;
 
         Ok(PublicCatalogPage {
             items: rows

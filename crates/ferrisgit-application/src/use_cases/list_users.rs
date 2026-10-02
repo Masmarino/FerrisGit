@@ -90,6 +90,7 @@ impl ListUsersUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeInvitations, FakePasskeys, FakeTotp, FakeUsers};
+    use crate::use_cases::fixtures;
     use chrono::Duration;
     use ferrisgit_domain::mfa::TotpCredential;
 
@@ -102,12 +103,8 @@ mod tests {
 
     fn user(name: &str, created_at: DateTime<Utc>) -> User {
         User {
-            id: Uuid::new_v4(),
-            username: name.to_string(),
-            email: format!("{name}@example.com"),
-            password_hash: "h".to_string(),
-            is_admin: false,
             created_at,
+            ..fixtures::user(name)
         }
     }
 

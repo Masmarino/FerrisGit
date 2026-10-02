@@ -1,10 +1,5 @@
 // Storybook-only helpers shared by the merge request timeline stories.
-import { applicationConfig, componentWrapperDecorator } from '@storybook/angular-vite';
-import { provideFerrisgitIcons } from '../shared/register-icons';
-
-// `provideFerrisgitIcons` returns `EnvironmentProviders`, which only fit in an `ApplicationConfig`:
-// without it the timeline markers (tag, flag, git-merge…) render empty.
-export const withFerrisgitIcons = applicationConfig({ providers: [provideFerrisgitIcons()] });
+import { componentWrapperDecorator } from '@storybook/angular-vite';
 
 // A leaf item (comment card, thread, system note) hangs its avatar/marker in the timeline's left
 // gutter: shown standalone it needs the same 44px gutter and 2px rail as `.mr-timeline__body`
@@ -30,8 +25,3 @@ export function expectOnRail(canvasElement: HTMLElement, markerSelector: string,
     if (Math.abs(offset) > 0.5) throw new Error(`${markerSelector} off the rail by ${offset.toFixed(2)}px`);
   }
 }
-
-// Story dates relative to "now", so relative dates ("il y a 5 min") never drift into absolute ones.
-export const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).toISOString();
-export const hoursAgo = (hours: number) => minutesAgo(hours * 60);
-export const daysAgo = (days: number) => minutesAgo(days * 24 * 60);

@@ -1,45 +1,11 @@
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
+mod common;
+
+use common::git::{commit_file, git};
+
+use common::http::{get_json, login, post_json, post_ok};
+
 use serde_json::json;
 use sqlx::PgPool;
-use std::path::Path;
-use std::process::Command;
-
-async fn git(args: &[&str], cwd: &Path) -> String {
-    let args: Vec<String> = args.iter().map(|a| a.to_string()).collect();
-    let cwd = cwd.to_path_buf();
-    let output = tokio::task::spawn_blocking(move || {
-        Command::new("git").args(&args).current_dir(&cwd).output()
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(
-        output.status.success(),
-        "git failed: {}",
-        String::from_utf8_lossy(&output.stderr)
-    );
-    String::from_utf8(output.stdout).unwrap().trim().to_string()
-}
-
-async fn commit_file(repo_path: &Path, file: &str, content: &str, message: &str) {
-    std::fs::write(repo_path.join(file), content).unwrap();
-    git(&["add", "."], repo_path).await;
-    git(
-        &[
-            "-c",
-            "user.email=t@t.com",
-            "-c",
-            "user.name=t",
-            "commit",
-            "-q",
-            "-m",
-            message,
-        ],
-        repo_path,
-    )
-    .await;
-}
 
 async fn push_main_and_feature(
     addr: std::net::SocketAddr,
@@ -80,136 +46,59 @@ fn assert_created_at(actual: &serde_json::Value, expected: &serde_json::Value, w
 
 #[sqlx::test]
 async fn dashboard_lists_an_issue_assigned_to_the_caller(pool: PgPool) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap();
-    let static_dir = tempfile::tempdir().unwrap();
-    std::fs::write(static_dir.path().join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.path().to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.path().to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, static_dir.path());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
+    let addr = common::spawn_app(pool).await.addr;
 
     let client = reqwest::Client::new();
 
-    let owner_login: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "admin", "password": "adminpassword123" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let owner_jwt = owner_login["token"].as_str().unwrap();
+    let owner_jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    let contributor: serde_json::Value = client
-        .post(format!("http://{addr}/api/admin/users"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "username": "contributor", "email": "contributor@example.com", "password": "password12345" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let contributor: serde_json::Value = post_json(&client, addr, &owner_jwt, "/admin/users", &json!({ "username": "contributor", "email": "contributor@example.com", "password": "password12345" })).await;
     let contributor_id = contributor["id"].as_str().unwrap();
 
-    let repo: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "name": "hello", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let repo: serde_json::Value = post_json(
+        &client,
+        addr,
+        &owner_jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
     let repo_id = repo["id"].as_str().unwrap();
 
-    client
-        .post(format!(
-            "http://{addr}/api/repositories/{repo_id}/collaborators"
-        ))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "username": "contributor", "role": "contributor" }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    post_ok(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/repositories/{repo_id}/collaborators"),
+        &json!({ "username": "contributor", "role": "contributor" }),
+    )
+    .await;
 
-    let created_issue: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories/{repo_id}/issues"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "title": "Fix the thing", "description": "", "kind": "bug" }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let created_issue: serde_json::Value = post_ok(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/repositories/{repo_id}/issues"),
+        &json!({ "title": "Fix the thing", "description": "", "kind": "bug" }),
+    )
+    .await
+    .json()
+    .await
+    .unwrap();
 
-    client
-        .post(format!(
-            "http://{addr}/api/repositories/{repo_id}/issues/1/assign"
-        ))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "assigneeId": contributor_id }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    post_ok(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/repositories/{repo_id}/issues/1/assign"),
+        &json!({ "assigneeId": contributor_id }),
+    )
+    .await;
 
-    let contributor_login: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "contributor", "password": "password12345" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let contributor_jwt = contributor_login["token"].as_str().unwrap();
+    let contributor_jwt = login(&client, addr, "contributor", "password12345").await;
 
-    let dashboard: serde_json::Value = client
-        .get(format!("http://{addr}/api/dashboard"))
-        .bearer_auth(contributor_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let dashboard: serde_json::Value =
+        get_json(&client, addr, &contributor_jwt, "/dashboard").await;
 
     let assigned = dashboard["assignedIssues"].as_array().unwrap();
     assert_eq!(assigned.len(), 1);
@@ -225,15 +114,8 @@ async fn dashboard_lists_an_issue_assigned_to_the_caller(pool: PgPool) {
         "assigned issue",
     );
 
-    let owner_dashboard: serde_json::Value = client
-        .get(format!("http://{addr}/api/dashboard"))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let owner_dashboard: serde_json::Value =
+        get_json(&client, addr, &owner_jwt, "/dashboard").await;
     let authored = owner_dashboard["authoredIssues"].as_array().unwrap();
     assert_eq!(authored.len(), 1);
     assert_eq!(authored[0]["title"], "Fix the thing");
@@ -243,39 +125,22 @@ async fn dashboard_lists_an_issue_assigned_to_the_caller(pool: PgPool) {
         "authored issue",
     );
 
-    let token: serde_json::Value = client
-        .post(format!("http://{addr}/api/tokens"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "name": "ci" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let token: serde_json::Value = post_json(
+        &client,
+        addr,
+        &owner_jwt,
+        "/tokens",
+        &json!({ "name": "ci" }),
+    )
+    .await;
     let _clone_dir = push_main_and_feature(addr, token["token"].as_str().unwrap(), "hello").await;
-    let created_mr: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories/{repo_id}/merge-requests"))
-        .bearer_auth(owner_jwt)
-        .json(&json!({ "sourceBranch": "feature", "targetBranch": "main", "title": "Add line two", "description": "" }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap()
+    let created_mr: serde_json::Value = post_ok(&client, addr, &owner_jwt, &format!("/repositories/{repo_id}/merge-requests"), &json!({ "sourceBranch": "feature", "targetBranch": "main", "title": "Add line two", "description": "" })).await
         .json()
         .await
         .unwrap();
 
-    let owner_dashboard: serde_json::Value = client
-        .get(format!("http://{addr}/api/dashboard"))
-        .bearer_auth(owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let owner_dashboard: serde_json::Value =
+        get_json(&client, addr, &owner_jwt, "/dashboard").await;
     let authored_mrs = owner_dashboard["authoredMergeRequests"].as_array().unwrap();
     assert_eq!(authored_mrs.len(), 1);
     assert_eq!(authored_mrs[0]["title"], "Add line two");
@@ -288,15 +153,8 @@ async fn dashboard_lists_an_issue_assigned_to_the_caller(pool: PgPool) {
         "authored merge request",
     );
 
-    let contributor_dashboard: serde_json::Value = client
-        .get(format!("http://{addr}/api/dashboard"))
-        .bearer_auth(contributor_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let contributor_dashboard: serde_json::Value =
+        get_json(&client, addr, &contributor_jwt, "/dashboard").await;
     let to_review = contributor_dashboard["mergeRequestsToReview"]
         .as_array()
         .unwrap();

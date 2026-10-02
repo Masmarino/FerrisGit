@@ -3,6 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { PageTitleService } from '../../shell/page-title.service';
+import { RepositoryGeneralSettings } from '../repository-general-settings/repository-general-settings';
 import { RepositoryPipelineSettings } from '../repository-pipeline-settings/repository-pipeline-settings';
 import { RepositoryCiVariables } from '../repository-ci-variables/repository-ci-variables';
 import { RepositoryWebhooks } from '../repository-webhooks/repository-webhooks';
@@ -11,9 +12,10 @@ import { RepositoryLabelsSettings } from '../repository-labels-settings/reposito
 import { RepositoryMilestonesSettings } from '../repository-milestones-settings/repository-milestones-settings';
 import { NavTab, NavTabs, PageHeader, PageLayout } from '@masmarino/gabarit';
 
-export type SettingsSectionKey = 'pipeline' | 'variables' | 'webhooks' | 'collaborators' | 'labels' | 'milestones';
+export type SettingsSectionKey = 'general' | 'pipeline' | 'variables' | 'webhooks' | 'collaborators' | 'labels' | 'milestones';
 
 const SECTIONS: { key: SettingsSectionKey; label: string; icon: string }[] = [
+  { key: 'general', label: 'Informations', icon: 'info' },
   { key: 'pipeline', label: 'Pipeline', icon: 'play' },
   { key: 'variables', label: 'Variables CI/CD', icon: 'key' },
   { key: 'webhooks', label: 'Webhooks', icon: 'globe' },
@@ -22,7 +24,7 @@ const SECTIONS: { key: SettingsSectionKey; label: string; icon: string }[] = [
   { key: 'milestones', label: 'Milestones', icon: 'flag' },
 ];
 
-const DEFAULT_SECTION: SettingsSectionKey = 'pipeline';
+const DEFAULT_SECTION: SettingsSectionKey = 'general';
 
 @Component({
   selector: 'fg-repository-settings',
@@ -33,6 +35,7 @@ const DEFAULT_SECTION: SettingsSectionKey = 'pipeline';
     NavTab,
     NavTabs,
     RouterLink,
+    RepositoryGeneralSettings,
     RepositoryPipelineSettings,
     RepositoryCiVariables,
     RepositoryWebhooks,

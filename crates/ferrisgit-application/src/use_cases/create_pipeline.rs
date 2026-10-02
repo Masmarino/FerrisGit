@@ -2,16 +2,19 @@ use std::sync::Arc;
 
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::job::{JobStatus, JobStorePort, NewJob};
+use ferrisgit_domain::notification::NotificationStorePort;
 use ferrisgit_domain::pipeline::{NewPipeline, Pipeline, PipelineStatus, PipelineStorePort};
 use ferrisgit_domain::pipeline_definition::parse_pipeline_definition;
 use ferrisgit_domain::pipeline_events::{JobEvent, PipelineEvent, PipelineEventPublisherPort};
 use ferrisgit_domain::pipeline_file_reader::PipelineFileReaderPort;
+use ferrisgit_domain::repository::RepositoryStorePort;
 use ferrisgit_domain::settings::{RepositorySettingsStorePort, SystemSettingsStorePort};
+use ferrisgit_domain::user::UserRepositoryPort;
 use ferrisgit_domain::webhook_dispatcher::WebhookDispatcherPort;
 use uuid::Uuid;
 
 use crate::job_execution_resolver::JobExecutionResolver;
-use crate::use_cases::report_job_result::ReportJobResultUseCase;
+use crate::use_cases::report_job_result::{ReportJobResultUseCase, notify_pipeline_failure};
 
 pub struct CreatePipelineUseCase {
     repository_settings: Arc<dyn RepositorySettingsStorePort>,
@@ -21,9 +24,9 @@ pub struct CreatePipelineUseCase {
     file_reader: Arc<dyn PipelineFileReaderPort>,
     events: Arc<dyn PipelineEventPublisherPort>,
     job_execution: Arc<JobExecutionResolver>,
-    repositories: Arc<dyn ferrisgit_domain::repository::RepositoryStorePort>,
-    users: Arc<dyn ferrisgit_domain::user::UserRepositoryPort>,
-    notifications: Arc<dyn ferrisgit_domain::notification::NotificationStorePort>,
+    repositories: Arc<dyn RepositoryStorePort>,
+    users: Arc<dyn UserRepositoryPort>,
+    notifications: Arc<dyn NotificationStorePort>,
     webhooks: Arc<dyn WebhookDispatcherPort>,
 }
 
@@ -37,9 +40,9 @@ impl CreatePipelineUseCase {
         file_reader: Arc<dyn PipelineFileReaderPort>,
         events: Arc<dyn PipelineEventPublisherPort>,
         job_execution: Arc<JobExecutionResolver>,
-        repositories: Arc<dyn ferrisgit_domain::repository::RepositoryStorePort>,
-        users: Arc<dyn ferrisgit_domain::user::UserRepositoryPort>,
-        notifications: Arc<dyn ferrisgit_domain::notification::NotificationStorePort>,
+        repositories: Arc<dyn RepositoryStorePort>,
+        users: Arc<dyn UserRepositoryPort>,
+        notifications: Arc<dyn NotificationStorePort>,
         webhooks: Arc<dyn WebhookDispatcherPort>,
     ) -> Self {
         Self {
@@ -57,9 +60,10 @@ impl CreatePipelineUseCase {
         }
     }
 
-    /// `Ok(None)` when there is nothing to run: CI disabled, or the commit doesn't touch the pipeline file. `Err` for a
-    /// malformed pipeline file, which the pusher should hear about. The caller surfaces it, since the push itself
-    /// already succeeded.
+    /// `Ok(None)` when there is nothing to run: CI disabled, or the commit has no pipeline file. A file that is there
+    /// but invalid still yields a pipeline: `Failed` from the start, without jobs, carrying the parser's message, so
+    /// the pusher can read it in the interface (and is notified like for any failed pipeline). `Err` is for real
+    /// failures (storage, git).
     pub async fn execute(
         &self,
         repository_id: Uuid,
@@ -86,24 +90,26 @@ impl CreatePipelineUseCase {
         else {
             return Ok(None);
         };
-        let yaml = String::from_utf8(yaml_bytes).map_err(|e| {
-            DomainError::Validation(format!("pipeline file is not valid UTF-8: {e}"))
-        })?;
-        let definition =
-            parse_pipeline_definition(&yaml).map_err(|e| DomainError::Validation(e.to_string()))?;
-
         let engine = self.system_settings.get().await?.execution_engine;
+        let new_pipeline = NewPipeline {
+            repository_id,
+            commit_sha: commit_sha.to_string(),
+            execution_engine: engine,
+            triggered_by,
+        };
+
+        let definition = match String::from_utf8(yaml_bytes) {
+            Ok(yaml) => parse_pipeline_definition(&yaml).map_err(|e| e.to_string()),
+            Err(e) => Err(format!("pipeline file is not valid UTF-8: {e}")),
+        };
+        let definition = match definition {
+            Ok(definition) => definition,
+            Err(message) => return self.record_invalid_pipeline(new_pipeline, &message).await,
+        };
+
         let executor = self.job_execution.resolve(engine);
 
-        let pipeline = self
-            .pipelines
-            .create(NewPipeline {
-                repository_id,
-                commit_sha: commit_sha.to_string(),
-                execution_engine: engine,
-                triggered_by,
-            })
-            .await?;
+        let pipeline = self.pipelines.create(new_pipeline).await?;
         self.events
             .publish_pipeline_event(
                 pipeline.id,
@@ -148,12 +154,12 @@ impl CreatePipelineUseCase {
                 )
                 .await
                 .ok();
+        }
 
-            // Only a job without `needs` can run this early. `ReportJobResultUseCase` (through `list_runnable`) picks
-            // up later stages as their dependencies finish.
-            if job.needs.is_empty()
-                && let Err(err) = executor.submit(&job).await
-            {
+        // What can start now (the first stage, minus anything with `needs`) is decided by `runnable_jobs`, like for
+        // every later release: `ReportJobResultUseCase` asks `list_runnable` again as jobs succeed.
+        for job in self.jobs.list_runnable(pipeline.id).await? {
+            if let Err(err) = executor.submit(&job).await {
                 tracing::error!(error = %err, job_id = %job.id, "failed to submit job to execution engine; marking it failed");
                 let report = ReportJobResultUseCase::new(
                     self.jobs.clone(),
@@ -162,7 +168,7 @@ impl CreatePipelineUseCase {
                     self.job_execution.clone(),
                 );
                 let notify = report.execute(job.id, JobStatus::Failed).await?;
-                crate::use_cases::report_job_result::notify_pipeline_failure(
+                notify_pipeline_failure(
                     notify,
                     pipeline.id,
                     &self.pipelines,
@@ -177,6 +183,34 @@ impl CreatePipelineUseCase {
 
         Ok(Some(pipeline))
     }
+
+    async fn record_invalid_pipeline(
+        &self,
+        new_pipeline: NewPipeline,
+        message: &str,
+    ) -> Result<Option<Pipeline>, DomainError> {
+        let pipeline = self.pipelines.create_failed(new_pipeline, message).await?;
+        self.events
+            .publish_pipeline_event(
+                pipeline.id,
+                PipelineEvent::StatusChanged {
+                    status: PipelineStatus::Failed,
+                },
+            )
+            .await
+            .ok();
+        notify_pipeline_failure(
+            Some(pipeline.triggered_by),
+            pipeline.id,
+            &self.pipelines,
+            &self.repositories,
+            &self.users,
+            &self.notifications,
+            &self.webhooks,
+        )
+        .await;
+        Ok(Some(pipeline))
+    }
 }
 
 #[cfg(test)]
@@ -184,212 +218,272 @@ mod tests {
     use super::*;
     use crate::test_support::{
         FakeEvents, FakeExecution, FakeFileReader, FakeJobs, FakeNotifications, FakePipelines,
-        FakeRepositories, FakeRepositorySettings, FakeUsers, FakeWebhooks,
+        FakeRepositories, FakeRepositorySettings, FakeSystemSettings, FakeUsers, FakeWebhooks,
     };
+    use crate::use_cases::fixtures::{repository, system_settings, user};
     use async_trait::async_trait;
-    use chrono::Utc;
     use ferrisgit_domain::job::Job;
     use ferrisgit_domain::job_execution::JobExecutionPort;
-    use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
-    use ferrisgit_domain::settings::RepositorySettings;
+    use ferrisgit_domain::settings::{ExecutionEngine, RepositorySettings, SystemSettings};
     use ferrisgit_domain::user::User;
 
-    fn repository(id: Uuid) -> Repository {
-        Repository {
-            id,
-            owner_id: Uuid::new_v4(),
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
+    const COMPILE_ONLY_YAML: &[u8] = b"stages: [build]\njobs:\n  compile:\n    stage: build\n    image: rust:1.82\n    script: [\"cargo build\"]\n";
+
+    /// What a test changes about the world the use case runs in: the pipeline file the commit holds, CI on or off, the
+    /// active engine and, unless `executor` replaces it, a recording `FakeExecution` behind both engines.
+    struct Config {
+        file: Option<Vec<u8>>,
+        ci_enabled: bool,
+        engine: ExecutionEngine,
+        executor: Option<Arc<dyn JobExecutionPort>>,
+    }
+
+    impl Config {
+        fn with_file(file: &[u8]) -> Self {
+            Self {
+                file: Some(file.to_vec()),
+                ci_enabled: true,
+                engine: ExecutionEngine::DockerRunners,
+                executor: None,
+            }
         }
     }
 
-    fn user(id: Uuid) -> User {
-        User {
-            id,
-            username: "florian".to_string(),
-            email: "florian@example.com".to_string(),
-            password_hash: "hash".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
+    struct Setup {
+        use_case: CreatePipelineUseCase,
+        repository_id: Uuid,
+        pipelines: Arc<FakePipelines>,
+        jobs: Arc<FakeJobs>,
+        events: Arc<FakeEvents>,
+        execution: Arc<FakeExecution>,
+        notifications: Arc<FakeNotifications>,
     }
 
-    fn default_settings(repository_id: Uuid) -> RepositorySettings {
-        RepositorySettings {
-            repository_id,
-            pipeline_file_path: ".ferrisgit-ci.yml".to_string(),
-            ci_enabled: true,
-            required_approvals: 0,
-        }
-    }
-
-    struct FakeSystemSettingsWithEngine(ferrisgit_domain::settings::ExecutionEngine);
-    impl Default for FakeSystemSettingsWithEngine {
-        fn default() -> Self {
-            Self(ferrisgit_domain::settings::ExecutionEngine::DockerRunners)
-        }
-    }
-    #[async_trait]
-    impl SystemSettingsStorePort for FakeSystemSettingsWithEngine {
-        async fn get(&self) -> Result<ferrisgit_domain::settings::SystemSettings, DomainError> {
-            Ok(ferrisgit_domain::settings::SystemSettings {
-                execution_engine: self.0,
-                k8s_namespace: None,
-                k8s_cache_storage_class: None,
-                runner_registration_token: None,
-                log_retention_days: None,
-                max_concurrent_jobs: None,
-                jwt_ttl_hours: 12,
-                max_push_size_mb: 500,
-            })
-        }
-        async fn update(
-            &self,
-            _update: ferrisgit_domain::settings::SystemSettingsUpdate,
-        ) -> Result<ferrisgit_domain::settings::SystemSettings, DomainError> {
-            unimplemented!()
-        }
-    }
-
-    #[tokio::test]
-    async fn ci_disabled_returns_none_without_touching_anything_else() {
-        let repository_id = Uuid::new_v4();
-        let execution = Arc::new(FakeExecution::new());
-        let use_case = CreatePipelineUseCase::new(
-            Arc::new(FakeRepositorySettings::new(RepositorySettings {
-                ci_enabled: false,
-                ..default_settings(repository_id)
-            })),
-            Arc::new(FakeSystemSettingsWithEngine::default()),
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            Arc::new(FakeFileReader::new(Some(b"stages: []".to_vec()))),
-            Arc::new(FakeEvents::new()),
-            Arc::new(JobExecutionResolver::new(
-                execution.clone(),
-                execution.clone(),
-            )),
-            Arc::new(FakeRepositories::new(vec![repository(Uuid::new_v4())])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
-
-        let result = use_case
-            .execute(repository_id, "path", "sha", Uuid::new_v4())
-            .await
-            .unwrap();
-
-        assert!(result.is_none());
-    }
-
-    #[tokio::test]
-    async fn a_commit_with_no_pipeline_file_returns_none() {
-        let repository_id = Uuid::new_v4();
-        let execution = Arc::new(FakeExecution::new());
-        let use_case = CreatePipelineUseCase::new(
-            Arc::new(FakeRepositorySettings::new(default_settings(repository_id))),
-            Arc::new(FakeSystemSettingsWithEngine::default()),
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            Arc::new(FakeFileReader::none()),
-            Arc::new(FakeEvents::new()),
-            Arc::new(JobExecutionResolver::new(
-                execution.clone(),
-                execution.clone(),
-            )),
-            Arc::new(FakeRepositories::new(vec![repository(Uuid::new_v4())])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
-
-        let result = use_case
-            .execute(repository_id, "path", "sha", Uuid::new_v4())
-            .await
-            .unwrap();
-
-        assert!(result.is_none());
-    }
-
-    #[tokio::test]
-    async fn a_malformed_pipeline_file_is_a_validation_error() {
-        let repository_id = Uuid::new_v4();
-        let execution = Arc::new(FakeExecution::new());
-        let use_case = CreatePipelineUseCase::new(
-            Arc::new(FakeRepositorySettings::new(default_settings(repository_id))),
-            Arc::new(FakeSystemSettingsWithEngine::default()),
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            Arc::new(FakeFileReader::new(Some(b"not: [valid, yaml".to_vec()))),
-            Arc::new(FakeEvents::new()),
-            Arc::new(JobExecutionResolver::new(
-                execution.clone(),
-                execution.clone(),
-            )),
-            Arc::new(FakeRepositories::new(vec![repository(Uuid::new_v4())])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
-
-        let result = use_case
-            .execute(repository_id, "path", "sha", Uuid::new_v4())
-            .await;
-
-        assert!(matches!(result, Err(DomainError::Validation(_))));
-    }
-
-    #[tokio::test]
-    async fn a_valid_pipeline_file_creates_the_pipeline_and_submits_every_job() {
-        let repository_id = Uuid::new_v4();
-        let yaml = b"stages: [build]\njobs:\n  compile:\n    stage: build\n    image: rust:1.82\n    script: [\"cargo build\"]\n".to_vec();
+    fn setup(config: Config) -> Setup {
+        let repo = repository(Uuid::new_v4());
+        let repository_id = repo.id;
+        // `notify_pipeline_failure` resolves the owner through `find_by_id(repo.owner_id)`: seed that exact id.
+        let owner = User {
+            id: repo.owner_id,
+            ..user("florian")
+        };
         let pipelines = Arc::new(FakePipelines::empty());
         let jobs = Arc::new(FakeJobs::empty());
         let events = Arc::new(FakeEvents::new());
         let execution = Arc::new(FakeExecution::new());
+        let notifications = Arc::new(FakeNotifications::empty());
+        let executor = config.executor.unwrap_or_else(|| execution.clone());
         let use_case = CreatePipelineUseCase::new(
-            Arc::new(FakeRepositorySettings::new(default_settings(repository_id))),
-            Arc::new(FakeSystemSettingsWithEngine::default()),
+            Arc::new(FakeRepositorySettings::new(RepositorySettings {
+                repository_id,
+                pipeline_file_path: ".ferrisgit-ci.yml".to_string(),
+                ci_enabled: config.ci_enabled,
+                required_approvals: 0,
+            })),
+            Arc::new(FakeSystemSettings::new(SystemSettings {
+                execution_engine: config.engine,
+                ..system_settings()
+            })),
             pipelines.clone(),
             jobs.clone(),
-            Arc::new(FakeFileReader::new(Some(yaml))),
+            Arc::new(FakeFileReader::new(config.file)),
             events.clone(),
-            Arc::new(JobExecutionResolver::new(
-                execution.clone(),
-                execution.clone(),
-            )),
-            Arc::new(FakeRepositories::new(vec![repository(Uuid::new_v4())])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
+            Arc::new(JobExecutionResolver::new(executor.clone(), executor)),
+            Arc::new(FakeRepositories::new(vec![repo])),
+            Arc::new(FakeUsers::new(vec![owner])),
+            notifications.clone(),
             Arc::new(FakeWebhooks::default()),
         );
+        Setup {
+            use_case,
+            repository_id,
+            pipelines,
+            jobs,
+            events,
+            execution,
+            notifications,
+        }
+    }
 
-        let result = use_case
-            .execute(repository_id, "path", "abc123", Uuid::new_v4())
+    fn setup_with_file(file: Option<Vec<u8>>) -> Setup {
+        setup(Config {
+            file,
+            ..Config::with_file(b"")
+        })
+    }
+
+    async fn push(setup: &Setup) -> Option<Pipeline> {
+        setup
+            .use_case
+            .execute(setup.repository_id, "path", "abc123", Uuid::new_v4())
             .await
-            .unwrap();
+            .unwrap()
+    }
 
-        let pipeline = result.expect("a valid pipeline file must produce a pipeline");
+    #[tokio::test]
+    async fn ci_disabled_returns_none_without_touching_anything_else() {
+        let setup = setup(Config {
+            ci_enabled: false,
+            ..Config::with_file(b"stages: []")
+        });
+
+        assert!(push(&setup).await.is_none());
+
+        assert!(setup.pipelines.snapshot().is_empty());
+        assert!(setup.jobs.snapshot().is_empty());
+    }
+
+    #[tokio::test]
+    async fn a_commit_with_no_pipeline_file_returns_none() {
+        let setup = setup_with_file(None);
+
+        assert!(push(&setup).await.is_none());
+    }
+
+    #[tokio::test]
+    async fn a_malformed_pipeline_file_still_creates_a_failed_pipeline_carrying_the_parser_message()
+    {
+        let setup = setup_with_file(Some(b"not: [valid, yaml".to_vec()));
+
+        let pipeline = push(&setup)
+            .await
+            .expect("an invalid file must still produce a pipeline the pusher can see");
+
+        assert_eq!(pipeline.status, PipelineStatus::Failed);
         assert_eq!(pipeline.commit_sha, "abc123");
-        assert_eq!(jobs.snapshot().len(), 1);
+        assert!(
+            pipeline
+                .error
+                .as_deref()
+                .unwrap()
+                .starts_with("invalid YAML"),
+            "the message is the parser's, got {:?}",
+            pipeline.error
+        );
+        let stored = setup.pipelines.snapshot();
+        assert_eq!(stored.len(), 1);
+        assert_eq!(stored[0].status, PipelineStatus::Failed);
+        assert_eq!(stored[0].error, pipeline.error);
+        assert!(setup.jobs.snapshot().is_empty(), "no job is created");
+        assert!(setup.execution.submitted().is_empty());
+    }
+
+    #[tokio::test]
+    async fn an_invalid_pipeline_announces_its_failure_and_notifies_the_pusher() {
+        let setup = setup_with_file(Some(b"stages: [a]\njobs: {}\nbogus".to_vec()));
+
+        push(&setup).await.unwrap();
+
+        let events = setup.events.pipeline_events();
+        assert_eq!(events.len(), 1);
+        let (_, PipelineEvent::StatusChanged { status }) = &events[0];
+        assert_eq!(*status, PipelineStatus::Failed);
+        assert_eq!(setup.notifications.snapshot().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn each_kind_of_invalid_file_reports_its_own_message() {
+        let cases: [(&str, &str); 4] = [
+            (
+                "stages: [build]\njobs:\n  a:\n    stage: deploy\n    image: alpine\n    script: [\"true\"]\n",
+                "stage 'deploy'",
+            ),
+            (
+                "stages: [build]\njobs:\n  a:\n    stage: build\n    image: alpine\n    script: [\"true\"]\n    needs: [ghost]\n",
+                "ghost",
+            ),
+            (
+                "stages: [build]\njobs:\n  a:\n    stage: build\n    image: alpine\n    script: [\"true\"]\n    needs: [b]\n  b:\n    stage: build\n    image: alpine\n    script: [\"true\"]\n    needs: [a]\n",
+                "a -> b -> a",
+            ),
+            (
+                "stages: [build]\njobs:\n  a:\n    stage: build\n    image: alpine\n    script: [\"true\"]\n    cache: [\"Bad Key\"]\n",
+                "Bad Key",
+            ),
+        ];
+        for (yaml, expected) in cases {
+            let setup = setup_with_file(Some(yaml.as_bytes().to_vec()));
+
+            let pipeline = push(&setup).await.unwrap();
+
+            assert_eq!(pipeline.status, PipelineStatus::Failed, "{expected}");
+            assert!(
+                pipeline.error.as_deref().unwrap().contains(expected),
+                "expected {expected:?} in {:?}",
+                pipeline.error
+            );
+            assert!(setup.jobs.snapshot().is_empty());
+        }
+    }
+
+    #[tokio::test]
+    async fn a_pipeline_file_that_is_not_utf8_is_an_invalid_file_too() {
+        let setup = setup_with_file(Some(vec![0xff, 0xfe, 0x00]));
+
+        let pipeline = push(&setup).await.unwrap();
+
+        assert_eq!(pipeline.status, PipelineStatus::Failed);
+        assert!(pipeline.error.as_deref().unwrap().contains("UTF-8"));
+    }
+
+    #[tokio::test]
+    async fn a_missing_pipeline_file_creates_no_pipeline_at_all() {
+        let setup = setup_with_file(None);
+
+        assert!(push(&setup).await.is_none());
+
+        assert!(setup.pipelines.snapshot().is_empty());
+        assert!(setup.events.pipeline_events().is_empty());
+        assert!(setup.notifications.snapshot().is_empty());
+    }
+
+    #[tokio::test]
+    async fn only_the_first_stage_is_submitted_at_creation_time() {
+        let yaml = b"stages: [build, test, deploy]\njobs:\n  compile:\n    stage: build\n    image: rust:1.82\n    script: [\"cargo build\"]\n  lint:\n    stage: build\n    image: rust:1.82\n    script: [\"cargo clippy\"]\n  unit:\n    stage: test\n    image: rust:1.82\n    script: [\"cargo test\"]\n  ship:\n    stage: deploy\n    image: rust:1.82\n    script: [\"true\"]\n";
+        let setup = setup(Config::with_file(yaml));
+
+        push(&setup).await.unwrap();
+
+        let submitted = setup.execution.submitted();
+        let names: Vec<String> = setup
+            .jobs
+            .snapshot()
+            .into_iter()
+            .filter(|j| submitted.contains(&j.id))
+            .map(|j| j.name)
+            .collect();
         assert_eq!(
-            execution.submitted().len(),
+            names,
+            vec!["compile", "lint"],
+            "later stages wait for the barrier even though they declare no needs"
+        );
+    }
+
+    #[tokio::test]
+    async fn a_valid_pipeline_file_creates_the_pipeline_and_submits_every_job() {
+        let setup = setup(Config::with_file(COMPILE_ONLY_YAML));
+
+        let pipeline = push(&setup)
+            .await
+            .expect("a valid pipeline file must produce a pipeline");
+
+        assert_eq!(pipeline.commit_sha, "abc123");
+        assert_eq!(setup.jobs.snapshot().len(), 1);
+        assert_eq!(
+            setup.execution.submitted().len(),
             1,
             "the created job must be submitted to the execution engine"
         );
         assert!(
-            events
+            setup
+                .events
                 .pipeline_events()
                 .iter()
                 .any(|(_, e)| e.event_type() == "PipelineStatusChanged")
         );
         assert!(
-            events
+            setup
+                .events
                 .job_events()
                 .iter()
                 .any(|(_, e)| e.event_type() == "JobStatusChanged")
@@ -398,107 +492,38 @@ mod tests {
 
     #[tokio::test]
     async fn the_created_pipeline_is_tagged_with_the_currently_active_engine() {
-        let repository_id = Uuid::new_v4();
-        let yaml = b"stages: [build]\njobs:\n  compile:\n    stage: build\n    image: rust:1.82\n    script: [\"cargo build\"]\n".to_vec();
-        let execution = Arc::new(FakeExecution::new());
-        let use_case = CreatePipelineUseCase::new(
-            Arc::new(FakeRepositorySettings::new(default_settings(repository_id))),
-            Arc::new(FakeSystemSettingsWithEngine(
-                ferrisgit_domain::settings::ExecutionEngine::Kubernetes,
-            )),
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            Arc::new(FakeFileReader::new(Some(yaml))),
-            Arc::new(FakeEvents::new()),
-            Arc::new(JobExecutionResolver::new(
-                execution.clone(),
-                execution.clone(),
-            )),
-            Arc::new(FakeRepositories::new(vec![repository(Uuid::new_v4())])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let setup = setup(Config {
+            engine: ExecutionEngine::Kubernetes,
+            ..Config::with_file(COMPILE_ONLY_YAML)
+        });
 
-        let pipeline = use_case
-            .execute(repository_id, "path", "abc123", Uuid::new_v4())
-            .await
-            .unwrap()
-            .unwrap();
+        let pipeline = push(&setup).await.unwrap();
 
-        assert_eq!(
-            pipeline.execution_engine,
-            ferrisgit_domain::settings::ExecutionEngine::Kubernetes
-        );
+        assert_eq!(pipeline.execution_engine, ExecutionEngine::Kubernetes);
     }
 
     #[tokio::test]
     async fn jobs_are_created_in_stage_order_not_alphabetical_order() {
         // Creation order must follow `stages`, not the alphabetical BTreeMap order: the pipeline page derives stage
         // order from creation time.
-        let repository_id = Uuid::new_v4();
-        let yaml = b"stages: [prepare, check]\njobs:\n  a-check:\n    stage: check\n    image: alpine:3.20\n    script: [\"true\"]\n  z-prepare:\n    stage: prepare\n    image: alpine:3.20\n    script: [\"true\"]\n".to_vec();
-        let jobs = Arc::new(FakeJobs::empty());
-        let execution = Arc::new(FakeExecution::new());
-        let use_case = CreatePipelineUseCase::new(
-            Arc::new(FakeRepositorySettings::new(default_settings(repository_id))),
-            Arc::new(FakeSystemSettingsWithEngine(
-                ferrisgit_domain::settings::ExecutionEngine::DockerRunners,
-            )),
-            Arc::new(FakePipelines::empty()),
-            jobs.clone(),
-            Arc::new(FakeFileReader::new(Some(yaml))),
-            Arc::new(FakeEvents::new()),
-            Arc::new(JobExecutionResolver::new(
-                execution.clone(),
-                execution.clone(),
-            )),
-            Arc::new(FakeRepositories::new(vec![repository(Uuid::new_v4())])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let yaml = b"stages: [prepare, check]\njobs:\n  a-check:\n    stage: check\n    image: alpine:3.20\n    script: [\"true\"]\n  z-prepare:\n    stage: prepare\n    image: alpine:3.20\n    script: [\"true\"]\n";
+        let setup = setup(Config::with_file(yaml));
 
-        use_case
-            .execute(repository_id, "path", "abc123", Uuid::new_v4())
-            .await
-            .unwrap();
+        push(&setup).await.unwrap();
 
-        let stages: Vec<String> = jobs.snapshot().into_iter().map(|j| j.stage).collect();
+        let stages: Vec<String> = setup.jobs.snapshot().into_iter().map(|j| j.stage).collect();
         assert_eq!(stages, vec!["prepare", "check"]);
     }
 
     #[tokio::test]
     async fn a_job_with_unmet_needs_is_not_submitted_at_creation_time() {
-        let repository_id = Uuid::new_v4();
-        let yaml = b"stages: [build, test]\njobs:\n  compile:\n    stage: build\n    image: rust:1.82\n    script: [\"cargo build\"]\n  unit-tests:\n    stage: test\n    image: rust:1.82\n    script: [\"cargo test\"]\n    needs: [compile]\n".to_vec();
-        let execution = Arc::new(FakeExecution::new());
-        let use_case = CreatePipelineUseCase::new(
-            Arc::new(FakeRepositorySettings::new(default_settings(repository_id))),
-            Arc::new(FakeSystemSettingsWithEngine(
-                ferrisgit_domain::settings::ExecutionEngine::DockerRunners,
-            )),
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            Arc::new(FakeFileReader::new(Some(yaml))),
-            Arc::new(FakeEvents::new()),
-            Arc::new(JobExecutionResolver::new(
-                execution.clone(),
-                execution.clone(),
-            )),
-            Arc::new(FakeRepositories::new(vec![repository(Uuid::new_v4())])),
-            Arc::new(FakeUsers::new(vec![user(Uuid::new_v4())])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let yaml = b"stages: [build, test]\njobs:\n  compile:\n    stage: build\n    image: rust:1.82\n    script: [\"cargo build\"]\n  unit-tests:\n    stage: test\n    image: rust:1.82\n    script: [\"cargo test\"]\n    needs: [compile]\n";
+        let setup = setup(Config::with_file(yaml));
 
-        use_case
-            .execute(repository_id, "path", "abc123", Uuid::new_v4())
-            .await
-            .unwrap();
+        push(&setup).await.unwrap();
 
         assert_eq!(
-            execution.submitted().len(),
+            setup.execution.submitted().len(),
             1,
             "only the needs-less job (compile) should be submitted; unit-tests must wait"
         );
@@ -506,53 +531,28 @@ mod tests {
 
     #[tokio::test]
     async fn a_submission_failure_marks_the_job_failed_instead_of_aborting_pipeline_creation() {
-        let repository_id = Uuid::new_v4();
-        let yaml = b"stages: [build]\njobs:\n  compile:\n    stage: build\n    image: rust:1.82\n    script: [\"cargo build\"]\n".to_vec();
-        let pipelines = Arc::new(FakePipelines::empty());
-        let jobs = Arc::new(FakeJobs::empty());
-        let events = Arc::new(FakeEvents::new());
-        let failing_execution = Arc::new(FailingExecution);
-        let notifications = Arc::new(FakeNotifications::empty());
-        let repo = repository(repository_id);
-        // `notify_pipeline_failure` resolves the owner via `find_by_id(repo.owner_id)`: seed that exact id.
-        let owner_id = repo.owner_id;
-        let use_case = CreatePipelineUseCase::new(
-            Arc::new(FakeRepositorySettings::new(default_settings(repository_id))),
-            Arc::new(FakeSystemSettingsWithEngine(
-                ferrisgit_domain::settings::ExecutionEngine::Kubernetes,
-            )),
-            pipelines.clone(),
-            jobs.clone(),
-            Arc::new(FakeFileReader::new(Some(yaml))),
-            events.clone(),
-            Arc::new(JobExecutionResolver::new(
-                failing_execution.clone(),
-                failing_execution.clone(),
-            )),
-            Arc::new(FakeRepositories::new(vec![repo])),
-            Arc::new(FakeUsers::new(vec![user(owner_id)])),
-            notifications.clone(),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let setup = setup(Config {
+            engine: ExecutionEngine::Kubernetes,
+            executor: Some(Arc::new(FailingExecution)),
+            ..Config::with_file(COMPILE_ONLY_YAML)
+        });
 
-        let _pipeline = use_case
-            .execute(repository_id, "path", "abc123", Uuid::new_v4())
+        let _pipeline = push(&setup)
             .await
-            .unwrap()
             .expect("the pipeline row itself must still be created");
 
         assert_eq!(
-            jobs.snapshot()[0].status,
+            setup.jobs.snapshot()[0].status,
             JobStatus::Failed,
             "a job whose submission fails must end up Failed, not stuck Pending forever"
         );
         assert_eq!(
-            pipelines.snapshot()[0].status,
+            setup.pipelines.snapshot()[0].status,
             PipelineStatus::Failed,
             "the pipeline must reach a terminal status too, via the same aggregation ReportJobResultUseCase already does"
         );
         assert_eq!(
-            notifications.snapshot().len(),
+            setup.notifications.snapshot().len(),
             1,
             "the submission-failure path must notify the pipeline's pusher exactly once"
         );

@@ -279,6 +279,7 @@ pub async fn git_smart_http(state: AppState, req: axum::extract::Request) -> Res
         state.repository_collaborators.clone(),
         state.groups.clone(),
         state.group_membership.clone(),
+        state.public_pages_settings.clone(),
     );
     let (repo, pusher_id) = match use_case.execute(credentials, repo, access).await {
         Ok(resolved) => resolved,

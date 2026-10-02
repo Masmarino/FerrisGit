@@ -108,31 +108,17 @@ mod tests {
     use crate::test_support::{
         FakeCollaborators, FakeGroups, FakeIssues, FakeMergeRequests, FakeRepositories, FakeUsers,
     };
-    use chrono::Utc;
-    use ferrisgit_domain::repository::RepositoryVisibility;
+    use crate::use_cases::fixtures;
 
     fn repo(id: Uuid, owner_id: Uuid, name: &str) -> Repository {
         Repository {
-            id,
-            owner_id,
             name: name.to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "r.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
+            ..fixtures::repository_with_id(id, owner_id)
         }
     }
 
     fn some_user() -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: "florian".to_string(),
-            email: "f@example.com".to_string(),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
+        fixtures::user("florian")
     }
 
     fn use_case(

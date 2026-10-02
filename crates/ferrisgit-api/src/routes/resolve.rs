@@ -79,6 +79,16 @@ pub(crate) async fn resolve_path(state: &AppState, path: &str) -> Result<Resolve
     Ok(use_case.execute(&segments).await?)
 }
 
+/// A path the caller cannot read looks like a path that does not exist.
+fn unreadable_path_is_missing(error: DomainError) -> DomainError {
+    match error {
+        DomainError::NotFound(_) | DomainError::Unauthorized(_) => {
+            DomainError::NotFound("path".to_string())
+        }
+        other => other,
+    }
+}
+
 async fn resolve(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -89,12 +99,7 @@ async fn resolve(
         ResolvedPath::PersonalRepository(repo) => {
             require_role_by_id(&state, user_id, repo.id, CollaboratorRole::Reader)
                 .await
-                .map_err(|e| match e {
-                    DomainError::NotFound(_) | DomainError::Unauthorized(_) => {
-                        DomainError::NotFound("path".to_string())
-                    }
-                    other => other,
-                })?;
+                .map_err(unreadable_path_is_missing)?;
             ResolveResponse::repository(repo.id, None)
         }
         ResolvedPath::Group { chain } => {
@@ -117,12 +122,7 @@ async fn resolve(
         ResolvedPath::GroupRepository { chain, repository } => {
             require_role_by_id(&state, user_id, repository.id, CollaboratorRole::Reader)
                 .await
-                .map_err(|e| match e {
-                    DomainError::NotFound(_) | DomainError::Unauthorized(_) => {
-                        DomainError::NotFound("path".to_string())
-                    }
-                    other => other,
-                })?;
+                .map_err(unreadable_path_is_missing)?;
             ResolveResponse::repository(repository.id, Some(&chain))
         }
     }))

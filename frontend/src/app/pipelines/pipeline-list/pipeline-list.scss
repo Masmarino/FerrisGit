@@ -60,6 +60,11 @@
   font-weight: inherit;
 }
 
+.pipeline-list__invalid {
+  color: var(--color-error-text);
+  font-weight: 600;
+}
+
 .pipeline-list__sha {
   flex: none;
 }

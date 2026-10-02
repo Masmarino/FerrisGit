@@ -1,16 +1,14 @@
 #!/usr/bin/env bash
-# Runs the backend and frontend locally with Angular hot reload. Postgres comes from docker-compose
-# (started here if needed, published on 5435) and is left running when this script stops.
-# The backend is a local `cargo run` on :8080 and the frontend `ng serve` on :4201 (frontend/proxy.conf.json
-# forwards /api and /health to :8080). Do not run the full compose stack at the same time: it also uses :8080.
+# Runs the backend and the frontend locally, with hot reload. PostgreSQL comes from docker compose (published on 5435)
+# and is left running when the script stops: `docker compose stop postgres` stops it.
+# The backend is a local `cargo run` on :8080 and the frontend the Angular dev server on :4201, which forwards /api and
+# /health to :8080 (frontend/proxy.conf.json). Do not run the full compose stack at the same time: it also uses :8080.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# docker-compose reads POSTGRES_PASSWORD (and JWT_SECRET/SETTINGS_ENCRYPTION_KEY,
-# for the full-stack container) from .env itself; source it here too so the
-# locally-run backend connects with the same credentials.
+# Compose reads .env itself; source it here too so the local backend uses the same credentials.
 if [ -f .env ]; then
   set -a
   # shellcheck disable=SC1091
@@ -46,8 +44,6 @@ cleanup() {
   echo "==> Stopping backend"
   kill "$BACKEND_PID" 2>/dev/null || true
   wait "$BACKEND_PID" 2>/dev/null || true
-  # Postgres is left running — stop it manually if you want it down too:
-  #   docker compose stop postgres
   exit 0
 }
 trap cleanup EXIT INT TERM

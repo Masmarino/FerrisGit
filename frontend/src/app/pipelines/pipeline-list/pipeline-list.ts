@@ -23,7 +23,7 @@ import {
   SelectOption,
 } from '@masmarino/gabarit';
 import { PipelineSummary, PipelinesService } from '../pipelines.service';
-import { formatDuration } from '../pipeline-helpers';
+import { formatDuration, isTerminal, pipelineLink } from '../pipeline-helpers';
 import { PageTitleService } from '../../shell/page-title.service';
 import { StatusBadge, StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 
@@ -48,8 +48,6 @@ const TAB_STATUSES: Record<Exclude<StatusTab, 'all'>, PipelineSummary['status'][
 
 const TAB_ADJECTIVES: Record<StatusTab, string> = { all: '', active: ' en cours', success: ' réussi', failed: ' échoué' };
 
-const TERMINAL_STATUSES: ReadonlySet<PipelineSummary['status']> = new Set(['success', 'failed', 'canceled']);
-
 interface PipelineRow {
   pipeline: PipelineSummary;
   link: string[];
@@ -62,6 +60,10 @@ interface PipelineRow {
 
 /** Running durations are as of the last load (the list does not tick). Pipelines finished before migration 0003 have no `finishedAt`, so they show no duration rather than a wrong one. */
 function durationText(pipeline: PipelineSummary, now: number): string | null {
+  // An invalid pipeline file fails at once and nothing ever ran: a duration of 0s would only be noise.
+  if (pipeline.error !== null) {
+    return null;
+  }
   const since = formatDuration(now - Date.parse(pipeline.createdAt));
   if (pipeline.status === 'running') {
     return `en cours depuis ${since}`;
@@ -69,7 +71,7 @@ function durationText(pipeline: PipelineSummary, now: number): string | null {
   if (pipeline.status === 'pending') {
     return `en attente depuis ${since}`;
   }
-  if (!TERMINAL_STATUSES.has(pipeline.status) || pipeline.finishedAt === null) {
+  if (!isTerminal(pipeline.status) || pipeline.finishedAt === null) {
     return null;
   }
   return `durée ${formatDuration(Date.parse(pipeline.finishedAt) - Date.parse(pipeline.createdAt))}`;
@@ -159,7 +161,7 @@ export class PipelineList implements OnInit {
         const shortId = pipeline.id.slice(0, 8);
         return {
           pipeline,
-          link: ['/repositories', ...this.path(), '-', 'pipelines', pipeline.id],
+          link: pipelineLink(this.path(), pipeline.id),
           status: statusPresentation('pipeline', pipeline.status),
           shortId,
           shortSha: pipeline.commitSha.slice(0, 8),

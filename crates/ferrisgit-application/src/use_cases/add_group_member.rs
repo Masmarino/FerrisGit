@@ -7,6 +7,8 @@ use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use ferrisgit_domain::user::UserRepositoryPort;
 use uuid::Uuid;
 
+use super::require_group_maintainer::require_group_maintainer;
+
 pub struct AddGroupMemberUseCase {
     groups: Arc<dyn GroupStorePort>,
     group_membership: Arc<dyn GroupMembershipPort>,
@@ -33,20 +35,13 @@ impl AddGroupMemberUseCase {
         username: &str,
         role: CollaboratorRole,
     ) -> Result<(), DomainError> {
-        let chain = self.groups.ancestor_chain(group_id).await?;
-        let mut best: Option<CollaboratorRole> = None;
-        for group in &chain {
-            if let Some(r) = self
-                .group_membership
-                .get_member_role(group.id, caller_id)
-                .await?
-            {
-                best = Some(best.map_or(r, |b| b.max(r)));
-            }
-        }
-        if best.is_none_or(|r| r < CollaboratorRole::Maintainer) {
-            return Err(DomainError::NotFound("group".to_string()));
-        }
+        require_group_maintainer(
+            self.groups.as_ref(),
+            self.group_membership.as_ref(),
+            group_id,
+            caller_id,
+        )
+        .await?;
 
         let target = self
             .users
@@ -63,95 +58,61 @@ impl AddGroupMemberUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeGroups, FakeUsers};
-    use chrono::Utc;
-    use ferrisgit_domain::group::NewGroup;
-    use ferrisgit_domain::group_membership::GroupMembershipPort;
+    use crate::use_cases::fixtures::{group, user};
+    use ferrisgit_domain::group::Group;
     use ferrisgit_domain::user::User;
 
-    fn user(username: &str) -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: username.to_string(),
-            email: format!("{username}@example.com"),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
+    /// The use case over `groups`, with each `(group, user, role)` of `members` already granted.
+    async fn fixture(
+        users: Vec<User>,
+        groups: Vec<Group>,
+        members: &[(Uuid, Uuid, CollaboratorRole)],
+    ) -> (AddGroupMemberUseCase, Arc<FakeGroups>) {
+        let groups = Arc::new(FakeGroups::new(groups));
+        for &(group_id, user_id, role) in members {
+            groups.add_member(group_id, user_id, role).await.unwrap();
         }
+        let use_case = AddGroupMemberUseCase::new(
+            groups.clone(),
+            groups.clone(),
+            Arc::new(FakeUsers::new(users)),
+        );
+        (use_case, groups)
     }
 
     #[tokio::test]
     async fn a_direct_maintainer_can_add_a_member() {
-        let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
         let target = user("alice");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        let use_case = AddGroupMemberUseCase::new(
-            groups.clone(),
-            groups.clone(),
-            Arc::new(FakeUsers::new(vec![owner.clone(), target.clone()])),
-        );
+        let acme = group(None, "acme");
+        let (use_case, groups) = fixture(
+            vec![owner.clone(), target.clone()],
+            vec![acme.clone()],
+            &[(acme.id, owner.id, CollaboratorRole::Maintainer)],
+        )
+        .await;
 
         use_case
-            .execute(group.id, owner.id, "alice", CollaboratorRole::Contributor)
+            .execute(acme.id, owner.id, "alice", CollaboratorRole::Contributor)
             .await
             .unwrap();
 
-        assert!(groups.has_member(group.id, target.id, CollaboratorRole::Contributor));
+        assert!(groups.has_member(acme.id, target.id, CollaboratorRole::Contributor));
     }
 
     #[tokio::test]
     async fn a_maintainer_inherited_from_an_ancestor_two_levels_up_can_add_a_member() {
-        let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
         let target = user("alice");
-        let root = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(root.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        let mid = groups
-            .create(NewGroup {
-                parent_group_id: Some(root.id),
-                name: "backend".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        let leaf = groups
-            .create(NewGroup {
-                parent_group_id: Some(mid.id),
-                name: "infra".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        let use_case = AddGroupMemberUseCase::new(
-            groups.clone(),
-            groups.clone(),
-            Arc::new(FakeUsers::new(vec![owner.clone(), target.clone()])),
-        );
+        let root = group(None, "acme");
+        let mid = group(Some(root.id), "backend");
+        let leaf = group(Some(mid.id), "infra");
+        let (use_case, groups) = fixture(
+            vec![owner.clone(), target.clone()],
+            vec![root.clone(), mid, leaf.clone()],
+            &[(root.id, owner.id, CollaboratorRole::Maintainer)],
+        )
+        .await;
 
         use_case
             .execute(leaf.id, owner.id, "alice", CollaboratorRole::Reader)
@@ -163,39 +124,21 @@ mod tests {
 
     #[tokio::test]
     async fn a_caller_below_maintainer_anywhere_in_the_chain_is_rejected() {
-        let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
         let contributor = user("contributor");
-        let target = user("alice");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, contributor.id, CollaboratorRole::Contributor)
-            .await
-            .unwrap();
-        let use_case = AddGroupMemberUseCase::new(
-            groups.clone(),
-            groups.clone(),
-            Arc::new(FakeUsers::new(vec![
-                owner.clone(),
-                contributor.clone(),
-                target.clone(),
-            ])),
-        );
+        let acme = group(None, "acme");
+        let (use_case, _) = fixture(
+            vec![owner.clone(), contributor.clone(), user("alice")],
+            vec![acme.clone()],
+            &[
+                (acme.id, owner.id, CollaboratorRole::Maintainer),
+                (acme.id, contributor.id, CollaboratorRole::Contributor),
+            ],
+        )
+        .await;
 
         let result = use_case
-            .execute(group.id, contributor.id, "alice", CollaboratorRole::Reader)
+            .execute(acme.id, contributor.id, "alice", CollaboratorRole::Reader)
             .await;
 
         assert!(matches!(result, Err(DomainError::NotFound(_))));
@@ -203,35 +146,18 @@ mod tests {
 
     #[tokio::test]
     async fn a_caller_with_no_role_anywhere_in_the_chain_is_rejected() {
-        let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
         let stranger = user("stranger");
-        let target = user("alice");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        let use_case = AddGroupMemberUseCase::new(
-            groups.clone(),
-            groups.clone(),
-            Arc::new(FakeUsers::new(vec![
-                owner.clone(),
-                stranger.clone(),
-                target.clone(),
-            ])),
-        );
+        let acme = group(None, "acme");
+        let (use_case, _) = fixture(
+            vec![owner.clone(), stranger.clone(), user("alice")],
+            vec![acme.clone()],
+            &[(acme.id, owner.id, CollaboratorRole::Maintainer)],
+        )
+        .await;
 
         let result = use_case
-            .execute(group.id, stranger.id, "alice", CollaboratorRole::Reader)
+            .execute(acme.id, stranger.id, "alice", CollaboratorRole::Reader)
             .await;
 
         assert!(matches!(result, Err(DomainError::NotFound(_))));
@@ -239,29 +165,17 @@ mod tests {
 
     #[tokio::test]
     async fn adding_an_unknown_username_is_a_validation_error() {
-        let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        let use_case = AddGroupMemberUseCase::new(
-            groups.clone(),
-            groups.clone(),
-            Arc::new(FakeUsers::new(vec![owner.clone()])),
-        );
+        let acme = group(None, "acme");
+        let (use_case, _) = fixture(
+            vec![owner.clone()],
+            vec![acme.clone()],
+            &[(acme.id, owner.id, CollaboratorRole::Maintainer)],
+        )
+        .await;
 
         let result = use_case
-            .execute(group.id, owner.id, "nobody", CollaboratorRole::Reader)
+            .execute(acme.id, owner.id, "nobody", CollaboratorRole::Reader)
             .await;
 
         assert!(matches!(result, Err(DomainError::Validation(_))));

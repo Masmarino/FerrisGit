@@ -153,6 +153,20 @@ describe('LoginPage', () => {
     });
   });
 
+  describe('the link to the documentation', () => {
+    const link = (el: HTMLElement) => el.querySelector<HTMLAnchorElement>('footer a');
+
+    it.each([true, false])('is offered below the form, registration open or not (%s)', async (registrationEnabled) => {
+      const ctx = await setup();
+      ctx.http.expectOne(CONFIG).flush({ registrationEnabled, passkeysAvailable: false });
+      await ctx.refresh();
+
+      expect(text(link(ctx.el()))).toBe('Documentation');
+      expect(link(ctx.el())?.getAttribute('href')).toBe('/docs');
+      expect(link(ctx.el())?.closest('main')).toBeNull();
+    });
+  });
+
   describe('where a signed-in user goes', () => {
     it('posts the credentials, stores the session and goes to the repositories', async () => {
       const ctx = await setup();

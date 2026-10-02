@@ -11,7 +11,7 @@ import { AuthService } from '../../auth/auth.service';
 import { Me, MeService } from '../../shell/me.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { GbtToastService, type Passkey } from '@masmarino/gabarit';
-import { MfaService } from '../mfa.service';
+import { MfaService } from '../../auth/mfa.service';
 import { provideFerrisgitAuth } from '../../auth/auth-kit';
 import { fakeMfaService, withMfa } from '../mfa-story-helpers';
 import { ApiTokenSummary, TokensService } from '../../api-tokens/api-tokens.service';
@@ -282,23 +282,23 @@ export const SecurityWithoutFactor: Story = {
 
 export const Tokens: Story = {
   decorators: [startAt('/?section=tokens')],
-  play: ({ canvasElement }) => expectAccountPage(canvasElement, "Jetons d'API"),
+  play: ({ canvasElement }) => expectAccountPage(canvasElement, 'Jetons Git'),
 };
 
 export const NoTokens: Story = {
   decorators: [startAt('/?section=tokens'), withTokens([])],
-  play: ({ canvasElement }) => expectAccountPage(canvasElement, "Jetons d'API"),
+  play: ({ canvasElement }) => expectAccountPage(canvasElement, 'Jetons Git'),
 };
 
 export const TokenRevealed: Story = {
   decorators: [startAt('/?section=tokens')],
   play: async ({ canvasElement }) => {
-    await expectAccountPage(canvasElement, "Jetons d'API");
+    await expectAccountPage(canvasElement, 'Jetons Git');
     const canvas = within(canvasElement);
     await userEvent.type(canvas.getByLabelText('Nom du jeton'), 'pipeline-de-release');
     await userEvent.click(canvas.getByRole('button', { name: 'Générer' }));
     await waitFor(() => expect(canvasElement.querySelector('.api-tokens-list__revealed')).not.toBeNull());
-    await expectAccountPage(canvasElement, "Jetons d'API");
+    await expectAccountPage(canvasElement, 'Jetons Git');
   },
 };
 

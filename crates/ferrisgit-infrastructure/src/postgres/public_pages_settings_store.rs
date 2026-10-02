@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::public_pages::{
@@ -17,10 +18,6 @@ impl PostgresPublicPagesSettingsStore {
     }
 }
 
-fn infrastructure(e: sqlx::Error) -> DomainError {
-    DomainError::Infrastructure(e.to_string())
-}
-
 #[async_trait]
 impl PublicPagesSettingsPort for PostgresPublicPagesSettingsStore {
     async fn get(&self) -> Result<PublicPagesSettings, DomainError> {
@@ -29,7 +26,7 @@ impl PublicPagesSettingsPort for PostgresPublicPagesSettingsStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(infrastructure)?;
+        .map_err(infra)?;
         // The singleton row is created lazily: no row means the column defaults.
         Ok(row.map_or_else(
             PublicPagesSettings::default,
@@ -44,11 +41,11 @@ impl PublicPagesSettingsPort for PostgresPublicPagesSettingsStore {
         &self,
         update: PublicPagesSettingsUpdate,
     ) -> Result<PublicPagesSettings, DomainError> {
-        let mut tx = self.pool.begin().await.map_err(infrastructure)?;
+        let mut tx = self.pool.begin().await.map_err(infra)?;
         sqlx::query("INSERT INTO system_settings (id) VALUES (true) ON CONFLICT (id) DO NOTHING")
             .execute(&mut *tx)
             .await
-            .map_err(infrastructure)?;
+            .map_err(infra)?;
         let (public_pages_enabled, seo_indexing_enabled): (bool, bool) = sqlx::query_as(
             "UPDATE system_settings \
              SET public_pages_enabled = COALESCE($1, public_pages_enabled), \
@@ -60,8 +57,8 @@ impl PublicPagesSettingsPort for PostgresPublicPagesSettingsStore {
         .bind(update.seo_indexing_enabled)
         .fetch_one(&mut *tx)
         .await
-        .map_err(infrastructure)?;
-        tx.commit().await.map_err(infrastructure)?;
+        .map_err(infra)?;
+        tx.commit().await.map_err(infra)?;
         Ok(PublicPagesSettings {
             public_pages_enabled,
             seo_indexing_enabled,

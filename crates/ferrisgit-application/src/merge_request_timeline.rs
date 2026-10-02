@@ -65,7 +65,7 @@ pub fn is_outdated(diffs: &[FileDiff], comment: &MergeRequestComment) -> bool {
 
 /// Up to three diff lines ending at `end_line` (the anchor plus the two lines before it),
 /// numbered on `side`. Empty when the file or the line is not part of the diff.
-pub fn excerpt_for(
+fn excerpt_for(
     diffs: &[FileDiff],
     file_path: &str,
     end_line: u32,

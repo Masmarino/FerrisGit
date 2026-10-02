@@ -11,19 +11,19 @@
   </form>
 </gbt-card>
 
-<gbt-card variant="outlined" icon="user" heading="Collaborateurs" description="Les personnes qui ont accès à ce dépôt, en plus de son propriétaire." [count]="listState() === 'loaded' ? collaborators().length : null" [flush]="listState() !== 'failed'">
-  @switch (listState()) {
+<gbt-card variant="outlined" icon="user" heading="Collaborateurs" description="Les personnes qui ont accès à ce dépôt, en plus de son propriétaire." [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+  @switch (list.state()) {
     @case ('loading') {
       <gbt-skeleton-list [rows]="3" leadingSize="1.5rem" loadingLabel="Chargement des collaborateurs…" />
     }
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les collaborateurs n'ont pas pu être chargés.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="list.retry()" />
       </gbt-alert>
     }
     @default {
-      @if (collaborators().length === 0) {
+      @if (list.items().length === 0) {
         <gbt-empty-state
           size="compact"
           icon="user"
@@ -32,7 +32,7 @@
         />
       } @else {
         <ul class="repository-collaborators-settings__rows" aria-label="Collaborateurs">
-          @for (collaborator of collaborators(); track collaborator.userId) {
+          @for (collaborator of list.items(); track collaborator.userId) {
             <li>
               <gbt-list-row>
                 <gbt-user-chip [name]="collaborator.username" />

@@ -27,7 +27,9 @@
     @if (mr.status === 'open' && canWrite()) {
       <div header-actions class="mr-detail__actions">
         <gbt-button variant="secondary" iconName="git-pull-request-closed" text="Fermer" (clicked)="close()" />
-        <gbt-button variant="primary" iconName="git-merge" text="Fusionner" [disabled]="!!reviewSummary()?.blocked" (clicked)="merge()" />
+        @if (canMerge()) {
+          <gbt-button variant="primary" iconName="git-merge" text="Fusionner" [disabled]="!!reviewSummary()?.blocked" (clicked)="merge()" />
+        }
       </div>
     }
   </gbt-page-header>

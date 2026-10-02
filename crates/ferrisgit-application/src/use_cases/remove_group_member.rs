@@ -8,6 +8,7 @@ use ferrisgit_domain::user::UserRepositoryPort;
 use uuid::Uuid;
 
 use super::group_maintainer_guard::would_leave_chain_without_a_maintainer;
+use super::require_group_maintainer::require_group_maintainer;
 
 pub struct RemoveGroupMemberUseCase {
     groups: Arc<dyn GroupStorePort>,
@@ -34,20 +35,13 @@ impl RemoveGroupMemberUseCase {
         caller_id: Uuid,
         username: &str,
     ) -> Result<(), DomainError> {
-        let chain = self.groups.ancestor_chain(group_id).await?;
-        let mut best: Option<CollaboratorRole> = None;
-        for group in &chain {
-            if let Some(r) = self
-                .group_membership
-                .get_member_role(group.id, caller_id)
-                .await?
-            {
-                best = Some(best.map_or(r, |b| b.max(r)));
-            }
-        }
-        if best.is_none_or(|r| r < CollaboratorRole::Maintainer) {
-            return Err(DomainError::NotFound("group".to_string()));
-        }
+        let chain = require_group_maintainer(
+            self.groups.as_ref(),
+            self.group_membership.as_ref(),
+            group_id,
+            caller_id,
+        )
+        .await?;
 
         let target = self
             .users
@@ -83,20 +77,29 @@ impl RemoveGroupMemberUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeGroups, FakeUsers};
-    use chrono::Utc;
-    use ferrisgit_domain::group::NewGroup;
+    use crate::use_cases::fixtures::user;
+    use ferrisgit_domain::group::{Group, NewGroup};
     use ferrisgit_domain::group_membership::GroupMembershipPort;
-    use ferrisgit_domain::user::User;
 
-    fn user(username: &str) -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: username.to_string(),
-            email: format!("{username}@example.com"),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
+    async fn create_group(
+        groups: &FakeGroups,
+        parent_group_id: Option<Uuid>,
+        name: &str,
+        created_by: Uuid,
+    ) -> Group {
+        groups
+            .create(NewGroup {
+                parent_group_id,
+                name: name.to_string(),
+                description: String::new(),
+                created_by,
+            })
+            .await
+            .unwrap()
+    }
+
+    async fn grant(groups: &FakeGroups, group_id: Uuid, user_id: Uuid, role: CollaboratorRole) {
+        groups.add_member(group_id, user_id, role).await.unwrap();
     }
 
     #[tokio::test]
@@ -104,23 +107,9 @@ mod tests {
         let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
         let target = user("alice");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, target.id, CollaboratorRole::Reader)
-            .await
-            .unwrap();
+        let group = create_group(&groups, None, "acme", owner.id).await;
+        grant(&groups, group.id, owner.id, CollaboratorRole::Maintainer).await;
+        grant(&groups, group.id, target.id, CollaboratorRole::Reader).await;
         let use_case = RemoveGroupMemberUseCase::new(
             groups.clone(),
             groups.clone(),
@@ -137,41 +126,11 @@ mod tests {
         let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
         let target = user("alice");
-        let root = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(root.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        let mid = groups
-            .create(NewGroup {
-                parent_group_id: Some(root.id),
-                name: "backend".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        let leaf = groups
-            .create(NewGroup {
-                parent_group_id: Some(mid.id),
-                name: "infra".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(leaf.id, target.id, CollaboratorRole::Reader)
-            .await
-            .unwrap();
+        let root = create_group(&groups, None, "acme", owner.id).await;
+        grant(&groups, root.id, owner.id, CollaboratorRole::Maintainer).await;
+        let mid = create_group(&groups, Some(root.id), "backend", owner.id).await;
+        let leaf = create_group(&groups, Some(mid.id), "infra", owner.id).await;
+        grant(&groups, leaf.id, target.id, CollaboratorRole::Reader).await;
         let use_case = RemoveGroupMemberUseCase::new(
             groups.clone(),
             groups.clone(),
@@ -189,27 +148,16 @@ mod tests {
         let owner = user("owner");
         let contributor = user("contributor");
         let target = user("alice");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, contributor.id, CollaboratorRole::Contributor)
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, target.id, CollaboratorRole::Reader)
-            .await
-            .unwrap();
+        let group = create_group(&groups, None, "acme", owner.id).await;
+        grant(&groups, group.id, owner.id, CollaboratorRole::Maintainer).await;
+        grant(
+            &groups,
+            group.id,
+            contributor.id,
+            CollaboratorRole::Contributor,
+        )
+        .await;
+        grant(&groups, group.id, target.id, CollaboratorRole::Reader).await;
         let use_case = RemoveGroupMemberUseCase::new(
             groups.clone(),
             groups.clone(),
@@ -231,23 +179,9 @@ mod tests {
         let owner = user("owner");
         let stranger = user("stranger");
         let target = user("alice");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, target.id, CollaboratorRole::Reader)
-            .await
-            .unwrap();
+        let group = create_group(&groups, None, "acme", owner.id).await;
+        grant(&groups, group.id, owner.id, CollaboratorRole::Maintainer).await;
+        grant(&groups, group.id, target.id, CollaboratorRole::Reader).await;
         let use_case = RemoveGroupMemberUseCase::new(
             groups.clone(),
             groups.clone(),
@@ -268,23 +202,9 @@ mod tests {
         let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
         let target = user("alice");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, target.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
+        let group = create_group(&groups, None, "acme", owner.id).await;
+        grant(&groups, group.id, owner.id, CollaboratorRole::Maintainer).await;
+        grant(&groups, group.id, target.id, CollaboratorRole::Maintainer).await;
         let use_case = RemoveGroupMemberUseCase::new(
             groups.clone(),
             groups.clone(),
@@ -300,19 +220,8 @@ mod tests {
     async fn removing_the_last_maintainer_of_a_root_group_is_rejected() {
         let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
+        let group = create_group(&groups, None, "acme", owner.id).await;
+        grant(&groups, group.id, owner.id, CollaboratorRole::Maintainer).await;
         let use_case = RemoveGroupMemberUseCase::new(
             groups.clone(),
             groups.clone(),
@@ -338,32 +247,10 @@ mod tests {
         let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
         let target = user("alice");
-        let root = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(root.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
-        let leaf = groups
-            .create(NewGroup {
-                parent_group_id: Some(root.id),
-                name: "infra".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(leaf.id, target.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
+        let root = create_group(&groups, None, "acme", owner.id).await;
+        grant(&groups, root.id, owner.id, CollaboratorRole::Maintainer).await;
+        let leaf = create_group(&groups, Some(root.id), "infra", owner.id).await;
+        grant(&groups, leaf.id, target.id, CollaboratorRole::Maintainer).await;
         let use_case = RemoveGroupMemberUseCase::new(
             groups.clone(),
             groups.clone(),
@@ -380,28 +267,9 @@ mod tests {
     async fn removing_a_subgroups_last_maintainer_is_rejected_when_no_ancestor_has_one_either() {
         let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
-        let root = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        let leaf = groups
-            .create(NewGroup {
-                parent_group_id: Some(root.id),
-                name: "infra".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(leaf.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
+        let root = create_group(&groups, None, "acme", owner.id).await;
+        let leaf = create_group(&groups, Some(root.id), "infra", owner.id).await;
+        grant(&groups, leaf.id, owner.id, CollaboratorRole::Maintainer).await;
         let use_case = RemoveGroupMemberUseCase::new(
             groups.clone(),
             groups.clone(),
@@ -420,19 +288,8 @@ mod tests {
     async fn removing_an_unknown_username_is_a_validation_error() {
         let groups = Arc::new(FakeGroups::empty());
         let owner = user("owner");
-        let group = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner.id,
-            })
-            .await
-            .unwrap();
-        groups
-            .add_member(group.id, owner.id, CollaboratorRole::Maintainer)
-            .await
-            .unwrap();
+        let group = create_group(&groups, None, "acme", owner.id).await;
+        grant(&groups, group.id, owner.id, CollaboratorRole::Maintainer).await;
         let use_case = RemoveGroupMemberUseCase::new(
             groups.clone(),
             groups.clone(),

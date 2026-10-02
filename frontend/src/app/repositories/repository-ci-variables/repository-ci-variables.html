@@ -21,19 +21,19 @@
   </form>
 </gbt-card>
 
-<gbt-card variant="outlined" icon="key" heading="Variables" description="Les variables définies pour ce dépôt, par ordre de création." [count]="listState() === 'loaded' ? variables().length : null" [flush]="listState() !== 'failed'">
-  @switch (listState()) {
+<gbt-card variant="outlined" icon="key" heading="Variables" description="Les variables définies pour ce dépôt, par ordre de création." [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+  @switch (list.state()) {
     @case ('loading') {
       <gbt-skeleton-list [rows]="3" leadingSize="1rem" [lines]="1" loadingLabel="Chargement des variables…" />
     }
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les variables n'ont pas pu être chargées.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="list.retry()" />
       </gbt-alert>
     }
     @default {
-      @if (variables().length === 0) {
+      @if (list.items().length === 0) {
         <gbt-empty-state
           size="compact"
           icon="key"
@@ -42,7 +42,7 @@
         />
       } @else {
         <ul class="repository-ci-variables__rows" aria-label="Variables CI/CD">
-          @for (variable of variables(); track variable.id) {
+          @for (variable of list.items(); track variable.id) {
             <li>
               <gbt-list-row>
                 <gbt-icon row-leading name="key" aria-hidden="true" />

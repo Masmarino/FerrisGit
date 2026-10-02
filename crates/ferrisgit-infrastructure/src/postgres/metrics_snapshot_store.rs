@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferrisgit_domain::error::DomainError;
@@ -27,7 +28,7 @@ impl MetricsSnapshotRepositoryPort for PostgresMetricsSnapshotStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -39,7 +40,7 @@ impl MetricsSnapshotRepositoryPort for PostgresMetricsSnapshotStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows)
     }
 }

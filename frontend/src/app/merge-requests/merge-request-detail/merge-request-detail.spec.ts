@@ -222,6 +222,22 @@ describe('MergeRequestDetail', () => {
       expect(primaries[0].textContent?.trim()).toBe('Fusionner');
     });
 
+    it('offers Fusionner to a maintainer like the owner, since the server merges only for them', () => {
+      const { fixture } = loaded('maintainer');
+
+      expect(headerButton(fixture, 'Fusionner')).toBeTruthy();
+      expect(headerButton(fixture, 'Fermer')).toBeTruthy();
+    });
+
+    it('offers a contributor Fermer and the review actions but no Fusionner, which the server would refuse', () => {
+      const { fixture } = loaded('contributor');
+
+      expect(headerButton(fixture, 'Fusionner')).toBeFalsy();
+      expect(headerButton(fixture, 'Fermer')).toBeTruthy();
+      expect(el(fixture).querySelector('.gbt-button--primary')).toBeNull();
+      expect(approvalsPanel(fixture).canWrite()).toBe(true);
+    });
+
     it('keeps the blocked Merge button disabled while approvals are missing', () => {
       const { fixture } = loaded('owner', { reviews: { reviews: [], liveApprovalCount: 0, requiredApprovals: 1, blocked: true } });
 

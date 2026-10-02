@@ -1,0 +1,82 @@
+@switch (loadState()) {
+  @case ('loading') {
+    <div class="repository-general-settings__loading" aria-busy="true">
+      <span class="sr-only" role="status">Chargement des informations du dépôt…</span>
+      <gbt-card class="repository-general-settings__skeleton" variant="outlined" aria-hidden="true">
+        <div card-header class="repository-general-settings__skeleton-header">
+          <gbt-skeleton width="2rem" height="2rem" variant="rect" />
+          <div class="repository-general-settings__skeleton-lines">
+            <gbt-skeleton width="8rem" height="0.875rem" />
+            <gbt-skeleton width="60%" height="0.75rem" />
+          </div>
+        </div>
+        <div class="repository-general-settings__skeleton-body">
+          <gbt-skeleton width="9rem" height="0.75rem" />
+          <gbt-skeleton width="min(24rem, 100%)" height="4.5rem" variant="rect" />
+        </div>
+      </gbt-card>
+    </div>
+  }
+  @case ('failed') {
+    <gbt-card variant="outlined" icon="info" heading="Informations">
+      <gbt-alert variant="error" appearance="subtle" live="off">
+        Les informations du dépôt n'ont pas pu être chargées.
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="refresh()" />
+      </gbt-alert>
+    </gbt-card>
+  }
+  @default {
+    @if (repository(); as repo) {
+      <gbt-card
+        variant="outlined"
+        icon="info"
+        heading="Informations"
+        description="Ce que les visiteurs lisent sur le dépôt et qui peut le voir. Chaque réglage est enregistré dès que vous le modifiez. Le nom et le propriétaire ne se modifient pas : ils font partie de l'URL de clonage."
+      >
+        <div class="repository-general-settings__form">
+          <div class="repository-general-settings__field" data-field="description">
+            <!-- `(committed)` rather than `(ngModelChange)`: saving on every keystroke would store every half-typed text. -->
+            <gbt-textarea label="Description" [rows]="3" placeholder="À quoi sert ce dépôt ?" [ngModel]="repo.description" (committed)="updateDescription($event)" />
+            <div class="repository-general-settings__field-footer">
+              <p class="repository-general-settings__hint">Affichée sous le nom du dépôt et dans les listes.</p>
+              <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().description }" />
+            </div>
+          </div>
+
+          <div class="repository-general-settings__field" data-field="visibility">
+            <gbt-segmented-control label="Visibilité" ariaLabel="Visibilité du dépôt" tinted [options]="visibilityOptions" [value]="visibilityShown()" (valueChange)="askVisibility($event)" />
+            <div class="repository-general-settings__field-footer">
+              <p class="repository-general-settings__hint">
+                {{
+                  repo.visibility === 'public'
+                    ? 'Public : visible sans compte dans le catalogue public, tant que les pages publiques de l\'instance sont activées.'
+                    : 'Privé : visible uniquement par les personnes qui y ont accès, directement ou par un groupe.'
+                }}
+              </p>
+              <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().visibility }" />
+            </div>
+          </div>
+        </div>
+      </gbt-card>
+
+      @if (pendingVisibility()) {
+        <gbt-confirm-danger-modal
+          [isOpen]="true"
+          [heading]="confirmHeading()"
+          [message]="confirmMessage()"
+          [confirmLabel]="pendingVisibility() === 'public' ? 'Rendre public' : 'Rendre privé'"
+          [tone]="pendingVisibility() === 'public' ? 'warning' : 'danger'"
+          cancelLabel="Annuler"
+          closeLabel="Fermer"
+          (confirmed)="confirmVisibility()"
+          (closed)="cancelVisibility()"
+        />
+      }
+    }
+  }
+}
+
+<!-- A field's save state: a live region always in the DOM, so each change is announced. -->
+<ng-template #saveState let-state>
+  <gbt-save-status class="repository-general-settings__save-state" [state]="state ?? 'idle'" savingLabel="Enregistrement…" savedLabel="Enregistré" errorLabel="Non enregistré" />
+</ng-template>

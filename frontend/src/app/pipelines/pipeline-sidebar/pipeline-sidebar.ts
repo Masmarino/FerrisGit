@@ -2,7 +2,7 @@ import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { JobStatus } from '@masmarino/gabarit';
 import { JobSummary } from '../pipelines.service';
-import { STATUS_LABELS, StageGroup, durationLabel } from '../pipeline-helpers';
+import { STATUS_LABELS, StageGroup, jobDurationLabel, jobGlyphStatus, pipelineLink } from '../pipeline-helpers';
 
 @Component({
   selector: 'fg-pipeline-sidebar',
@@ -19,16 +19,17 @@ export class PipelineSidebar {
   now = input.required<number>();
 
   protected readonly statusLabels = STATUS_LABELS;
+  protected readonly glyph = jobGlyphStatus;
 
   protected summaryLink(): string[] {
-    return ['/repositories', ...this.path(), '-', 'pipelines', this.pipelineId()];
+    return pipelineLink(this.path(), this.pipelineId());
   }
 
   protected jobLink(jobId: string): string[] {
-    return [...this.summaryLink(), 'jobs', jobId];
+    return pipelineLink(this.path(), this.pipelineId(), 'jobs', jobId);
   }
 
   protected duration(job: JobSummary): string {
-    return durationLabel(job.startedAt, job.finishedAt, this.now());
+    return jobDurationLabel(job, this.now());
   }
 }

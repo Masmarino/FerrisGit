@@ -1,8 +1,7 @@
-import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { RepositoryLabelsSettings } from './repository-labels-settings';
 import { Label, LabelsService } from '../../labels/labels.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { createSettingsSection } from '../settings-section-testing';
 
 describe('RepositoryLabelsSettings', () => {
   function setup() {
@@ -11,16 +10,7 @@ describe('RepositoryLabelsSettings', () => {
       create: vi.fn(() => of<Label>({ id: 'l1', name: 'bug', color: '#dc2626', repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' })),
       delete: vi.fn(() => of<void>(undefined)),
     };
-    const toastStub = { show: vi.fn() };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: LabelsService, useValue: labelsServiceStub },
-        { provide: GbtToastService, useValue: toastStub },
-      ],
-    });
-    const fixture = TestBed.createComponent(RepositoryLabelsSettings);
-    fixture.componentRef.setInput('repositoryId', 'repo-1');
-    return { fixture, component: fixture.componentInstance, labelsServiceStub, toastStub };
+    return { ...createSettingsSection(RepositoryLabelsSettings, [{ provide: LabelsService, useValue: labelsServiceStub }]), labelsServiceStub };
   }
 
   it('lists configured labels', () => {

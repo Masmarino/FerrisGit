@@ -1,77 +1,19 @@
 // Self-service MFA management (`/api/me/mfa/...`) and the admin reset. MFA stays enforced.
 
-use async_trait::async_trait;
-use ferrisgit_api::{build_router, config::Config, state::AppState};
+mod common;
+
+use common::{
+    ADMIN_PASSWORD, RecordingEmail, USER_PASSWORD, WRONG_PASSWORD, codes_of, now_unix,
+    settled_attempts, totp_code, wait_for_attempts, wrong_code,
+};
+
+use ferrisgit_api::state::AppState;
 use ferrisgit_application::email_templates;
-use ferrisgit_application::mailer::Mailer;
 use ferrisgit_application::mfa_crypto::generate_code_at;
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
-use ferrisgit_domain::email::EmailPort;
-use ferrisgit_domain::error::DomainError;
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
-
-const ADMIN_PASSWORD: &str = "adminpassword123";
-const USER_PASSWORD: &str = "password12345";
-const WRONG_PASSWORD: &str = "definitely-not-the-password";
-
-struct RecordingEmail {
-    sent: Mutex<Vec<(String, String)>>,
-    attempts: std::sync::atomic::AtomicUsize,
-}
-
-impl RecordingEmail {
-    fn new() -> Arc<Self> {
-        Arc::new(Self {
-            sent: Mutex::new(Vec::new()),
-            attempts: std::sync::atomic::AtomicUsize::new(0),
-        })
-    }
-
-    fn attempts(&self) -> usize {
-        self.attempts.load(std::sync::atomic::Ordering::SeqCst)
-    }
-}
-
-#[async_trait]
-impl EmailPort for RecordingEmail {
-    async fn send(
-        &self,
-        to: &str,
-        subject: &str,
-        _text_body: &str,
-        _html_body: &str,
-    ) -> Result<(), DomainError> {
-        self.attempts
-            .fetch_add(1, std::sync::atomic::Ordering::SeqCst);
-        self.sent
-            .lock()
-            .unwrap()
-            .push((to.to_string(), subject.to_string()));
-        Ok(())
-    }
-}
-
-async fn wait_for_attempts(mailer: &RecordingEmail, count: usize) {
-    for _ in 0..100 {
-        if mailer.attempts() >= count {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-    panic!(
-        "expected {count} delivery attempt(s), saw {}",
-        mailer.attempts()
-    );
-}
-
-/// Gives a background task the time it would need to (wrongly) send something, then reads the counter.
-async fn settled_attempts(mailer: &RecordingEmail) -> usize {
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-    mailer.attempts()
-}
+use std::sync::Arc;
 
 struct Server {
     addr: SocketAddr,
@@ -343,15 +285,6 @@ impl Server {
     }
 }
 
-fn codes_of(body: &Value) -> Vec<String> {
-    body["backupCodes"]
-        .as_array()
-        .expect("backupCodes")
-        .iter()
-        .map(|c| c.as_str().unwrap().to_string())
-        .collect()
-}
-
 fn keys(value: &Value) -> Vec<String> {
     value
         .as_object()
@@ -361,79 +294,14 @@ fn keys(value: &Value) -> Vec<String> {
         .collect()
 }
 
-fn now_unix() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs()
-}
-
-fn totp_code(secret: &str) -> String {
-    generate_code_at(secret, now_unix())
-}
-
-fn wrong_code(secret: &str) -> String {
-    let valid: Vec<String> = (-3i64..=3)
-        .map(|step| generate_code_at(secret, (now_unix() as i64 + step * 30) as u64))
-        .collect();
-    (0..1_000_000)
-        .map(|n| format!("{n:06}"))
-        .find(|candidate| !valid.contains(candidate))
-        .unwrap()
-}
-
 async fn spawn_server(pool: PgPool) -> Server {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap().keep();
-    let static_dir = tempfile::tempdir().unwrap().keep();
-    std::fs::write(static_dir.join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some(ADMIN_PASSWORD.to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mailer = RecordingEmail::new();
-    let mut state = AppState::new(pool.clone(), config.clone()).await;
-    assert!(
-        state.mfa_enforced,
-        "AppState::new must enforce MFA: production has no way to turn it off"
-    );
-    state.mailer = Arc::new(Mailer::new(mailer.clone()));
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state.clone(), &static_dir);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await
-        .unwrap();
-    });
+    let started = common::spawn_server(pool).await;
     Server {
-        addr,
-        state,
-        pool,
-        mailer,
-        client: reqwest::Client::new(),
+        addr: started.addr,
+        state: started.state,
+        pool: started.pool,
+        mailer: started.mailer,
+        client: started.client,
     }
 }
 
@@ -677,7 +545,7 @@ async fn confirming_from_the_account_publishes_the_event_and_mails_a_valid_addre
         .await;
 
     wait_for_attempts(&server.mailer, 2).await;
-    let sent = server.mailer.sent.lock().unwrap().clone();
+    let sent = server.mailer.sent();
     assert_eq!(sent.len(), 2, "{sent:?}");
     assert_eq!(sent[1].0, "x@example.com");
     assert_eq!(
@@ -1064,7 +932,7 @@ async fn admin_reset_sends_the_reset_mail_to_a_valid_address(pool: PgPool) {
     );
 
     wait_for_attempts(&server.mailer, 2).await;
-    let sent = server.mailer.sent.lock().unwrap().clone();
+    let sent = server.mailer.sent();
     assert_eq!(sent.len(), 2, "{sent:?}");
     assert_eq!(
         sent[1],

@@ -1,5 +1,8 @@
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
+mod common;
+
+use common::USER_PASSWORD;
+use common::http::{create_user, get, get_json, login, post};
+
 use serde_json::json;
 use sqlx::PgPool;
 
@@ -7,104 +10,39 @@ use sqlx::PgPool;
 async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_namespace_uniqueness(
     pool: PgPool,
 ) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap();
-    let static_dir = tempfile::tempdir().unwrap();
-    std::fs::write(static_dir.path().join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.path().to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.path().to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, static_dir.path());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
+    let addr = common::spawn_app(pool).await.addr;
 
     let client = reqwest::Client::new();
 
-    let admin_login: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "admin", "password": "adminpassword123" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let admin_jwt = admin_login["token"].as_str().unwrap();
+    let admin_jwt = login(&client, addr, "admin", "adminpassword123").await;
 
     for username in ["owner", "alice", "stranger"] {
-        client
-            .post(format!("http://{addr}/api/admin/users"))
-            .bearer_auth(admin_jwt)
-            .json(&json!({ "username": username, "email": format!("{username}@example.com"), "password": "password12345" }))
-            .send()
-            .await
-            .unwrap()
-            .error_for_status()
-            .unwrap();
+        create_user(&client, addr, &admin_jwt, username).await;
     }
 
-    async fn login(client: &reqwest::Client, addr: std::net::SocketAddr, username: &str) -> String {
-        let res: serde_json::Value = client
-            .post(format!("http://{addr}/api/auth/login"))
-            .json(&json!({ "username": username, "password": "password12345" }))
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
-        res["token"].as_str().unwrap().to_string()
-    }
+    let owner_jwt = login(&client, addr, "owner", USER_PASSWORD).await;
+    let alice_jwt = login(&client, addr, "alice", USER_PASSWORD).await;
+    let stranger_jwt = login(&client, addr, "stranger", USER_PASSWORD).await;
 
-    let owner_jwt = login(&client, addr, "owner").await;
-    let alice_jwt = login(&client, addr, "alice").await;
-    let stranger_jwt = login(&client, addr, "stranger").await;
-
-    let acme_res = client
-        .post(format!("http://{addr}/api/groups"))
-        .bearer_auth(&owner_jwt)
-        .json(&json!({ "name": "acme", "description": "Acme Corp" }))
-        .send()
-        .await
-        .unwrap();
+    let acme_res = post(
+        &client,
+        addr,
+        &owner_jwt,
+        "/groups",
+        &json!({ "name": "acme", "description": "Acme Corp" }),
+    )
+    .await;
     assert_eq!(acme_res.status(), 200);
     let acme_body: serde_json::Value = acme_res.json().await.unwrap();
     let acme_id = acme_body["id"].as_str().unwrap();
 
-    let acme_members: serde_json::Value = client
-        .get(format!("http://{addr}/api/groups/{acme_id}/members"))
-        .bearer_auth(&owner_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let acme_members: serde_json::Value = get_json(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/groups/{acme_id}/members"),
+    )
+    .await;
     let acme_members = acme_members.as_array().unwrap();
     let owner_member = acme_members
         .iter()
@@ -115,59 +53,50 @@ async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_
         "the creator of a root group must be auto-added as maintainer"
     );
 
-    let backend_res = client
-        .post(format!("http://{addr}/api/groups/{acme_id}/subgroups"))
-        .bearer_auth(&owner_jwt)
-        .json(&json!({ "name": "backend", "description": "Backend team" }))
-        .send()
-        .await
-        .unwrap();
+    let backend_res = post(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/groups/{acme_id}/subgroups"),
+        &json!({ "name": "backend", "description": "Backend team" }),
+    )
+    .await;
     assert_eq!(backend_res.status(), 200);
     let backend_body: serde_json::Value = backend_res.json().await.unwrap();
     let backend_id = backend_body["id"].as_str().unwrap();
     assert_eq!(backend_body["parentGroupId"], acme_id);
 
-    let add_alice_status = client
-        .post(format!("http://{addr}/api/groups/{backend_id}/members"))
-        .bearer_auth(&owner_jwt)
-        .json(&json!({ "username": "alice", "role": "contributor" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let add_alice_status = post(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/groups/{backend_id}/members"),
+        &json!({ "username": "alice", "role": "contributor" }),
+    )
+    .await
+    .status();
     assert_eq!(add_alice_status, 200);
 
-    let create_repo_res = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(&owner_jwt)
-        .json(&json!({ "name": "terraform-modules", "visibility": "private", "groupPath": "acme/backend" }))
-        .send()
-        .await
-        .unwrap();
+    let create_repo_res = post(&client, addr, &owner_jwt, "/repositories", &json!({ "name": "terraform-modules", "visibility": "private", "groupPath": "acme/backend" })).await;
     assert_eq!(create_repo_res.status(), 200);
 
-    let resolve_res: serde_json::Value = client
-        .get(format!(
-            "http://{addr}/api/resolve/acme/backend/terraform-modules"
-        ))
-        .bearer_auth(&alice_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let resolve_res: serde_json::Value = get_json(
+        &client,
+        addr,
+        &alice_jwt,
+        "/resolve/acme/backend/terraform-modules",
+    )
+    .await;
     assert_eq!(resolve_res["type"], "groupRepository");
     let repository_id = resolve_res["repositoryId"].as_str().unwrap().to_string();
 
-    let alice_read_res = client
-        .get(format!(
-            "http://{addr}/api/repositories/by-id/{repository_id}"
-        ))
-        .bearer_auth(&alice_jwt)
-        .send()
-        .await
-        .unwrap();
+    let alice_read_res = get(
+        &client,
+        addr,
+        &alice_jwt,
+        &format!("/repositories/by-id/{repository_id}"),
+    )
+    .await;
     assert_eq!(
         alice_read_res.status(),
         200,
@@ -184,15 +113,14 @@ async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_
         "a group repository's resolvable path is [...ancestor_group_names, name] — {{owner}}/{{name}} can never resolve it"
     );
 
-    let stranger_read_status = client
-        .get(format!(
-            "http://{addr}/api/repositories/by-id/{repository_id}"
-        ))
-        .bearer_auth(&stranger_jwt)
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let stranger_read_status = get(
+        &client,
+        addr,
+        &stranger_jwt,
+        &format!("/repositories/by-id/{repository_id}"),
+    )
+    .await
+    .status();
     assert_eq!(
         stranger_read_status, 404,
         "a caller with no access anywhere in the group chain must see 404, not 401 — no existence leak"
@@ -200,12 +128,7 @@ async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_
 
     // Regression: the group listing hardcoded role "member". The reported role must be the caller's resolved one.
 
-    let alice_list_res = client
-        .get(format!("http://{addr}/api/repositories"))
-        .bearer_auth(&alice_jwt)
-        .send()
-        .await
-        .unwrap();
+    let alice_list_res = get(&client, addr, &alice_jwt, "/repositories").await;
     assert_eq!(alice_list_res.status(), 200);
     let alice_list_body: serde_json::Value = alice_list_res.json().await.unwrap();
     let alice_list = alice_list_body.as_array().unwrap();
@@ -228,14 +151,13 @@ async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_
         "GET /repositories must also carry the resolvable path for a group repository, not just {{owner}}/{{name}}"
     );
 
-    let backend_repos_res = client
-        .get(format!(
-            "http://{addr}/api/groups/{backend_id}/repositories"
-        ))
-        .bearer_auth(&owner_jwt)
-        .send()
-        .await
-        .unwrap();
+    let backend_repos_res = get(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/groups/{backend_id}/repositories"),
+    )
+    .await;
     assert_eq!(backend_repos_res.status(), 200);
     let backend_repos_body: serde_json::Value = backend_repos_res.json().await.unwrap();
     let backend_repos = backend_repos_body.as_array().unwrap();
@@ -248,12 +170,7 @@ async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_
         json!(["acme", "backend", "terraform-modules"])
     );
 
-    let alice_member_groups_res = client
-        .get(format!("http://{addr}/api/groups/member"))
-        .bearer_auth(&alice_jwt)
-        .send()
-        .await
-        .unwrap();
+    let alice_member_groups_res = get(&client, addr, &alice_jwt, "/groups/member").await;
     assert_eq!(alice_member_groups_res.status(), 200);
     let alice_member_groups_body: serde_json::Value = alice_member_groups_res.json().await.unwrap();
     let alice_member_groups = alice_member_groups_body.as_array().unwrap();
@@ -265,27 +182,29 @@ async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_
     assert_eq!(alice_member_groups[0]["id"], backend_id);
     assert_eq!(alice_member_groups[0]["path"], "acme/backend");
 
-    let register_acme_status = client
-        .post(format!("http://{addr}/api/admin/users"))
-        .bearer_auth(admin_jwt)
-        .json(&json!({ "username": "acme", "email": "acme@example.com", "password": "password12345" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let register_acme_status = post(
+        &client,
+        addr,
+        &admin_jwt,
+        "/admin/users",
+        &json!({ "username": "acme", "email": "acme@example.com", "password": "password12345" }),
+    )
+    .await
+    .status();
     assert_eq!(
         register_acme_status, 409,
         "a username colliding with an existing root group must be rejected as a conflict"
     );
 
-    let create_group_named_alice_status = client
-        .post(format!("http://{addr}/api/groups"))
-        .bearer_auth(&owner_jwt)
-        .json(&json!({ "name": "alice", "description": "" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let create_group_named_alice_status = post(
+        &client,
+        addr,
+        &owner_jwt,
+        "/groups",
+        &json!({ "name": "alice", "description": "" }),
+    )
+    .await
+    .status();
     assert_eq!(
         create_group_named_alice_status, 409,
         "a root group name colliding with an existing username must be rejected as a conflict"
@@ -297,137 +216,70 @@ async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_
 async fn a_group_maintainer_and_a_group_reader_see_their_real_resolved_role_on_the_same_group_repository_listing(
     pool: PgPool,
 ) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap();
-    let static_dir = tempfile::tempdir().unwrap();
-    std::fs::write(static_dir.path().join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.path().to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.path().to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, static_dir.path());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
+    let addr = common::spawn_app(pool).await.addr;
 
     let client = reqwest::Client::new();
 
-    let admin_login: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "admin", "password": "adminpassword123" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let admin_jwt = admin_login["token"].as_str().unwrap();
+    let admin_jwt = login(&client, addr, "admin", "adminpassword123").await;
 
     for username in ["owner", "maintainer", "reader"] {
-        client
-            .post(format!("http://{addr}/api/admin/users"))
-            .bearer_auth(admin_jwt)
-            .json(&json!({ "username": username, "email": format!("{username}@example.com"), "password": "password12345" }))
-            .send()
-            .await
-            .unwrap()
-            .error_for_status()
-            .unwrap();
+        create_user(&client, addr, &admin_jwt, username).await;
     }
 
-    async fn login(client: &reqwest::Client, addr: std::net::SocketAddr, username: &str) -> String {
-        let res: serde_json::Value = client
-            .post(format!("http://{addr}/api/auth/login"))
-            .json(&json!({ "username": username, "password": "password12345" }))
-            .send()
-            .await
-            .unwrap()
-            .json()
-            .await
-            .unwrap();
-        res["token"].as_str().unwrap().to_string()
-    }
+    let owner_jwt = login(&client, addr, "owner", USER_PASSWORD).await;
+    let maintainer_jwt = login(&client, addr, "maintainer", USER_PASSWORD).await;
+    let reader_jwt = login(&client, addr, "reader", USER_PASSWORD).await;
 
-    let owner_jwt = login(&client, addr, "owner").await;
-    let maintainer_jwt = login(&client, addr, "maintainer").await;
-    let reader_jwt = login(&client, addr, "reader").await;
-
-    let acme_res = client
-        .post(format!("http://{addr}/api/groups"))
-        .bearer_auth(&owner_jwt)
-        .json(&json!({ "name": "acme", "description": "" }))
-        .send()
-        .await
-        .unwrap();
+    let acme_res = post(
+        &client,
+        addr,
+        &owner_jwt,
+        "/groups",
+        &json!({ "name": "acme", "description": "" }),
+    )
+    .await;
     assert_eq!(acme_res.status(), 200);
     let acme_body: serde_json::Value = acme_res.json().await.unwrap();
     let acme_id = acme_body["id"].as_str().unwrap();
 
-    let create_repo_res = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(&owner_jwt)
-        .json(&json!({ "name": "widget", "visibility": "private", "groupPath": "acme" }))
-        .send()
-        .await
-        .unwrap();
+    let create_repo_res = post(
+        &client,
+        addr,
+        &owner_jwt,
+        "/repositories",
+        &json!({ "name": "widget", "visibility": "private", "groupPath": "acme" }),
+    )
+    .await;
     assert_eq!(create_repo_res.status(), 200);
     let repository_id = create_repo_res.json::<serde_json::Value>().await.unwrap()["id"]
         .as_str()
         .unwrap()
         .to_string();
 
-    let add_maintainer_status = client
-        .post(format!("http://{addr}/api/groups/{acme_id}/members"))
-        .bearer_auth(&owner_jwt)
-        .json(&json!({ "username": "maintainer", "role": "maintainer" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let add_maintainer_status = post(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/groups/{acme_id}/members"),
+        &json!({ "username": "maintainer", "role": "maintainer" }),
+    )
+    .await
+    .status();
     assert_eq!(add_maintainer_status, 200);
 
-    let add_reader_status = client
-        .post(format!("http://{addr}/api/groups/{acme_id}/members"))
-        .bearer_auth(&owner_jwt)
-        .json(&json!({ "username": "reader", "role": "reader" }))
-        .send()
-        .await
-        .unwrap()
-        .status();
+    let add_reader_status = post(
+        &client,
+        addr,
+        &owner_jwt,
+        &format!("/groups/{acme_id}/members"),
+        &json!({ "username": "reader", "role": "reader" }),
+    )
+    .await
+    .status();
     assert_eq!(add_reader_status, 200);
 
-    let maintainer_list: serde_json::Value = client
-        .get(format!("http://{addr}/api/repositories"))
-        .bearer_auth(&maintainer_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let maintainer_list: serde_json::Value =
+        get_json(&client, addr, &maintainer_jwt, "/repositories").await;
     let maintainer_entry = maintainer_list
         .as_array()
         .unwrap()
@@ -441,15 +293,8 @@ async fn a_group_maintainer_and_a_group_reader_see_their_real_resolved_role_on_t
         "a group Maintainer must see their real resolved role, not a hardcoded placeholder"
     );
 
-    let reader_list: serde_json::Value = client
-        .get(format!("http://{addr}/api/repositories"))
-        .bearer_auth(&reader_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let reader_list: serde_json::Value =
+        get_json(&client, addr, &reader_jwt, "/repositories").await;
     let reader_entry = reader_list
         .as_array()
         .unwrap()
@@ -461,15 +306,13 @@ async fn a_group_maintainer_and_a_group_reader_see_their_real_resolved_role_on_t
         "a group Reader must see their real resolved role, not the Maintainer's role and not a hardcoded placeholder"
     );
 
-    let maintainer_group_list: serde_json::Value = client
-        .get(format!("http://{addr}/api/groups/{acme_id}/repositories"))
-        .bearer_auth(&maintainer_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let maintainer_group_list: serde_json::Value = get_json(
+        &client,
+        addr,
+        &maintainer_jwt,
+        &format!("/groups/{acme_id}/repositories"),
+    )
+    .await;
     let maintainer_group_entry = maintainer_group_list
         .as_array()
         .unwrap()
@@ -481,15 +324,13 @@ async fn a_group_maintainer_and_a_group_reader_see_their_real_resolved_role_on_t
         "GET /groups/{{id}}/repositories must also report the caller's real resolved role"
     );
 
-    let reader_group_list: serde_json::Value = client
-        .get(format!("http://{addr}/api/groups/{acme_id}/repositories"))
-        .bearer_auth(&reader_jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let reader_group_list: serde_json::Value = get_json(
+        &client,
+        addr,
+        &reader_jwt,
+        &format!("/groups/{acme_id}/repositories"),
+    )
+    .await;
     let reader_group_entry = reader_group_list
         .as_array()
         .unwrap()

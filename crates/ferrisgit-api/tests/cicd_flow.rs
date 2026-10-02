@@ -1,5 +1,7 @@
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
+mod common;
+
+use common::http::{delete, get_json, login, post, post_anon, post_json, post_ok, put};
+
 use serde_json::json;
 use sqlx::PgPool;
 use std::process::Command;
@@ -35,90 +37,35 @@ where
 
 #[sqlx::test]
 async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap();
-    let static_dir = tempfile::tempdir().unwrap();
-    std::fs::write(static_dir.path().join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.path().to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.path().to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, static_dir.path());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
+    let addr = common::spawn_app(pool).await.addr;
 
     let client = reqwest::Client::new();
 
-    let login_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "admin", "password": "adminpassword123" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let jwt = login_res["token"].as_str().unwrap();
+    let jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    let token_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/tokens"))
-        .bearer_auth(jwt)
-        .json(&json!({ "name": "ci" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let token_res: serde_json::Value =
+        post_json(&client, addr, &jwt, "/tokens", &json!({ "name": "ci" })).await;
     let plain_token = token_res["token"].as_str().unwrap();
 
-    let repo_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(jwt)
-        .json(&json!({ "name": "hello", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let repo_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
     assert_eq!(repo_res["name"], "hello");
     let repo_id = repo_res["id"].as_str().unwrap().to_string();
 
-    let runner_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/admin/runners"))
-        .bearer_auth(jwt)
-        .json(&json!({ "name": "test-runner", "tags": [] }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let runner_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/admin/runners",
+        &json!({ "name": "test-runner", "tags": [] }),
+    )
+    .await;
     let runner_token = runner_res["token"].as_str().unwrap().to_string();
 
     let clone_parent = tempfile::tempdir().unwrap();
@@ -143,19 +90,14 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
     );
 
     // A masked variable printed by the job: the runner must redact it from the streamed logs.
-    client
-        .post(format!(
-            "http://{addr}/api/repositories/{repo_id}/ci-variables"
-        ))
-        .bearer_auth(jwt)
-        .json(
-            &json!({ "key": "SECRET_VALUE", "value": "super-secret-db-password", "masked": true }),
-        )
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    post_ok(
+        &client,
+        addr,
+        &jwt,
+        &format!("/repositories/{repo_id}/ci-variables"),
+        &json!({ "key": "SECRET_VALUE", "value": "super-secret-db-password", "masked": true }),
+    )
+    .await;
 
     std::fs::write(
         repo_path.join(".ferrisgit-ci.yml"),
@@ -209,17 +151,13 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
             let jwt = jwt.to_string();
             let repo_id = repo_id.clone();
             async move {
-                let res: serde_json::Value = client
-                    .get(format!(
-                        "http://{addr}/api/repositories/{repo_id}/pipelines"
-                    ))
-                    .bearer_auth(&jwt)
-                    .send()
-                    .await
-                    .unwrap()
-                    .json()
-                    .await
-                    .unwrap();
+                let res: serde_json::Value = get_json(
+                    &client,
+                    addr,
+                    &jwt,
+                    &format!("/repositories/{repo_id}/pipelines"),
+                )
+                .await;
                 if res.as_array().is_some_and(|a| !a.is_empty()) {
                     Some(res)
                 } else {
@@ -262,7 +200,7 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
             let pipeline_id = pipeline_id.clone();
             async move {
                 let res: serde_json::Value =
-                    client.get(format!("http://{addr}/api/pipelines/{pipeline_id}")).bearer_auth(&jwt).send().await.unwrap().json().await.unwrap();
+                    get_json(&client, addr, &jwt, &format!("/pipelines/{pipeline_id}")).await;
                 let status = res["status"].as_str().unwrap_or("");
                 if matches!(status, "success" | "failed" | "canceled") { Some(res) } else { None }
             }
@@ -301,45 +239,43 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
         jobs[0]["logs"]
     );
 
-    let unconfigured_attempt = client
-        .post(format!("http://{addr}/api/runner/register"))
-        .json(&json!({ "registration_token": "whatever", "name": "self-registered", "tags": [] }))
-        .send()
-        .await
-        .unwrap();
+    let unconfigured_attempt = post_anon(
+        &client,
+        addr,
+        "/runner/register",
+        &json!({ "registration_token": "whatever", "name": "self-registered", "tags": [] }),
+    )
+    .await;
     assert_eq!(
         unconfigured_attempt.status(),
         reqwest::StatusCode::UNAUTHORIZED,
         "self-registration must be disabled until an admin sets runner_registration_token"
     );
 
-    client
-        .put(format!("http://{addr}/api/admin/settings"))
-        .bearer_auth(jwt)
-        .json(&json!({ "runnerRegistrationToken": "shared-secret-123" }))
-        .send()
-        .await
-        .unwrap()
-        .error_for_status()
-        .unwrap();
+    put(
+        &client,
+        addr,
+        &jwt,
+        "/admin/settings",
+        &json!({ "runnerRegistrationToken": "shared-secret-123" }),
+    )
+    .await
+    .error_for_status()
+    .unwrap();
 
-    let wrong_token_attempt = client
-        .post(format!("http://{addr}/api/runner/register"))
-        .json(&json!({ "registration_token": "not-the-secret", "name": "self-registered", "tags": [] }))
-        .send()
-        .await
-        .unwrap();
+    let wrong_token_attempt = post_anon(
+        &client,
+        addr,
+        "/runner/register",
+        &json!({ "registration_token": "not-the-secret", "name": "self-registered", "tags": [] }),
+    )
+    .await;
     assert_eq!(
         wrong_token_attempt.status(),
         reqwest::StatusCode::UNAUTHORIZED
     );
 
-    let correct_token_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/runner/register"))
-        .json(&json!({ "registration_token": "shared-secret-123", "name": "self-registered", "tags": [] }))
-        .send()
-        .await
-        .unwrap()
+    let correct_token_res: serde_json::Value = post_anon(&client, addr, "/runner/register", &json!({ "registration_token": "shared-secret-123", "name": "self-registered", "tags": [] })).await
         .error_for_status()
         .unwrap()
         .json()
@@ -356,41 +292,36 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
     let other_runner_token = correct_token_res["token"].as_str().unwrap();
     let job_id = jobs[0]["id"].as_str().unwrap();
 
-    let foreign_log_attempt = client
-        .post(format!("http://{addr}/api/runner/jobs/{job_id}/logs"))
-        .bearer_auth(other_runner_token)
-        .json(&json!({ "chunk": "injected-by-a-foreign-runner\n" }))
-        .send()
-        .await
-        .unwrap();
+    let foreign_log_attempt = post(
+        &client,
+        addr,
+        other_runner_token,
+        &format!("/runner/jobs/{job_id}/logs"),
+        &json!({ "chunk": "injected-by-a-foreign-runner\n" }),
+    )
+    .await;
     assert_eq!(
         foreign_log_attempt.status(),
         reqwest::StatusCode::NOT_FOUND,
         "a runner must not append logs to a job claimed by a different runner"
     );
 
-    let foreign_result_attempt = client
-        .post(format!("http://{addr}/api/runner/jobs/{job_id}/result"))
-        .bearer_auth(other_runner_token)
-        .json(&json!({ "status": "failed" }))
-        .send()
-        .await
-        .unwrap();
+    let foreign_result_attempt = post(
+        &client,
+        addr,
+        other_runner_token,
+        &format!("/runner/jobs/{job_id}/result"),
+        &json!({ "status": "failed" }),
+    )
+    .await;
     assert_eq!(
         foreign_result_attempt.status(),
         reqwest::StatusCode::NOT_FOUND,
         "a runner must not report a result for a job claimed by a different runner"
     );
 
-    let after: serde_json::Value = client
-        .get(format!("http://{addr}/api/pipelines/{pipeline_id}"))
-        .bearer_auth(jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let after: serde_json::Value =
+        get_json(&client, addr, &jwt, &format!("/pipelines/{pipeline_id}")).await;
     assert_eq!(
         after["status"], "success",
         "the rejected foreign report must not have changed the pipeline"
@@ -425,36 +356,30 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
         "revoking a runner must be admin-only"
     );
 
-    let revoke = client
-        .delete(format!("http://{addr}/api/admin/runners/{other_runner_id}"))
-        .bearer_auth(jwt)
-        .send()
-        .await
-        .unwrap();
+    let revoke = delete(
+        &client,
+        addr,
+        &jwt,
+        &format!("/admin/runners/{other_runner_id}"),
+    )
+    .await;
     assert_eq!(revoke.status(), reqwest::StatusCode::NO_CONTENT);
 
-    let after_revoke_claim = client
-        .post(format!("http://{addr}/api/runner/jobs/claim"))
-        .bearer_auth(other_runner_token)
-        .json(&json!({ "tags": [] }))
-        .send()
-        .await
-        .unwrap();
+    let after_revoke_claim = post(
+        &client,
+        addr,
+        other_runner_token,
+        "/runner/jobs/claim",
+        &json!({ "tags": [] }),
+    )
+    .await;
     assert_eq!(
         after_revoke_claim.status(),
         reqwest::StatusCode::UNAUTHORIZED,
         "a revoked runner's token must stop authenticating"
     );
 
-    let remaining: serde_json::Value = client
-        .get(format!("http://{addr}/api/admin/runners"))
-        .bearer_auth(jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let remaining: serde_json::Value = get_json(&client, addr, &jwt, "/admin/runners").await;
     let remaining_ids: Vec<&str> = remaining
         .as_array()
         .unwrap()

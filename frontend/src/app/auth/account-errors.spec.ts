@@ -1,5 +1,5 @@
 import { HttpErrorResponse } from '@angular/common/http';
-import { classifyActivateFailure, classifyRegisterFailure } from './account-errors';
+import { classifyRegisterFailure } from './account-errors';
 
 const http = (status: number, error?: string) => new HttpErrorResponse({ status, error: error === undefined ? null : { error } });
 
@@ -52,25 +52,5 @@ describe('classifyRegisterFailure', () => {
   it('reads a non-HTTP error as the generic failure', () => {
     expect(classifyRegisterFailure(new Error('boom'))).toBe('other');
     expect(classifyRegisterFailure(null)).toBe('other');
-  });
-});
-
-describe('classifyActivateFailure', () => {
-  it('reads the unknown / expired / used token 400 as a dead link', () => {
-    expect(classifyActivateFailure(http(400, 'invalid or expired invitation'))).toBe('invalid-link');
-  });
-
-  it('reads the weak-password 400 as a weak password (the link is still good)', () => {
-    expect(classifyActivateFailure(http(400, 'password must be at least 8 characters'))).toBe('weak-password');
-  });
-
-  it('reads any other 400 as a dead link, the safe reading', () => {
-    expect(classifyActivateFailure(http(400))).toBe('invalid-link');
-  });
-
-  it('reads a 429 as the rate limiter and the rest as the generic failure', () => {
-    expect(classifyActivateFailure(http(429))).toBe('rate-limited');
-    expect(classifyActivateFailure(http(500, 'internal error'))).toBe('other');
-    expect(classifyActivateFailure(new Error('boom'))).toBe('other');
   });
 });

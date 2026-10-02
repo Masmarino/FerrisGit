@@ -3,6 +3,8 @@ use std::sync::Arc;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::user::{NewUser, PasswordHasherPort, UserRepositoryPort};
 
+use crate::account_rules::MIN_PASSWORD_LEN;
+
 pub struct BootstrapAdminUseCase {
     users: Arc<dyn UserRepositoryPort>,
     hasher: Arc<dyn PasswordHasherPort>,
@@ -25,9 +27,9 @@ impl BootstrapAdminUseCase {
         if self.users.count().await? > 0 {
             return Ok(());
         }
-        if password.len() < 8 {
+        if password.len() < MIN_PASSWORD_LEN {
             tracing::warn!(
-                "bootstrap admin password is shorter than 8 characters, skipping bootstrap"
+                "bootstrap admin password is shorter than {MIN_PASSWORD_LEN} characters, skipping bootstrap"
             );
             return Ok(());
         }
@@ -49,14 +51,18 @@ impl BootstrapAdminUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeHasher, FakeUsers};
-    use chrono::Utc;
+    use crate::use_cases::fixtures::user;
     use ferrisgit_domain::user::User;
-    use uuid::Uuid;
+
+    fn use_case(existing: Vec<User>) -> (BootstrapAdminUseCase, Arc<FakeUsers>) {
+        let users = Arc::new(FakeUsers::new(existing));
+        let use_case = BootstrapAdminUseCase::new(users.clone(), Arc::new(FakeHasher));
+        (use_case, users)
+    }
 
     #[tokio::test]
     async fn creates_the_admin_when_the_users_table_is_empty_and_credentials_are_set() {
-        let users = Arc::new(FakeUsers::new(vec![]));
-        let use_case = BootstrapAdminUseCase::new(users.clone(), Arc::new(FakeHasher));
+        let (use_case, users) = use_case(vec![]);
 
         use_case
             .execute(
@@ -72,16 +78,7 @@ mod tests {
 
     #[tokio::test]
     async fn does_nothing_when_a_user_already_exists() {
-        let existing = User {
-            id: Uuid::new_v4(),
-            username: "someone".to_string(),
-            email: "s@example.com".to_string(),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        };
-        let users = Arc::new(FakeUsers::new(vec![existing]));
-        let use_case = BootstrapAdminUseCase::new(users.clone(), Arc::new(FakeHasher));
+        let (use_case, users) = use_case(vec![user("someone")]);
 
         use_case
             .execute(
@@ -96,8 +93,7 @@ mod tests {
 
     #[tokio::test]
     async fn does_nothing_when_credentials_are_not_set() {
-        let users = Arc::new(FakeUsers::new(vec![]));
-        let use_case = BootstrapAdminUseCase::new(users.clone(), Arc::new(FakeHasher));
+        let (use_case, users) = use_case(vec![]);
 
         use_case.execute(None, None).await.unwrap();
 
@@ -106,8 +102,7 @@ mod tests {
 
     #[tokio::test]
     async fn skips_bootstrap_when_the_password_is_too_short() {
-        let users = Arc::new(FakeUsers::new(vec![]));
-        let use_case = BootstrapAdminUseCase::new(users.clone(), Arc::new(FakeHasher));
+        let (use_case, users) = use_case(vec![]);
 
         use_case
             .execute(Some("admin".to_string()), Some("short".to_string()))

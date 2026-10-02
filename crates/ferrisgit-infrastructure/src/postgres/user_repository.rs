@@ -1,7 +1,9 @@
+use super::repository_row::RepositoryRow;
+use crate::error::infra;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferrisgit_domain::error::DomainError;
-use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
+use ferrisgit_domain::repository::Repository;
 use ferrisgit_domain::user::{NewUser, User, UserRepositoryPort};
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -29,35 +31,6 @@ const MAINTAINED_CHAINS: &str = "WITH RECURSIVE chain(root, id, parent_group_id,
        WHERE g.id IN (SELECT m.group_id FROM group_members m WHERE m.user_id = $1 AND m.role = 'maintainer') \
      UNION ALL \
        SELECT c.root, g.id, g.parent_group_id, g.name, c.depth + 1 FROM groups g JOIN chain c ON g.id = c.parent_group_id)";
-
-#[derive(sqlx::FromRow)]
-struct RepositoryRow {
-    id: Uuid,
-    owner_id: Uuid,
-    name: String,
-    group_id: Option<Uuid>,
-    description: String,
-    disk_path: String,
-    visibility: String,
-    created_at: DateTime<Utc>,
-}
-
-impl TryFrom<RepositoryRow> for Repository {
-    type Error = DomainError;
-
-    fn try_from(row: RepositoryRow) -> Result<Self, DomainError> {
-        Ok(Repository {
-            id: row.id,
-            owner_id: row.owner_id,
-            name: row.name,
-            group_id: row.group_id,
-            description: row.description,
-            disk_path: row.disk_path,
-            visibility: RepositoryVisibility::parse(&row.visibility)?,
-            created_at: row.created_at,
-        })
-    }
-}
 
 #[derive(sqlx::FromRow)]
 struct UserRow {
@@ -88,14 +61,14 @@ impl UserRepositoryPort for PostgresUserRepository {
         sqlx::query_as!(User, "SELECT id, username, email, password_hash, is_admin, created_at FROM users WHERE username = $1", username)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<User>, DomainError> {
         sqlx::query_as!(User, "SELECT id, username, email, password_hash, is_admin, created_at FROM users WHERE id = $1", id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     async fn create(&self, new_user: NewUser) -> Result<User, DomainError> {
@@ -109,7 +82,7 @@ impl UserRepositoryPort for PostgresUserRepository {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn count(&self) -> Result<i64, DomainError> {
@@ -117,14 +90,14 @@ impl UserRepositoryPort for PostgresUserRepository {
             .fetch_one(&self.pool)
             .await
             .map(|count| count.unwrap_or(0))
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     async fn update_email(&self, user_id: Uuid, email: String) -> Result<User, DomainError> {
         sqlx::query_as!(User, "UPDATE users SET email = $1 WHERE id = $2 RETURNING id, username, email, password_hash, is_admin, created_at", email, user_id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?
+            .map_err(infra)?
             .ok_or_else(|| DomainError::NotFound("user".to_string()))
     }
 
@@ -140,7 +113,7 @@ impl UserRepositoryPort for PostgresUserRepository {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("user".to_string()));
         }
@@ -154,7 +127,7 @@ impl UserRepositoryPort for PostgresUserRepository {
         )))
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     /// A demotion locks every active admin row (`FOR UPDATE OF u`) in `id` order. Concurrent demotions
@@ -162,7 +135,6 @@ impl UserRepositoryPort for PostgresUserRepository {
     /// deadlock, which Postgres would end by aborting one of them with a 500. A promotion takes no lock.
     /// Demoting a not-yet-usable admin is always allowed.
     async fn set_admin(&self, user_id: Uuid, is_admin: bool) -> Result<(), DomainError> {
-        let infra = |e: sqlx::Error| DomainError::Infrastructure(e.to_string());
         let mut tx = self.pool.begin().await.map_err(infra)?;
         if !is_admin {
             let admins: Vec<Uuid> = sqlx::query_scalar(sqlx::AssertSqlSafe(format!(
@@ -204,7 +176,6 @@ impl UserRepositoryPort for PostgresUserRepository {
                 "a deleted user's group repositories cannot go to that same user".to_string(),
             ));
         }
-        let infra = |e: sqlx::Error| DomainError::Infrastructure(e.to_string());
         let mut tx = self.pool.begin().await.map_err(infra)?;
         let locked: Vec<(Uuid, bool)> = sqlx::query_as(sqlx::AssertSqlSafe(format!("SELECT u.id, ({ACTIVE_ADMIN}) FROM users u WHERE u.id = $1 OR ({ACTIVE_ADMIN}) ORDER BY u.id FOR UPDATE OF u")))
             .bind(user_id)
@@ -293,7 +264,7 @@ impl UserRepositoryPort for PostgresUserRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn find_by_username_ignore_case(
@@ -305,7 +276,7 @@ impl UserRepositoryPort for PostgresUserRepository {
             .fetch_optional(&self.pool)
             .await
             .map(|row| row.map(User::from))
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     async fn find_by_email_ignore_case(&self, email: &str) -> Result<Option<User>, DomainError> {
@@ -314,7 +285,7 @@ impl UserRepositoryPort for PostgresUserRepository {
             .fetch_optional(&self.pool)
             .await
             .map(|row| row.map(User::from))
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     async fn list(&self, limit: i64) -> Result<Vec<User>, DomainError> {
@@ -323,14 +294,14 @@ impl UserRepositoryPort for PostgresUserRepository {
             .fetch_all(&self.pool)
             .await
             .map(|rows| rows.into_iter().map(User::from).collect())
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     async fn get_token_epoch(&self, user_id: Uuid) -> Result<i32, DomainError> {
         sqlx::query_scalar!("SELECT token_epoch FROM users WHERE id = $1", user_id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?
+            .map_err(infra)?
             .ok_or_else(|| DomainError::NotFound("user".to_string()))
     }
 
@@ -341,7 +312,7 @@ impl UserRepositoryPort for PostgresUserRepository {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("user".to_string()));
         }

@@ -1,0 +1,31 @@
+<gbt-autocomplete
+  class="docs-search"
+  label="Rechercher dans la documentation"
+  placeholder="Rechercher…"
+  [search]="search"
+  [displayFn]="label"
+  [itemTemplate]="result"
+  [debounceMs]="150"
+  [minLength]="2"
+  loadingMessage="Recherche…"
+  noResultsMessage="Aucune page ne correspond."
+  searchErrorMessage="La documentation n’a pas pu être chargée."
+  [resultsAnnouncement]="announce"
+  (focusin)="prepare()"
+  (itemSelected)="open($event)"
+/>
+
+<ng-template #result let-hit>
+  <span class="docs-search__result">
+    <span class="docs-search__where">{{ hit.sectionTitle }}</span>
+    <span class="docs-search__title">
+      {{ hit.pageTitle }}
+      @if (hit.heading) {
+        <span class="docs-search__heading">› {{ hit.heading }}</span>
+      }
+    </span>
+    @if (hit.excerpt.before || hit.excerpt.match) {
+      <span class="docs-search__excerpt">{{ hit.excerpt.before }}<mark>{{ hit.excerpt.match }}</mark>{{ hit.excerpt.after }}</span>
+    }
+  </span>
+</ng-template>

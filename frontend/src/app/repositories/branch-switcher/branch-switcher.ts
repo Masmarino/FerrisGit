@@ -4,6 +4,7 @@ import { Router } from '@angular/router';
 import { Select, SelectOption } from '@masmarino/gabarit';
 import { BranchInfo, MergeRequestsService } from '../../merge-requests/merge-requests.service';
 import { ReleasesService } from '../../releases/releases.service';
+import { repositoryLink } from '../repository-links';
 
 @Component({
   selector: 'fg-branch-switcher',
@@ -42,6 +43,6 @@ export class BranchSwitcher implements OnInit {
   }
 
   navigateToRef(ref: string) {
-    return this.router.navigate(['/repositories', ...this.path(), '-', 'tree', ref]);
+    return this.router.navigate(repositoryLink(this.path(), 'tree', ref));
   }
 }

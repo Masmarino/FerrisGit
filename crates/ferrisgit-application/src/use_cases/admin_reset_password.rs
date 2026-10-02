@@ -176,6 +176,7 @@ mod tests {
     use crate::test_support::{
         FakeHasher, FakeInvitations, FakePasswordResets, FakeUsers, ThreadRecordingHasher,
     };
+    use crate::use_cases::fixtures::{is_hex64, user};
     use chrono::DateTime;
     use ferrisgit_domain::password_reset::PasswordReset;
 
@@ -217,22 +218,13 @@ mod tests {
         }
     }
 
+    const OLD_PASSWORD_HASH: &str = "hashed:old-password";
+
     fn alice() -> User {
         User {
-            id: Uuid::new_v4(),
-            username: "alice".to_string(),
-            email: "alice@example.com".to_string(),
-            password_hash: "hashed:old-password".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
+            password_hash: OLD_PASSWORD_HASH.to_string(),
+            ..user("alice")
         }
-    }
-
-    fn is_hex64(token: &str) -> bool {
-        token.len() == 64
-            && token
-                .chars()
-                .all(|c| c.is_ascii_hexdigit() && !c.is_ascii_uppercase())
     }
 
     fn is_invalid_link<T: std::fmt::Debug>(result: &Result<T, DomainError>) -> bool {
@@ -294,7 +286,7 @@ mod tests {
         let issued = f.reset(user.id).await.unwrap();
 
         let stored = f.users.get(user.id).unwrap().password_hash;
-        assert_ne!(stored, "hashed:old-password");
+        assert_ne!(stored, OLD_PASSWORD_HASH);
         for guess in ["old-password", "", "alice", issued.token.as_str()] {
             assert!(
                 !FakeHasher.verify(guess, &stored).unwrap(),
@@ -303,7 +295,7 @@ mod tests {
         }
         assert_eq!(
             f.users.get(other.id).unwrap().password_hash,
-            "hashed:old-password"
+            OLD_PASSWORD_HASH
         );
         assert_eq!(f.users.token_epoch_of(other.id), 0);
         assert!(f.resets.row_of(other.id).is_none());
@@ -358,7 +350,7 @@ mod tests {
         );
         assert_eq!(
             f.users.get(admin.id).unwrap().password_hash,
-            "hashed:old-password"
+            OLD_PASSWORD_HASH
         );
         assert_eq!(f.users.token_epoch_of(admin.id), 0);
         assert!(f.resets.snapshot().is_empty());
@@ -379,7 +371,7 @@ mod tests {
         );
         assert_eq!(
             f.users.get(user.id).unwrap().password_hash,
-            "hashed:old-password"
+            OLD_PASSWORD_HASH
         );
         assert_eq!(f.users.token_epoch_of(user.id), 0);
         assert!(f.resets.snapshot().is_empty());
@@ -510,10 +502,7 @@ mod tests {
             "{result:?}"
         );
         assert_eq!(users.token_epoch_of(user.id), 0);
-        assert_eq!(
-            users.get(user.id).unwrap().password_hash,
-            "hashed:old-password"
-        );
+        assert_eq!(users.get(user.id).unwrap().password_hash, OLD_PASSWORD_HASH);
         assert!(resets.snapshot().is_empty());
     }
 

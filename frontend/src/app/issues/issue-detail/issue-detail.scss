@@ -46,7 +46,6 @@
   min-width: 0;
 }
 
-// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
 gbt-card {
   @include card.inherit-text;
 }

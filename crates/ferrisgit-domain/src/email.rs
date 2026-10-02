@@ -38,7 +38,7 @@ pub struct SmtpSettings {
     pub security: SmtpSecurity,
     /// Empty means "no SMTP authentication" (an internal relay).
     pub username: String,
-    /// Plaintext at this layer. Encryption at rest is the Postgres adapter's job.
+    /// Plaintext at this layer. Encryption at rest is the persistence adapter's job.
     pub password: Option<String>,
     pub from_address: String,
     pub from_name: String,

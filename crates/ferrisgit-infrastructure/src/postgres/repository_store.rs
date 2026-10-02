@@ -1,3 +1,5 @@
+use super::repository_row::RepositoryRow;
+use crate::error::{conflict_on_duplicate, infra};
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::repository::{
@@ -16,32 +18,6 @@ impl PostgresRepositoryStore {
     }
 }
 
-struct Row {
-    id: Uuid,
-    owner_id: Uuid,
-    name: String,
-    group_id: Option<Uuid>,
-    description: String,
-    disk_path: String,
-    visibility: String,
-    created_at: chrono::DateTime<chrono::Utc>,
-}
-
-impl Row {
-    fn into_domain(self) -> Result<Repository, DomainError> {
-        Ok(Repository {
-            id: self.id,
-            owner_id: self.owner_id,
-            name: self.name,
-            group_id: self.group_id,
-            description: self.description,
-            disk_path: self.disk_path,
-            visibility: RepositoryVisibility::parse(&self.visibility)?,
-            created_at: self.created_at,
-        })
-    }
-}
-
 #[async_trait]
 impl RepositoryStorePort for PostgresRepositoryStore {
     async fn create(
@@ -50,7 +26,7 @@ impl RepositoryStorePort for PostgresRepositoryStore {
         disk_path: String,
     ) -> Result<Repository, DomainError> {
         let row = sqlx::query_as!(
-            Row,
+            RepositoryRow,
             "INSERT INTO repositories (owner_id, name, group_id, description, disk_path, visibility) VALUES ($1, $2, $3, $4, $5, $6) \
              RETURNING id, owner_id, name, group_id, description, disk_path, visibility, created_at",
             new_repo.owner_id,
@@ -62,30 +38,26 @@ impl RepositoryStorePort for PostgresRepositoryStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| {
-            if let sqlx::Error::Database(db_err) = &e
-                && db_err.code().as_deref() == Some("23505")
-            {
-                return match new_repo.group_id {
-                    Some(_) => DomainError::Conflict(format!("a repository named '{}' already exists in this group", new_repo.name)),
-                    None => DomainError::Conflict(format!("a repository named '{}' already exists", new_repo.name)),
-                };
-            }
-            DomainError::Infrastructure(e.to_string())
-        })?;
-        row.into_domain()
+        .map_err(conflict_on_duplicate(|| match new_repo.group_id {
+            Some(_) => format!(
+                "a repository named '{}' already exists in this group",
+                new_repo.name
+            ),
+            None => format!("a repository named '{}' already exists", new_repo.name),
+        }))?;
+        Repository::try_from(row)
     }
 
     async fn list_for_owner(&self, owner_id: Uuid) -> Result<Vec<Repository>, DomainError> {
         let rows = sqlx::query_as!(
-            Row,
+            RepositoryRow,
             "SELECT id, owner_id, name, group_id, description, disk_path, visibility, created_at FROM repositories WHERE owner_id = $1 AND group_id IS NULL ORDER BY created_at DESC",
             owner_id
         )
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+            .map_err(infra)?;
+        rows.into_iter().map(Repository::try_from).collect()
     }
 
     async fn find_by_owner_and_name(
@@ -94,15 +66,15 @@ impl RepositoryStorePort for PostgresRepositoryStore {
         name: &str,
     ) -> Result<Option<Repository>, DomainError> {
         let row = sqlx::query_as!(
-            Row,
+            RepositoryRow,
             "SELECT id, owner_id, name, group_id, description, disk_path, visibility, created_at FROM repositories WHERE owner_id = $1 AND name = $2 AND group_id IS NULL",
             owner_id,
             name
         )
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.map(Row::into_domain).transpose()
+            .map_err(infra)?;
+        row.map(Repository::try_from).transpose()
     }
 
     async fn find_by_group_and_name(
@@ -111,58 +83,80 @@ impl RepositoryStorePort for PostgresRepositoryStore {
         name: &str,
     ) -> Result<Option<Repository>, DomainError> {
         let row = sqlx::query_as!(
-            Row,
+            RepositoryRow,
             "SELECT id, owner_id, name, description, group_id, disk_path, visibility, created_at FROM repositories WHERE group_id = $1 AND name = $2",
             group_id,
             name
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        Ok(row.map(Row::into_domain).transpose()?)
+        .map_err(infra)?;
+        Ok(row.map(Repository::try_from).transpose()?)
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Repository>, DomainError> {
-        let row = sqlx::query_as!(Row, "SELECT id, owner_id, name, group_id, description, disk_path, visibility, created_at FROM repositories WHERE id = $1", id)
+        let row = sqlx::query_as!(RepositoryRow, "SELECT id, owner_id, name, group_id, description, disk_path, visibility, created_at FROM repositories WHERE id = $1", id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.map(Row::into_domain).transpose()
+            .map_err(infra)?;
+        row.map(Repository::try_from).transpose()
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), DomainError> {
         sqlx::query!("DELETE FROM repositories WHERE id = $1", id)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(())
+    }
+
+    // Runtime query: a new `query!` would need a `.sqlx` entry.
+    async fn update_details(
+        &self,
+        id: Uuid,
+        description: Option<String>,
+        visibility: Option<RepositoryVisibility>,
+    ) -> Result<Repository, DomainError> {
+        let row = sqlx::query_as::<_, RepositoryRow>(
+            "UPDATE repositories SET description = COALESCE($2, description), visibility = COALESCE($3, visibility) \
+             WHERE id = $1 \
+             RETURNING id, owner_id, name, group_id, description, disk_path, visibility, created_at",
+        )
+        .bind(id)
+        .bind(description)
+        .bind(visibility.map(|v| v.as_str()))
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(infra)?
+        .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
+        Repository::try_from(row)
     }
 
     async fn list_for_group(&self, group_id: Uuid) -> Result<Vec<Repository>, DomainError> {
         let rows = sqlx::query_as!(
-            Row,
+            RepositoryRow,
             "SELECT id, owner_id, name, description, group_id, disk_path, visibility, created_at FROM repositories WHERE group_id = $1 ORDER BY name",
             group_id
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+        .map_err(infra)?;
+        rows.into_iter().map(Repository::try_from).collect()
     }
 
     async fn list_all(&self) -> Result<Vec<Repository>, DomainError> {
-        let rows = sqlx::query_as!(Row, "SELECT id, owner_id, name, group_id, description, disk_path, visibility, created_at FROM repositories")
+        let rows = sqlx::query_as!(RepositoryRow, "SELECT id, owner_id, name, group_id, description, disk_path, visibility, created_at FROM repositories")
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+            .map_err(infra)?;
+        rows.into_iter().map(Repository::try_from).collect()
     }
 
     async fn list_public(&self) -> Result<Vec<Uuid>, DomainError> {
         sqlx::query_scalar!("SELECT id FROM repositories WHERE visibility = 'public'")
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     /// `websearch_to_tsquery` handles quoted phrases, `OR` and `-term` exclusion. A query that is only a
@@ -177,7 +171,7 @@ impl RepositoryStorePort for PostgresRepositoryStore {
         limit: i64,
     ) -> Result<Vec<Repository>, DomainError> {
         let rows = sqlx::query_as!(
-            Row,
+            RepositoryRow,
             "SELECT id, owner_id, name, group_id, description, disk_path, visibility, created_at FROM repositories \
              WHERE id = ANY($1::uuid[]) AND search_vector @@ websearch_to_tsquery('simple', $2) \
              ORDER BY ts_rank_cd(search_vector, websearch_to_tsquery('simple', $2)) DESC, id \
@@ -188,30 +182,15 @@ impl RepositoryStorePort for PostgresRepositoryStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+        .map_err(infra)?;
+        rows.into_iter().map(Repository::try_from).collect()
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::postgres::user_repository::PostgresUserRepository;
-    use ferrisgit_domain::user::{NewUser, UserRepositoryPort};
-
-    async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
-        let users = PostgresUserRepository::new(pool.clone());
-        users
-            .create(NewUser {
-                username: username.to_string(),
-                email: format!("{username}@example.com"),
-                password_hash: "h".to_string(),
-                is_admin: false,
-            })
-            .await
-            .unwrap()
-            .id
-    }
+    use crate::postgres::test_support::seed_user;
 
     #[sqlx::test(migrations = "../../migrations")]
     async fn creating_then_finding_a_repository_by_owner_and_name_returns_it(pool: PgPool) {
@@ -863,5 +842,85 @@ mod tests {
 
         let repos = store.list_all().await.unwrap();
         assert_eq!(repos.len(), 2);
+    }
+
+    async fn seed_repository(store: &PostgresRepositoryStore, owner_id: Uuid) -> Repository {
+        store
+            .create(
+                NewRepository {
+                    owner_id,
+                    name: "hello".to_string(),
+                    group_id: None,
+                    description: "avant".to_string(),
+                    visibility: RepositoryVisibility::Private,
+                },
+                "p".to_string(),
+            )
+            .await
+            .unwrap()
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn update_details_changes_only_what_is_given_and_never_the_name(pool: PgPool) {
+        let owner_id = seed_user(&pool, "florian").await;
+        let store = PostgresRepositoryStore::new(pool);
+        let repo = seed_repository(&store, owner_id).await;
+
+        let visibility_only = store
+            .update_details(repo.id, None, Some(RepositoryVisibility::Public))
+            .await
+            .unwrap();
+        assert_eq!(visibility_only.visibility, RepositoryVisibility::Public);
+        assert_eq!(visibility_only.description, "avant");
+
+        let description_only = store
+            .update_details(repo.id, Some("après".to_string()), None)
+            .await
+            .unwrap();
+        assert_eq!(description_only.description, "après");
+        assert_eq!(description_only.visibility, RepositoryVisibility::Public);
+
+        let emptied = store
+            .update_details(repo.id, Some(String::new()), None)
+            .await
+            .unwrap();
+        assert_eq!(emptied.description, "");
+
+        let stored = store.find_by_id(repo.id).await.unwrap().unwrap();
+        assert_eq!(stored.name, "hello");
+        assert_eq!(stored.owner_id, owner_id);
+        assert_eq!(stored.disk_path, "p");
+        assert_eq!(stored.visibility, RepositoryVisibility::Public);
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn update_details_moves_a_repository_in_and_out_of_the_public_list(pool: PgPool) {
+        let owner_id = seed_user(&pool, "florian").await;
+        let store = PostgresRepositoryStore::new(pool);
+        let repo = seed_repository(&store, owner_id).await;
+        assert!(store.list_public().await.unwrap().is_empty());
+
+        store
+            .update_details(repo.id, None, Some(RepositoryVisibility::Public))
+            .await
+            .unwrap();
+        assert_eq!(store.list_public().await.unwrap(), vec![repo.id]);
+
+        store
+            .update_details(repo.id, None, Some(RepositoryVisibility::Private))
+            .await
+            .unwrap();
+        assert!(store.list_public().await.unwrap().is_empty());
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn update_details_on_an_unknown_repository_is_not_found(pool: PgPool) {
+        let store = PostgresRepositoryStore::new(pool);
+
+        let result = store
+            .update_details(Uuid::new_v4(), Some("x".to_string()), None)
+            .await;
+
+        assert!(matches!(result, Err(DomainError::NotFound(_))));
     }
 }

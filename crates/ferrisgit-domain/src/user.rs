@@ -44,8 +44,8 @@ pub trait UserRepositoryPort: Send + Sync {
     /// a store that skipped the floor would be worse than none.
     async fn set_admin(&self, user_id: Uuid, is_admin: bool) -> Result<(), DomainError>;
     /// Deletes the account and its personal repositories in one transaction and returns them (the caller removes git
-    /// storage and release assets once the rows are gone). The DB cascades the rest of what the user owns
-    /// (`ON DELETE CASCADE`) and turns what they wrote elsewhere into content by a deleted user (`ON DELETE SET NULL`).
+    /// storage and release assets once the rows are gone). The store cascades the rest of what the user owns
+    /// and turns what they wrote elsewhere into content by a deleted user (the author field becomes `None`).
     /// `NotFound` for an unknown user.
     /// Refused with `Conflict`, atomically and before anything is written, for the last active admin (same floor as
     /// `set_admin`) and for the last Maintainer of a group hierarchy (same rule as `group_maintainer_guard`).

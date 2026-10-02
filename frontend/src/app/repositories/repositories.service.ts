@@ -1,13 +1,20 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { RepositoryVisibility } from './repository-visibility';
+
+/** What the signed-in user is on a repository, as the API reports it. */
+export type RepositoryRole = 'owner' | 'reader' | 'contributor' | 'maintainer';
+
+/** A role that can be granted to a collaborator or a group member: the owner is never granted. */
+export type MemberRole = Exclude<RepositoryRole, 'owner'>;
 
 export interface Repository {
   id: string;
   name: string;
   description: string;
   owner: string;
-  role: 'owner' | 'reader' | 'contributor' | 'maintainer';
-  visibility: 'private' | 'public';
+  role: RepositoryRole;
+  visibility: RepositoryVisibility;
   createdAt: string;
   /** The resolvable segment path: `[ownerUsername, name]` or `[...ancestorGroupNames, name]`. `owner` is only the creator's username, so build links from `path`. */
   path: string[];
@@ -68,7 +75,7 @@ export interface CommitInfo {
 
 export type ResolvedPath =
   | { type: 'personalRepository'; repositoryId: string }
-  | { type: 'group'; groupId: string; chain: { id: string; name: string }[]; role: 'reader' | 'contributor' | 'maintainer' | null }
+  | { type: 'group'; groupId: string; chain: { id: string; name: string }[]; role: MemberRole | null }
   | { type: 'groupRepository'; repositoryId: string; chain: { id: string; name: string }[] };
 
 @Injectable({ providedIn: 'root' })
@@ -80,20 +87,17 @@ export class RepositoriesService {
     return this.http.get<Repository[]>('/api/repositories', { params });
   }
 
-  create(name: string, visibility: 'private' | 'public', options: CreateRepositoryOptions = {}) {
+  create(name: string, visibility: RepositoryVisibility, options: CreateRepositoryOptions = {}) {
     return this.http.post<Repository>('/api/repositories', { name, visibility, ...options });
-  }
-
-  get(owner: string, name: string) {
-    return this.http.get<Repository>(`/api/repositories/${owner}/${name}`);
-  }
-
-  commits(owner: string, name: string) {
-    return this.http.get<CommitInfo[]>(`/api/repositories/${owner}/${name}/commits`);
   }
 
   getById(repositoryId: string) {
     return this.http.get<Repository>(`/api/repositories/by-id/${repositoryId}`);
+  }
+
+  /** Only the fields present change. The name and owner are not editable: they are part of the clone URL. */
+  update(repositoryId: string, update: { description?: string; visibility?: RepositoryVisibility }) {
+    return this.http.patch<Repository>(`/api/repositories/by-id/${repositoryId}`, update);
   }
 
   delete(repositoryId: string) {

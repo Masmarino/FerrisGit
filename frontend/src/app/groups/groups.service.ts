@@ -14,17 +14,33 @@ export interface WritableGroup {
   path: string;
 }
 
+export type GroupRole = 'reader' | 'contributor' | 'maintainer';
+
+export const GROUP_ROLE_LABELS: Record<GroupRole, string> = { reader: 'Lecteur', contributor: 'Contributeur', maintainer: 'Mainteneur' };
+
+export function isGroupRole(role: string | null): role is GroupRole {
+  return role === 'reader' || role === 'contributor' || role === 'maintainer';
+}
+
 export interface GroupMembership {
   id: string;
   path: string;
-  role: 'reader' | 'contributor' | 'maintainer';
+  role: GroupRole;
 }
 
 export interface GroupMember {
   userId: string;
   username: string;
-  role: 'reader' | 'contributor' | 'maintainer';
+  role: GroupRole;
   createdAt: string;
+}
+
+/** The message for a refused group or subgroup creation; `what` names the thing in the generic failure ("le sous-groupe"). */
+export function groupCreationError(status: number | undefined, what: string): string {
+  if (status === 400) {
+    return 'Nom invalide : lettres, chiffres, - et _ uniquement';
+  }
+  return status === 409 ? 'Ce nom est déjà utilisé' : `Impossible de créer ${what}. Réessayez plus tard.`;
 }
 
 @Injectable({ providedIn: 'root' })

@@ -1,5 +1,7 @@
 use std::collections::HashMap;
 
+use ferrisgit_domain::error::DomainError;
+use ferrisgit_domain::user::User;
 use serde::Serialize;
 use uuid::Uuid;
 
@@ -33,4 +35,12 @@ pub async fn load_user_refs(
         }
     }
     users
+}
+
+pub(crate) async fn require_user(state: &AppState, id: Uuid) -> Result<User, DomainError> {
+    state
+        .users
+        .find_by_id(id)
+        .await?
+        .ok_or_else(|| DomainError::NotFound("user".to_string()))
 }

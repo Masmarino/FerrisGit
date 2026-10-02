@@ -83,59 +83,23 @@ impl CancelPipelineUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeEvents, FakeExecution, FakeJobs, FakePipelines};
-    use chrono::Utc;
+    use crate::use_cases::fixtures::{job, pipeline};
     use ferrisgit_domain::job::Job;
     use ferrisgit_domain::pipeline::Pipeline;
     use ferrisgit_domain::settings::ExecutionEngine;
-    use std::collections::BTreeMap;
 
-    fn job(pipeline_id: Uuid, status: JobStatus) -> Job {
-        Job {
-            id: Uuid::new_v4(),
-            pipeline_id,
-            stage: "build".to_string(),
-            name: "compile".to_string(),
-            image: "rust".to_string(),
-            script: vec![],
-            variables: BTreeMap::new(),
-            needs: vec![],
-            tags: vec![],
-            cache: vec![],
-            status,
-            runner_id: None,
-            logs: String::new(),
-            created_at: Utc::now(),
-            started_at: None,
-            finished_at: None,
-        }
+    struct Fixture {
+        use_case: CancelPipelineUseCase,
+        pipelines: Arc<FakePipelines>,
+        jobs: Arc<FakeJobs>,
+        execution: Arc<FakeExecution>,
+        events: Arc<FakeEvents>,
     }
 
-    #[tokio::test]
-    async fn canceling_a_pipeline_cancels_its_pending_and_running_jobs_but_leaves_terminal_ones_alone()
-     {
-        let pipeline_id = Uuid::new_v4();
-        let pending = job(pipeline_id, JobStatus::Pending);
-        let running = job(pipeline_id, JobStatus::Running);
-        let already_succeeded = job(pipeline_id, JobStatus::Success);
-        let already_failed = job(pipeline_id, JobStatus::Failed);
-        let already_canceled = job(pipeline_id, JobStatus::Canceled);
-        let pipelines = Arc::new(FakePipelines::new(vec![Pipeline {
-            id: pipeline_id,
-            repository_id: Uuid::new_v4(),
-            commit_sha: "abc".to_string(),
-            execution_engine: ExecutionEngine::DockerRunners,
-            status: PipelineStatus::Running,
-            triggered_by: Uuid::new_v4(),
-            created_at: Utc::now(),
-            finished_at: None,
-        }]));
-        let jobs = Arc::new(FakeJobs::new(vec![
-            pending.clone(),
-            running.clone(),
-            already_succeeded.clone(),
-            already_failed.clone(),
-            already_canceled.clone(),
-        ]));
+    /// Both engines share one `FakeExecution`, so `execution.canceled()` lists every canceled job.
+    fn fixture(pipeline: Pipeline, jobs: Vec<Job>) -> Fixture {
+        let pipelines = Arc::new(FakePipelines::new(vec![pipeline]));
+        let jobs = Arc::new(FakeJobs::new(jobs));
         let execution = Arc::new(FakeExecution::new());
         let events = Arc::new(FakeEvents::new());
         let use_case = CancelPipelineUseCase::new(
@@ -147,56 +111,69 @@ mod tests {
             )),
             events.clone(),
         );
+        Fixture {
+            use_case,
+            pipelines,
+            jobs,
+            execution,
+            events,
+        }
+    }
 
-        use_case.execute(pipeline_id).await.unwrap();
+    impl Fixture {
+        fn job_status(&self, job: &Job) -> JobStatus {
+            self.jobs
+                .snapshot()
+                .iter()
+                .find(|j| j.id == job.id)
+                .unwrap()
+                .status
+        }
+    }
 
-        assert_eq!(pipelines.snapshot()[0].status, PipelineStatus::Canceled);
-        let stored_jobs = jobs.snapshot();
-        assert_eq!(
-            stored_jobs
-                .iter()
-                .find(|j| j.id == pending.id)
-                .unwrap()
-                .status,
-            JobStatus::Canceled
+    #[tokio::test]
+    async fn canceling_a_pipeline_cancels_its_pending_and_running_jobs_but_leaves_terminal_ones_alone()
+     {
+        let pipeline = pipeline(Uuid::new_v4(), PipelineStatus::Running);
+        let pipeline_id = pipeline.id;
+        let pending = job(pipeline_id, JobStatus::Pending);
+        let running = job(pipeline_id, JobStatus::Running);
+        let already_succeeded = job(pipeline_id, JobStatus::Success);
+        let already_failed = job(pipeline_id, JobStatus::Failed);
+        let already_canceled = job(pipeline_id, JobStatus::Canceled);
+        let f = fixture(
+            pipeline,
+            vec![
+                pending.clone(),
+                running.clone(),
+                already_succeeded.clone(),
+                already_failed.clone(),
+                already_canceled.clone(),
+            ],
         );
+
+        f.use_case.execute(pipeline_id).await.unwrap();
+
+        assert_eq!(f.pipelines.snapshot()[0].status, PipelineStatus::Canceled);
+        assert_eq!(f.job_status(&pending), JobStatus::Canceled);
+        assert_eq!(f.job_status(&running), JobStatus::Canceled);
         assert_eq!(
-            stored_jobs
-                .iter()
-                .find(|j| j.id == running.id)
-                .unwrap()
-                .status,
-            JobStatus::Canceled
-        );
-        assert_eq!(
-            stored_jobs
-                .iter()
-                .find(|j| j.id == already_succeeded.id)
-                .unwrap()
-                .status,
+            f.job_status(&already_succeeded),
             JobStatus::Success,
             "an already-succeeded job must not be touched"
         );
         assert_eq!(
-            stored_jobs
-                .iter()
-                .find(|j| j.id == already_failed.id)
-                .unwrap()
-                .status,
+            f.job_status(&already_failed),
             JobStatus::Failed,
             "an already-failed job must not be touched"
         );
         assert_eq!(
-            stored_jobs
-                .iter()
-                .find(|j| j.id == already_canceled.id)
-                .unwrap()
-                .status,
+            f.job_status(&already_canceled),
             JobStatus::Canceled,
             "an already-canceled job's status must remain Canceled (untouched, not re-set)"
         );
 
-        let canceled_via_engine = execution.canceled();
+        let canceled_via_engine = f.execution.canceled();
         assert_eq!(
             canceled_via_engine.len(),
             2,
@@ -208,7 +185,7 @@ mod tests {
         assert!(!canceled_via_engine.contains(&already_failed.id));
         assert!(!canceled_via_engine.contains(&already_canceled.id));
 
-        let published = events.job_events();
+        let published = f.events.job_events();
         assert_eq!(
             published.len(),
             2,
@@ -231,24 +208,17 @@ mod tests {
 
     #[tokio::test]
     async fn cancellation_routes_to_the_pipelines_own_engine_not_a_second_executor() {
-        let pipeline_id = Uuid::new_v4();
+        let pipeline = Pipeline {
+            execution_engine: ExecutionEngine::Kubernetes,
+            ..pipeline(Uuid::new_v4(), PipelineStatus::Running)
+        };
+        let pipeline_id = pipeline.id;
         let running = job(pipeline_id, JobStatus::Running);
-        let pipelines = Arc::new(FakePipelines::new(vec![Pipeline {
-            id: pipeline_id,
-            repository_id: Uuid::new_v4(),
-            commit_sha: "abc".to_string(),
-            execution_engine: ferrisgit_domain::settings::ExecutionEngine::Kubernetes,
-            status: PipelineStatus::Running,
-            triggered_by: Uuid::new_v4(),
-            created_at: Utc::now(),
-            finished_at: None,
-        }]));
-        let jobs = Arc::new(FakeJobs::new(vec![running.clone()]));
         let docker_executor = Arc::new(FakeExecution::new());
         let kubernetes_executor = Arc::new(FakeExecution::new());
         let use_case = CancelPipelineUseCase::new(
-            pipelines,
-            jobs,
+            Arc::new(FakePipelines::new(vec![pipeline])),
+            Arc::new(FakeJobs::new(vec![running.clone()])),
             Arc::new(JobExecutionResolver::new(
                 docker_executor.clone(),
                 kubernetes_executor.clone(),
@@ -271,15 +241,9 @@ mod tests {
 
     #[tokio::test]
     async fn canceling_an_unknown_pipeline_is_not_found() {
-        let execution = Arc::new(FakeExecution::new());
-        let use_case = CancelPipelineUseCase::new(
-            Arc::new(FakePipelines::empty()),
-            Arc::new(FakeJobs::empty()),
-            Arc::new(JobExecutionResolver::new(execution.clone(), execution)),
-            Arc::new(FakeEvents::new()),
-        );
+        let f = fixture(pipeline(Uuid::new_v4(), PipelineStatus::Running), vec![]);
 
-        let result = use_case.execute(Uuid::new_v4()).await;
+        let result = f.use_case.execute(Uuid::new_v4()).await;
 
         assert!(matches!(result, Err(DomainError::NotFound(_))));
     }
@@ -291,55 +255,31 @@ mod tests {
             PipelineStatus::Failed,
             PipelineStatus::Canceled,
         ] {
-            let pipeline_id = Uuid::new_v4();
-            let running_job = job(pipeline_id, JobStatus::Running);
-            let pipelines = Arc::new(FakePipelines::new(vec![Pipeline {
-                id: pipeline_id,
-                repository_id: Uuid::new_v4(),
-                commit_sha: "abc".to_string(),
-                execution_engine: ExecutionEngine::DockerRunners,
-                status: terminal_status,
-                triggered_by: Uuid::new_v4(),
-                created_at: Utc::now(),
-                finished_at: None,
-            }]));
+            let pipeline = pipeline(Uuid::new_v4(), terminal_status);
+            let pipeline_id = pipeline.id;
             // A non-terminal job under a finished pipeline is an inconsistency, but it shows that the guard checks the
             // pipeline's status and returns before touching any job.
-            let jobs = Arc::new(FakeJobs::new(vec![running_job.clone()]));
-            let execution = Arc::new(FakeExecution::new());
-            let events = Arc::new(FakeEvents::new());
-            let use_case = CancelPipelineUseCase::new(
-                pipelines.clone(),
-                jobs.clone(),
-                Arc::new(JobExecutionResolver::new(
-                    execution.clone(),
-                    execution.clone(),
-                )),
-                events.clone(),
-            );
+            let running_job = job(pipeline_id, JobStatus::Running);
+            let f = fixture(pipeline, vec![running_job.clone()]);
 
-            use_case.execute(pipeline_id).await.unwrap();
+            f.use_case.execute(pipeline_id).await.unwrap();
 
             assert_eq!(
-                pipelines.snapshot()[0].status,
+                f.pipelines.snapshot()[0].status,
                 terminal_status,
                 "an already-terminal pipeline's status must never be overwritten with Canceled"
             );
             assert_eq!(
-                jobs.snapshot()
-                    .iter()
-                    .find(|j| j.id == running_job.id)
-                    .unwrap()
-                    .status,
+                f.job_status(&running_job),
                 JobStatus::Running,
                 "no job should be touched when the pipeline is already terminal"
             );
             assert!(
-                execution.canceled().is_empty(),
+                f.execution.canceled().is_empty(),
                 "no job should reach the execution engine's cancel when the pipeline is already terminal"
             );
             assert!(
-                events.pipeline_events().is_empty() && events.job_events().is_empty(),
+                f.events.pipeline_events().is_empty() && f.events.job_events().is_empty(),
                 "no event should be published when canceling an already-terminal pipeline is a no-op"
             );
         }

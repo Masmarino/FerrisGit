@@ -12,27 +12,25 @@ import { MeService } from '../../shell/me.service';
 import { GbtToastService } from '@masmarino/gabarit';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { daysAgo, hoursAgo, inShellContentArea, minutesAgo } from '../../shared/layout/page-story-helpers';
-
-const label = (id: string, name: string, color: string): Label => ({ id, name, color, repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' });
-
-const LABELS: Label[] = [
-  label('l-bug', 'bug', '#dc2626'),
-  label('l-urgent', 'urgent', '#f97316'),
-  label('l-ui', 'interface', '#6366f1'),
-  label('l-docs', 'documentation', '#0ea5e9'),
-  label('l-perf', 'performance', '#16a34a'),
-  label('l-good-first', 'bon premier ticket', '#a855f7'),
-];
-const [BUG, URGENT, UI, DOCS, PERF, GOOD_FIRST] = LABELS;
-
-const MILESTONES: Milestone[] = [
-  { id: 'm1', title: 'v1.0', description: 'Première version stable', dueDate: '2026-11-01', state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'm2', title: 'v1.1', description: '', dueDate: null, state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-02-01T00:00:00Z' },
-];
-
-const ALICE = { id: 'u1', username: 'alice' };
-const BASTIEN = { id: 'u2', username: 'bastien' };
-const FLORIAN = { id: 'u3', username: 'florian' };
+import {
+  ALICE,
+  BASTIEN,
+  BUG,
+  DOCS,
+  FLORIAN,
+  GOOD_FIRST,
+  LABELS,
+  LONG_TITLE,
+  LONG_USERNAME,
+  MILESTONES,
+  PERF,
+  TITLE_SUBJECTS,
+  TITLE_VERBS,
+  UI,
+  URGENT,
+  fakeRepositoryContextService,
+  fakeToast,
+} from '../issue-story-fixtures';
 
 let nextId = 0;
 function issue(fields: Partial<Issue> & Pick<Issue, 'number' | 'title'>): Issue {
@@ -68,11 +66,11 @@ const MIXED: Issue[] = [
 const LONG: Issue[] = [
   issue({
     number: 1287,
-    title: 'Quand on renomme une branche protégée depuis l’interface, les règles de protection restent attachées à l’ancien nom et la nouvelle branche accepte les pushs forcés',
+    title: LONG_TITLE,
     kind: 'bug',
     labels: [BUG, URGENT],
     milestoneId: 'm1',
-    assignee: { id: 'u9', username: 'Maximilien de La Tour d’Auvergne' },
+    assignee: { id: 'u9', username: LONG_USERNAME },
     commentCount: 128,
     createdAt: hoursAgo(5),
   }),
@@ -88,12 +86,10 @@ const LONG: Issue[] = [
   issue({ number: 1285, title: 'Ticketsansespacesdansletitrequidoitquandmêmesetronqueràlafindelaligne', createdAt: daysAgo(2), assignee: FLORIAN }),
 ];
 
-const titles = ['Corriger', 'Ajouter', 'Documenter', 'Tester', 'Simplifier'];
-const subjects = ['la page des pipelines', 'les webhooks', 'la recherche', 'le wiki', 'les jetons d’API', 'la vue kanban'];
 const MANY: Issue[] = Array.from({ length: 43 }, (_, index) =>
   issue({
     number: 100 - index,
-    title: `${titles[index % titles.length]} ${subjects[index % subjects.length]}`,
+    title: `${TITLE_VERBS[index % TITLE_VERBS.length]} ${TITLE_SUBJECTS[index % TITLE_SUBJECTS.length]}`,
     kind: (['task', 'bug', 'feature'] as const)[index % 3],
     status: index >= 40 ? 'done' : (['todo', 'in_progress', 'in_review'] as const)[index % 3],
     closedAt: index >= 40 ? daysAgo(1) : null,
@@ -115,12 +111,7 @@ function fakeIssuesService(issues: Issue[], overrides: Partial<Record<keyof Issu
   };
 }
 
-const fakeToast = { show: () => {}, dismiss: () => {} };
 const fakeMeService = { id: () => 'u1', username: () => 'alice', email: () => 'alice@example.com', isAdmin: () => false };
-
-function fakeRepositoryContextService(role: 'owner' | 'reader' | 'contributor' | 'maintainer' | null) {
-  return { current: () => ({ repositoryId: 'repo-1', path: ['alice', 'ferrisgit'], role, ancestors: [], groupId: null }) };
-}
 
 function withData(options: { issues?: Issue[]; role?: 'owner' | 'reader'; labels?: Label[]; milestones?: Milestone[]; issuesService?: unknown } = {}) {
   return moduleMetadata({

@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferrisgit_domain::error::DomainError;
@@ -39,10 +40,6 @@ impl From<Row> for StoredPasskey {
             last_used_at: row.last_used_at,
         }
     }
-}
-
-fn infra(e: sqlx::Error) -> DomainError {
-    DomainError::Infrastructure(e.to_string())
 }
 
 /// The domain hands the passkey over as text, and it is stored as `jsonb`. The parse error is not
@@ -149,16 +146,12 @@ impl WebauthnCredentialPort for PostgresWebauthnCredentialStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::postgres::test_support::micros;
     use crate::postgres::test_support::seed_user;
     use std::sync::Arc;
 
     fn store(pool: PgPool) -> PostgresWebauthnCredentialStore {
         PostgresWebauthnCredentialStore::new(pool)
-    }
-
-    /// Postgres keeps microseconds: truncate so a round-trip compares equal.
-    fn micros(at: DateTime<Utc>) -> DateTime<Utc> {
-        DateTime::from_timestamp_micros(at.timestamp_micros()).unwrap()
     }
 
     fn passkey_json(counter: i64) -> String {

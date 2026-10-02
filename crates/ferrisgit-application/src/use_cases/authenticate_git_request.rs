@@ -5,7 +5,9 @@ use ferrisgit_domain::audit::{EventPublisherPort, SecurityEvent};
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::group::GroupStorePort;
 use ferrisgit_domain::group_membership::GroupMembershipPort;
+use ferrisgit_domain::public_pages::PublicPagesSettingsPort;
 use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
+use ferrisgit_domain::repository_authz::effective_repository_role;
 use ferrisgit_domain::repository_collaborator::{
     CollaboratorRole, RepositoryCollaboratorStorePort,
 };
@@ -29,6 +31,7 @@ pub struct AuthenticateGitRequestUseCase {
     collaborators: Arc<dyn RepositoryCollaboratorStorePort>,
     groups: Arc<dyn GroupStorePort>,
     group_membership: Arc<dyn GroupMembershipPort>,
+    public_pages: Arc<dyn PublicPagesSettingsPort>,
 }
 
 impl AuthenticateGitRequestUseCase {
@@ -40,6 +43,7 @@ impl AuthenticateGitRequestUseCase {
         collaborators: Arc<dyn RepositoryCollaboratorStorePort>,
         groups: Arc<dyn GroupStorePort>,
         group_membership: Arc<dyn GroupMembershipPort>,
+        public_pages: Arc<dyn PublicPagesSettingsPort>,
     ) -> Self {
         Self {
             api_tokens,
@@ -48,6 +52,7 @@ impl AuthenticateGitRequestUseCase {
             collaborators,
             groups,
             group_membership,
+            public_pages,
         }
     }
 
@@ -57,23 +62,19 @@ impl AuthenticateGitRequestUseCase {
         repo: Repository,
         access: GitAccess,
     ) -> Result<(Repository, Option<Uuid>), DomainError> {
-        // Anyone can read a public repo, even when credentials are sent (a `user:token@host` clone URL always sends
-        // Basic Auth). Only a write has to prove access.
-        if matches!(access, GitAccess::Read) && repo.visibility == RepositoryVisibility::Public {
+        // A public repo is readable without credentials while the instance has its public pages on, even when
+        // credentials are sent (a `user:token@host` clone URL always sends Basic Auth). With them off, anonymous
+        // reads are refused like on a private repo; a signed-in user keeps reading it below. A settings read error
+        // counts as "off": better to refuse than to open a repository that may have been closed.
+        let public_read =
+            matches!(access, GitAccess::Read) && repo.visibility == RepositoryVisibility::Public;
+        if public_read && self.anonymous_public_read_allowed().await {
             return Ok((repo, None));
         }
 
         let Some((username, plain_token)) = credentials else {
-            self.events
-                .publish_security_event(
-                    SecurityEvent::GitAccessDenied {
-                        username: "anonymous".to_string(),
-                        repository: repo.name.clone(),
-                    },
-                    None,
-                )
-                .await
-                .ok();
+            self.publish_denied("anonymous".to_string(), &repo, None)
+                .await;
             return Err(DomainError::Unauthorized("missing credentials".to_string()));
         };
 
@@ -88,21 +89,15 @@ impl AuthenticateGitRequestUseCase {
             } else {
                 CollaboratorRole::Reader
             };
-            let authorized = self
-                .effective_role(&repo, stored.user_id)
-                .await?
-                .is_some_and(|r| r >= required);
+            // Any signed-in user reads a public repo, as in the API (`require_role_by_id`).
+            let authorized = public_read
+                || self
+                    .effective_role(&repo, stored.user_id)
+                    .await?
+                    .is_some_and(|r| r >= required);
             if !authorized {
-                self.events
-                    .publish_security_event(
-                        SecurityEvent::GitAccessDenied {
-                            username,
-                            repository: repo.name.clone(),
-                        },
-                        Some(stored.user_id),
-                    )
-                    .await
-                    .ok();
+                self.publish_denied(username, &repo, Some(stored.user_id))
+                    .await;
                 return Err(DomainError::Unauthorized(
                     "token does not grant access to this repository".to_string(),
                 ));
@@ -117,16 +112,7 @@ impl AuthenticateGitRequestUseCase {
             .await?
         {
             if matches!(access, GitAccess::Write) {
-                self.events
-                    .publish_security_event(
-                        SecurityEvent::GitAccessDenied {
-                            username: runner.name.clone(),
-                            repository: repo.name.clone(),
-                        },
-                        None,
-                    )
-                    .await
-                    .ok();
+                self.publish_denied(runner.name.clone(), &repo, None).await;
                 return Err(DomainError::Unauthorized(
                     "runner tokens cannot push".to_string(),
                 ));
@@ -142,6 +128,29 @@ impl AuthenticateGitRequestUseCase {
         Err(DomainError::Unauthorized("invalid token".to_string()))
     }
 
+    async fn publish_denied(&self, username: String, repo: &Repository, actor_id: Option<Uuid>) {
+        self.events
+            .publish_security_event(
+                SecurityEvent::GitAccessDenied {
+                    username,
+                    repository: repo.name.clone(),
+                },
+                actor_id,
+            )
+            .await
+            .ok();
+    }
+
+    async fn anonymous_public_read_allowed(&self) -> bool {
+        match self.public_pages.get().await {
+            Ok(settings) => settings.public_pages_enabled,
+            Err(err) => {
+                tracing::error!(error = %err, "failed to read the public pages setting for an anonymous git read");
+                false
+            }
+        }
+    }
+
     /// The max role comes from `effective_repository_role`, the policy shared with
     /// `ferrisgit-api::authz::require_role_by_id`. `authz_parity_flow.rs` checks that both callers behave the same.
     async fn effective_role(
@@ -149,7 +158,7 @@ impl AuthenticateGitRequestUseCase {
         repo: &Repository,
         user_id: Uuid,
     ) -> Result<Option<CollaboratorRole>, DomainError> {
-        ferrisgit_domain::repository_authz::effective_repository_role(
+        effective_repository_role(
             self.collaborators.as_ref(),
             self.groups.as_ref(),
             self.group_membership.as_ref(),
@@ -164,157 +173,145 @@ impl AuthenticateGitRequestUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{
-        FakeApiTokens, FakeCollaborators, FakeEvents, FakeGroups, FakeRunners,
+        FakeApiTokens, FakeCollaborators, FakeEvents, FakeGroups, FakePublicPagesSettings,
+        FakeRunners,
     };
+    use crate::use_cases::fixtures::{group, repository};
     use async_trait::async_trait;
     use chrono::Utc;
     use ferrisgit_domain::api_token::ApiToken;
-    use ferrisgit_domain::group::{Group, GroupMember, GroupWithPath, NewGroup};
-    use ferrisgit_domain::user::User;
-    use uuid::Uuid;
+    use ferrisgit_domain::public_pages::{PublicPagesSettings, PublicPagesSettingsUpdate};
+    use ferrisgit_domain::runner::Runner;
 
-    /// Never queried: personal repositories (`group_id: None`) never touch `self.groups`.
-    struct UnimplementedGroups;
+    fn public_pages(enabled: bool) -> Arc<dyn PublicPagesSettingsPort> {
+        Arc::new(FakePublicPagesSettings::new(PublicPagesSettings {
+            public_pages_enabled: enabled,
+            ..PublicPagesSettings::default()
+        }))
+    }
+
+    struct BrokenPublicPagesSettings;
     #[async_trait]
-    impl GroupStorePort for UnimplementedGroups {
-        async fn create(&self, _new_group: NewGroup) -> Result<Group, DomainError> {
-            unimplemented!()
+    impl PublicPagesSettingsPort for BrokenPublicPagesSettings {
+        async fn get(&self) -> Result<PublicPagesSettings, DomainError> {
+            Err(DomainError::Infrastructure("database down".to_string()))
         }
-        async fn find_by_id(&self, _id: Uuid) -> Result<Option<Group>, DomainError> {
-            unimplemented!()
-        }
-        async fn find_child_by_name(
+        async fn update(
             &self,
-            _parent_id: Option<Uuid>,
-            _name: &str,
-        ) -> Result<Option<Group>, DomainError> {
-            unimplemented!()
-        }
-        async fn list_children(&self, _parent_id: Option<Uuid>) -> Result<Vec<Group>, DomainError> {
-            unimplemented!()
-        }
-        async fn ancestor_chain(&self, _group_id: Uuid) -> Result<Vec<Group>, DomainError> {
-            unimplemented!()
-        }
-        async fn list_writable_groups(
-            &self,
-            _user_id: Uuid,
-        ) -> Result<Vec<GroupWithPath>, DomainError> {
-            unimplemented!()
-        }
-        async fn list_member_group_ids(&self, _user_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
+            _update: PublicPagesSettingsUpdate,
+        ) -> Result<PublicPagesSettings, DomainError> {
             unimplemented!()
         }
     }
 
-    #[async_trait]
-    impl GroupMembershipPort for UnimplementedGroups {
-        async fn add_member(
-            &self,
-            _group_id: Uuid,
-            _user_id: Uuid,
-            _role: CollaboratorRole,
-        ) -> Result<(), DomainError> {
-            unimplemented!()
+    /// What the use case is wired to: public pages on, and nothing else unless a test adds it.
+    struct World {
+        tokens: Vec<ApiToken>,
+        runners: Vec<Runner>,
+        collaborators: Vec<(Uuid, Uuid, CollaboratorRole)>,
+        groups: FakeGroups,
+        public_pages: Arc<dyn PublicPagesSettingsPort>,
+    }
+
+    impl World {
+        fn new() -> Self {
+            Self {
+                tokens: vec![],
+                runners: vec![],
+                collaborators: vec![],
+                groups: FakeGroups::empty(),
+                public_pages: public_pages(true),
+            }
         }
-        async fn set_member_role(
-            &self,
-            _group_id: Uuid,
-            _user_id: Uuid,
-            _role: CollaboratorRole,
-        ) -> Result<(), DomainError> {
-            unimplemented!()
-        }
-        async fn remove_member(&self, _group_id: Uuid, _user_id: Uuid) -> Result<(), DomainError> {
-            unimplemented!()
-        }
-        async fn list_members(&self, _group_id: Uuid) -> Result<Vec<GroupMember>, DomainError> {
-            unimplemented!()
-        }
-        async fn get_member_role(
-            &self,
-            _group_id: Uuid,
-            _user_id: Uuid,
-        ) -> Result<Option<CollaboratorRole>, DomainError> {
-            unimplemented!()
+
+        fn build(self) -> (AuthenticateGitRequestUseCase, Arc<FakeEvents>) {
+            let events = Arc::new(FakeEvents::default());
+            let groups = Arc::new(self.groups);
+            let use_case = AuthenticateGitRequestUseCase::new(
+                Arc::new(FakeApiTokens::new(self.tokens)),
+                events.clone(),
+                Arc::new(FakeRunners::new(self.runners)),
+                Arc::new(FakeCollaborators::new(self.collaborators)),
+                groups.clone(),
+                groups,
+                self.public_pages,
+            );
+            (use_case, events)
         }
     }
 
-    fn user(username: &str) -> User {
-        User {
+    fn api_token(user_id: Uuid, plain: &str) -> ApiToken {
+        ApiToken {
             id: Uuid::new_v4(),
-            username: username.to_string(),
-            email: format!("{username}@example.com"),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
-    }
-
-    fn personal_repo(owner_id: Uuid, name: &str, visibility: RepositoryVisibility) -> Repository {
-        Repository {
-            id: Uuid::new_v4(),
-            owner_id,
-            name: name.to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "path".to_string(),
-            visibility,
-            created_at: Utc::now(),
-        }
-    }
-
-    fn fixture(
-        visibility: RepositoryVisibility,
-    ) -> (
-        Uuid,
-        Repository,
-        ApiToken,
-        AuthenticateGitRequestUseCase,
-        Arc<FakeEvents>,
-    ) {
-        let owner = user("florian");
-        let repo = personal_repo(owner.id, "hello", visibility);
-        let token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: owner.id,
+            user_id,
             name: "ci".to_string(),
-            token_hash: hash_token("fg_valid"),
+            token_hash: hash_token(plain),
             created_at: Utc::now(),
             last_used_at: None,
-        };
-        let owner_id = owner.id;
-        let events = Arc::new(FakeEvents::default());
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![token.clone()])),
-            events.clone(),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::empty()),
-            Arc::new(UnimplementedGroups),
-            Arc::new(UnimplementedGroups),
-        );
-        (owner_id, repo, token, use_case, events)
+        }
+    }
+
+    fn runner(plain: &str) -> Runner {
+        Runner {
+            id: Uuid::new_v4(),
+            name: "vps-1".to_string(),
+            token_hash: hash_token(plain),
+            tags: vec![],
+            last_heartbeat_at: None,
+            created_at: Utc::now(),
+        }
+    }
+
+    fn credentials(username: &str, plain_token: &str) -> Option<(String, String)> {
+        Some((username.to_string(), plain_token.to_string()))
+    }
+
+    fn personal_repo(owner_id: Uuid, visibility: RepositoryVisibility) -> Repository {
+        Repository {
+            visibility,
+            ..repository(owner_id)
+        }
+    }
+
+    /// The owner's token is `fg_valid`.
+    struct Fixture {
+        owner_id: Uuid,
+        repo: Repository,
+        use_case: AuthenticateGitRequestUseCase,
+        events: Arc<FakeEvents>,
+    }
+
+    fn fixture(visibility: RepositoryVisibility) -> Fixture {
+        let owner_id = Uuid::new_v4();
+        let (use_case, events) = World {
+            tokens: vec![api_token(owner_id, "fg_valid")],
+            ..World::new()
+        }
+        .build();
+        Fixture {
+            owner_id,
+            repo: personal_repo(owner_id, visibility),
+            use_case,
+            events,
+        }
     }
 
     #[tokio::test]
     async fn a_valid_token_grants_write_access_to_its_owners_repository() {
-        let (owner_id, repo, _, use_case, _) = fixture(RepositoryVisibility::Private);
-        let result = use_case
-            .execute(
-                Some(("florian".to_string(), "fg_valid".to_string())),
-                repo,
-                GitAccess::Write,
-            )
+        let f = fixture(RepositoryVisibility::Private);
+        let result = f
+            .use_case
+            .execute(credentials("florian", "fg_valid"), f.repo, GitAccess::Write)
             .await;
         assert!(result.is_ok());
         let (_, resolved_user_id) = result.unwrap();
-        assert_eq!(resolved_user_id, Some(owner_id));
+        assert_eq!(resolved_user_id, Some(f.owner_id));
     }
 
     #[tokio::test]
     async fn reading_a_public_repository_without_credentials_is_allowed() {
-        let (_, repo, _, use_case, _) = fixture(RepositoryVisibility::Public);
-        let result = use_case.execute(None, repo, GitAccess::Read).await;
+        let f = fixture(RepositoryVisibility::Public);
+        let result = f.use_case.execute(None, f.repo, GitAccess::Read).await;
         assert!(result.is_ok());
         let (_, resolved_user_id) = result.unwrap();
         assert_eq!(resolved_user_id, None);
@@ -322,11 +319,11 @@ mod tests {
 
     #[tokio::test]
     async fn reading_a_private_repository_without_credentials_is_unauthorized() {
-        let (_, repo, _, use_case, events) = fixture(RepositoryVisibility::Private);
-        let result = use_case.execute(None, repo, GitAccess::Read).await;
+        let f = fixture(RepositoryVisibility::Private);
+        let result = f.use_case.execute(None, f.repo, GitAccess::Read).await;
         assert!(matches!(result, Err(DomainError::Unauthorized(_))));
 
-        let published = events.security_events();
+        let published = f.events.security_events();
         assert_eq!(
             published.len(),
             1,
@@ -340,17 +337,14 @@ mod tests {
 
     #[tokio::test]
     async fn an_invalid_token_is_unauthorized() {
-        let (_, repo, _, use_case, events) = fixture(RepositoryVisibility::Private);
-        let result = use_case
-            .execute(
-                Some(("florian".to_string(), "fg_wrong".to_string())),
-                repo,
-                GitAccess::Read,
-            )
+        let f = fixture(RepositoryVisibility::Private);
+        let result = f
+            .use_case
+            .execute(credentials("florian", "fg_wrong"), f.repo, GitAccess::Read)
             .await;
         assert!(matches!(result, Err(DomainError::Unauthorized(_))));
 
-        let published = events.security_events();
+        let published = f.events.security_events();
         assert_eq!(
             published.len(),
             1,
@@ -365,31 +359,16 @@ mod tests {
     #[tokio::test]
     async fn reading_a_public_repository_with_a_foreign_valid_token_is_still_allowed() {
         // A different user's valid token must not matter for a public read.
-        let owner = user("florian");
-        let repo = personal_repo(owner.id, "hello", RepositoryVisibility::Public);
-
-        let foreign_user = user("someone-else");
-        let foreign_token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: foreign_user.id,
-            name: "their-token".to_string(),
-            token_hash: hash_token("fg_theirs"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
-
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![foreign_token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::empty()),
-            Arc::new(UnimplementedGroups),
-            Arc::new(UnimplementedGroups),
-        );
+        let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Public);
+        let (use_case, _) = World {
+            tokens: vec![api_token(Uuid::new_v4(), "fg_theirs")],
+            ..World::new()
+        }
+        .build();
 
         let result = use_case
             .execute(
-                Some(("someone-else".to_string(), "fg_theirs".to_string())),
+                credentials("someone-else", "fg_theirs"),
                 repo,
                 GitAccess::Read,
             )
@@ -403,38 +382,17 @@ mod tests {
     #[tokio::test]
     async fn a_listed_collaborators_token_grants_write_access_to_a_private_repository_it_does_not_own()
      {
-        let owner = user("florian");
-        let repo = personal_repo(owner.id, "hello", RepositoryVisibility::Private);
-
-        let collaborator = user("collab");
-        let collaborator_token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: collaborator.id,
-            name: "collab-token".to_string(),
-            token_hash: hash_token("fg_collab"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
-
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![collaborator_token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::new(vec![(
-                repo.id,
-                collaborator.id,
-                CollaboratorRole::Contributor,
-            )])),
-            Arc::new(UnimplementedGroups),
-            Arc::new(UnimplementedGroups),
-        );
+        let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
+        let collaborator_id = Uuid::new_v4();
+        let (use_case, _) = World {
+            tokens: vec![api_token(collaborator_id, "fg_collab")],
+            collaborators: vec![(repo.id, collaborator_id, CollaboratorRole::Contributor)],
+            ..World::new()
+        }
+        .build();
 
         let result = use_case
-            .execute(
-                Some(("collab".to_string(), "fg_collab".to_string())),
-                repo,
-                GitAccess::Write,
-            )
+            .execute(credentials("collab", "fg_collab"), repo, GitAccess::Write)
             .await;
         assert!(
             result.is_ok(),
@@ -444,31 +402,17 @@ mod tests {
 
     #[tokio::test]
     async fn a_valid_token_belonging_to_neither_the_owner_nor_a_collaborator_is_unauthorized() {
-        let owner = user("florian");
-        let repo = personal_repo(owner.id, "hello", RepositoryVisibility::Private);
-
-        let stranger = user("stranger");
-        let stranger_token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: stranger.id,
-            name: "stranger-token".to_string(),
-            token_hash: hash_token("fg_stranger"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
-
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![stranger_token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::empty()), // stranger is not in this list, which is the point of this test
-            Arc::new(UnimplementedGroups),
-            Arc::new(UnimplementedGroups),
-        );
+        let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
+        // The stranger is not a collaborator, which is the point of this test.
+        let (use_case, _) = World {
+            tokens: vec![api_token(Uuid::new_v4(), "fg_stranger")],
+            ..World::new()
+        }
+        .build();
 
         let result = use_case
             .execute(
-                Some(("stranger".to_string(), "fg_stranger".to_string())),
+                credentials("stranger", "fg_stranger"),
                 repo,
                 GitAccess::Write,
             )
@@ -483,34 +427,19 @@ mod tests {
     async fn access_is_re_evaluated_fresh_against_current_collaborator_state_not_cached() {
         // The use case never caches an authorization decision: two instances differing only in the collaborator pair
         // give opposite outcomes.
-        let owner = user("florian");
-        let repo = personal_repo(owner.id, "hello", RepositoryVisibility::Private);
+        let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
+        let collaborator_id = Uuid::new_v4();
+        let token = api_token(collaborator_id, "fg_collab");
 
-        let collaborator = user("collab");
-        let collaborator_token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: collaborator.id,
-            name: "collab-token".to_string(),
-            token_hash: hash_token("fg_collab"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
-
-        let while_still_a_collaborator = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![collaborator_token.clone()])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::new(vec![(
-                repo.id,
-                collaborator.id,
-                CollaboratorRole::Contributor,
-            )])),
-            Arc::new(UnimplementedGroups),
-            Arc::new(UnimplementedGroups),
-        );
+        let (while_still_a_collaborator, _) = World {
+            tokens: vec![token.clone()],
+            collaborators: vec![(repo.id, collaborator_id, CollaboratorRole::Contributor)],
+            ..World::new()
+        }
+        .build();
         let before_removal = while_still_a_collaborator
             .execute(
-                Some(("collab".to_string(), "fg_collab".to_string())),
+                credentials("collab", "fg_collab"),
                 repo.clone(),
                 GitAccess::Write,
             )
@@ -520,20 +449,14 @@ mod tests {
             "expected write access while still a listed collaborator, got {before_removal:?}"
         );
 
-        let after_removal = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![collaborator_token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::empty()), // same pair, now absent, as after a real removal
-            Arc::new(UnimplementedGroups),
-            Arc::new(UnimplementedGroups),
-        );
+        // Same pair, now absent, as after a real removal.
+        let (after_removal, _) = World {
+            tokens: vec![token],
+            ..World::new()
+        }
+        .build();
         let result_after_removal = after_removal
-            .execute(
-                Some(("collab".to_string(), "fg_collab".to_string())),
-                repo,
-                GitAccess::Write,
-            )
+            .execute(credentials("collab", "fg_collab"), repo, GitAccess::Write)
             .await;
         assert!(
             matches!(result_after_removal, Err(DomainError::Unauthorized(_))),
@@ -541,109 +464,56 @@ mod tests {
         );
     }
 
+    /// A private repository on which `reader` is a Reader collaborator, with the token `fg_reader`.
+    fn reader_collaborator() -> (Repository, AuthenticateGitRequestUseCase) {
+        let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
+        let reader_id = Uuid::new_v4();
+        let (use_case, _) = World {
+            tokens: vec![api_token(reader_id, "fg_reader")],
+            collaborators: vec![(repo.id, reader_id, CollaboratorRole::Reader)],
+            ..World::new()
+        }
+        .build();
+        (repo, use_case)
+    }
+
     #[tokio::test]
     async fn a_reader_role_collaborator_can_read_but_not_write() {
-        let owner = user("florian");
-        let repo = personal_repo(owner.id, "hello", RepositoryVisibility::Private);
-        let collaborator = user("reader");
-        let token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: collaborator.id,
-            name: "ci".to_string(),
-            token_hash: hash_token("fg_reader"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::new(vec![(
-                repo.id,
-                collaborator.id,
-                CollaboratorRole::Reader,
-            )])),
-            Arc::new(UnimplementedGroups),
-            Arc::new(UnimplementedGroups),
-        );
+        let (repo, use_case) = reader_collaborator();
 
         let read_result = use_case
-            .execute(
-                Some(("florian".to_string(), "fg_reader".to_string())),
-                repo,
-                GitAccess::Read,
-            )
+            .execute(credentials("florian", "fg_reader"), repo, GitAccess::Read)
             .await;
         assert!(read_result.is_ok());
     }
 
     #[tokio::test]
     async fn a_reader_role_collaborator_cannot_write() {
-        let owner = user("florian");
-        let repo = personal_repo(owner.id, "hello", RepositoryVisibility::Private);
-        let collaborator = user("reader");
-        let token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: collaborator.id,
-            name: "ci".to_string(),
-            token_hash: hash_token("fg_reader2"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::new(vec![(
-                repo.id,
-                collaborator.id,
-                CollaboratorRole::Reader,
-            )])),
-            Arc::new(UnimplementedGroups),
-            Arc::new(UnimplementedGroups),
-        );
+        let (repo, use_case) = reader_collaborator();
 
         let write_result = use_case
-            .execute(
-                Some(("florian".to_string(), "fg_reader2".to_string())),
-                repo,
-                GitAccess::Write,
-            )
+            .execute(credentials("florian", "fg_reader"), repo, GitAccess::Write)
             .await;
         assert!(matches!(write_result, Err(DomainError::Unauthorized(_))));
     }
 
-    fn fixture_with_runner(
-        visibility: RepositoryVisibility,
-    ) -> (Repository, AuthenticateGitRequestUseCase, Arc<FakeEvents>) {
-        let owner = user("florian");
-        let repo = personal_repo(owner.id, "hello", visibility);
-        let runner = ferrisgit_domain::runner::Runner {
-            id: Uuid::new_v4(),
-            name: "vps-1".to_string(),
-            token_hash: hash_token("fgr_valid"),
-            tags: vec![],
-            last_heartbeat_at: None,
-            created_at: Utc::now(),
-        };
-        let events = Arc::new(FakeEvents::default());
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![])),
-            events.clone(),
-            Arc::new(FakeRunners::new(vec![runner])),
-            Arc::new(FakeCollaborators::empty()),
-            Arc::new(UnimplementedGroups),
-            Arc::new(UnimplementedGroups),
-        );
-        (repo, use_case, events)
+    /// The runner's token is `fgr_valid`.
+    fn runner_use_case() -> (AuthenticateGitRequestUseCase, Arc<FakeEvents>) {
+        World {
+            runners: vec![runner("fgr_valid")],
+            ..World::new()
+        }
+        .build()
     }
 
     #[tokio::test]
     async fn a_valid_runner_token_reads_a_private_repository_it_does_not_own() {
-        let (repo, use_case, _) = fixture_with_runner(RepositoryVisibility::Private);
+        let (use_case, _) = runner_use_case();
+        let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
+
         let result = use_case
             .execute(
-                Some(("any-runner-name".to_string(), "fgr_valid".to_string())),
+                credentials("any-runner-name", "fgr_valid"),
                 repo,
                 GitAccess::Read,
             )
@@ -656,10 +526,12 @@ mod tests {
 
     #[tokio::test]
     async fn a_valid_runner_token_cannot_write() {
-        let (repo, use_case, events) = fixture_with_runner(RepositoryVisibility::Private);
+        let (use_case, events) = runner_use_case();
+        let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
+
         let result = use_case
             .execute(
-                Some(("any-runner-name".to_string(), "fgr_valid".to_string())),
+                credentials("any-runner-name", "fgr_valid"),
                 repo,
                 GitAccess::Write,
             )
@@ -673,72 +545,36 @@ mod tests {
         );
     }
 
-    fn group_repo(
-        owner_id: Uuid,
-        group_id: Uuid,
-        name: &str,
-        visibility: RepositoryVisibility,
-    ) -> Repository {
+    /// A private repository `name` in `group_id`, created by `creator_id`.
+    fn group_repo(creator_id: Uuid, group_id: Uuid, name: &str) -> Repository {
         Repository {
-            id: Uuid::new_v4(),
-            owner_id,
-            name: name.to_string(),
             group_id: Some(group_id),
-            description: String::new(),
-            disk_path: "path".to_string(),
-            visibility,
-            created_at: Utc::now(),
+            name: name.to_string(),
+            ..repository(creator_id)
         }
     }
 
     #[tokio::test]
     async fn a_reader_on_an_ancestor_group_can_read_a_group_repository_with_no_direct_grant() {
-        let groups = Arc::new(FakeGroups::empty());
-        let creator = user("creator");
-        let reader = user("reader");
-        let acme = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: creator.id,
-            })
-            .await
-            .unwrap();
+        let creator_id = Uuid::new_v4();
+        let reader_id = Uuid::new_v4();
+        let acme = group(None, "acme");
+        let groups = FakeGroups::new(vec![acme.clone()]);
         groups
-            .add_member(acme.id, reader.id, CollaboratorRole::Reader)
+            .add_member(acme.id, reader_id, CollaboratorRole::Reader)
             .await
             .unwrap();
-        let repo = group_repo(
-            creator.id,
-            acme.id,
-            "backend",
-            RepositoryVisibility::Private,
-        );
-        let token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: reader.id,
-            name: "ci".to_string(),
-            token_hash: hash_token("fg_reader"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
-
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::empty()), // reader has no direct collaborator grant, only the group role
-            groups.clone(),
+        let repo = group_repo(creator_id, acme.id, "backend");
+        // The reader has no direct collaborator grant, only the group role.
+        let (use_case, _) = World {
+            tokens: vec![api_token(reader_id, "fg_reader")],
             groups,
-        );
+            ..World::new()
+        }
+        .build();
 
         let result = use_case
-            .execute(
-                Some(("reader".to_string(), "fg_reader".to_string())),
-                repo,
-                GitAccess::Read,
-            )
+            .execute(credentials("reader", "fg_reader"), repo, GitAccess::Read)
             .await;
         assert!(
             result.is_ok(),
@@ -748,67 +584,27 @@ mod tests {
 
     #[tokio::test]
     async fn a_contributor_two_levels_up_can_push_to_a_repository_three_levels_deep() {
-        let groups = Arc::new(FakeGroups::empty());
-        let creator = user("creator");
-        let contributor = user("contributor");
-        let root = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: creator.id,
-            })
-            .await
-            .unwrap();
+        let creator_id = Uuid::new_v4();
+        let contributor_id = Uuid::new_v4();
+        let root = group(None, "acme");
+        let mid = group(Some(root.id), "backend");
+        let leaf = group(Some(mid.id), "infra");
+        let repo = group_repo(creator_id, leaf.id, "terraform-modules");
+        let groups = FakeGroups::new(vec![root.clone(), mid, leaf]);
         groups
-            .add_member(root.id, contributor.id, CollaboratorRole::Contributor)
+            .add_member(root.id, contributor_id, CollaboratorRole::Contributor)
             .await
             .unwrap();
-        let mid = groups
-            .create(NewGroup {
-                parent_group_id: Some(root.id),
-                name: "backend".to_string(),
-                description: String::new(),
-                created_by: creator.id,
-            })
-            .await
-            .unwrap();
-        let leaf = groups
-            .create(NewGroup {
-                parent_group_id: Some(mid.id),
-                name: "infra".to_string(),
-                description: String::new(),
-                created_by: creator.id,
-            })
-            .await
-            .unwrap();
-        let repo = group_repo(
-            creator.id,
-            leaf.id,
-            "terraform-modules",
-            RepositoryVisibility::Private,
-        );
-        let token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: contributor.id,
-            name: "ci".to_string(),
-            token_hash: hash_token("fg_contrib"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
-
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::empty()),
-            groups.clone(),
+        let (use_case, _) = World {
+            tokens: vec![api_token(contributor_id, "fg_contrib")],
             groups,
-        );
+            ..World::new()
+        }
+        .build();
 
         let result = use_case
             .execute(
-                Some(("contributor".to_string(), "fg_contrib".to_string())),
+                credentials("contributor", "fg_contrib"),
                 repo,
                 GitAccess::Write,
             )
@@ -823,44 +619,19 @@ mod tests {
     async fn the_creator_of_a_group_repository_with_no_group_role_is_rejected() {
         // A group repository's `owner_id` ("created by") grants no implicit access: the creator must not keep
         // read+write after being removed from the group.
-        let groups = Arc::new(FakeGroups::empty());
-        let creator = user("creator");
-        let acme = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: creator.id,
-            })
-            .await
-            .unwrap();
-        let repo = group_repo(
-            creator.id,
-            acme.id,
-            "backend",
-            RepositoryVisibility::Private,
-        );
-        let token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: creator.id,
-            name: "ci".to_string(),
-            token_hash: hash_token("fg_creator"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
-
-        let use_case = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::empty()),
-            groups.clone(),
-            groups,
-        );
+        let creator_id = Uuid::new_v4();
+        let acme = group(None, "acme");
+        let repo = group_repo(creator_id, acme.id, "backend");
+        let (use_case, _) = World {
+            tokens: vec![api_token(creator_id, "fg_creator")],
+            groups: FakeGroups::new(vec![acme]),
+            ..World::new()
+        }
+        .build();
 
         let read_result = use_case
             .execute(
-                Some(("creator".to_string(), "fg_creator".to_string())),
+                credentials("creator", "fg_creator"),
                 repo.clone(),
                 GitAccess::Read,
             )
@@ -871,11 +642,7 @@ mod tests {
         );
 
         let write_result = use_case
-            .execute(
-                Some(("creator".to_string(), "fg_creator".to_string())),
-                repo,
-                GitAccess::Write,
-            )
+            .execute(credentials("creator", "fg_creator"), repo, GitAccess::Write)
             .await;
         assert!(
             matches!(write_result, Err(DomainError::Unauthorized(_))),
@@ -886,49 +653,26 @@ mod tests {
     #[tokio::test]
     async fn removing_a_users_group_role_revokes_git_access_on_the_next_request() {
         // Like the collaborator re-evaluation test, for group membership.
-        let creator = user("creator");
-        let member = user("member");
-        let member_token = ApiToken {
-            id: Uuid::new_v4(),
-            user_id: member.id,
-            name: "ci".to_string(),
-            token_hash: hash_token("fg_member"),
-            created_at: Utc::now(),
-            last_used_at: None,
-        };
+        let creator_id = Uuid::new_v4();
+        let member_id = Uuid::new_v4();
+        let token = api_token(member_id, "fg_member");
+        let acme = group(None, "acme");
+        let repo = group_repo(creator_id, acme.id, "backend");
 
-        let groups_while_a_member = Arc::new(FakeGroups::empty());
-        let acme = groups_while_a_member
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: creator.id,
-            })
-            .await
-            .unwrap();
+        let groups_while_a_member = FakeGroups::new(vec![acme.clone()]);
         groups_while_a_member
-            .add_member(acme.id, member.id, CollaboratorRole::Contributor)
+            .add_member(acme.id, member_id, CollaboratorRole::Contributor)
             .await
             .unwrap();
-        let repo = group_repo(
-            creator.id,
-            acme.id,
-            "backend",
-            RepositoryVisibility::Private,
-        );
-
-        let while_still_a_member = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![member_token.clone()])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::empty()),
-            groups_while_a_member.clone(),
-            groups_while_a_member,
-        );
+        let (while_still_a_member, _) = World {
+            tokens: vec![token.clone()],
+            groups: groups_while_a_member,
+            ..World::new()
+        }
+        .build();
         let before_removal = while_still_a_member
             .execute(
-                Some(("member".to_string(), "fg_member".to_string())),
+                credentials("member", "fg_member"),
                 repo.clone(),
                 GitAccess::Write,
             )
@@ -938,25 +682,98 @@ mod tests {
             "expected write access while still a group Contributor, got {before_removal:?}"
         );
 
-        let groups_after_removal = Arc::new(FakeGroups::new(vec![acme]));
-        let after_removal = AuthenticateGitRequestUseCase::new(
-            Arc::new(FakeApiTokens::new(vec![member_token])),
-            Arc::new(FakeEvents::default()),
-            Arc::new(FakeRunners::new(vec![])),
-            Arc::new(FakeCollaborators::empty()),
-            groups_after_removal.clone(),
-            groups_after_removal,
-        );
+        let (after_removal, _) = World {
+            tokens: vec![token],
+            groups: FakeGroups::new(vec![acme]),
+            ..World::new()
+        }
+        .build();
         let result_after_removal = after_removal
-            .execute(
-                Some(("member".to_string(), "fg_member".to_string())),
-                repo,
-                GitAccess::Write,
-            )
+            .execute(credentials("member", "fg_member"), repo, GitAccess::Write)
             .await;
         assert!(
             matches!(result_after_removal, Err(DomainError::Unauthorized(_))),
             "expected write access to be denied once the group-member row is gone, got {result_after_removal:?}"
         );
+    }
+
+    /// A public repository, and a stranger (no role anywhere) whose token is `fg_stranger`.
+    fn public_repo_use_case(
+        settings: Arc<dyn PublicPagesSettingsPort>,
+    ) -> (Repository, AuthenticateGitRequestUseCase, Arc<FakeEvents>) {
+        let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Public);
+        let (use_case, events) = World {
+            tokens: vec![api_token(Uuid::new_v4(), "fg_stranger")],
+            public_pages: settings,
+            ..World::new()
+        }
+        .build();
+        (repo, use_case, events)
+    }
+
+    #[tokio::test]
+    async fn anonymous_read_of_a_public_repository_is_refused_when_public_pages_are_off() {
+        let (repo, use_case, events) = public_repo_use_case(public_pages(false));
+
+        let result = use_case.execute(None, repo, GitAccess::Read).await;
+
+        assert!(matches!(result, Err(DomainError::Unauthorized(_))));
+        let published = events.security_events();
+        assert!(
+            matches!(&published[..], [(SecurityEvent::GitAccessDenied { username, .. }, None)] if username == "anonymous"),
+            "the refusal must be audited like a private repository's, got {published:?}"
+        );
+    }
+
+    #[tokio::test]
+    async fn an_unknown_token_cannot_read_a_public_repository_when_public_pages_are_off() {
+        let (repo, use_case, _) = public_repo_use_case(public_pages(false));
+
+        let result = use_case
+            .execute(credentials("nobody", "fg_unknown"), repo, GitAccess::Read)
+            .await;
+
+        assert!(matches!(result, Err(DomainError::Unauthorized(_))));
+    }
+
+    #[tokio::test]
+    async fn a_signed_in_user_without_a_role_still_reads_a_public_repository_when_public_pages_are_off()
+     {
+        let (repo, use_case, _) = public_repo_use_case(public_pages(false));
+
+        let (_, user_id) = use_case
+            .execute(
+                credentials("stranger", "fg_stranger"),
+                repo,
+                GitAccess::Read,
+            )
+            .await
+            .unwrap();
+
+        assert!(user_id.is_some());
+    }
+
+    #[tokio::test]
+    async fn a_signed_in_user_without_a_role_cannot_write_to_a_public_repository() {
+        let (repo, use_case, _) = public_repo_use_case(public_pages(false));
+
+        let result = use_case
+            .execute(
+                credentials("stranger", "fg_stranger"),
+                repo,
+                GitAccess::Write,
+            )
+            .await;
+
+        assert!(matches!(result, Err(DomainError::Unauthorized(_))));
+    }
+
+    #[tokio::test]
+    async fn anonymous_read_of_a_public_repository_is_refused_when_the_setting_cannot_be_read() {
+        let (repo, use_case, _) = public_repo_use_case(Arc::new(BrokenPublicPagesSettings));
+
+        let result = use_case.execute(None, repo, GitAccess::Read).await;
+
+        assert!(matches!(result, Err(DomainError::Unauthorized(_))));
     }
 }

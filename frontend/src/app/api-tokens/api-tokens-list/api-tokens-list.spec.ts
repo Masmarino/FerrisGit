@@ -51,6 +51,15 @@ describe('ApiTokensList', () => {
   }
 
   describe('the list', () => {
+    it('says a token is for Git over HTTPS, not for the REST API', () => {
+      const { el } = setup();
+
+      const intro = text(el.querySelector('gbt-card'));
+      expect(intro).toContain('Un jeton remplace votre mot de passe pour Git en HTTPS : cloner, récupérer et pousser.');
+      expect(intro).toContain("Il ne donne pas accès à l'API REST.");
+      expect(intro).not.toContain("pour l'API");
+    });
+
     it('lists the tokens as rows in a card counting them, under a creation card', () => {
       const { el, card } = setup(TOKENS);
 
@@ -221,7 +230,7 @@ describe('ApiTokensList', () => {
       });
 
       it('copies the revealed token with a named copy button', async () => {
-        const { component, fixture, el, tokensStub, button } = setup();
+        const { component, fixture, el, tokensStub } = setup();
         tokensStub.create.mockReturnValue(of({ id: 't9', name: 'ci', token: 'fgt_plain-token' }));
         component['newTokenName'].set('ci');
         component.create();

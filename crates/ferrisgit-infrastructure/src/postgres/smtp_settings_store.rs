@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::email::{SmtpSecurity, SmtpSettings, SmtpSettingsPort};
 use ferrisgit_domain::error::DomainError;
@@ -33,7 +34,7 @@ impl SmtpSettingsPort for PostgresSmtpSettingsStore {
         let row = sqlx::query_as::<_, Row>("SELECT host, port, security, username, encrypted_password, from_address, from_name FROM smtp_settings WHERE id = true")
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         let Some(row) = row else { return Ok(None) };
         // A row that cannot be decrypted (database restored from a dump made under another key, or the key rotated)
         // must not lock the admin out of the settings page: report "no password", so they are asked for it again.
@@ -82,7 +83,7 @@ impl SmtpSettingsPort for PostgresSmtpSettingsStore {
         .bind(&settings.from_name)
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 }

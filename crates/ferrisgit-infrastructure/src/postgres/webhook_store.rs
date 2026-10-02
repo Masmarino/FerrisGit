@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::secret_encryption::SecretEncryptorPort;
@@ -80,7 +81,7 @@ impl WebhookStorePort for PostgresWebhookStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row.into())
     }
 
@@ -92,7 +93,7 @@ impl WebhookStorePort for PostgresWebhookStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
@@ -104,7 +105,7 @@ impl WebhookStorePort for PostgresWebhookStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row.map(Into::into))
     }
 
@@ -136,7 +137,7 @@ impl WebhookStorePort for PostgresWebhookStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
+        .map_err(infra)?
         .ok_or_else(|| DomainError::NotFound("webhook".to_string()))?;
         Ok(row.into())
     }
@@ -149,7 +150,7 @@ impl WebhookStorePort for PostgresWebhookStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("webhook".to_string()));
         }
@@ -170,7 +171,7 @@ impl WebhookStorePort for PostgresWebhookStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows.into_iter().map(Into::into).collect())
     }
 
@@ -181,7 +182,7 @@ impl WebhookStorePort for PostgresWebhookStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
+        .map_err(infra)?
         .ok_or_else(|| DomainError::NotFound("webhook".to_string()))?;
         self.encryptor.decrypt(&ciphertext)
     }
@@ -197,7 +198,7 @@ impl WebhookStorePort for PostgresWebhookStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -220,7 +221,7 @@ impl WebhookStorePort for PostgresWebhookStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if rows.is_empty()
             && self
                 .find_by_id(webhook_id)
@@ -237,6 +238,7 @@ impl WebhookStorePort for PostgresWebhookStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::postgres::test_support::seed_owned_repository;
 
     struct IdentityEncryptor;
     impl SecretEncryptorPort for IdentityEncryptor {
@@ -249,31 +251,9 @@ mod tests {
     }
 
     async fn seed_repository(pool: &PgPool) -> Uuid {
-        let owner_id = Uuid::new_v4();
-        let username = format!("owner-{owner_id}");
-        let email = format!("owner-{owner_id}@example.com");
-        sqlx::query!(
-            "INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)",
-            owner_id,
-            username,
-            email,
-            "not-a-real-hash"
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        let repo_id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO repositories (id, owner_id, name, disk_path) VALUES ($1, $2, $3, $4)",
-            repo_id,
-            owner_id,
-            "hello",
-            "hello.git"
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        repo_id
+        seed_owned_repository(pool, &format!("owner-{}", Uuid::new_v4()))
+            .await
+            .1
     }
 
     #[sqlx::test(migrations = "../../migrations")]

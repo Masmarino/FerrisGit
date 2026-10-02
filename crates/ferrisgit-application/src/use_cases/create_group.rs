@@ -7,6 +7,9 @@ use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use ferrisgit_domain::user::UserRepositoryPort;
 use uuid::Uuid;
 
+use super::name_rules::is_valid_path_name;
+use super::require_group_maintainer::require_group_maintainer;
+
 pub struct CreateGroupUseCase {
     groups: Arc<dyn GroupStorePort>,
     group_membership: Arc<dyn GroupMembershipPort>,
@@ -33,11 +36,7 @@ impl CreateGroupUseCase {
         name: String,
         description: String,
     ) -> Result<Group, DomainError> {
-        if name.trim().is_empty()
-            || !name
-                .chars()
-                .all(|c| c.is_ascii_alphanumeric() || c == '-' || c == '_')
-        {
+        if !is_valid_path_name(&name) {
             return Err(DomainError::Validation(
                 "group name must be non-empty and alphanumeric/-/_ only".to_string(),
             ));
@@ -52,20 +51,13 @@ impl CreateGroupUseCase {
                 }
             }
             Some(parent_id) => {
-                let chain = self.groups.ancestor_chain(parent_id).await?;
-                let mut best: Option<CollaboratorRole> = None;
-                for group in &chain {
-                    if let Some(role) = self
-                        .group_membership
-                        .get_member_role(group.id, caller_id)
-                        .await?
-                    {
-                        best = Some(best.map_or(role, |b| b.max(role)));
-                    }
-                }
-                if best.is_none_or(|r| r < CollaboratorRole::Maintainer) {
-                    return Err(DomainError::NotFound("group".to_string()));
-                }
+                require_group_maintainer(
+                    self.groups.as_ref(),
+                    self.group_membership.as_ref(),
+                    parent_id,
+                    caller_id,
+                )
+                .await?;
             }
         }
 
@@ -100,18 +92,22 @@ impl CreateGroupUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeGroups, FakeUsers};
-    use chrono::Utc;
+    use crate::use_cases::fixtures::{group, user};
     use ferrisgit_domain::group_membership::GroupMembershipPort;
     use ferrisgit_domain::user::User;
+
+    fn use_case(users: Vec<User>, groups: &Arc<FakeGroups>) -> CreateGroupUseCase {
+        CreateGroupUseCase::new(
+            groups.clone(),
+            groups.clone(),
+            Arc::new(FakeUsers::new(users)),
+        )
+    }
 
     #[tokio::test]
     async fn any_user_can_create_a_root_group_and_becomes_its_maintainer() {
         let groups = Arc::new(FakeGroups::empty());
-        let use_case = CreateGroupUseCase::new(
-            groups.clone(),
-            groups.clone(),
-            Arc::new(FakeUsers::new(vec![])),
-        );
+        let use_case = use_case(vec![], &groups);
         let caller = Uuid::new_v4();
 
         let created = use_case
@@ -125,15 +121,7 @@ mod tests {
     #[tokio::test]
     async fn a_root_group_name_colliding_with_a_username_is_a_conflict() {
         let groups = Arc::new(FakeGroups::empty());
-        let users = Arc::new(FakeUsers::new(vec![User {
-            id: Uuid::new_v4(),
-            username: "acme".to_string(),
-            email: "a@a.com".to_string(),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }]));
-        let use_case = CreateGroupUseCase::new(groups.clone(), groups, users);
+        let use_case = use_case(vec![user("acme")], &groups);
 
         let result = use_case
             .execute(Uuid::new_v4(), None, "acme".to_string(), String::new())
@@ -144,23 +132,14 @@ mod tests {
 
     #[tokio::test]
     async fn creating_a_subgroup_requires_maintainer_on_the_parent() {
-        let groups = Arc::new(FakeGroups::empty());
         let owner = Uuid::new_v4();
-        let root = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner,
-            })
-            .await
-            .unwrap();
+        let root = group(None, "acme");
+        let groups = Arc::new(FakeGroups::new(vec![root.clone()]));
         groups
             .add_member(root.id, owner, CollaboratorRole::Maintainer)
             .await
             .unwrap();
-        let use_case =
-            CreateGroupUseCase::new(groups.clone(), groups, Arc::new(FakeUsers::new(vec![])));
+        let use_case = use_case(vec![], &groups);
         let stranger = Uuid::new_v4();
 
         let result = use_case
@@ -177,32 +156,15 @@ mod tests {
 
     #[tokio::test]
     async fn a_maintainer_of_an_ancestor_can_create_a_subgroup_two_levels_down() {
-        let groups = Arc::new(FakeGroups::empty());
         let owner = Uuid::new_v4();
-        let root = groups
-            .create(NewGroup {
-                parent_group_id: None,
-                name: "acme".to_string(),
-                description: String::new(),
-                created_by: owner,
-            })
-            .await
-            .unwrap();
+        let root = group(None, "acme");
+        let mid = group(Some(root.id), "backend");
+        let groups = Arc::new(FakeGroups::new(vec![root.clone(), mid.clone()]));
         groups
             .add_member(root.id, owner, CollaboratorRole::Maintainer)
             .await
             .unwrap();
-        let mid = groups
-            .create(NewGroup {
-                parent_group_id: Some(root.id),
-                name: "backend".to_string(),
-                description: String::new(),
-                created_by: owner,
-            })
-            .await
-            .unwrap();
-        let use_case =
-            CreateGroupUseCase::new(groups.clone(), groups, Arc::new(FakeUsers::new(vec![])));
+        let use_case = use_case(vec![], &groups);
 
         let created = use_case
             .execute(owner, Some(mid.id), "infra".to_string(), String::new())

@@ -1,3 +1,16 @@
+//! One module per action. The `pub(crate)` modules up front are the checks and builders several use cases share.
+
+pub(crate) mod collaborator_guard;
+pub(crate) mod event_context;
+pub(crate) mod find_issue;
+#[cfg(test)]
+pub(crate) mod fixtures;
+pub(crate) mod group_maintainer_guard;
+pub(crate) mod name_rules;
+pub(crate) mod require_group_maintainer;
+pub(crate) mod require_in_scope;
+pub(crate) mod source_branch_tip;
+
 pub mod add_collaborator;
 pub mod add_group_member;
 pub mod add_issue_comment;
@@ -37,7 +50,6 @@ pub mod delete_wiki_page;
 pub mod get_admin_stats;
 pub mod get_health_status;
 pub mod get_metrics_history;
-pub(crate) mod group_maintainer_guard;
 pub mod invitations;
 pub mod list_users;
 pub mod login;
@@ -48,6 +60,7 @@ pub mod mfa;
 pub mod move_issue_status;
 pub mod passkeys;
 pub mod public_pages;
+pub mod purge_expired_job_logs;
 pub mod record_metrics_snapshot;
 pub mod register_runner;
 pub mod register_user;

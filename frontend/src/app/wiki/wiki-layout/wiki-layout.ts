@@ -3,6 +3,7 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { Alert, Badge, Button, GbtInput, Icon, PageLayout, Skeleton } from '@masmarino/gabarit';
 import { WikiList, WikiPageSummary, WikiService } from '../wiki.service';
+import { sortedByTitle, wikiLink } from '../wiki-links';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 
 function normalise(value: string): string {
@@ -45,7 +46,7 @@ export class WikiLayout implements OnInit {
   private role = computed(() => this.repositoryContext.current()?.role ?? null);
   protected canCreate = computed(() => this.role() === 'owner' || this.role() === 'maintainer' || this.role() === 'contributor');
 
-  protected sortedPages = computed(() => [...this.pages()].sort((a, b) => a.title.localeCompare(b.title)));
+  protected sortedPages = computed(() => sortedByTitle(this.pages()));
   protected filteredPages = computed(() => {
     const query = normalise(this.search().trim());
     if (!query) {
@@ -53,7 +54,7 @@ export class WikiLayout implements OnInit {
     }
     return this.sortedPages().filter((page) => normalise(page.title).includes(query) || normalise(page.slug).includes(query));
   });
-  protected rows = computed(() => this.filteredPages().map((page) => ({ page, link: this.pageLink(page.slug) })));
+  protected rows = computed(() => this.filteredPages().map((page) => ({ page, link: wikiLink(this.path(), page.slug) })));
 
   ngOnInit(): void {
     this.reload();
@@ -73,11 +74,7 @@ export class WikiLayout implements OnInit {
     });
   }
 
-  private pageLink(slug: string): string[] {
-    return ['/repositories', ...this.path(), '-', 'wiki', slug];
-  }
-
   protected createPage(): void {
-    void this.router.navigate(['/repositories', ...this.path(), '-', 'wiki', 'new']);
+    void this.router.navigate(wikiLink(this.path(), 'new'));
   }
 }

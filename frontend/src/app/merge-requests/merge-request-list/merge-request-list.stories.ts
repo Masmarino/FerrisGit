@@ -1,18 +1,17 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
-import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
+import { moduleMetadata } from '@storybook/angular-vite';
 import { expect, waitFor } from 'storybook/test';
 import { NEVER, of, throwError } from 'rxjs';
-import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { MergeRequestList } from './merge-request-list';
 import { BranchInfo, MergeRequestSummary, MergeRequestsService } from '../merge-requests.service';
 import { Label, LabelsService } from '../../labels/labels.service';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { withRouterAndIcons } from '../../repositories/repository-story-fixtures';
 import { GbtToastService } from '@masmarino/gabarit';
-import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { daysAgo, hoursAgo, inShellContentArea, minutesAgo } from '../../shared/layout/page-story-helpers';
-
-const label = (id: string, name: string, color: string): Label => ({ id, name, color, repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' });
+import { fakeToast } from '../../shared/layout/settings-story-helpers';
+import { ALICE, fakeRepositoryContext, label, mergeRequestFixture, milestone } from '../merge-request-fixtures';
 
 const LABELS: Label[] = [
   label('l-bug', 'bug', '#dc2626'),
@@ -25,8 +24,8 @@ const LABELS: Label[] = [
 const [BUG, URGENT, UI, DOCS, PERF, SECURITY] = LABELS;
 
 const MILESTONES: Milestone[] = [
-  { id: 'm1', title: 'v1.0', description: 'Première version stable', dueDate: '2026-11-01', state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'm2', title: 'v1.1', description: '', dueDate: null, state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-02-01T00:00:00Z' },
+  milestone({ id: 'm1', title: 'v1.0', description: 'Première version stable', dueDate: '2026-11-01' }),
+  milestone({ id: 'm2', title: 'v1.1', createdAt: '2026-02-01T00:00:00Z' }),
 ];
 
 const BRANCHES: BranchInfo[] = [
@@ -36,27 +35,10 @@ const BRANCHES: BranchInfo[] = [
   { name: 'release/1.0', tipSha: 'ddd4444444', isDefault: false },
 ];
 
-const ALICE = { id: 'u1', username: 'alice' };
 const BASTIEN = { id: 'u2', username: 'bastien' };
 const FLORIAN = { id: 'u3', username: 'florian' };
 
-let nextId = 0;
-function mergeRequest(fields: Partial<MergeRequestSummary> & Pick<MergeRequestSummary, 'title' | 'sourceBranch'>): MergeRequestSummary {
-  return {
-    id: `mr-${++nextId}`,
-    targetBranch: 'main',
-    description: '',
-    status: 'open',
-    mergeCommitSha: fields.status === 'merged' ? 'abc1234' : null,
-    createdAt: daysAgo(2),
-    closedAt: null,
-    milestoneId: null,
-    labels: [],
-    author: ALICE,
-    commentCount: 0,
-    ...fields,
-  };
-}
+const mergeRequest = (fields: Parameters<typeof mergeRequestFixture>[0]) => mergeRequestFixture({ createdAt: daysAgo(2), ...fields });
 
 const MIXED: MergeRequestSummary[] = [
   mergeRequest({ title: 'Ajoute la connexion via SSO', sourceBranch: 'feature/sso-login', labels: [SECURITY, UI], milestoneId: 'm1', commentCount: 3, createdAt: hoursAgo(2) }),
@@ -109,19 +91,13 @@ function fakeMergeRequestsService(list: MergeRequestSummary[], overrides: Partia
   };
 }
 
-const fakeToast = { show: () => {}, dismiss: () => {} };
-
-function fakeRepositoryContextService(role: 'owner' | 'reader' | 'contributor' | 'maintainer' | null) {
-  return { current: () => ({ repositoryId: 'repo-1', path: ['alice', 'ferrisgit'], role, ancestors: [], groupId: null }) };
-}
-
-function withData(options: { list?: MergeRequestSummary[]; role?: 'owner' | 'reader'; labels?: Label[]; milestones?: Milestone[]; service?: unknown } = {}) {
+function withData(options: { list?: MergeRequestSummary[]; role?: 'owner' | 'reader' | 'contributor'; labels?: Label[]; milestones?: Milestone[]; service?: unknown } = {}) {
   return moduleMetadata({
     providers: [
       { provide: MergeRequestsService, useValue: options.service ?? fakeMergeRequestsService(options.list ?? MIXED) },
       { provide: LabelsService, useValue: { listForRepository: () => of(options.labels ?? LABELS) } },
       { provide: MilestonesService, useValue: { listForRepository: () => of(options.milestones ?? MILESTONES) } },
-      { provide: RepositoryContextService, useValue: fakeRepositoryContextService(options.role ?? 'owner') },
+      { provide: RepositoryContextService, useValue: fakeRepositoryContext(options.role ?? 'owner', ['alice', 'ferrisgit']) },
       { provide: GbtToastService, useValue: fakeToast },
     ],
   });
@@ -214,7 +190,7 @@ const meta: Meta<MergeRequestList> = {
   tags: ['autodocs'],
   parameters: { layout: 'fullscreen' },
   args: { repositoryId: 'repo-1', path: ['alice', 'ferrisgit'] },
-  decorators: [applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] }), inShellContentArea],
+  decorators: [withRouterAndIcons, inShellContentArea],
 };
 
 export default meta;
@@ -287,6 +263,24 @@ export const ReadOnly: Story = {
     await expectPageLayout(context);
     await expect(context.canvasElement.querySelector('.gbt-menu__trigger')).toBeNull();
     await expect(context.canvasElement.querySelector('.gbt-button--primary')).toBeNull();
+  },
+};
+
+/** A Contributor can close a merge request from the row menu but not merge it. */
+export const ContributorRowMenu: Story = {
+  decorators: [withData({ role: 'contributor' })],
+  play: async (context) => {
+    await expectPageLayout(context);
+    const trigger = await waitFor(() => {
+      const found = context.canvasElement.querySelector<HTMLButtonElement>('.gbt-menu__trigger');
+      if (!found) throw new Error('row menu not rendered yet');
+      return found;
+    });
+    trigger.click();
+    await waitFor(() => {
+      const items = Array.from(context.canvasElement.ownerDocument.querySelectorAll('[role="menuitem"]')).map((item) => item.textContent?.trim());
+      expect(items).toEqual(['Fermer']);
+    });
   },
 };
 

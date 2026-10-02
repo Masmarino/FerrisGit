@@ -12,6 +12,7 @@ use ferrisgit_domain::wiki_page::{
     wiki_page_title_from_slug,
 };
 
+use crate::error::blocking;
 use crate::gix_reader::{DiffLineKindRaw, FileChangeKindRaw, GixRepositoryReader};
 
 /// Reads merge-request data from a repository's git refs and objects. Also implements `DiffReaderPort`.
@@ -32,11 +33,7 @@ impl BranchReaderPort for GixMergeRequestReader {
         repository_disk_path: &str,
     ) -> Result<Vec<BranchInfo>, DomainError> {
         let full_path = self.storage_root.join(repository_disk_path);
-        let raw =
-            tokio::task::spawn_blocking(move || GixRepositoryReader.list_branches(&full_path))
-                .await
-                .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-                .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let raw = blocking(move || GixRepositoryReader.list_branches(&full_path)).await?;
         Ok(raw
             .into_iter()
             .map(|b| BranchInfo {
@@ -52,10 +49,7 @@ impl BranchReaderPort for GixMergeRequestReader {
 impl TagReaderPort for GixMergeRequestReader {
     async fn list_tags(&self, repository_disk_path: &str) -> Result<Vec<TagInfo>, DomainError> {
         let full_path = self.storage_root.join(repository_disk_path);
-        let raw = tokio::task::spawn_blocking(move || GixRepositoryReader.list_tags(&full_path))
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let raw = blocking(move || GixRepositoryReader.list_tags(&full_path)).await?;
         Ok(raw
             .into_iter()
             .map(|t| TagInfo {
@@ -94,12 +88,10 @@ impl DiffReaderPort for GixMergeRequestReader {
         let full_path = self.storage_root.join(repository_disk_path);
         let source_branch = source_branch.to_string();
         let target_branch = target_branch.to_string();
-        let raw = tokio::task::spawn_blocking(move || {
+        let raw = blocking(move || {
             GixRepositoryReader.diff_branches(&full_path, &source_branch, &target_branch)
         })
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .await?;
         Ok(raw
             .into_iter()
             .map(|d| FileDiff {
@@ -130,19 +122,12 @@ impl DiffReaderPort for GixMergeRequestReader {
 impl WikiReaderPort for GixMergeRequestReader {
     async fn current_head_sha(&self, wiki_disk_path: &str) -> Result<Option<String>, DomainError> {
         let full_path = self.storage_root.join(wiki_disk_path);
-        tokio::task::spawn_blocking(move || GixRepositoryReader.wiki_head_sha(&full_path))
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        blocking(move || GixRepositoryReader.wiki_head_sha(&full_path)).await
     }
 
     async fn list_pages(&self, wiki_disk_path: &str) -> Result<Vec<WikiPageInfo>, DomainError> {
         let full_path = self.storage_root.join(wiki_disk_path);
-        let raw =
-            tokio::task::spawn_blocking(move || GixRepositoryReader.list_wiki_pages(&full_path))
-                .await
-                .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-                .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let raw = blocking(move || GixRepositoryReader.list_wiki_pages(&full_path)).await?;
         Ok(raw
             .into_iter()
             .filter(|p| is_valid_wiki_slug(&p.slug))
@@ -160,12 +145,7 @@ impl WikiReaderPort for GixMergeRequestReader {
     ) -> Result<Option<WikiPageContent>, DomainError> {
         let full_path = self.storage_root.join(wiki_disk_path);
         let slug = slug.to_string();
-        let raw = tokio::task::spawn_blocking(move || {
-            GixRepositoryReader.read_wiki_page(&full_path, &slug)
-        })
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let raw = blocking(move || GixRepositoryReader.read_wiki_page(&full_path, &slug)).await?;
         Ok(raw.map(|r| WikiPageContent {
             content: r.content,
             head_sha: r.head_sha,
@@ -179,12 +159,8 @@ impl WikiReaderPort for GixMergeRequestReader {
     ) -> Result<Vec<WikiRevision>, DomainError> {
         let full_path = self.storage_root.join(wiki_disk_path);
         let slug = slug.to_string();
-        let raw = tokio::task::spawn_blocking(move || {
-            GixRepositoryReader.list_wiki_page_revisions(&full_path, &slug)
-        })
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let raw = blocking(move || GixRepositoryReader.list_wiki_page_revisions(&full_path, &slug))
+            .await?;
         Ok(raw
             .into_iter()
             .map(|r| WikiRevision {
@@ -206,12 +182,10 @@ impl WikiReaderPort for GixMergeRequestReader {
         let full_path = self.storage_root.join(wiki_disk_path);
         let commit_sha = commit_sha.to_string();
         let file_name = format!("{slug}.md");
-        let raw = tokio::task::spawn_blocking(move || {
+        let raw = blocking(move || {
             GixRepositoryReader.read_file_at_revision(&full_path, &commit_sha, &file_name)
         })
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .await?;
         Ok(raw.map(|bytes| String::from_utf8_lossy(&bytes).to_string()))
     }
 }
@@ -219,43 +193,14 @@ impl WikiReaderPort for GixMergeRequestReader {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::process::Command;
+    use crate::test_git::git;
 
     fn init_repo_with_two_branches(dir: &std::path::Path) {
-        let run = |args: &[&str]| {
-            assert!(
-                Command::new("git")
-                    .args(args)
-                    .current_dir(dir)
-                    .status()
-                    .unwrap()
-                    .success()
-            )
-        };
+        let run = |args: &[&str]| git(dir, args);
         run(&["init", "-q", "-b", "main"]);
-        run(&[
-            "-c",
-            "user.email=t@t.com",
-            "-c",
-            "user.name=t",
-            "commit",
-            "--allow-empty",
-            "-q",
-            "-m",
-            "root",
-        ]);
+        run(&["commit", "--allow-empty", "-q", "-m", "root"]);
         run(&["checkout", "-q", "-b", "feature"]);
-        run(&[
-            "-c",
-            "user.email=t@t.com",
-            "-c",
-            "user.name=t",
-            "commit",
-            "--allow-empty",
-            "-q",
-            "-m",
-            "feature work",
-        ]);
+        run(&["commit", "--allow-empty", "-q", "-m", "feature work"]);
         // `is_default` is a live read of HEAD, so switch back to `main` after `checkout -b feature`.
         run(&["checkout", "-q", "main"]);
     }
@@ -279,42 +224,13 @@ mod tests {
     }
 
     fn init_diverged_repo(dir: &std::path::Path) {
-        let run = |args: &[&str]| {
-            assert!(
-                Command::new("git")
-                    .args(args)
-                    .current_dir(dir)
-                    .status()
-                    .unwrap()
-                    .success()
-            )
-        };
-        let commit = |dir: &std::path::Path, message: &str| {
-            assert!(
-                Command::new("git")
-                    .args([
-                        "-c",
-                        "user.email=t@t.com",
-                        "-c",
-                        "user.name=t",
-                        "commit",
-                        "--allow-empty",
-                        "-q",
-                        "-m",
-                        message
-                    ])
-                    .current_dir(dir)
-                    .status()
-                    .unwrap()
-                    .success()
-            )
-        };
+        let run = |args: &[&str]| git(dir, args);
         run(&["init", "-q", "-b", "main"]);
-        commit(dir, "root");
+        run(&["commit", "--allow-empty", "-q", "-m", "root"]);
         run(&["checkout", "-q", "-b", "feature"]);
         std::fs::write(dir.join("README.md"), "hello\n").unwrap();
         run(&["add", "."]);
-        commit(dir, "feature work");
+        run(&["commit", "--allow-empty", "-q", "-m", "feature work"]);
     }
 
     #[tokio::test]

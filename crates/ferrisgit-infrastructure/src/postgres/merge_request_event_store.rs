@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::merge_request_event::{
@@ -26,15 +27,17 @@ struct EventRow {
     created_at: chrono::DateTime<chrono::Utc>,
 }
 
-impl EventRow {
-    fn into_domain(self) -> Result<MergeRequestEvent, DomainError> {
+impl TryFrom<EventRow> for MergeRequestEvent {
+    type Error = DomainError;
+
+    fn try_from(row: EventRow) -> Result<Self, DomainError> {
         Ok(MergeRequestEvent {
-            id: self.id,
-            merge_request_id: self.merge_request_id,
-            actor_id: self.actor_id,
-            kind: MergeRequestEventKind::parse(&self.kind)?,
-            payload: self.payload,
-            created_at: self.created_at,
+            id: row.id,
+            merge_request_id: row.merge_request_id,
+            actor_id: row.actor_id,
+            kind: MergeRequestEventKind::parse(&row.kind)?,
+            payload: row.payload,
+            created_at: row.created_at,
         })
     }
 }
@@ -49,8 +52,8 @@ impl MergeRequestEventPort for PostgresMergeRequestEventStore {
             .bind(&event.payload)
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.into_domain()
+            .map_err(infra)?;
+        MergeRequestEvent::try_from(row)
     }
 
     async fn list(&self, merge_request_id: Uuid) -> Result<Vec<MergeRequestEvent>, DomainError> {
@@ -58,8 +61,8 @@ impl MergeRequestEventPort for PostgresMergeRequestEventStore {
             .bind(merge_request_id)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(EventRow::into_domain).collect()
+            .map_err(infra)?;
+        rows.into_iter().map(MergeRequestEvent::try_from).collect()
     }
 
     async fn head_sha(&self, merge_request_id: Uuid) -> Result<Option<String>, DomainError> {
@@ -69,7 +72,7 @@ impl MergeRequestEventPort for PostgresMergeRequestEventStore {
         .bind(merge_request_id)
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         match row {
             Some(head_sha) => Ok(head_sha),
             None => Err(DomainError::NotFound("merge request".to_string())),
@@ -82,7 +85,7 @@ impl MergeRequestEventPort for PostgresMergeRequestEventStore {
             .bind(sha)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(())
     }
 }
@@ -91,6 +94,7 @@ impl MergeRequestEventPort for PostgresMergeRequestEventStore {
 mod tests {
     use super::*;
     use crate::postgres::merge_request_store::PostgresMergeRequestStore;
+    use crate::postgres::test_support::seed_owned_repository;
     use crate::postgres::user_repository::PostgresUserRepository;
     use ferrisgit_domain::merge_request::{MergeRequestStorePort, NewMergeRequest};
     use ferrisgit_domain::repository::{NewRepository, RepositoryStorePort, RepositoryVisibility};
@@ -98,32 +102,7 @@ mod tests {
     use serde_json::json;
 
     async fn seed_repository(pool: &PgPool) -> Uuid {
-        let users = PostgresUserRepository::new(pool.clone());
-        let owner_id = users
-            .create(NewUser {
-                username: "florian".to_string(),
-                email: "f@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-            })
-            .await
-            .unwrap()
-            .id;
-        let repos = crate::postgres::repository_store::PostgresRepositoryStore::new(pool.clone());
-        repos
-            .create(
-                NewRepository {
-                    owner_id,
-                    name: "hello".to_string(),
-                    group_id: None,
-                    description: String::new(),
-                    visibility: RepositoryVisibility::Private,
-                },
-                "path".to_string(),
-            )
-            .await
-            .unwrap()
-            .id
+        seed_owned_repository(pool, "florian").await.1
     }
 
     fn new_mr(repository_id: Uuid, author_id: Uuid) -> NewMergeRequest {

@@ -1,14 +1,16 @@
+use crate::error::infra;
 use crate::kubernetes::{
     cache::ensure_cache_pvcs,
     pod_spec::{build_pod, pod_name},
 };
 use async_trait::async_trait;
+use ferrisgit_application::use_cases::report_job_result::mark_pipeline_running;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::job::{Job, JobStatus, JobStorePort};
 use ferrisgit_domain::job_execution::JobExecutionPort;
 use ferrisgit_domain::pipeline::PipelineStorePort;
 use ferrisgit_domain::pipeline_events::{JobEvent, PipelineEventPublisherPort};
-use ferrisgit_domain::settings::SystemSettingsStorePort;
+use ferrisgit_domain::settings::{SystemSettings, SystemSettingsStorePort};
 use k8s_openapi::api::core::v1::Pod;
 use kube::api::{Api, DeleteParams, PostParams};
 use std::sync::Arc;
@@ -42,15 +44,20 @@ impl KubernetesPodExecutor {
             default_namespace,
         }
     }
+
+    fn namespace(&self, settings: &SystemSettings) -> String {
+        settings
+            .k8s_namespace
+            .clone()
+            .unwrap_or_else(|| self.default_namespace.clone())
+    }
 }
 
 #[async_trait]
 impl JobExecutionPort for KubernetesPodExecutor {
     async fn submit(&self, job: &Job) -> Result<(), DomainError> {
         let settings = self.system_settings.get().await?;
-        let namespace = settings
-            .k8s_namespace
-            .unwrap_or_else(|| self.default_namespace.clone());
+        let namespace = self.namespace(&settings);
         let pipeline = self
             .pipelines
             .find_by_id(job.pipeline_id)
@@ -78,7 +85,7 @@ impl JobExecutionPort for KubernetesPodExecutor {
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), &namespace);
         pods.create(&PostParams::default(), &pod)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
 
         let changed = self.jobs.update_status(job.id, JobStatus::Running).await?;
         if changed {
@@ -91,15 +98,14 @@ impl JobExecutionPort for KubernetesPodExecutor {
                 )
                 .await
                 .ok();
+            mark_pipeline_running(&self.pipelines, &self.events, job.pipeline_id).await?;
         }
         Ok(())
     }
 
     async fn cancel(&self, job: &Job) -> Result<(), DomainError> {
         let settings = self.system_settings.get().await?;
-        let namespace = settings
-            .k8s_namespace
-            .unwrap_or_else(|| self.default_namespace.clone());
+        let namespace = self.namespace(&settings);
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), &namespace);
         match pods
             .delete(&pod_name(job.id), &DeleteParams::default())
@@ -107,7 +113,7 @@ impl JobExecutionPort for KubernetesPodExecutor {
         {
             Ok(_) => Ok(()),
             Err(kube::Error::Api(err)) if err.code == 404 => Ok(()),
-            Err(err) => Err(DomainError::Infrastructure(err.to_string())),
+            Err(err) => Err(infra(err)),
         }
     }
 }
@@ -186,6 +192,7 @@ mod tests {
             triggered_by: Uuid::new_v4(),
             created_at: Utc::now(),
             finished_at: None,
+            error: None,
         }
     }
 

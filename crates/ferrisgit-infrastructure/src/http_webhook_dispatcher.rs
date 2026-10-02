@@ -117,6 +117,25 @@ fn describe_send_error(err: &reqwest::Error) -> String {
     message
 }
 
+/// Records a delivery that never reached the receiver.
+async fn record_failure(
+    store: &dyn WebhookStorePort,
+    webhook: &Webhook,
+    event: &WebhookEvent,
+    message: String,
+) {
+    store
+        .record_delivery(NewWebhookDelivery {
+            webhook_id: webhook.id,
+            event_kind: event.kind().to_string(),
+            http_status: None,
+            success: false,
+            error_message: Some(message),
+        })
+        .await
+        .ok();
+}
+
 /// Signs, sends and logs one delivery attempt. Never returns an error: it runs on a spawned task after
 /// `dispatch` returned, so every failure ends in `record_delivery`.
 async fn deliver(
@@ -125,34 +144,27 @@ async fn deliver(
     webhook: Webhook,
     event: WebhookEvent,
 ) {
-    let event_kind = event.kind().to_string();
     let Ok(body) = serde_json::to_vec(&event) else {
-        store
-            .record_delivery(NewWebhookDelivery {
-                webhook_id: webhook.id,
-                event_kind,
-                http_status: None,
-                success: false,
-                error_message: Some("failed to serialize event payload".to_string()),
-            })
-            .await
-            .ok();
+        record_failure(
+            store,
+            &webhook,
+            &event,
+            "failed to serialize event payload".to_string(),
+        )
+        .await;
         return;
     };
 
     let secret = match store.resolve_secret_plaintext(webhook.id).await {
         Ok(secret) => secret,
         Err(e) => {
-            store
-                .record_delivery(NewWebhookDelivery {
-                    webhook_id: webhook.id,
-                    event_kind,
-                    http_status: None,
-                    success: false,
-                    error_message: Some(format!("failed to resolve secret: {e}")),
-                })
-                .await
-                .ok();
+            record_failure(
+                store,
+                &webhook,
+                &event,
+                format!("failed to resolve secret: {e}"),
+            )
+            .await;
             return;
         }
     };

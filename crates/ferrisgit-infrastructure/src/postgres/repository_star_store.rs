@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::repository_star::RepositoryStarStorePort;
@@ -24,7 +25,7 @@ impl RepositoryStarStorePort for PostgresRepositoryStarStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -36,7 +37,7 @@ impl RepositoryStarStorePort for PostgresRepositoryStarStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -47,7 +48,7 @@ impl RepositoryStarStorePort for PostgresRepositoryStarStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row.count.unwrap_or(0))
     }
 
@@ -56,7 +57,7 @@ impl RepositoryStarStorePort for PostgresRepositoryStarStore {
             .fetch_one(&self.pool)
             .await
             .map(|exists| exists.unwrap_or(false))
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     async fn list_starred_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
@@ -66,7 +67,7 @@ impl RepositoryStarStorePort for PostgresRepositoryStarStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows.into_iter().map(|r| r.repository_id).collect())
     }
 }
@@ -74,40 +75,7 @@ impl RepositoryStarStorePort for PostgresRepositoryStarStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ferrisgit_domain::repository::{NewRepository, RepositoryStorePort, RepositoryVisibility};
-    use ferrisgit_domain::user::{NewUser, UserRepositoryPort};
-
-    async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
-        let users = crate::postgres::user_repository::PostgresUserRepository::new(pool.clone());
-        users
-            .create(NewUser {
-                username: username.to_string(),
-                email: format!("{username}@example.com"),
-                password_hash: "h".to_string(),
-                is_admin: false,
-            })
-            .await
-            .unwrap()
-            .id
-    }
-
-    async fn seed_repository(pool: &PgPool, owner_id: Uuid, name: &str) -> Uuid {
-        let repos = crate::postgres::repository_store::PostgresRepositoryStore::new(pool.clone());
-        repos
-            .create(
-                NewRepository {
-                    owner_id,
-                    name: name.to_string(),
-                    group_id: None,
-                    description: String::new(),
-                    visibility: RepositoryVisibility::Private,
-                },
-                format!("{name}-path"),
-            )
-            .await
-            .unwrap()
-            .id
-    }
+    use crate::postgres::test_support::{seed_repository, seed_user};
 
     #[sqlx::test(migrations = "../../migrations")]
     async fn starring_then_unstarring_updates_count_and_is_starred(pool: PgPool) {

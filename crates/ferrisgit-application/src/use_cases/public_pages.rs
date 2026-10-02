@@ -8,10 +8,10 @@ use ferrisgit_domain::public_pages::{
 use ferrisgit_domain::repository::{Repository, RepositoryStorePort, RepositoryVisibility};
 use uuid::Uuid;
 
-pub const MAX_QUERY_CHARS: usize = 100;
-pub const DEFAULT_PER_PAGE: u32 = 20;
-pub const MAX_PER_PAGE: u32 = 50;
-pub const MAX_PAGE: u32 = 100;
+const MAX_QUERY_CHARS: usize = 100;
+const DEFAULT_PER_PAGE: u32 = 20;
+const MAX_PER_PAGE: u32 = 50;
+const MAX_PAGE: u32 = 100;
 
 /// The single decision of whether an anonymous visitor may read a repository: it must be `Public` and the
 /// instance must have its public pages on. Every refusal is the same `NotFound` as an unknown id.
@@ -142,6 +142,7 @@ fn parse_query(raw: RawPublicCatalogSearch) -> Result<PublicCatalogQuery, Domain
 mod tests {
     use super::*;
     use crate::test_support::{FakePublicPagesSettings, FakeRepositories};
+    use crate::use_cases::fixtures;
     use async_trait::async_trait;
     use chrono::Utc;
     use ferrisgit_domain::public_pages::{PublicCatalogEntry, PublicPagesSettings};
@@ -149,14 +150,8 @@ mod tests {
 
     fn repo(visibility: RepositoryVisibility) -> Repository {
         Repository {
-            id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "p".to_string(),
             visibility,
-            created_at: Utc::now(),
+            ..fixtures::repository(Uuid::new_v4())
         }
     }
 

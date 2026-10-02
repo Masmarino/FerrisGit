@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::api_token::{ApiToken, ApiTokenRepositoryPort, NewApiToken};
 use ferrisgit_domain::error::DomainError;
@@ -26,7 +27,7 @@ impl ApiTokenRepositoryPort for PostgresApiTokenRepository {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn list_for_user(&self, user_id: Uuid) -> Result<Vec<ApiToken>, DomainError> {
@@ -37,7 +38,7 @@ impl ApiTokenRepositoryPort for PostgresApiTokenRepository {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn find_by_hash(&self, token_hash: &str) -> Result<Option<ApiToken>, DomainError> {
@@ -48,7 +49,7 @@ impl ApiTokenRepositoryPort for PostgresApiTokenRepository {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn revoke(&self, id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
@@ -59,7 +60,7 @@ impl ApiTokenRepositoryPort for PostgresApiTokenRepository {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("api token".to_string()));
         }
@@ -73,7 +74,7 @@ impl ApiTokenRepositoryPort for PostgresApiTokenRepository {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 }

@@ -1,9 +1,10 @@
 import { afterNextRender, Component, computed, DestroyRef, ElementRef, HostListener, inject, Injector, OnInit, signal, viewChild } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Subject, catchError, debounceTime, distinctUntilChanged, filter, map, of, switchMap } from 'rxjs';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
+import { currentUrl } from '../shared/current-url';
 import { SearchResponse, SearchService } from '../search/search.service';
 import { BreadcrumbSwitcherService } from './breadcrumb-switcher.service';
 import { MeService } from './me.service';
@@ -147,19 +148,13 @@ export class AppShell implements OnInit {
   });
 
   // Updates on every completed navigation so `isMenuOpen`'s auto-expand default follows the route.
-  private currentUrl = toSignal(
-    this.router.events.pipe(
-      filter((e): e is NavigationEnd => e instanceof NavigationEnd),
-      map((e) => e.urlAfterRedirects),
-    ),
-    { initialValue: this.router.url },
-  );
+  private url = currentUrl();
 
   // Per-group override: a manual toggle is never revisited automatically. Absent means follow the route (see isMenuOpen).
   private readonly menuManualOverrides = signal<Record<string, boolean>>({});
 
   protected isMenuOpen(item: NavItem): boolean {
-    return this.menuManualOverrides()[item.action] ?? this.currentUrl().startsWith(item.link);
+    return this.menuManualOverrides()[item.action] ?? this.url().startsWith(item.link);
   }
 
   protected setMenuOpen(item: NavItem, open: boolean): void {

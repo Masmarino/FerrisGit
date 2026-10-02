@@ -23,6 +23,7 @@ use crate::auth_middleware::AuthUser;
 use crate::client_ip::resolve_client_ip;
 use crate::error::ApiError;
 use crate::routes::mfa::UNAUTHENTICATED_BODY_LIMIT_BYTES;
+use crate::routes::user_ref::require_user;
 use crate::state::AppState;
 
 const FORWARDED_FOR: HeaderName = HeaderName::from_static("x-forwarded-for");
@@ -321,11 +322,7 @@ async fn me(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
 ) -> Result<Json<MeResponse>, ApiError> {
-    let user = state
-        .users
-        .find_by_id(user_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+    let user = require_user(&state, user_id).await?;
     Ok(Json(MeResponse {
         id: user.id,
         username: user.username,

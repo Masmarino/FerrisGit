@@ -81,7 +81,7 @@ describe('AppShell', () => {
       expect(trigger.textContent?.trim()).toBe('julien');
     });
 
-    it('opens on click with "Mon compte" and "Déconnexion" and closes on a second click', () => {
+    it('opens on click with "Mon compte", "Documentation" and "Déconnexion" and closes on a second click', () => {
       const { fixture } = setup();
       const trigger = userMenuTrigger(fixture);
 
@@ -89,7 +89,7 @@ describe('AppShell', () => {
       fixture.detectChanges();
       expect(isMenuOpen(fixture)).toBe(true);
       expect(trigger.getAttribute('aria-expanded')).toBe('true');
-      expect(userMenuItems(fixture).map((item) => item.textContent?.trim())).toEqual(['Mon compte', 'Déconnexion']);
+      expect(userMenuItems(fixture).map((item) => item.textContent?.trim())).toEqual(['Mon compte', 'Documentation', 'Déconnexion']);
 
       trigger.click();
       fixture.detectChanges();
@@ -97,17 +97,18 @@ describe('AppShell', () => {
       expect(trigger.getAttribute('aria-expanded')).toBe('false');
     });
 
-    it('writes its two items with Gabarit\'s menu item: a link and a button, each with a decorative icon', () => {
+    it('writes its items with Gabarit\'s menu item: two links and a button, each with a decorative icon', () => {
       const { fixture } = setup();
       userMenuTrigger(fixture).click();
       fixture.detectChanges();
 
-      const [account, logout] = userMenuItems(fixture);
+      const [account, docs, logout] = userMenuItems(fixture);
       expect(account.tagName).toBe('A');
+      expect(docs.tagName).toBe('A');
       expect(logout.tagName).toBe('BUTTON');
       expect(logout.getAttribute('type')).toBe('button');
-      expect(userMenuItems(fixture).map((item) => item.getAttribute('tabindex'))).toEqual(['-1', '-1']);
-      expect(userMenuItems(fixture).map((item) => item.querySelector('gbt-icon.gbt-menu-item__icon')?.getAttribute('aria-hidden'))).toEqual(['true', 'true']);
+      expect(userMenuItems(fixture).map((item) => item.getAttribute('tabindex'))).toEqual(['-1', '-1', '-1']);
+      expect(userMenuItems(fixture).map((item) => item.querySelector('gbt-icon.gbt-menu-item__icon')?.getAttribute('aria-hidden'))).toEqual(['true', 'true', 'true']);
     });
 
     it('gives the focus back to the menu button once "Mon compte" has been chosen', async () => {
@@ -132,6 +133,14 @@ describe('AppShell', () => {
       expect(account.getAttribute('href')).toBe('/account');
     });
 
+    it('links "Documentation" to /docs', () => {
+      const { fixture } = setup();
+      userMenuTrigger(fixture).click();
+      fixture.detectChanges();
+
+      expect(userMenuItems(fixture)[1].getAttribute('href')).toBe('/docs');
+    });
+
     it('closes after choosing "Mon compte", which navigates to /account', async () => {
       const { fixture } = setup([{ path: 'account', component: EmptyTestComponent }]);
       userMenuTrigger(fixture).click();
@@ -152,7 +161,7 @@ describe('AppShell', () => {
       userMenuTrigger(fixture).click();
       fixture.detectChanges();
 
-      userMenuItems(fixture)[1].click();
+      userMenuItems(fixture)[2].click();
       fixture.detectChanges();
 
       expect(logout).toHaveBeenCalledTimes(1);
@@ -206,8 +215,10 @@ describe('AppShell', () => {
     it('moves focus through the items with ArrowDown/ArrowUp, wrapping at both ends', async () => {
       const { fixture } = setup();
       await openUserMenu(fixture);
-      const [account, logout] = userMenuItems(fixture);
+      const [account, docs, logout] = userMenuItems(fixture);
 
+      await pressOnMenu(fixture, 'ArrowDown');
+      expect(document.activeElement).toBe(docs);
       await pressOnMenu(fixture, 'ArrowDown');
       expect(document.activeElement).toBe(logout);
       await pressOnMenu(fixture, 'ArrowDown');
@@ -219,7 +230,7 @@ describe('AppShell', () => {
     it('jumps to the first and last item with Home and End', async () => {
       const { fixture } = setup();
       await openUserMenu(fixture);
-      const [account, logout] = userMenuItems(fixture);
+      const [account, , logout] = userMenuItems(fixture);
 
       await pressOnMenu(fixture, 'End');
       expect(document.activeElement).toBe(logout);
@@ -245,7 +256,7 @@ describe('AppShell', () => {
       await pressOnMenu(fixture, 'ArrowUp');
 
       expect(isMenuOpen(fixture)).toBe(true);
-      expect(document.activeElement).toBe(userMenuItems(fixture)[1]);
+      expect(document.activeElement).toBe(userMenuItems(fixture)[2]);
     });
 
     it('closes on Escape and returns focus to the trigger', async () => {

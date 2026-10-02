@@ -6,6 +6,7 @@ use chrono::{DateTime, Utc};
 use ferrisgit_application::use_cases::create_label::CreateLabelUseCase;
 use ferrisgit_application::use_cases::delete_label::DeleteLabelUseCase;
 use ferrisgit_application::use_cases::update_label::UpdateLabelUseCase;
+use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::label::Label;
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use serde::{Deserialize, Serialize};
@@ -38,6 +39,35 @@ impl From<Label> for LabelResponse {
             created_at: l.created_at,
         }
     }
+}
+
+/// Query string of the issue and merge request listings. `labelIds` is a comma-separated list of UUIDs.
+#[derive(Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct LabelFilterQuery {
+    #[serde(default)]
+    label_ids: Option<String>,
+    #[serde(default)]
+    pub(crate) milestone_id: Option<Uuid>,
+}
+
+impl LabelFilterQuery {
+    pub(crate) fn label_ids(&self) -> Result<Option<Vec<Uuid>>, ApiError> {
+        let Some(raw) = self.label_ids.as_deref().filter(|s| !s.is_empty()) else {
+            return Ok(None);
+        };
+        let ids: Result<Vec<Uuid>, _> = raw.split(',').map(Uuid::parse_str).collect();
+        Ok(Some(ids.map_err(|_| {
+            DomainError::Validation("labelIds must be a comma-separated list of UUIDs".to_string())
+        })?))
+    }
+}
+
+/// Body of `PUT .../labels`: replaces the labels of an issue or a merge request.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct SetLabelsRequest {
+    pub(crate) label_ids: Vec<Uuid>,
 }
 
 #[derive(Deserialize)]

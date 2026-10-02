@@ -152,6 +152,7 @@
       <fg-notification-bell />
       <gbt-menu [label]="me.username() || 'Compte'" align="end">
         <a gbtMenuItem icon="user" routerLink="/account">Mon compte</a>
+        <a gbtMenuItem icon="book-open" routerLink="/docs">Documentation</a>
         <button gbtMenuItem icon="log-out" (click)="logout()">Déconnexion</button>
       </gbt-menu>
     </div>

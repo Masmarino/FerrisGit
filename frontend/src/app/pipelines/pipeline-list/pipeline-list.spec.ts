@@ -25,6 +25,7 @@ function pipeline(overrides: Partial<PipelineSummary> = {}): PipelineSummary {
     finishedAt: '2026-01-01T00:01:35Z',
     triggeredBy: { id: 'u1', username: 'alice' },
     commitMessage: 'Paginer la liste des tickets',
+    error: null,
     ...overrides,
   };
 }
@@ -318,6 +319,26 @@ describe('PipelineList', () => {
 
       expect(rows(el)[0].querySelector('.pipeline-list__duration')).toBeNull();
       expect(text(rows(el)[0].querySelector('.pipeline-list__meta'))).not.toContain('durée');
+    });
+
+    it('marks a pipeline whose file was invalid: failed badge, a label, and no duration', () => {
+      const { el } = loaded([
+        pipeline({ id: 'p1', status: 'failed', createdAt: '2026-01-01T00:00:00Z', finishedAt: '2026-01-01T00:00:00Z', error: 'invalid YAML: boom' }),
+        pipeline({ id: 'p2', status: 'failed', createdAt: '2026-01-02T00:00:00Z', finishedAt: '2026-01-02T00:03:00Z' }),
+      ]);
+
+      const [regular, invalid] = rows(el);
+      expect(text(invalid.querySelector('fg-status-badge'))).toBe('Échoué');
+      expect(text(invalid.querySelector('.pipeline-list__invalid'))).toBe('Fichier de pipeline invalide');
+      expect(invalid.querySelector('.pipeline-list__duration')).toBeNull();
+      expect(regular.querySelector('.pipeline-list__invalid')).toBeNull();
+      expect(text(regular.querySelector('.pipeline-list__duration'))).toBe('· durée 3m 0s');
+    });
+
+    it('shows a running pipeline with the "En cours" badge', () => {
+      const { el } = loaded([pipeline({ status: 'running', finishedAt: null })]);
+
+      expect(text(rows(el)[0].querySelector('fg-status-badge'))).toBe('En cours');
     });
   });
 

@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::notification::{
@@ -81,7 +82,7 @@ impl NotificationStorePort for PostgresNotificationStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -99,7 +100,7 @@ impl NotificationStorePort for PostgresNotificationStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter().map(TryFrom::try_from).collect()
     }
 
@@ -107,7 +108,7 @@ impl NotificationStorePort for PostgresNotificationStore {
         let row = sqlx::query!("SELECT count(*) AS count FROM notifications WHERE recipient_id = $1 AND read_at IS NULL", recipient_id)
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(row.count.unwrap_or(0))
     }
 
@@ -119,7 +120,7 @@ impl NotificationStorePort for PostgresNotificationStore {
         sqlx::query!("UPDATE notifications SET read_at = now() WHERE id = $1 AND recipient_id = $2 AND read_at IS NULL", notification_id, recipient_id)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(())
     }
 
@@ -130,7 +131,7 @@ impl NotificationStorePort for PostgresNotificationStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 }
@@ -138,21 +139,7 @@ impl NotificationStorePort for PostgresNotificationStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ferrisgit_domain::user::{NewUser, UserRepositoryPort};
-
-    async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
-        let users = crate::postgres::user_repository::PostgresUserRepository::new(pool.clone());
-        users
-            .create(NewUser {
-                username: username.to_string(),
-                email: format!("{username}@example.com"),
-                password_hash: "h".to_string(),
-                is_admin: false,
-            })
-            .await
-            .unwrap()
-            .id
-    }
+    use crate::postgres::test_support::seed_user;
 
     fn minimal(recipient_id: Uuid) -> NewNotification {
         NewNotification {

@@ -123,7 +123,8 @@ impl DeleteUserUseCase {
 
         let deleted = self.users.delete(target.id, actor_id).await?;
 
-        // The rows are committed: from here on nothing may fail the request (the account is gone, a retry would 404).
+        // The rows are committed: from here on nothing may fail the request (the account is gone, so a retry
+        // would find nothing to delete).
         for repository in &deleted {
             remove_git_storage(repository);
             if let Err(error) = self
@@ -149,31 +150,23 @@ mod tests {
     use crate::test_support::{
         FakeGroups, FakeInvitations, FakePasswordResets, FakeRepositories, FakeStorage, FakeUsers,
     };
+    use crate::use_cases::fixtures;
     use chrono::{Duration, Utc};
     use ferrisgit_domain::group::{Group, NewGroup};
-    use ferrisgit_domain::repository::RepositoryVisibility;
 
     fn user(username: &str, is_admin: bool) -> User {
         User {
-            id: Uuid::new_v4(),
-            username: username.to_string(),
-            email: format!("{username}@example.com"),
-            password_hash: "h".to_string(),
             is_admin,
-            created_at: Utc::now(),
+            ..fixtures::user(username)
         }
     }
 
     fn repository(owner_id: Uuid, name: &str, group_id: Option<Uuid>) -> Repository {
         Repository {
-            id: Uuid::new_v4(),
-            owner_id,
             name: name.to_string(),
             group_id,
-            description: String::new(),
             disk_path: format!("{owner_id}/{name}.git"),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
+            ..fixtures::repository(owner_id)
         }
     }
 
@@ -347,8 +340,8 @@ mod tests {
         );
     }
 
-    /// A cleanup failure after the commit must not fail the request (a retry would 404); every repository's git
-    /// storage is still removed.
+    /// A cleanup failure after the commit must not fail the request (a retry would find nothing to delete); every
+    /// repository's git storage is still removed.
     #[tokio::test]
     async fn a_release_asset_cleanup_failure_after_the_commit_does_not_fail_the_deletion() {
         let root = user("root", true);

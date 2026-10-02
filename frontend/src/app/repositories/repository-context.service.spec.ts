@@ -3,6 +3,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { RepositoryContextService } from './repository-context.service';
 import { PageTitleService } from '../shell/page-title.service';
+import { repositoryFixture } from './repository-fixtures';
 
 describe('RepositoryContextService', () => {
   function setup() {
@@ -22,15 +23,7 @@ describe('RepositoryContextService', () => {
     service.enter('repo-1', ['acme', 'widget'], [], null);
     expect(service.current()).toEqual({ repositoryId: 'repo-1', path: ['acme', 'widget'], role: null, ancestors: [], groupId: null });
 
-    http.expectOne('/api/repositories/by-id/repo-1').flush({
-      id: 'repo-1',
-      name: 'widget',
-      owner: 'acme',
-      role: 'maintainer',
-      visibility: 'private',
-      createdAt: '2026-01-01',
-      path: ['acme', 'widget'],
-    });
+    http.expectOne('/api/repositories/by-id/repo-1').flush(repositoryFixture({ role: 'maintainer', path: ['acme', 'widget'] }));
 
     expect(service.current()).toEqual({ repositoryId: 'repo-1', path: ['acme', 'widget'], role: 'maintainer', ancestors: [], groupId: null });
   });
@@ -42,30 +35,14 @@ describe('RepositoryContextService', () => {
     service.enter('repo-1', ['acme', 'widget'], ancestors, 'group-1');
     expect(service.current()).toEqual({ repositoryId: 'repo-1', path: ['acme', 'widget'], role: null, ancestors, groupId: 'group-1' });
 
-    http.expectOne('/api/repositories/by-id/repo-1').flush({
-      id: 'repo-1',
-      name: 'widget',
-      owner: 'acme',
-      role: 'reader',
-      visibility: 'private',
-      createdAt: '2026-01-01',
-      path: ['acme', 'widget'],
-    });
+    http.expectOne('/api/repositories/by-id/repo-1').flush(repositoryFixture({ role: 'reader', path: ['acme', 'widget'] }));
   });
 
   it('does not re-fetch when entering the same repository again', () => {
     const { service, http } = setup();
 
     service.enter('repo-1', ['acme', 'widget'], [], null);
-    http.expectOne('/api/repositories/by-id/repo-1').flush({
-      id: 'repo-1',
-      name: 'widget',
-      owner: 'acme',
-      role: 'reader',
-      visibility: 'private',
-      createdAt: '2026-01-01',
-      path: ['acme', 'widget'],
-    });
+    http.expectOne('/api/repositories/by-id/repo-1').flush(repositoryFixture({ role: 'reader', path: ['acme', 'widget'] }));
 
     service.enter('repo-1', ['acme', 'widget'], [], null);
 
@@ -79,26 +56,10 @@ describe('RepositoryContextService', () => {
     const firstReq = http.expectOne('/api/repositories/by-id/repo-1');
 
     service.enter('repo-2', ['acme', 'other'], [], null);
-    http.expectOne('/api/repositories/by-id/repo-2').flush({
-      id: 'repo-2',
-      name: 'other',
-      owner: 'acme',
-      role: 'owner',
-      visibility: 'private',
-      createdAt: '2026-01-01',
-      path: ['acme', 'other'],
-    });
+    http.expectOne('/api/repositories/by-id/repo-2').flush(repositoryFixture({ id: 'repo-2', role: 'owner', path: ['acme', 'other'] }));
 
     // The first repository's fetch resolves after the switch and must not overwrite repo-2's context.
-    firstReq.flush({
-      id: 'repo-1',
-      name: 'widget',
-      owner: 'acme',
-      role: 'maintainer',
-      visibility: 'private',
-      createdAt: '2026-01-01',
-      path: ['acme', 'widget'],
-    });
+    firstReq.flush(repositoryFixture({ role: 'maintainer', path: ['acme', 'widget'] }));
 
     expect(service.current()).toEqual({ repositoryId: 'repo-2', path: ['acme', 'other'], role: 'owner', ancestors: [], groupId: null });
   });
@@ -118,15 +79,7 @@ describe('RepositoryContextService', () => {
     const { service, http } = setup();
 
     service.enter('repo-1', ['acme', 'widget'], [], null);
-    http.expectOne('/api/repositories/by-id/repo-1').flush({
-      id: 'repo-1',
-      name: 'widget',
-      owner: 'acme',
-      role: 'owner',
-      visibility: 'private',
-      createdAt: '2026-01-01',
-      path: ['acme', 'widget'],
-    });
+    http.expectOne('/api/repositories/by-id/repo-1').flush(repositoryFixture({ role: 'owner', path: ['acme', 'widget'] }));
 
     service.leave();
 
@@ -140,15 +93,7 @@ describe('RepositoryContextService', () => {
 
     service.enter('repo-1', ['acme', 'widget'], [], null);
     expect(pageTitle.title()).toBe('');
-    http.expectOne('/api/repositories/by-id/repo-1').flush({
-      id: 'repo-1',
-      name: 'widget',
-      owner: 'acme',
-      role: 'reader',
-      visibility: 'private',
-      createdAt: '2026-01-01',
-      path: ['acme', 'widget'],
-    });
+    http.expectOne('/api/repositories/by-id/repo-1').flush(repositoryFixture({ role: 'reader', path: ['acme', 'widget'] }));
 
     pageTitle.set('Pipelines');
     service.enter('repo-1', ['acme', 'widget'], [], null);
@@ -156,14 +101,6 @@ describe('RepositoryContextService', () => {
 
     service.enter('repo-2', ['acme', 'other'], [], null);
     expect(pageTitle.title()).toBe('');
-    http.expectOne('/api/repositories/by-id/repo-2').flush({
-      id: 'repo-2',
-      name: 'other',
-      owner: 'acme',
-      role: 'reader',
-      visibility: 'private',
-      createdAt: '2026-01-01',
-      path: ['acme', 'other'],
-    });
+    http.expectOne('/api/repositories/by-id/repo-2').flush(repositoryFixture({ id: 'repo-2', role: 'reader', path: ['acme', 'other'] }));
   });
 });

@@ -2,7 +2,8 @@ import { Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Avatar, Badge, Button, Card, CardHeader, GbtDateTimePipe, GbtRelativeTimePipe, Icon, IconMarker, Textarea } from '@masmarino/gabarit';
 import { Comment, ExcerptLine, TimelineThread } from '../merge-requests.service';
-import { shortSha } from '../merge-request-events';
+import { shortSha } from '../../repositories/commit-format';
+import { authorName } from '../merge-request-presentation';
 
 @Component({
   selector: 'fg-mr-thread-card',
@@ -30,7 +31,7 @@ export class MrThreadCard {
 
   protected comments = computed<Comment[]>(() => [this.thread().root, ...this.thread().replies]);
 
-  protected rootAuthorName = computed(() => this.thread().root.author?.username ?? 'Utilisateur supprimé');
+  protected rootAuthorName = computed(() => authorName(this.thread().root.author));
 
   // A resolved thread starts collapsed. That state is local to the UI and not saved.
   protected expanded = signal(false);
@@ -47,7 +48,7 @@ export class MrThreadCard {
   }
 
   protected authorName(comment: Comment): string {
-    return comment.author?.username ?? 'Utilisateur supprimé';
+    return authorName(comment.author);
   }
 
   // The +/- prefix mirrors FileDiffView: a real character, so the added/removed distinction survives without colour.

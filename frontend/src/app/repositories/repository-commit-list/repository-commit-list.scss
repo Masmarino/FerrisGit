@@ -1,12 +1,12 @@
+@use '../../shared/layout/list-page';
+
 .repository-commit-list__ref {
   margin: 0;
   color: var(--text-secondary);
 }
 
 .repository-commit-list__items {
-  list-style: none;
-  margin: 0;
-  padding: 0;
+  @include list-page.row-list;
 }
 
 .repository-commit-list__title {

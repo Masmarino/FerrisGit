@@ -80,6 +80,10 @@ export interface UpdateReleaseOptions {
 export class ReleasesService {
   private http = inject(HttpClient);
 
+  private releaseUrl(repositoryId: string, tagName: string): string {
+    return `/api/repositories/${repositoryId}/releases/${encodeURIComponent(tagName)}`;
+  }
+
   listTags(repositoryId: string) {
     return this.http.get<TagSummary[]>(`/api/repositories/${repositoryId}/tags`);
   }
@@ -98,29 +102,29 @@ export class ReleasesService {
   }
 
   detail(repositoryId: string, tagName: string) {
-    return this.http.get<ReleaseDetail>(`/api/repositories/${repositoryId}/releases/${encodeURIComponent(tagName)}`);
+    return this.http.get<ReleaseDetail>(this.releaseUrl(repositoryId, tagName));
   }
 
   update(repositoryId: string, tagName: string, options: UpdateReleaseOptions) {
-    return this.http.patch<ReleaseDetail>(`/api/repositories/${repositoryId}/releases/${encodeURIComponent(tagName)}`, options);
+    return this.http.patch<ReleaseDetail>(this.releaseUrl(repositoryId, tagName), options);
   }
 
   delete(repositoryId: string, tagName: string) {
-    return this.http.delete<void>(`/api/repositories/${repositoryId}/releases/${encodeURIComponent(tagName)}`);
+    return this.http.delete<void>(this.releaseUrl(repositoryId, tagName));
   }
 
   uploadAsset(repositoryId: string, tagName: string, file: File) {
     const formData = new FormData();
     formData.append('file', file, file.name);
-    return this.http.post<ReleaseAsset>(`/api/repositories/${repositoryId}/releases/${encodeURIComponent(tagName)}/assets`, formData);
+    return this.http.post<ReleaseAsset>(`${this.releaseUrl(repositoryId, tagName)}/assets`, formData);
   }
 
   deleteAsset(repositoryId: string, tagName: string, assetId: string) {
-    return this.http.delete<void>(`/api/repositories/${repositoryId}/releases/${encodeURIComponent(tagName)}/assets/${assetId}`);
+    return this.http.delete<void>(`${this.releaseUrl(repositoryId, tagName)}/assets/${assetId}`);
   }
 
   /** Fetched via `HttpClient` so the auth interceptor attaches the JWT (a bare anchor carries no `Authorization` header); callers turn the blob into a save prompt. */
   downloadAsset(repositoryId: string, tagName: string, assetId: string) {
-    return this.http.get(`/api/repositories/${repositoryId}/releases/${encodeURIComponent(tagName)}/assets/${assetId}`, { responseType: 'blob' });
+    return this.http.get(`${this.releaseUrl(repositoryId, tagName)}/assets/${assetId}`, { responseType: 'blob' });
   }
 }

@@ -11,7 +11,7 @@ import { Me, MeService } from '../../shell/me.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { ApiTokenSummary, TokensService } from '../../api-tokens/api-tokens.service';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
-import { MfaService } from '../mfa.service';
+import { MfaService } from '../../auth/mfa.service';
 import { provideFerrisgitAuth } from '../../auth/auth-kit';
 import { MfaSettings } from '../mfa-settings/mfa-settings';
 import { stubPasskeyBrowser } from '../../shared/webauthn-testing';
@@ -126,9 +126,15 @@ describe('AccountPage', () => {
       const { el } = await setup();
 
       const links = Array.from(el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a'));
-      expect(links.map((a) => a.querySelector('.gbt-nav-tab__label')?.textContent)).toEqual(['Profil', 'Mot de passe', 'Sécurité', "Jetons d'API"]);
+      expect(links.map((a) => a.querySelector('.gbt-nav-tab__label')?.textContent)).toEqual(['Profil', 'Mot de passe', 'Sécurité', 'Jetons Git']);
       expect(links.map((a) => a.getAttribute('href'))).toEqual(['/account', '/account?section=password', '/account?section=security', '/account?section=tokens']);
       expect(links.every((a) => a.querySelector('gbt-icon') !== null)).toBe(true);
+    });
+
+    it('names the tokens as Git access tokens, not API ones, in the header', async () => {
+      const { el } = await setup();
+
+      expect(text(el().querySelector('.account-page__intro'))).toBe("Profil, mot de passe, double authentification et jetons d'accès Git");
     });
 
     it('shows the profile section by default, and only it', async () => {
@@ -150,7 +156,7 @@ describe('AccountPage', () => {
 
       await harness.navigateByUrl('/account?section=tokens');
       harness.fixture.detectChanges();
-      expect(current()).toEqual(["Jetons d'API"]);
+      expect(current()).toEqual(['Jetons Git']);
       expect(harness.routeDebugElement!.queryAll(By.directive(ApiTokensList))).toHaveLength(1);
       expect(card('Mot de passe')).toBeUndefined();
     });

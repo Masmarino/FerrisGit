@@ -5,21 +5,10 @@ import { provideRouter, Router } from '@angular/router';
 import { CLONE_PANEL_ID, RepositoryHeader } from './repository-header';
 import { Repository } from '../repositories.service';
 import { READ_ONLY_REPOSITORY } from '../read-only-repository';
+import { repositoryFixture } from '../repository-fixtures';
 
 describe('RepositoryHeader', () => {
-  const repo: Repository = {
-    id: 'repo-1',
-    name: 'hello',
-    description: 'A test repo',
-    owner: 'alice',
-    role: 'owner',
-    visibility: 'public',
-    createdAt: '2026-01-01T00:00:00Z',
-    path: ['alice', 'hello'],
-    starCount: 3,
-    isStarred: false,
-    sizeBytes: 2048,
-  };
+  const repo = repositoryFixture({ description: 'A test repo', visibility: 'public', starCount: 3, isStarred: false, sizeBytes: 2048 });
 
   function setup(r: Repository | null, ref = 'main') {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])] });

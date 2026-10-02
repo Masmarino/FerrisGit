@@ -4,7 +4,7 @@
 
 <gbt-page-layout width="full">
   <!-- Filters stay when a filtered refetch fails, so the failing filter can be changed or cleared. They are hidden while the repository has no issues at all. -->
-  @if (!isEmptyRepository() && (!loadFailed() || hasServerFilters())) {
+  @if (!isEmptyRepository() && (!loadFailed() || filters.hasSelection())) {
     <div class="issue-kanban__toolbar" role="search" aria-label="Filtrer les tickets">
       <gbt-input
         class="issue-kanban__search"
@@ -20,11 +20,11 @@
         label="Filtrer par label"
         hideLabel
         fullWidth
-        [options]="labelOptions()"
+        [options]="filters.labelOptions()"
         [multiple]="true"
         [chips]="true"
-        [ngModel]="selectedLabelIds()"
-        (ngModelChange)="onLabelFilterChange($event)"
+        [ngModel]="filters.selectedLabelIds()"
+        (ngModelChange)="filters.selectLabels($event)"
         placeholder="Tous les labels"
       />
       <gbt-select
@@ -32,9 +32,9 @@
         label="Filtrer par milestone"
         hideLabel
         fullWidth
-        [options]="milestoneOptions()"
-        [ngModel]="selectedMilestoneId()"
-        (ngModelChange)="onMilestoneFilterChange($event)"
+        [options]="filters.milestoneOptions()"
+        [ngModel]="filters.selectedMilestoneId()"
+        (ngModelChange)="filters.selectMilestone($event)"
         placeholder="Tous les milestones"
       />
       @if (hasActiveFilters()) {

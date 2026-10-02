@@ -42,6 +42,19 @@
   font-variant-numeric: tabular-nums;
 }
 
+// The parser's message, as it came: the position it points at is only readable in a fixed-width font.
+.pipeline-detail__error-message {
+  margin: 0;
+  font-family: var(--gbt-font-mono);
+  font-size: 0.875rem;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pipeline-detail__error-hint {
+  margin: 0.5rem 0 0;
+}
+
 .pipeline-detail__layout {
   display: grid;
   grid-template-columns: 15rem minmax(0, 1fr);

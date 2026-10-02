@@ -7,6 +7,8 @@ COPY frontend/package*.json ./
 RUN npm ci
 
 COPY frontend/ ./
+# `frontend/docs` is a symlink to `docs/`, so the documentation pages are built into the app as static assets.
+COPY docs/ ../docs/
 
 RUN npm run build -- --configuration production
 
@@ -16,6 +18,7 @@ WORKDIR /app
 
 RUN apk add --no-cache pkgconfig build-base git openssl-dev openssl-libs-static
 
+# Statically linked OpenSSL (needed by WebAuthn), so the musl binary runs on the plain alpine runtime image.
 ENV OPENSSL_STATIC=1
 
 COPY Cargo.toml Cargo.lock rust-toolchain.toml ./
@@ -31,6 +34,7 @@ FROM alpine:3.24 AS runtime
 
 WORKDIR /app
 
+# The server shells out to `git http-backend`, which alpine ships in git-daemon.
 RUN apk add --no-cache git git-daemon ca-certificates
 
 COPY --from=backend-build /app/target/release/ferrisgit-api ./ferrisgit-api

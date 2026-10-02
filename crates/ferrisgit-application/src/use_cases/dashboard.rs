@@ -103,69 +103,36 @@ mod tests {
         FakeCollaborators, FakeGroups, FakeIssues, FakeMergeRequests, FakeNotifications,
         FakeRepositories,
     };
-    use chrono::Utc;
-    use ferrisgit_domain::issue::IssueKind;
+    use crate::use_cases::fixtures::{issue, merge_request, repository_with_id};
+    use ferrisgit_domain::notification::NotificationKind;
     use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
     use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 
     fn repo(id: Uuid, owner_id: Uuid, group_id: Option<Uuid>) -> Repository {
         Repository {
-            id,
-            owner_id,
-            name: "r".to_string(),
             group_id,
-            description: String::new(),
-            disk_path: "r.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
+            ..repository_with_id(id, owner_id)
         }
     }
 
     fn public_repo(id: Uuid, owner_id: Uuid) -> Repository {
         Repository {
-            id,
-            owner_id,
-            name: "r".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "r.git".to_string(),
             visibility: RepositoryVisibility::Public,
-            created_at: Utc::now(),
+            ..repository_with_id(id, owner_id)
         }
     }
 
     fn fake_issue(title: &str) -> Issue {
         Issue {
-            id: Uuid::new_v4(),
-            repository_id: Uuid::new_v4(),
-            number: 1,
-            author_id: Uuid::new_v4(),
-            assignee_id: None,
-            milestone_id: None,
             title: title.to_string(),
-            description: String::new(),
-            status: ferrisgit_domain::issue::IssueStatus::Todo,
-            kind: IssueKind::Bug,
-            parent_issue_id: None,
-            created_at: chrono::Utc::now(),
-            closed_at: None,
+            ..issue(Uuid::new_v4(), Uuid::new_v4())
         }
     }
 
     fn fake_merge_request(title: &str) -> MergeRequest {
         MergeRequest {
-            id: Uuid::new_v4(),
-            repository_id: Uuid::new_v4(),
-            author_id: Some(Uuid::new_v4()),
-            source_branch: "feature".to_string(),
-            target_branch: "main".to_string(),
             title: title.to_string(),
-            description: String::new(),
-            status: ferrisgit_domain::merge_request::MergeRequestStatus::Open,
-            merge_commit_sha: None,
-            milestone_id: None,
-            created_at: chrono::Utc::now(),
-            closed_at: None,
+            ..merge_request(Uuid::new_v4(), Uuid::new_v4())
         }
     }
 
@@ -175,7 +142,7 @@ mod tests {
         Notification {
             id: Uuid::new_v4(),
             recipient_id,
-            kind: ferrisgit_domain::notification::NotificationKind::IssueClosed,
+            kind: NotificationKind::IssueClosed,
             repository_owner: "alice".to_string(),
             repository_name: "hello".to_string(),
             actor_username: Some("bob".to_string()),

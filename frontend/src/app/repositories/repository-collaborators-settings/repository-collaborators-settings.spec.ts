@@ -1,9 +1,8 @@
 import { LOCALE_ID } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
 import { RepositoryCollaboratorsSettings } from './repository-collaborators-settings';
 import { CollaboratorSummary, RepositorySettingsService } from '../repository-settings.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { createSettingsSection } from '../settings-section-testing';
 
 describe('RepositoryCollaboratorsSettings', () => {
   function setup() {
@@ -13,17 +12,11 @@ describe('RepositoryCollaboratorsSettings', () => {
       setCollaboratorRole: vi.fn(() => of<void>(undefined)),
       removeCollaborator: vi.fn(() => of<void>(undefined)),
     };
-    const toastStub = { show: vi.fn() };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: RepositorySettingsService, useValue: repositorySettingsStub },
-        { provide: GbtToastService, useValue: toastStub },
-        { provide: LOCALE_ID, useValue: 'fr' },
-      ],
-    });
-    const fixture = TestBed.createComponent(RepositoryCollaboratorsSettings);
-    fixture.componentRef.setInput('repositoryId', 'repo-1');
-    return { fixture, component: fixture.componentInstance, repositorySettingsStub, toastStub };
+    const providers = [
+      { provide: RepositorySettingsService, useValue: repositorySettingsStub },
+      { provide: LOCALE_ID, useValue: 'fr' },
+    ];
+    return { ...createSettingsSection(RepositoryCollaboratorsSettings, providers), repositorySettingsStub };
   }
 
   it('lists configured collaborators', () => {
@@ -62,7 +55,7 @@ describe('RepositoryCollaboratorsSettings', () => {
 
     expect(repositorySettingsStub.addCollaborator).toHaveBeenCalledWith('repo-1', 'bob', 'maintainer');
     expect(component['newCollaboratorUsername']()).toBe('');
-    // `refresh()` re-fetched only this section's list (`ngOnInit` never ran here).
+    // The section's list was re-fetched once (`ngOnInit` never ran here).
     expect(repositorySettingsStub.listCollaborators).toHaveBeenCalledTimes(1);
   });
 

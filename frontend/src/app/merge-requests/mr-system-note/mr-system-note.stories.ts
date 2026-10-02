@@ -1,20 +1,12 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { MrSystemNote } from './mr-system-note';
 import { TimelineEvent } from '../merge-requests.service';
-import { hoursAgo, onTimelineRail, withFerrisgitIcons } from '../timeline-story-helpers';
-
-const alice = { id: 'u1', username: 'alice' };
+import { onTimelineRail } from '../timeline-story-helpers';
+import { hoursAgo, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
+import { eventFixture } from '../merge-request-fixtures';
 
 function makeEvent(overrides: Partial<TimelineEvent>): TimelineEvent {
-  return {
-    type: 'event',
-    id: 'e1',
-    createdAt: hoursAgo(3),
-    actor: alice,
-    kind: 'closed',
-    payload: {},
-    ...overrides,
-  };
+  return eventFixture({ id: 'e1', createdAt: hoursAgo(3), kind: 'closed', ...overrides });
 }
 
 const meta: Meta<MrSystemNote> = {

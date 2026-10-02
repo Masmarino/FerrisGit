@@ -1,6 +1,8 @@
 use std::sync::Arc;
 
 use ferrisgit_domain::error::DomainError;
+use ferrisgit_domain::group::GroupStorePort;
+use ferrisgit_domain::group_membership::GroupMembershipPort;
 use ferrisgit_domain::notification::{NewNotification, NotificationKind, NotificationStorePort};
 use ferrisgit_domain::repository::RepositoryStorePort;
 use ferrisgit_domain::repository_collaborator::{
@@ -11,21 +13,29 @@ use ferrisgit_domain::webhook_dispatcher::WebhookDispatcherPort;
 use ferrisgit_domain::webhook_event::WebhookEvent;
 use uuid::Uuid;
 
+use super::collaborator_guard::require_collaborator_manager;
+use super::event_context::EventContext;
+
 pub struct AddCollaboratorUseCase {
     collaborators: Arc<dyn RepositoryCollaboratorStorePort>,
     users: Arc<dyn UserRepositoryPort>,
     repositories: Arc<dyn RepositoryStorePort>,
     notifications: Arc<dyn NotificationStorePort>,
     webhooks: Arc<dyn WebhookDispatcherPort>,
+    groups: Arc<dyn GroupStorePort>,
+    group_membership: Arc<dyn GroupMembershipPort>,
 }
 
 impl AddCollaboratorUseCase {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         collaborators: Arc<dyn RepositoryCollaboratorStorePort>,
         users: Arc<dyn UserRepositoryPort>,
         repositories: Arc<dyn RepositoryStorePort>,
         notifications: Arc<dyn NotificationStorePort>,
         webhooks: Arc<dyn WebhookDispatcherPort>,
+        groups: Arc<dyn GroupStorePort>,
+        group_membership: Arc<dyn GroupMembershipPort>,
     ) -> Self {
         Self {
             collaborators,
@@ -33,6 +43,8 @@ impl AddCollaboratorUseCase {
             repositories,
             notifications,
             webhooks,
+            groups,
+            group_membership,
         }
     }
 
@@ -40,25 +52,25 @@ impl AddCollaboratorUseCase {
         &self,
         repository_id: Uuid,
         caller_id: Uuid,
-        owner_id: Uuid,
         username: &str,
         role: CollaboratorRole,
     ) -> Result<(), DomainError> {
-        let caller_role = self
-            .collaborators
-            .get_role(repository_id, caller_id)
-            .await?;
-        let authorized =
-            caller_id == owner_id || caller_role.is_some_and(|r| r >= CollaboratorRole::Maintainer);
-        if !authorized {
-            return Err(DomainError::NotFound("repository".to_string()));
-        }
+        let repo = require_collaborator_manager(
+            self.repositories.as_ref(),
+            self.collaborators.as_ref(),
+            self.groups.as_ref(),
+            self.group_membership.as_ref(),
+            repository_id,
+            caller_id,
+        )
+        .await?;
         let target = self
             .users
             .find_by_username(username)
             .await?
             .ok_or_else(|| DomainError::Validation("no such user".to_string()))?;
-        if target.id == owner_id {
+        // A group repository's `owner_id` only records who created it: it carries no implicit role.
+        if repo.group_id.is_none() && target.id == repo.owner_id {
             return Err(DomainError::Validation(
                 "the owner is already a collaborator".to_string(),
             ));
@@ -67,22 +79,15 @@ impl AddCollaboratorUseCase {
             .add(repository_id, target.id, role)
             .await?;
 
-        if let Some(repo) = self
-            .repositories
-            .find_by_id(repository_id)
-            .await
-            .ok()
-            .flatten()
-            && let Some(owner) = self.users.find_by_id(repo.owner_id).await.ok().flatten()
-            && let Some(actor) = self.users.find_by_id(caller_id).await.ok().flatten()
+        if let Some(ctx) = EventContext::for_repository(self.users.as_ref(), repo, caller_id).await
         {
             self.webhooks
                 .dispatch(
                     repository_id,
                     WebhookEvent::CollaboratorAdded {
-                        repository_owner: owner.username.clone(),
-                        repository_name: repo.name.clone(),
-                        actor_username: actor.username.clone(),
+                        repository_owner: ctx.owner_username.clone(),
+                        repository_name: ctx.repository.name.clone(),
+                        actor_username: ctx.actor_username.clone(),
                         target_username: target.username.clone(),
                         role: role.as_str().to_string(),
                     },
@@ -92,19 +97,8 @@ impl AddCollaboratorUseCase {
 
             self.notifications
                 .create(NewNotification {
-                    recipient_id: target.id,
-                    kind: NotificationKind::CollaboratorAdded,
-                    repository_owner: owner.username,
-                    repository_name: repo.name,
-                    actor_username: Some(actor.username),
-                    merge_request_id: None,
-                    merge_request_title: None,
-                    pipeline_id: None,
-                    commit_sha: None,
                     role: Some(role.as_str().to_string()),
-                    issue_id: None,
-                    issue_number: None,
-                    issue_title: None,
+                    ..ctx.notification(NotificationKind::CollaboratorAdded, target.id)
                 })
                 .await
                 .ok();
@@ -118,33 +112,52 @@ impl AddCollaboratorUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{
-        FakeCollaborators, FakeNotifications, FakeRepositories, FakeUsers, FakeWebhooks,
+        FakeCollaborators, FakeGroups, FakeNotifications, FakeRepositories, FakeUsers, FakeWebhooks,
     };
-    use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
+    use crate::use_cases::fixtures::{group, repository, user};
+    use ferrisgit_domain::repository::Repository;
     use ferrisgit_domain::user::User;
-    use ferrisgit_domain::webhook_event::WebhookEvent;
 
-    fn user(username: &str) -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: username.to_string(),
-            email: format!("{username}@example.com"),
-            password_hash: "h".to_string(),
-            is_admin: false,
-            created_at: chrono::Utc::now(),
-        }
+    struct Fixture {
+        use_case: AddCollaboratorUseCase,
+        collaborators: Arc<FakeCollaborators>,
+        notifications: Arc<FakeNotifications>,
+        webhooks: Arc<FakeWebhooks>,
     }
 
-    fn repository(owner_id: Uuid) -> Repository {
-        Repository {
-            id: Uuid::new_v4(),
-            owner_id,
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: chrono::Utc::now(),
+    fn fixture(users: Vec<User>, repository: Repository) -> Fixture {
+        fixture_with(
+            users,
+            repository,
+            FakeCollaborators::empty(),
+            FakeGroups::empty(),
+        )
+    }
+
+    fn fixture_with(
+        users: Vec<User>,
+        repository: Repository,
+        collaborators: FakeCollaborators,
+        groups: FakeGroups,
+    ) -> Fixture {
+        let collaborators = Arc::new(collaborators);
+        let notifications = Arc::new(FakeNotifications::empty());
+        let webhooks = Arc::new(FakeWebhooks::default());
+        let groups = Arc::new(groups);
+        let use_case = AddCollaboratorUseCase::new(
+            collaborators.clone(),
+            Arc::new(FakeUsers::new(users)),
+            Arc::new(FakeRepositories::new(vec![repository])),
+            notifications.clone(),
+            webhooks.clone(),
+            groups.clone(),
+            groups,
+        );
+        Fixture {
+            use_case,
+            collaborators,
+            notifications,
+            webhooks,
         }
     }
 
@@ -152,50 +165,31 @@ mod tests {
     async fn the_owner_can_add_an_existing_user_as_a_collaborator() {
         let owner = user("owner");
         let target = user("alice");
-        let collaborators = Arc::new(FakeCollaborators::empty());
-        let use_case = AddCollaboratorUseCase::new(
-            collaborators.clone(),
-            Arc::new(FakeUsers::new(vec![owner.clone(), target.clone()])),
-            Arc::new(FakeRepositories::new(vec![repository(owner.id)])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
-        let repo_id = Uuid::new_v4();
+        let repo = repository(owner.id);
+        let f = fixture(vec![owner.clone(), target.clone()], repo.clone());
 
-        use_case
-            .execute(
-                repo_id,
-                owner.id,
-                owner.id,
-                "alice",
-                CollaboratorRole::Contributor,
-            )
+        f.use_case
+            .execute(repo.id, owner.id, "alice", CollaboratorRole::Contributor)
             .await
             .unwrap();
 
         assert_eq!(
-            collaborators.snapshot().as_slice(),
-            &[(repo_id, target.id, CollaboratorRole::Contributor)]
+            f.collaborators.snapshot().as_slice(),
+            &[(repo.id, target.id, CollaboratorRole::Contributor)]
         );
     }
 
     #[tokio::test]
     async fn a_non_owner_caller_is_rejected_as_not_found() {
         let owner = user("owner");
-        let target = user("alice");
-        let use_case = AddCollaboratorUseCase::new(
-            Arc::new(FakeCollaborators::empty()),
-            Arc::new(FakeUsers::new(vec![owner.clone(), target])),
-            Arc::new(FakeRepositories::new(vec![repository(owner.id)])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let repo = repository(owner.id);
+        let f = fixture(vec![owner, user("alice")], repo.clone());
 
-        let result = use_case
+        let result = f
+            .use_case
             .execute(
+                repo.id,
                 Uuid::new_v4(),
-                Uuid::new_v4(),
-                owner.id,
                 "alice",
                 CollaboratorRole::Contributor,
             )
@@ -207,22 +201,12 @@ mod tests {
     #[tokio::test]
     async fn adding_an_unknown_username_is_a_validation_error() {
         let owner = user("owner");
-        let use_case = AddCollaboratorUseCase::new(
-            Arc::new(FakeCollaborators::empty()),
-            Arc::new(FakeUsers::new(vec![owner.clone()])),
-            Arc::new(FakeRepositories::new(vec![repository(owner.id)])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let repo = repository(owner.id);
+        let f = fixture(vec![owner.clone()], repo.clone());
 
-        let result = use_case
-            .execute(
-                Uuid::new_v4(),
-                owner.id,
-                owner.id,
-                "nobody",
-                CollaboratorRole::Contributor,
-            )
+        let result = f
+            .use_case
+            .execute(repo.id, owner.id, "nobody", CollaboratorRole::Contributor)
             .await;
 
         assert!(matches!(result, Err(DomainError::Validation(_))));
@@ -231,22 +215,12 @@ mod tests {
     #[tokio::test]
     async fn adding_the_owner_as_their_own_collaborator_is_a_validation_error() {
         let owner = user("owner");
-        let use_case = AddCollaboratorUseCase::new(
-            Arc::new(FakeCollaborators::empty()),
-            Arc::new(FakeUsers::new(vec![owner.clone()])),
-            Arc::new(FakeRepositories::new(vec![repository(owner.id)])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let repo = repository(owner.id);
+        let f = fixture(vec![owner.clone()], repo.clone());
 
-        let result = use_case
-            .execute(
-                Uuid::new_v4(),
-                owner.id,
-                owner.id,
-                "owner",
-                CollaboratorRole::Contributor,
-            )
+        let result = f
+            .use_case
+            .execute(repo.id, owner.id, "owner", CollaboratorRole::Contributor)
             .await;
 
         assert!(matches!(result, Err(DomainError::Validation(_))));
@@ -257,37 +231,26 @@ mod tests {
         let owner = user("owner");
         let maintainer = user("maintainer");
         let target = user("alice");
-        let repo_id = Uuid::new_v4();
-        let collaborators = Arc::new(FakeCollaborators::new(vec![(
-            repo_id,
-            maintainer.id,
-            CollaboratorRole::Maintainer,
-        )]));
-        let use_case = AddCollaboratorUseCase::new(
-            collaborators.clone(),
-            Arc::new(FakeUsers::new(vec![
-                owner.clone(),
-                maintainer.clone(),
-                target.clone(),
-            ])),
-            Arc::new(FakeRepositories::new(vec![repository(owner.id)])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
+        let repo = repository(owner.id);
+        let f = fixture_with(
+            vec![owner, maintainer.clone(), target.clone()],
+            repo.clone(),
+            FakeCollaborators::new(vec![(repo.id, maintainer.id, CollaboratorRole::Maintainer)]),
+            FakeGroups::empty(),
         );
 
-        use_case
+        f.use_case
             .execute(
-                repo_id,
+                repo.id,
                 maintainer.id,
-                owner.id,
                 "alice",
                 CollaboratorRole::Maintainer,
             )
             .await
             .unwrap();
 
-        assert!(collaborators.snapshot().contains(&(
-            repo_id,
+        assert!(f.collaborators.snapshot().contains(&(
+            repo.id,
             target.id,
             CollaboratorRole::Maintainer
         )));
@@ -297,28 +260,21 @@ mod tests {
     async fn a_contributor_collaborator_cannot_add_another_collaborator() {
         let owner = user("owner");
         let contributor = user("contributor");
-        let repo_id = Uuid::new_v4();
-        let collaborators = Arc::new(FakeCollaborators::new(vec![(
-            repo_id,
-            contributor.id,
-            CollaboratorRole::Contributor,
-        )]));
-        let use_case = AddCollaboratorUseCase::new(
-            collaborators.clone(),
-            Arc::new(FakeUsers::new(vec![owner.clone(), contributor.clone()])),
-            Arc::new(FakeRepositories::new(vec![repository(owner.id)])),
-            Arc::new(FakeNotifications::empty()),
-            Arc::new(FakeWebhooks::default()),
+        let repo = repository(owner.id);
+        let f = fixture_with(
+            vec![owner, contributor.clone()],
+            repo.clone(),
+            FakeCollaborators::new(vec![(
+                repo.id,
+                contributor.id,
+                CollaboratorRole::Contributor,
+            )]),
+            FakeGroups::empty(),
         );
 
-        let result = use_case
-            .execute(
-                repo_id,
-                contributor.id,
-                owner.id,
-                "owner",
-                CollaboratorRole::Reader,
-            )
+        let result = f
+            .use_case
+            .execute(repo.id, contributor.id, "owner", CollaboratorRole::Reader)
             .await;
 
         assert!(matches!(result, Err(DomainError::NotFound(_))));
@@ -328,32 +284,15 @@ mod tests {
     async fn adding_a_collaborator_notifies_them() {
         let owner = user("owner");
         let target = user("alice");
-        let repo_id = Uuid::new_v4();
-        let collaborators = Arc::new(FakeCollaborators::empty());
-        let notifications = Arc::new(FakeNotifications::empty());
-        let use_case = AddCollaboratorUseCase::new(
-            collaborators.clone(),
-            Arc::new(FakeUsers::new(vec![owner.clone(), target.clone()])),
-            Arc::new(FakeRepositories::new(vec![Repository {
-                id: repo_id,
-                ..repository(owner.id)
-            }])),
-            notifications.clone(),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let repo = repository(owner.id);
+        let f = fixture(vec![owner.clone(), target.clone()], repo.clone());
 
-        use_case
-            .execute(
-                repo_id,
-                owner.id,
-                owner.id,
-                "alice",
-                CollaboratorRole::Maintainer,
-            )
+        f.use_case
+            .execute(repo.id, owner.id, "alice", CollaboratorRole::Maintainer)
             .await
             .unwrap();
 
-        let created = notifications.snapshot();
+        let created = f.notifications.snapshot();
         assert_eq!(created.len(), 1);
         assert_eq!(created[0].recipient_id, target.id);
         assert_eq!(created[0].kind, NotificationKind::CollaboratorAdded);
@@ -366,35 +305,17 @@ mod tests {
     #[tokio::test]
     async fn adding_a_collaborator_dispatches_a_webhook() {
         let owner = user("owner");
-        let target = user("alice");
-        let repo_id = Uuid::new_v4();
-        let collaborators = Arc::new(FakeCollaborators::empty());
-        let webhooks = Arc::new(FakeWebhooks::default());
-        let use_case = AddCollaboratorUseCase::new(
-            collaborators.clone(),
-            Arc::new(FakeUsers::new(vec![owner.clone(), target.clone()])),
-            Arc::new(FakeRepositories::new(vec![Repository {
-                id: repo_id,
-                ..repository(owner.id)
-            }])),
-            Arc::new(FakeNotifications::empty()),
-            webhooks.clone(),
-        );
+        let repo = repository(owner.id);
+        let f = fixture(vec![owner.clone(), user("alice")], repo.clone());
 
-        use_case
-            .execute(
-                repo_id,
-                owner.id,
-                owner.id,
-                "alice",
-                CollaboratorRole::Maintainer,
-            )
+        f.use_case
+            .execute(repo.id, owner.id, "alice", CollaboratorRole::Maintainer)
             .await
             .unwrap();
 
-        let dispatched = webhooks.dispatched();
+        let dispatched = f.webhooks.dispatched();
         assert_eq!(dispatched.len(), 1);
-        assert_eq!(dispatched[0].0, repo_id);
+        assert_eq!(dispatched[0].0, repo.id);
         match &dispatched[0].1 {
             WebhookEvent::CollaboratorAdded {
                 target_username,
@@ -406,5 +327,67 @@ mod tests {
             }
             other => panic!("expected CollaboratorAdded, got {other:?}"),
         }
+    }
+
+    /// A repository in `child`, itself below `root`, whose creator holds no role anywhere. `member` holds
+    /// `member_role` on `root`.
+    async fn group_repository_fixture(
+        member: &User,
+        member_role: CollaboratorRole,
+        target: &User,
+    ) -> (Uuid, Fixture) {
+        let owner = user("owner");
+        let root = group(None, "root");
+        let child = group(Some(root.id), "child");
+        let repo = Repository {
+            group_id: Some(child.id),
+            ..repository(owner.id)
+        };
+        let groups = FakeGroups::new(vec![root.clone(), child]);
+        groups
+            .add_member(root.id, member.id, member_role)
+            .await
+            .unwrap();
+        let f = fixture_with(
+            vec![owner, member.clone(), target.clone()],
+            repo.clone(),
+            FakeCollaborators::empty(),
+            groups,
+        );
+        (repo.id, f)
+    }
+
+    #[tokio::test]
+    async fn a_maintainer_of_an_ancestor_group_can_add_a_collaborator_to_a_group_repository() {
+        let maintainer = user("maintainer");
+        let target = user("alice");
+        let (repo_id, f) =
+            group_repository_fixture(&maintainer, CollaboratorRole::Maintainer, &target).await;
+
+        f.use_case
+            .execute(repo_id, maintainer.id, "alice", CollaboratorRole::Reader)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            f.collaborators.snapshot().as_slice(),
+            &[(repo_id, target.id, CollaboratorRole::Reader)]
+        );
+    }
+
+    #[tokio::test]
+    async fn a_contributor_of_an_ancestor_group_cannot_add_a_collaborator_to_a_group_repository() {
+        let contributor = user("contributor");
+        let target = user("alice");
+        let (repo_id, f) =
+            group_repository_fixture(&contributor, CollaboratorRole::Contributor, &target).await;
+
+        let result = f
+            .use_case
+            .execute(repo_id, contributor.id, "alice", CollaboratorRole::Reader)
+            .await;
+
+        assert!(matches!(result, Err(DomainError::NotFound(_))));
+        assert!(f.collaborators.snapshot().is_empty());
     }
 }

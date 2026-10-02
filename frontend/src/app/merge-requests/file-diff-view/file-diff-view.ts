@@ -154,13 +154,15 @@ export class FileDiffView {
     if (!range) {
       return;
     }
-    const startLine = Math.min(range.startLine, range.endLine);
-    const endLine = Math.max(range.startLine, range.endLine);
-    this.composingAt.set({ startLine, endLine, side: range.side });
+    this.resetDraft();
+    this.composingAt.set({ startLine: Math.min(range.startLine, range.endLine), endLine: Math.max(range.startLine, range.endLine), side: range.side });
+    this.selecting.set(null);
+  }
+
+  private resetDraft(): void {
     this.newCommentBody.set('');
     this.showSuggestionInput.set(false);
     this.suggestionBody.set('');
-    this.selecting.set(null);
   }
 
   // The add-comment button only listens to mousedown/mouseover (drag to select a range), so Enter and Space did
@@ -186,8 +188,7 @@ export class FileDiffView {
 
   protected cancelComposing(): void {
     this.composingAt.set(null);
-    this.showSuggestionInput.set(false);
-    this.suggestionBody.set('');
+    this.resetDraft();
   }
 
   protected toggleSuggestionInput(): void {
@@ -229,9 +230,7 @@ export class FileDiffView {
       suggestedContent,
     });
     this.composingAt.set(null);
-    this.newCommentBody.set('');
-    this.showSuggestionInput.set(false);
-    this.suggestionBody.set('');
+    this.resetDraft();
   }
 
   protected isComposeRowAt(lineNumber: number, side: 'old' | 'new'): boolean {

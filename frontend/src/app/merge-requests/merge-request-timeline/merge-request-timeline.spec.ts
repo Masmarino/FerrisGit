@@ -2,48 +2,30 @@ import { LOCALE_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { MergeRequestTimeline } from './merge-request-timeline';
 import { Comment, MergeRequestSummary, TimelineComment, TimelineEvent, TimelineItem, TimelineThread } from '../merge-requests.service';
-
-const alice = { id: 'u1', username: 'alice' };
-const bob = { id: 'u2', username: 'bob' };
+import { ALICE as alice, BOB as bob, commentFixture, mergeRequestFixture } from '../merge-request-fixtures';
 
 function makeMergeRequest(overrides: Partial<MergeRequestSummary> = {}): MergeRequestSummary {
-  return {
+  return mergeRequestFixture({
     id: 'mr-1',
     sourceBranch: 'feature',
-    targetBranch: 'main',
     title: 'Panier persistant',
     description: 'Conserve le panier entre deux sessions.',
-    status: 'open',
-    mergeCommitSha: null,
     createdAt: '2026-09-22T08:00:00',
-    closedAt: null,
-    milestoneId: null,
-    labels: [],
-    author: alice,
-    commentCount: 0,
     ...overrides,
-  };
+  });
 }
 
 function makeComment(overrides: Partial<Comment> = {}): Comment {
-  return {
+  return commentFixture({
     id: 'root',
-    authorId: 'u2',
     author: bob,
     body: 'Pourquoi ce changement ?',
     createdAt: '2026-09-23T10:00:00',
-    replyToId: null,
     filePath: 'src/lib.rs',
     lineNumber: 12,
-    endLine: null,
     side: 'new',
-    outdated: false,
-    resolved: false,
-    suggestedContent: null,
-    appliedAt: null,
-    appliedCommitSha: null,
     ...overrides,
-  };
+  });
 }
 
 function makeThread(id: string, resolved: boolean): TimelineThread {

@@ -2,7 +2,7 @@ import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { componentWrapperDecorator, moduleMetadata } from '@storybook/angular-vite';
 import { MrApprovalsPanel } from './mr-approvals-panel';
 import { Review, ReviewSummary } from '../merge-requests.service';
-import { withFerrisgitIcons } from '../timeline-story-helpers';
+import { withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { Panel } from '@masmarino/gabarit';
 
 function makeReview(overrides: Partial<Review>): Review {

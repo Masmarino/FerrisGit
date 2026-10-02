@@ -96,4 +96,18 @@ describe('PipelineSummary', () => {
     const el = setup(null).nativeElement as HTMLElement;
     expect(el.querySelector('.pipeline-summary__stage-jobs')).toBeNull();
   });
+
+  it('lists a skipped job of the selected stage as "Ignoré"', () => {
+    const el = setup('report', [job('build', 'prepare', 'failed'), job('deploy', 'report', 'skipped')]).nativeElement as HTMLElement;
+    const row = el.querySelector('.pipeline-summary__job-link')!;
+    expect(row.querySelector('.sr-only')?.textContent?.trim()).toBe('Ignoré');
+    expect(row.querySelector('.pipeline-summary__job-duration')?.textContent?.trim()).toBe('ignoré');
+  });
+
+  it('names a skipped job "Ignoré" in the job graph, for screen readers', () => {
+    const el = setup(null, [job('build', 'prepare', 'failed'), job('deploy', 'report', 'skipped')]).nativeElement as HTMLElement;
+    const node = el.querySelector('.gbt-job-graph__node[data-job-name="deploy"]')!;
+    expect(node.textContent).toContain('Ignoré');
+    expect(node.textContent).toContain('ignoré');
+  });
 });

@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::wiki::{NewWiki, Wiki, WikiStorePort};
@@ -26,7 +27,7 @@ impl WikiStorePort for PostgresWikiStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row.map(|r| Wiki {
             id: r.id,
             repository_id: r.repository_id,
@@ -45,7 +46,7 @@ impl WikiStorePort for PostgresWikiStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(Wiki {
             id: row.id,
             repository_id: row.repository_id,
@@ -60,36 +61,7 @@ mod tests {
     use sqlx::PgPool;
 
     use super::*;
-
-    async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)",
-            id,
-            username,
-            format!("{username}@example.com"),
-            "not-a-real-hash"
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        id
-    }
-
-    async fn seed_repository(pool: &PgPool, owner_id: Uuid, name: &str) -> Uuid {
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO repositories (id, owner_id, name, disk_path) VALUES ($1, $2, $3, $4)",
-            id,
-            owner_id,
-            name,
-            format!("{name}.git")
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        id
-    }
+    use crate::postgres::test_support::{seed_repository, seed_user};
 
     #[sqlx::test(migrations = "../../migrations")]
     async fn find_by_repository_id_returns_none_when_no_wiki_exists(pool: PgPool) {

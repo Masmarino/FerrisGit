@@ -25,15 +25,11 @@ import {
 } from '@masmarino/gabarit';
 import { RepositoriesService, Repository, TreeEntry } from '../repositories.service';
 import { RepositoryHeader } from '../repository-header/repository-header';
+import { pathBreadcrumb, repositoryLink, sortEntries } from '../repository-links';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { CodeView, lineCount } from '../../shared/code-view/code-view';
 
 type MarkdownMode = 'preview' | 'source';
-
-interface BreadcrumbSegment {
-  name: string;
-  link: string[];
-}
 
 interface NavigatorEntry {
   path: string[];
@@ -106,13 +102,7 @@ export class RepositoryBlobView implements OnInit {
     return r ? ['/repositories', ...r.path] : null;
   });
 
-  protected breadcrumbAncestors = computed<BreadcrumbSegment[]>(() => {
-    const r = this.repo();
-    if (!r) return [];
-    const base = ['/repositories', ...r.path, '-', 'tree', this.ref()];
-    const path = this.blobPath();
-    return [{ name: r.name, link: base }, ...path.slice(0, -1).map((name, i) => ({ name, link: [...base, ...path.slice(0, i + 1)] }))];
-  });
+  protected breadcrumbAncestors = computed(() => pathBreadcrumb(this.repo(), this.ref(), this.blobPath()));
 
   private codeBody = viewChild<ElementRef<HTMLElement>>('codeBody');
 
@@ -156,7 +146,7 @@ export class RepositoryBlobView implements OnInit {
   private tryRedirectToTree(): void {
     this.repositories.treeAt(this.repositoryId(), this.ref(), this.blobPath(), NAMES_ONLY).subscribe({
       next: () => {
-        this.router.navigate(['/repositories', ...(this.repo()?.path ?? []), '-', 'tree', this.ref(), ...this.blobPath()]);
+        this.router.navigate(repositoryLink(this.repo()?.path ?? [], 'tree', this.ref(), this.blobPath()));
       },
       error: () => this.isNotFound.set(true),
     });
@@ -251,19 +241,12 @@ export class RepositoryBlobView implements OnInit {
     const r = this.repo();
     const entry = id === null ? undefined : this.navigator().entries.get(id);
     if (!r || !entry || id === this.currentFileId()) return;
-    void this.router.navigate(['/repositories', ...r.path, '-', entry.isDir ? 'tree' : 'blob', this.ref(), ...entry.path]);
+    void this.router.navigate(repositoryLink(r.path, entry.isDir ? 'tree' : 'blob', this.ref(), entry.path));
   }
 
   protected toggleNav(): void {
     this.navOpen.update((open) => !open);
   }
-}
-
-function sortEntries(entries: TreeEntry[]): TreeEntry[] {
-  return [...entries].sort((a, b) => {
-    if (a.isDir !== b.isDir) return a.isDir ? -1 : 1;
-    return a.name.localeCompare(b.name);
-  });
 }
 
 function isOnPath(folder: string[], filePath: string[]): boolean {

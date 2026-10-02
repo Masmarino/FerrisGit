@@ -1,5 +1,4 @@
 @use '../../shared/layout/settings-section';
-@use '../../shared/layout/list-page';
 
 :host {
   @include settings-section.section;

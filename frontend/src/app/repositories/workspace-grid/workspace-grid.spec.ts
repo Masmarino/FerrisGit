@@ -6,6 +6,7 @@ import { provideRouter } from '@angular/router';
 import { WORKSPACE_PAGE_SIZE, WorkspaceGrid, WorkspaceGroupItem } from './workspace-grid';
 import { WorkspaceGridFilters } from './workspace-grid-filters';
 import { Repository } from '../repositories.service';
+import { repositoryFixture } from '../repository-fixtures';
 import { formatDateTime, formatRelativeTime, GbtToastService } from '@masmarino/gabarit';
 
 const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;
@@ -20,22 +21,13 @@ const rowTitles = (el: HTMLElement) => rows(el).map((row) => text(row.querySelec
 function manyRepositories(count: number): Repository[] {
   return Array.from({ length: count }, (_, index) => {
     const name = `repo-${String(index + 1).padStart(2, '0')}`;
-    return {
-      id: `r${index + 1}`,
-      name,
-      description: '',
-      owner: 'alice',
-      role: 'owner' as const,
-      visibility: 'private' as const,
-      createdAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString(),
-      path: ['alice', name],
-    };
+    return repositoryFixture({ id: `r${index + 1}`, createdAt: new Date(Date.UTC(2026, 0, index + 1)).toISOString(), path: ['alice', name] });
   });
 }
 
 describe('WorkspaceGrid', () => {
   const group: WorkspaceGroupItem = { id: 'g1', name: 'acme', link: ['/repositories', 'acme'], path: 'acme', role: 'maintainer' };
-  const repo: Repository = { id: 'r1', name: 'widget', description: 'A widget', owner: 'alice', role: 'owner', visibility: 'public', createdAt: '2026-01-01T00:00:00Z', path: ['alice', 'widget'] };
+  const repo = repositoryFixture({ id: 'r1', description: 'A widget', visibility: 'public', path: ['alice', 'widget'] });
 
   function setup() {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: LOCALE_ID, useValue: 'fr' }] });

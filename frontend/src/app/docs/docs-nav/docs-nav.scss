@@ -1,0 +1,140 @@
+@use '../../shared/layout/list-page';
+
+// The nav column of a wide `gbt-page-layout`, like the wiki's. Stacked layouts (≤ 768px) fold the sections behind a
+// toggle so a phone reaches the page first; the search field stays in view.
+
+:host {
+  display: block;
+}
+
+.docs-nav__header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.25rem;
+  margin-bottom: 0.5rem;
+}
+
+.docs-nav__heading {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.docs-nav__toggle {
+  display: none;
+}
+
+.docs-nav__search {
+  margin-bottom: 0.75rem;
+}
+
+.docs-nav__body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+// Gabarit gap: a plain `gbt-disclosure` sizes its toggle to the label and pads its content for prose. In a nav
+// column the toggle spans the column and the page links line up under it.
+.docs-nav__section ::ng-deep {
+  .gbt-disclosure__toggle {
+    width: 100%;
+    padding-inline: 0.75rem 0.5rem;
+    color: var(--text-primary);
+    font-size: 0.8125rem;
+  }
+
+  .gbt-disclosure__content {
+    padding: 0.125rem 0 0.5rem 0.5rem;
+  }
+}
+
+@container gbt-page-layout (min-width: 769px) {
+  .docs-nav__body {
+    max-height: calc(100vh - 8rem); // under the sticky top offset, heading and search field
+    margin-inline: -0.25rem;
+    padding-inline: 0.25rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+}
+
+@container gbt-page-layout (max-width: 768px) {
+  .docs-nav {
+    padding-bottom: 0.75rem;
+    border-bottom: 1px solid var(--gbt-hairline);
+  }
+
+  // The toggle already says what it shows, so the heading is only for assistive technology.
+  .docs-nav__heading {
+    @include list-page.visually-hidden;
+  }
+
+  .docs-nav__toggle {
+    display: block;
+    flex: 0 1 auto;
+    min-width: 0;
+    margin-right: auto;
+  }
+
+  .docs-nav__search {
+    margin-bottom: 0;
+  }
+
+  .docs-nav__body {
+    display: none;
+    margin-top: 0.75rem;
+  }
+
+  .docs-nav--open .docs-nav__body {
+    display: flex;
+  }
+
+  // Gabarit gap: in a narrow `gbt-page-layout`, vertical nav tabs turn into a scrolling row (right for settings
+  // pages). Behind this toggle the pages stay a list, so the vertical look is restored here.
+  .docs-nav__section ::ng-deep {
+    .gbt-nav-tabs[data-orientation='vertical'] div.gbt-nav-tabs__list {
+      flex-direction: column;
+      gap: 2px;
+      overflow: visible;
+      box-shadow: none;
+      mask-image: none;
+    }
+
+    a.gbt-nav-tab[data-orientation='vertical'] {
+      padding: 0.4375rem 0.75rem;
+      border-bottom: 0;
+      border-radius: var(--site-border-radius-sm);
+      font-weight: 400;
+      white-space: normal;
+
+      &:hover {
+        background: var(--bg-hover);
+      }
+
+      &[data-active] {
+        background: color-mix(in srgb, var(--primary) 10%, transparent);
+        font-weight: 600;
+      }
+
+      &[data-active]::before {
+        content: '';
+      }
+
+      .gbt-nav-tab__label {
+        flex: 1;
+        overflow-wrap: anywhere;
+
+        &::after {
+          content: none;
+        }
+      }
+    }
+  }
+}

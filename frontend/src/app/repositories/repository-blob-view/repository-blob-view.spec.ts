@@ -6,12 +6,13 @@ import { provideRouter, Router } from '@angular/router';
 import { RepositoryBlobView } from './repository-blob-view';
 import { GbtToastService } from '@masmarino/gabarit';
 import { TreeEntry } from '../repositories.service';
+import { repositoryFixture } from '../repository-fixtures';
 
 @Component({ template: '' })
 class DummyRoutedComponent {}
 
 const API = '/api/repositories/by-id/repo-1';
-const REPO = { id: 'repo-1', name: 'hello', description: '', owner: 'alice', role: 'owner', visibility: 'public', createdAt: '2026-01-01', path: ['alice', 'hello'] };
+const REPO = repositoryFixture({ visibility: 'public', createdAt: '2026-01-01' });
 
 const dir = (name: string): TreeEntry => ({ name, isDir: true, lastCommit: null });
 const file = (name: string): TreeEntry => ({ name, isDir: false, lastCommit: null });

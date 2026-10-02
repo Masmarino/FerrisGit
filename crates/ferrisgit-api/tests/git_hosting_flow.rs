@@ -1,167 +1,64 @@
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
+mod common;
+
+use common::git::git;
+
+use common::http::{get_json, login, post_json};
+
 use serde_json::json;
 use sqlx::PgPool;
 use std::process::Command;
 
 #[sqlx::test]
 async fn full_git_hosting_flow_works_end_to_end(pool: PgPool) {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap();
-    let static_dir = tempfile::tempdir().unwrap();
-    std::fs::write(static_dir.path().join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.path().to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.path().to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some("adminpassword123".to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool, config.clone()).await;
-    state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, static_dir.path());
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(listener, app).await.unwrap();
-    });
+    let addr = common::spawn_app(pool).await.addr;
 
     let client = reqwest::Client::new();
 
-    let login_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/auth/login"))
-        .json(&json!({ "username": "admin", "password": "adminpassword123" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
-    let jwt = login_res["token"].as_str().unwrap();
+    let jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    let token_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/tokens"))
-        .bearer_auth(jwt)
-        .json(&json!({ "name": "ci" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let token_res: serde_json::Value =
+        post_json(&client, addr, &jwt, "/tokens", &json!({ "name": "ci" })).await;
     let plain_token = token_res["token"].as_str().unwrap();
 
-    let repo_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(jwt)
-        .json(&json!({ "name": "hello", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let repo_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
     assert_eq!(repo_res["name"], "hello");
 
     let clone_parent = tempfile::tempdir().unwrap();
     let clone_url = format!("http://admin:{plain_token}@{addr}/admin/hello.git");
 
-    let clone_status = tokio::task::spawn_blocking({
-        let clone_url = clone_url.clone();
-        let clone_dir = clone_parent.path().to_path_buf();
-        move || {
-            Command::new("git")
-                .args(["clone", &clone_url, "repo"])
-                .current_dir(&clone_dir)
-                .status()
-        }
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(clone_status.success(), "git clone failed");
+    git(&["clone", &clone_url, "repo"], clone_parent.path()).await;
 
     let repo_path = clone_parent.path().join("repo");
     std::fs::write(repo_path.join("README.md"), "# hello").unwrap();
 
-    let add_status = tokio::task::spawn_blocking({
-        let repo_path = repo_path.clone();
-        move || {
-            Command::new("git")
-                .args(["add", "."])
-                .current_dir(&repo_path)
-                .status()
-        }
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(add_status.success());
+    git(&["add", "."], &repo_path).await;
 
-    let commit_status = tokio::task::spawn_blocking({
-        let repo_path = repo_path.clone();
-        move || {
-            Command::new("git")
-                .args([
-                    "-c",
-                    "user.email=ci@example.com",
-                    "-c",
-                    "user.name=ci",
-                    "commit",
-                    "-q",
-                    "-m",
-                    "init",
-                ])
-                .current_dir(&repo_path)
-                .status()
-        }
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(commit_status.success());
+    git(
+        &[
+            "-c",
+            "user.email=ci@example.com",
+            "-c",
+            "user.name=ci",
+            "commit",
+            "-q",
+            "-m",
+            "init",
+        ],
+        &repo_path,
+    )
+    .await;
 
-    let push_status = tokio::task::spawn_blocking({
-        let repo_path = repo_path.clone();
-        move || {
-            Command::new("git")
-                .args(["push", "origin", "HEAD:main"])
-                .current_dir(&repo_path)
-                .status()
-        }
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(push_status.success(), "git push failed");
+    git(&["push", "origin", "HEAD:main"], &repo_path).await;
 
-    let commits_res: serde_json::Value = client
-        .get(format!(
-            "http://{addr}/api/repositories/admin/hello/commits"
-        ))
-        .bearer_auth(jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let commits_res: serde_json::Value =
+        get_json(&client, addr, &jwt, "/repositories/admin/hello/commits").await;
     assert_eq!(commits_res.as_array().unwrap().len(), 1);
 
     // Regression: a push whose packfile exceeds axum's default 2 MiB body limit must succeed. The bytes are incompressible, so zlib cannot shrink the pack below the limit.
@@ -176,71 +73,28 @@ async fn full_git_hosting_flow_works_end_to_end(pool: PgPool) {
         .collect();
     std::fs::write(repo_path.join("large.bin"), &large_file).unwrap();
 
-    let add_large_status = tokio::task::spawn_blocking({
-        let repo_path = repo_path.clone();
-        move || {
-            Command::new("git")
-                .args(["add", "."])
-                .current_dir(&repo_path)
-                .status()
-        }
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(add_large_status.success());
+    git(&["add", "."], &repo_path).await;
 
-    let commit_large_status = tokio::task::spawn_blocking({
-        let repo_path = repo_path.clone();
-        move || {
-            Command::new("git")
-                .args([
-                    "-c",
-                    "user.email=ci@example.com",
-                    "-c",
-                    "user.name=ci",
-                    "commit",
-                    "-q",
-                    "-m",
-                    "add large file",
-                ])
-                .current_dir(&repo_path)
-                .status()
-        }
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(commit_large_status.success());
+    git(
+        &[
+            "-c",
+            "user.email=ci@example.com",
+            "-c",
+            "user.name=ci",
+            "commit",
+            "-q",
+            "-m",
+            "add large file",
+        ],
+        &repo_path,
+    )
+    .await;
 
-    let push_large_status = tokio::task::spawn_blocking({
-        let repo_path = repo_path.clone();
-        move || {
-            Command::new("git")
-                .args(["push", "origin", "HEAD:main"])
-                .current_dir(&repo_path)
-                .status()
-        }
-    })
-    .await
-    .unwrap()
-    .unwrap();
-    assert!(
-        push_large_status.success(),
-        "git push of >2MiB packfile failed (body-size limit regression?)"
-    );
+    // A packfile above 2 MiB must get through the request body limit.
+    git(&["push", "origin", "HEAD:main"], &repo_path).await;
 
-    let commits_res_after_large: serde_json::Value = client
-        .get(format!(
-            "http://{addr}/api/repositories/admin/hello/commits"
-        ))
-        .bearer_auth(jwt)
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let commits_res_after_large: serde_json::Value =
+        get_json(&client, addr, &jwt, "/repositories/admin/hello/commits").await;
     assert_eq!(commits_res_after_large.as_array().unwrap().len(), 2);
 
     let run_git = |args: Vec<&'static str>| {
@@ -286,6 +140,7 @@ async fn full_git_hosting_flow_works_end_to_end(pool: PgPool) {
     let repo_id = repo_res["id"].as_str().unwrap();
     let get_commits = |url: String| {
         let client = client.clone();
+        let jwt = jwt.clone();
         async move { client.get(url).bearer_auth(jwt).send().await.unwrap() }
     };
     let messages = |value: &serde_json::Value| -> Vec<String> {
@@ -374,16 +229,14 @@ async fn full_git_hosting_flow_works_end_to_end(pool: PgPool) {
     }
 
     // An empty repository: HEAD is unborn, so both no ref and `?ref=HEAD` answer an empty list, not a 404.
-    let empty_res: serde_json::Value = client
-        .post(format!("http://{addr}/api/repositories"))
-        .bearer_auth(jwt)
-        .json(&json!({ "name": "empty", "visibility": "private" }))
-        .send()
-        .await
-        .unwrap()
-        .json()
-        .await
-        .unwrap();
+    let empty_res: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "empty", "visibility": "private" }),
+    )
+    .await;
     let empty_id = empty_res["id"].as_str().unwrap();
     for base in [
         format!("http://{addr}/api/repositories/admin/empty/commits"),

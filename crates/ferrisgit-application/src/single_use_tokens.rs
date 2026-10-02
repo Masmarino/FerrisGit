@@ -27,7 +27,7 @@ impl SingleUseTokens {
     /// `true` the first time a token is seen. `false` for a replay, or when the table is full of tokens
     /// still inside their lifetime (better to make someone log in again than to forget one).
     pub fn consume(&self, token: &str) -> bool {
-        let digest: [u8; 32] = Sha256::digest(token.as_bytes()).into();
+        let digest = fingerprint(token);
         let mut spent = self
             .spent
             .lock()
@@ -48,12 +48,16 @@ impl SingleUseTokens {
     /// Read-only: whether `token` was already spent (and not yet forgotten). Lets a caller refuse a
     /// spent token up front, before doing work that a later `consume` could only reject too late.
     pub fn is_spent(&self, token: &str) -> bool {
-        let digest: [u8; 32] = Sha256::digest(token.as_bytes()).into();
         self.spent
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
-            .contains_key(&digest)
+            .contains_key(&fingerprint(token))
     }
+}
+
+/// Only the digest is kept, so a memory dump of the table does not hold live tokens.
+fn fingerprint(token: &str) -> [u8; 32] {
+    Sha256::digest(token.as_bytes()).into()
 }
 
 #[cfg(test)]

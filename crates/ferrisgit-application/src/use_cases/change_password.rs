@@ -4,6 +4,8 @@ use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::user::{PasswordHasherPort, UserRepositoryPort};
 use uuid::Uuid;
 
+use crate::account_rules::validate_password;
+
 pub struct ChangePasswordUseCase {
     users: Arc<dyn UserRepositoryPort>,
     hasher: Arc<dyn PasswordHasherPort>,
@@ -20,11 +22,7 @@ impl ChangePasswordUseCase {
         current_password: &str,
         new_password: &str,
     ) -> Result<(), DomainError> {
-        if new_password.len() < 8 {
-            return Err(DomainError::Validation(
-                "password must be at least 8 characters".to_string(),
-            ));
-        }
+        validate_password(new_password)?;
         let user = self
             .users
             .find_by_id(user_id)
@@ -47,25 +45,25 @@ impl ChangePasswordUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeHasher, FakeUsers};
-    use chrono::Utc;
+    use crate::use_cases::fixtures::user;
     use ferrisgit_domain::user::User;
 
-    fn user() -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: "florian".to_string(),
-            email: "f@example.com".to_string(),
-            password_hash: "hashed:old-password".to_string(),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
+    const OLD_PASSWORD_HASH: &str = "hashed:old-password";
+
+    /// A user whose current password is `old-password`.
+    fn fixture() -> (ChangePasswordUseCase, Arc<FakeUsers>, User) {
+        let seed = User {
+            password_hash: OLD_PASSWORD_HASH.to_string(),
+            ..user("florian")
+        };
+        let users = Arc::new(FakeUsers::new(vec![seed.clone()]));
+        let use_case = ChangePasswordUseCase::new(users.clone(), Arc::new(FakeHasher));
+        (use_case, users, seed)
     }
 
     #[tokio::test]
     async fn changes_the_password_when_the_current_one_is_correct() {
-        let seed = user();
-        let users = Arc::new(FakeUsers::new(vec![seed.clone()]));
-        let use_case = ChangePasswordUseCase::new(users.clone(), Arc::new(FakeHasher));
+        let (use_case, users, seed) = fixture();
 
         use_case
             .execute(seed.id, "old-password", "new-password123")
@@ -80,9 +78,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_successful_password_change_bumps_the_token_epoch() {
-        let seed = user();
-        let users = Arc::new(FakeUsers::new(vec![seed.clone()]));
-        let use_case = ChangePasswordUseCase::new(users.clone(), Arc::new(FakeHasher));
+        let (use_case, users, seed) = fixture();
 
         use_case
             .execute(seed.id, "old-password", "new-password123")
@@ -98,9 +94,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_an_incorrect_current_password() {
-        let seed = user();
-        let users = Arc::new(FakeUsers::new(vec![seed.clone()]));
-        let use_case = ChangePasswordUseCase::new(users.clone(), Arc::new(FakeHasher));
+        let (use_case, users, seed) = fixture();
 
         let result = use_case
             .execute(seed.id, "wrong-password", "new-password123")
@@ -109,7 +103,7 @@ mod tests {
         assert!(matches!(result, Err(DomainError::Validation(_))));
         assert_eq!(
             users.get(seed.id).unwrap().password_hash,
-            "hashed:old-password",
+            OLD_PASSWORD_HASH,
             "the password must not change on a rejected attempt"
         );
         assert_eq!(
@@ -121,9 +115,7 @@ mod tests {
 
     #[tokio::test]
     async fn rejects_a_new_password_shorter_than_8_characters() {
-        let seed = user();
-        let users = Arc::new(FakeUsers::new(vec![seed.clone()]));
-        let use_case = ChangePasswordUseCase::new(users.clone(), Arc::new(FakeHasher));
+        let (use_case, _, seed) = fixture();
 
         let result = use_case.execute(seed.id, "old-password", "short").await;
 

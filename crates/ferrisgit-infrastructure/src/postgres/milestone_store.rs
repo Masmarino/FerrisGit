@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferrisgit_domain::error::DomainError;
@@ -58,7 +59,7 @@ impl MilestoneStorePort for PostgresMilestoneStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         row.try_into()
     }
 
@@ -66,7 +67,7 @@ impl MilestoneStorePort for PostgresMilestoneStore {
         let row = sqlx::query_as!(Row, "SELECT id, title, description, due_date, state, repository_id, group_id, created_at FROM milestones WHERE id = $1", id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         row.map(TryInto::try_into).transpose()
     }
 
@@ -88,7 +89,7 @@ impl MilestoneStorePort for PostgresMilestoneStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -96,7 +97,7 @@ impl MilestoneStorePort for PostgresMilestoneStore {
         sqlx::query!("DELETE FROM milestones WHERE id = $1", id)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(())
     }
 
@@ -111,7 +112,7 @@ impl MilestoneStorePort for PostgresMilestoneStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter().map(TryInto::try_into).collect()
     }
 
@@ -123,7 +124,7 @@ impl MilestoneStorePort for PostgresMilestoneStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter().map(TryInto::try_into).collect()
     }
 }
@@ -131,31 +132,10 @@ impl MilestoneStorePort for PostgresMilestoneStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::postgres::test_support::seed_owned_repository;
 
     async fn seed_repository(pool: &PgPool) -> Uuid {
-        let owner_id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)",
-            owner_id,
-            "owner",
-            "owner@example.com",
-            "not-a-real-hash"
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        let repository_id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO repositories (id, owner_id, name, disk_path) VALUES ($1, $2, $3, $4)",
-            repository_id,
-            owner_id,
-            "hello",
-            "hello.git"
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        repository_id
+        seed_owned_repository(pool, "owner").await.1
     }
 
     #[sqlx::test(migrations = "../../migrations")]

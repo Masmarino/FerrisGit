@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::issue::{
@@ -60,18 +61,14 @@ impl TryFrom<Row> for Issue {
 #[async_trait]
 impl IssueStorePort for PostgresIssueStore {
     async fn create(&self, new_issue: NewIssue) -> Result<Issue, DomainError> {
-        let mut tx = self
-            .pool
-            .begin()
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let mut tx = self.pool.begin().await.map_err(infra)?;
         let number: i32 = sqlx::query_scalar!(
             "UPDATE repositories SET next_issue_number = next_issue_number + 1 WHERE id = $1 RETURNING next_issue_number - 1 AS \"number!\"",
             new_issue.repository_id,
         )
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
 
         let row = sqlx::query_as!(
             Row,
@@ -88,11 +85,9 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .fetch_one(&mut *tx)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
 
-        tx.commit()
-            .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        tx.commit().await.map_err(infra)?;
         row.try_into()
     }
 
@@ -105,7 +100,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         row.map(TryInto::try_into).transpose()
     }
 
@@ -123,7 +118,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .fetch_optional(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         row.map(TryInto::try_into).transpose()
     }
 
@@ -136,7 +131,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter().map(TryInto::try_into).collect()
     }
 
@@ -161,7 +156,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter().map(TryInto::try_into).collect()
     }
 
@@ -181,7 +176,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -193,7 +188,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -205,7 +200,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -217,7 +212,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -228,7 +223,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -239,7 +234,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(())
     }
 
@@ -262,7 +257,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter().map(Issue::try_from).collect()
     }
 
@@ -283,7 +278,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter().map(Issue::try_from).collect()
     }
 
@@ -304,7 +299,7 @@ impl IssueStorePort for PostgresIssueStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         rows.into_iter().map(Issue::try_from).collect()
     }
 }
@@ -321,7 +316,7 @@ impl IssueCommentPort for PostgresIssueStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(row)
     }
 
@@ -333,7 +328,7 @@ impl IssueCommentPort for PostgresIssueStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(rows)
     }
 
@@ -345,7 +340,7 @@ impl IssueCommentPort for PostgresIssueStore {
             .bind(issue_ids)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(rows.into_iter().collect())
     }
 }
@@ -353,37 +348,8 @@ impl IssueCommentPort for PostgresIssueStore {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::postgres::test_support::{seed_repository, seed_user};
     use sqlx::PgPool;
-
-    async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO users (id, username, email, password_hash) VALUES ($1, $2, $3, $4)",
-            id,
-            username,
-            format!("{username}@example.com"),
-            "not-a-real-hash"
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        id
-    }
-
-    async fn seed_repository(pool: &PgPool, owner_id: Uuid, name: &str) -> Uuid {
-        let id = Uuid::new_v4();
-        sqlx::query!(
-            "INSERT INTO repositories (id, owner_id, name, disk_path) VALUES ($1, $2, $3, $4)",
-            id,
-            owner_id,
-            name,
-            format!("{name}.git")
-        )
-        .execute(pool)
-        .await
-        .unwrap();
-        id
-    }
 
     #[sqlx::test(migrations = "../../migrations")]
     async fn issues_in_the_same_repository_get_sequential_numbers_starting_at_1(pool: PgPool) {

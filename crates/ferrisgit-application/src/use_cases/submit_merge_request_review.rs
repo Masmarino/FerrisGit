@@ -12,6 +12,9 @@ use ferrisgit_domain::webhook_dispatcher::WebhookDispatcherPort;
 use ferrisgit_domain::webhook_event::WebhookEvent;
 use uuid::Uuid;
 
+use super::event_context::EventContext;
+use super::source_branch_tip::source_branch_tip;
+
 pub struct SubmitMergeRequestReviewUseCase {
     merge_requests: Arc<dyn MergeRequestStorePort>,
     merge_request_reviews: Arc<dyn MergeRequestReviewPort>,
@@ -63,15 +66,12 @@ impl SubmitMergeRequestReviewUseCase {
             ));
         }
 
-        let branches = self
-            .branch_reader
-            .list_branches(repository_disk_path)
-            .await?;
-        let tip_sha = branches
-            .into_iter()
-            .find(|b| b.name == source_branch)
-            .map(|b| b.tip_sha)
-            .ok_or_else(|| DomainError::Validation("source branch no longer exists".to_string()))?;
+        let tip_sha = source_branch_tip(
+            self.branch_reader.as_ref(),
+            repository_disk_path,
+            source_branch,
+        )
+        .await?;
         let previous_review = self
             .merge_request_reviews
             .list_reviews(merge_request_id)
@@ -93,28 +93,27 @@ impl SubmitMergeRequestReviewUseCase {
                 .await
                 .ok()
                 .flatten()
-            && let Some(repo) = self
-                .repositories
-                .find_by_id(mr.repository_id)
-                .await
-                .ok()
-                .flatten()
-            && let Some(owner) = self.users.find_by_id(repo.owner_id).await.ok().flatten()
-            && let Some(actor) = self.users.find_by_id(user_id).await.ok().flatten()
+            && let Some(ctx) = EventContext::load(
+                self.repositories.as_ref(),
+                self.users.as_ref(),
+                mr.repository_id,
+                user_id,
+            )
+            .await
         {
             let webhook_event = if decision == ReviewDecision::Approved {
                 WebhookEvent::MergeRequestApproved {
-                    repository_owner: owner.username.clone(),
-                    repository_name: repo.name.clone(),
-                    actor_username: actor.username.clone(),
+                    repository_owner: ctx.owner_username.clone(),
+                    repository_name: ctx.repository.name.clone(),
+                    actor_username: ctx.actor_username.clone(),
                     merge_request_id: mr.id,
                     merge_request_title: mr.title.clone(),
                 }
             } else {
                 WebhookEvent::MergeRequestChangesRequested {
-                    repository_owner: owner.username.clone(),
-                    repository_name: repo.name.clone(),
-                    actor_username: actor.username.clone(),
+                    repository_owner: ctx.owner_username.clone(),
+                    repository_name: ctx.repository.name.clone(),
+                    actor_username: ctx.actor_username.clone(),
                     merge_request_id: mr.id,
                     merge_request_title: mr.title.clone(),
                 }
@@ -135,19 +134,9 @@ impl SubmitMergeRequestReviewUseCase {
                 };
                 self.notifications
                     .create(NewNotification {
-                        recipient_id: mr_author_id,
-                        kind,
-                        repository_owner: owner.username,
-                        repository_name: repo.name,
-                        actor_username: Some(actor.username),
                         merge_request_id: Some(mr.id),
                         merge_request_title: Some(mr.title),
-                        pipeline_id: None,
-                        commit_sha: None,
-                        role: None,
-                        issue_id: None,
-                        issue_number: None,
-                        issue_title: None,
+                        ..ctx.notification(kind, mr_author_id)
                     })
                     .await
                     .ok();
@@ -165,453 +154,188 @@ mod tests {
         FakeBranchReader, FakeMergeRequests, FakeNotifications, FakeRepositories, FakeUsers,
         FakeWebhooks,
     };
+    use crate::use_cases::fixtures;
     use chrono::Utc;
     use ferrisgit_domain::branch::BranchInfo;
     use ferrisgit_domain::merge_request::{MergeRequest, MergeRequestStatus};
-    use ferrisgit_domain::repository::Repository;
-    use ferrisgit_domain::user::User;
+
+    struct Harness {
+        use_case: SubmitMergeRequestReviewUseCase,
+        mr: MergeRequest,
+        author_id: Uuid,
+        reviewer_id: Uuid,
+        mr_store: Arc<FakeMergeRequests>,
+        notifications: Arc<FakeNotifications>,
+        webhooks: Arc<FakeWebhooks>,
+    }
+
+    impl Harness {
+        /// An open merge request of `author` on a repository of `owner`, whose source branch `feature` is at `sha1`.
+        fn new() -> Self {
+            Self::build(true, &[("feature", "sha1")])
+        }
+
+        fn build(with_merge_request: bool, branches: &[(&str, &str)]) -> Self {
+            let owner = fixtures::user("owner");
+            let author = fixtures::user("author");
+            let reviewer = fixtures::user("reviewer");
+            let repository = fixtures::repository(owner.id);
+            let mr = MergeRequest {
+                id: Uuid::new_v4(),
+                repository_id: repository.id,
+                author_id: Some(author.id),
+                source_branch: "feature".to_string(),
+                target_branch: "main".to_string(),
+                title: "Add feature".to_string(),
+                description: String::new(),
+                status: MergeRequestStatus::Open,
+                merge_commit_sha: None,
+                milestone_id: None,
+                created_at: Utc::now(),
+                closed_at: None,
+            };
+            let mr_store = Arc::new(if with_merge_request {
+                FakeMergeRequests::new(vec![mr.clone()])
+            } else {
+                FakeMergeRequests::empty()
+            });
+            let branches = branches
+                .iter()
+                .map(|(name, tip_sha)| BranchInfo {
+                    name: name.to_string(),
+                    tip_sha: tip_sha.to_string(),
+                    is_default: false,
+                })
+                .collect();
+            let notifications = Arc::new(FakeNotifications::empty());
+            let webhooks = Arc::new(FakeWebhooks::default());
+            Self {
+                use_case: SubmitMergeRequestReviewUseCase::new(
+                    mr_store.clone(),
+                    mr_store.clone(),
+                    Arc::new(FakeBranchReader::new(branches)),
+                    Arc::new(FakeRepositories::new(vec![repository])),
+                    Arc::new(FakeUsers::new(vec![
+                        owner.clone(),
+                        author.clone(),
+                        reviewer.clone(),
+                    ])),
+                    notifications.clone(),
+                    webhooks.clone(),
+                ),
+                mr,
+                author_id: author.id,
+                reviewer_id: reviewer.id,
+                mr_store,
+                notifications,
+                webhooks,
+            }
+        }
+
+        async fn review(
+            &self,
+            user_id: Uuid,
+            decision: ReviewDecision,
+        ) -> Result<MergeRequestReview, DomainError> {
+            self.use_case
+                .execute(self.mr.id, "disk/path", "feature", user_id, decision)
+                .await
+        }
+    }
 
     #[tokio::test]
     async fn submitting_a_review_records_it_against_the_source_branchs_current_tip() {
-        let mr_id = Uuid::new_v4();
-        let user_id = Uuid::new_v4();
-        let mr_store = Arc::new(FakeMergeRequests::empty());
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "sha1".to_string(),
-            is_default: false,
-        }]));
-        let repositories = Arc::new(FakeRepositories::new(vec![Repository {
-            id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: ferrisgit_domain::repository::RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }]));
-        let users = Arc::new(FakeUsers::new(vec![]));
-        let notifications = Arc::new(FakeNotifications::empty());
-        let use_case = SubmitMergeRequestReviewUseCase::new(
-            mr_store.clone(),
-            mr_store.clone(),
-            branch_reader,
-            repositories,
-            users,
-            notifications,
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Harness::build(false, &[("feature", "sha1")]);
 
-        let review = use_case
-            .execute(
-                mr_id,
-                "disk/path",
-                "feature",
-                user_id,
-                ReviewDecision::Approved,
-            )
+        let review = h
+            .review(h.reviewer_id, ReviewDecision::Approved)
             .await
             .unwrap();
 
         assert_eq!(review.source_sha, "sha1");
         assert_eq!(review.decision, ReviewDecision::Approved);
-        let reviews = mr_store.reviews_snapshot();
+        let reviews = h.mr_store.reviews_snapshot();
         assert_eq!(reviews.len(), 1);
-        assert_eq!(reviews[0].merge_request_id, mr_id);
-        assert_eq!(reviews[0].user_id, user_id);
+        assert_eq!(reviews[0].merge_request_id, h.mr.id);
+        assert_eq!(reviews[0].user_id, h.reviewer_id);
         assert_eq!(reviews[0].decision, ReviewDecision::Approved);
         assert_eq!(reviews[0].source_sha, "sha1");
     }
 
     #[tokio::test]
     async fn reviewing_when_the_source_branch_no_longer_exists_is_a_validation_error() {
-        let mr_store = Arc::new(FakeMergeRequests::empty());
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![]));
-        let repositories = Arc::new(FakeRepositories::new(vec![Repository {
-            id: Uuid::new_v4(),
-            owner_id: Uuid::new_v4(),
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: ferrisgit_domain::repository::RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }]));
-        let users = Arc::new(FakeUsers::new(vec![]));
-        let notifications = Arc::new(FakeNotifications::empty());
-        let use_case = SubmitMergeRequestReviewUseCase::new(
-            mr_store.clone(),
-            mr_store,
-            branch_reader,
-            repositories,
-            users,
-            notifications,
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Harness::build(false, &[]);
 
-        let result = use_case
-            .execute(
-                Uuid::new_v4(),
-                "disk/path",
-                "feature",
-                Uuid::new_v4(),
-                ReviewDecision::Approved,
-            )
-            .await;
+        let result = h.review(h.reviewer_id, ReviewDecision::Approved).await;
 
         assert!(matches!(result, Err(DomainError::Validation(_))));
     }
 
     #[tokio::test]
     async fn approving_someone_elses_merge_request_notifies_its_author() {
-        let mr_id = Uuid::new_v4();
-        let author_id = Uuid::new_v4();
-        let reviewer_id = Uuid::new_v4();
-        let repository_id = Uuid::new_v4();
-        let owner_id = Uuid::new_v4();
-        let mr = MergeRequest {
-            id: mr_id,
-            repository_id,
-            author_id: Some(author_id),
-            source_branch: "feature".to_string(),
-            target_branch: "main".to_string(),
-            title: "Add feature".to_string(),
-            description: String::new(),
-            status: MergeRequestStatus::Open,
-            merge_commit_sha: None,
-            milestone_id: None,
-            created_at: Utc::now(),
-            closed_at: None,
-        };
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr]));
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "sha1".to_string(),
-            is_default: false,
-        }]));
-        let repositories = Arc::new(FakeRepositories::new(vec![Repository {
-            id: repository_id,
-            owner_id,
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: ferrisgit_domain::repository::RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }]));
-        let users = Arc::new(FakeUsers::new(vec![
-            User {
-                id: owner_id,
-                username: "owner".to_string(),
-                email: "o@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-                created_at: Utc::now(),
-            },
-            User {
-                id: reviewer_id,
-                username: "reviewer".to_string(),
-                email: "r@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-                created_at: Utc::now(),
-            },
-        ]));
-        let notifications = Arc::new(FakeNotifications::empty());
-        let use_case = SubmitMergeRequestReviewUseCase::new(
-            mr_store.clone(),
-            mr_store,
-            branch_reader,
-            repositories,
-            users,
-            notifications.clone(),
-            Arc::new(FakeWebhooks::default()),
-        );
+        let h = Harness::new();
 
-        use_case
-            .execute(
-                mr_id,
-                "disk/path",
-                "feature",
-                reviewer_id,
-                ReviewDecision::Approved,
-            )
+        h.review(h.reviewer_id, ReviewDecision::Approved)
             .await
             .unwrap();
 
-        let created = notifications.snapshot();
+        let created = h.notifications.snapshot();
         assert_eq!(created.len(), 1);
-        assert_eq!(created[0].recipient_id, author_id);
+        assert_eq!(created[0].recipient_id, h.author_id);
         assert_eq!(created[0].kind, NotificationKind::MergeRequestApproved);
     }
 
     #[tokio::test]
     async fn self_approving_your_own_merge_request_is_rejected() {
-        let mr_id = Uuid::new_v4();
-        let author_id = Uuid::new_v4();
-        let repository_id = Uuid::new_v4();
-        let owner_id = Uuid::new_v4();
-        let mr = MergeRequest {
-            id: mr_id,
-            repository_id,
-            author_id: Some(author_id),
-            source_branch: "feature".to_string(),
-            target_branch: "main".to_string(),
-            title: "Add feature".to_string(),
-            description: String::new(),
-            status: MergeRequestStatus::Open,
-            merge_commit_sha: None,
-            milestone_id: None,
-            created_at: Utc::now(),
-            closed_at: None,
-        };
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr]));
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "sha1".to_string(),
-            is_default: false,
-        }]));
-        let repositories = Arc::new(FakeRepositories::new(vec![Repository {
-            id: repository_id,
-            owner_id,
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: ferrisgit_domain::repository::RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }]));
-        let users = Arc::new(FakeUsers::new(vec![
-            User {
-                id: owner_id,
-                username: "owner".to_string(),
-                email: "o@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-                created_at: Utc::now(),
-            },
-            User {
-                id: author_id,
-                username: "author".to_string(),
-                email: "a@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-                created_at: Utc::now(),
-            },
-        ]));
-        let notifications = Arc::new(FakeNotifications::empty());
-        let webhooks = Arc::new(FakeWebhooks::default());
-        let use_case = SubmitMergeRequestReviewUseCase::new(
-            mr_store.clone(),
-            mr_store,
-            branch_reader,
-            repositories,
-            users,
-            notifications.clone(),
-            webhooks.clone(),
-        );
+        let h = Harness::new();
 
-        let result = use_case
-            .execute(
-                mr_id,
-                "disk/path",
-                "feature",
-                author_id,
-                ReviewDecision::Approved,
-            )
-            .await;
+        let result = h.review(h.author_id, ReviewDecision::Approved).await;
 
         assert!(
             matches!(result, Err(DomainError::Validation(_))),
             "a merge request's author must not be able to approve their own merge request"
         );
-        assert!(notifications.snapshot().is_empty());
+        assert!(h.notifications.snapshot().is_empty());
         assert!(
-            webhooks.dispatched().is_empty(),
+            h.webhooks.dispatched().is_empty(),
             "a rejected self-approval must not dispatch a webhook"
         );
     }
 
     #[tokio::test]
     async fn requesting_changes_on_your_own_merge_request_is_still_allowed() {
-        let mr_id = Uuid::new_v4();
-        let author_id = Uuid::new_v4();
-        let repository_id = Uuid::new_v4();
-        let owner_id = Uuid::new_v4();
-        let mr = MergeRequest {
-            id: mr_id,
-            repository_id,
-            author_id: Some(author_id),
-            source_branch: "feature".to_string(),
-            target_branch: "main".to_string(),
-            title: "Add feature".to_string(),
-            description: String::new(),
-            status: MergeRequestStatus::Open,
-            merge_commit_sha: None,
-            milestone_id: None,
-            created_at: Utc::now(),
-            closed_at: None,
-        };
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr]));
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "sha1".to_string(),
-            is_default: false,
-        }]));
-        let repositories = Arc::new(FakeRepositories::new(vec![Repository {
-            id: repository_id,
-            owner_id,
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: ferrisgit_domain::repository::RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }]));
-        let users = Arc::new(FakeUsers::new(vec![
-            User {
-                id: owner_id,
-                username: "owner".to_string(),
-                email: "o@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-                created_at: Utc::now(),
-            },
-            User {
-                id: author_id,
-                username: "author".to_string(),
-                email: "a@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-                created_at: Utc::now(),
-            },
-        ]));
-        let notifications = Arc::new(FakeNotifications::empty());
-        let webhooks = Arc::new(FakeWebhooks::default());
-        let use_case = SubmitMergeRequestReviewUseCase::new(
-            mr_store.clone(),
-            mr_store,
-            branch_reader,
-            repositories,
-            users,
-            notifications.clone(),
-            webhooks.clone(),
-        );
+        let h = Harness::new();
 
-        let review = use_case
-            .execute(
-                mr_id,
-                "disk/path",
-                "feature",
-                author_id,
-                ReviewDecision::ChangesRequested,
-            )
+        let review = h
+            .review(h.author_id, ReviewDecision::ChangesRequested)
             .await
             .unwrap();
 
         assert_eq!(review.decision, ReviewDecision::ChangesRequested);
         assert!(
-            webhooks.dispatched().len() == 1,
+            h.webhooks.dispatched().len() == 1,
             "self-review is only blocked for approvals, not for requesting changes on your own work"
         );
     }
 
     #[tokio::test]
     async fn resubmitting_the_same_decision_on_the_same_commit_does_not_re_notify() {
-        let mr_id = Uuid::new_v4();
-        let author_id = Uuid::new_v4();
-        let reviewer_id = Uuid::new_v4();
-        let repository_id = Uuid::new_v4();
-        let owner_id = Uuid::new_v4();
-        let mr = MergeRequest {
-            id: mr_id,
-            repository_id,
-            author_id: Some(author_id),
-            source_branch: "feature".to_string(),
-            target_branch: "main".to_string(),
-            title: "Add feature".to_string(),
-            description: String::new(),
-            status: MergeRequestStatus::Open,
-            merge_commit_sha: None,
-            milestone_id: None,
-            created_at: Utc::now(),
-            closed_at: None,
-        };
-        let mr_store = Arc::new(FakeMergeRequests::new(vec![mr]));
-        let branch_reader = Arc::new(FakeBranchReader::new(vec![BranchInfo {
-            name: "feature".to_string(),
-            tip_sha: "sha1".to_string(),
-            is_default: false,
-        }]));
-        let repositories = Arc::new(FakeRepositories::new(vec![Repository {
-            id: repository_id,
-            owner_id,
-            name: "hello".to_string(),
-            group_id: None,
-            description: String::new(),
-            disk_path: "hello.git".to_string(),
-            visibility: ferrisgit_domain::repository::RepositoryVisibility::Private,
-            created_at: Utc::now(),
-        }]));
-        let users = Arc::new(FakeUsers::new(vec![
-            User {
-                id: owner_id,
-                username: "owner".to_string(),
-                email: "o@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-                created_at: Utc::now(),
-            },
-            User {
-                id: reviewer_id,
-                username: "reviewer".to_string(),
-                email: "r@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-                created_at: Utc::now(),
-            },
-        ]));
-        let notifications = Arc::new(FakeNotifications::empty());
-        let webhooks = Arc::new(FakeWebhooks::default());
-        let use_case = SubmitMergeRequestReviewUseCase::new(
-            mr_store.clone(),
-            mr_store,
-            branch_reader,
-            repositories,
-            users,
-            notifications.clone(),
-            webhooks.clone(),
-        );
+        let h = Harness::new();
 
-        use_case
-            .execute(
-                mr_id,
-                "disk/path",
-                "feature",
-                reviewer_id,
-                ReviewDecision::Approved,
-            )
+        h.review(h.reviewer_id, ReviewDecision::Approved)
             .await
             .unwrap();
-        use_case
-            .execute(
-                mr_id,
-                "disk/path",
-                "feature",
-                reviewer_id,
-                ReviewDecision::Approved,
-            )
+        h.review(h.reviewer_id, ReviewDecision::Approved)
             .await
             .unwrap();
 
-        let created = notifications.snapshot();
+        let created = h.notifications.snapshot();
         assert_eq!(
             created.len(),
             1,
             "resubmitting the identical decision on the same commit must not send a second notification"
         );
-        let dispatched = webhooks.dispatched();
+        let dispatched = h.webhooks.dispatched();
         assert_eq!(
             dispatched.len(),
             1,

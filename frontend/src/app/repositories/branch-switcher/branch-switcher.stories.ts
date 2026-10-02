@@ -1,14 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
-import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
+import { moduleMetadata } from '@storybook/angular-vite';
 import { of } from 'rxjs';
-import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { BranchSwitcher } from './branch-switcher';
 import { BranchInfo, MergeRequestsService } from '../../merge-requests/merge-requests.service';
 import { ReleasesService, TagSummary } from '../../releases/releases.service';
-import { provideFerrisgitIcons } from '../../shared/register-icons';
-
-// `provideRouter`/`provideFerrisgitIcons` return `EnvironmentProviders`, which only fit in an `ApplicationConfig`.
-const withApp = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
+import { withRouterAndIcons } from '../repository-story-fixtures';
 
 function withRefs(branches: BranchInfo[], tags: TagSummary[]) {
   return moduleMetadata({
@@ -54,7 +50,7 @@ const meta: Meta<BranchSwitcher> = {
   component: BranchSwitcher,
   tags: ['autodocs'],
   args: { repositoryId: 'repo-1', path: ['camille.martin', 'facturation-api'], currentRef: 'HEAD' },
-  decorators: [withApp],
+  decorators: [withRouterAndIcons],
 };
 
 export default meta;

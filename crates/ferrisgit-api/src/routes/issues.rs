@@ -19,7 +19,7 @@ use uuid::Uuid;
 use crate::auth_middleware::AuthUser;
 use crate::authz::require_role_by_id;
 use crate::error::ApiError;
-use crate::routes::labels::LabelResponse;
+use crate::routes::labels::{LabelFilterQuery, LabelResponse, SetLabelsRequest};
 use crate::routes::user_ref::{UserRef, load_user_refs};
 use crate::state::AppState;
 
@@ -184,39 +184,14 @@ struct AddCommentRequest {
     body: String,
 }
 
-#[derive(Deserialize, Default)]
-#[serde(rename_all = "camelCase")]
-struct ListIssuesQuery {
-    #[serde(default)]
-    label_ids: Option<String>,
-    #[serde(default)]
-    milestone_id: Option<Uuid>,
-}
-
-fn parse_label_ids(raw: Option<String>) -> Result<Option<Vec<Uuid>>, ApiError> {
-    let Some(raw) = raw.filter(|s| !s.is_empty()) else {
-        return Ok(None);
-    };
-    let ids: Result<Vec<Uuid>, _> = raw.split(',').map(Uuid::parse_str).collect();
-    Ok(Some(ids.map_err(|_| {
-        DomainError::Validation("labelIds must be a comma-separated list of UUIDs".to_string())
-    })?))
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-struct SetLabelsRequest {
-    label_ids: Vec<Uuid>,
-}
-
 async fn list_for_repository(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
     Path(repository_id): Path<Uuid>,
-    Query(query): Query<ListIssuesQuery>,
+    Query(query): Query<LabelFilterQuery>,
 ) -> Result<Json<Vec<IssueResponse>>, ApiError> {
     let repo = require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Reader).await?;
-    let label_ids = parse_label_ids(query.label_ids)?;
+    let label_ids = query.label_ids()?;
     let issues = state
         .issues
         .list_for_repository_filtered(repo.id, label_ids, query.milestone_id)
@@ -230,7 +205,13 @@ async fn create(
     Path(repository_id): Path<Uuid>,
     Json(req): Json<CreateIssueRequest>,
 ) -> Result<Json<IssueResponse>, ApiError> {
-    let repo = require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Reader).await?;
+    let repo = require_role_by_id(
+        &state,
+        user_id,
+        repository_id,
+        CollaboratorRole::Contributor,
+    )
+    .await?;
     let kind = IssueKind::parse(&req.kind)?;
     let use_case = CreateIssueUseCase::new(state.issues.clone());
     let issue = use_case
@@ -325,6 +306,8 @@ async fn assign(
         state.issues.clone(),
         state.repositories.clone(),
         state.repository_collaborators.clone(),
+        state.groups.clone(),
+        state.group_membership.clone(),
         state.users.clone(),
         state.notifications.clone(),
         state.webhooks.clone(),
@@ -435,7 +418,7 @@ async fn add_comment(
         user_id,
         repository_id,
         number,
-        CollaboratorRole::Reader,
+        CollaboratorRole::Contributor,
     )
     .await?;
     let use_case = AddIssueCommentUseCase::new(

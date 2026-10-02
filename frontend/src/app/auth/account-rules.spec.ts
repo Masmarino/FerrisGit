@@ -1,4 +1,4 @@
-import { MIN_PASSWORD_LENGTH, USERNAME_ERROR, USERNAME_HINT, accountName, emailError, passwordError, usernameError } from './account-rules';
+import { USERNAME_ERROR, USERNAME_HINT, emailError, usernameError } from './account-rules';
 
 describe('account rules (client mirror of the server)', () => {
   describe('usernameError', () => {
@@ -37,30 +37,7 @@ describe('account rules (client mirror of the server)', () => {
     );
   });
 
-  describe('passwordError', () => {
-    it('asks for a password when it is empty', () => {
-      expect(passwordError('')).toBe('Saisissez un mot de passe');
-    });
-
-    it('refuses a password under the minimum length', () => {
-      expect(MIN_PASSWORD_LENGTH).toBe(8);
-      expect(passwordError('1234567')).toBe('Au moins 8 caractères');
-    });
-
-    it('accepts the minimum length, spaces included (a password is never trimmed)', () => {
-      expect(passwordError('12345678')).toBeNull();
-      expect(passwordError('       8')).toBeNull();
-    });
-  });
-
-  describe('the name of the account', () => {
-    it('is stored trimmed and lower-cased, so it is shown that way', () => {
-      expect(accountName('  Florian_D ')).toBe('florian_d');
-      expect(accountName('alice')).toBe('alice');
-    });
-
-    it('is announced in the hint under the field', () => {
-      expect(USERNAME_HINT).toContain('minuscules');
-    });
+  it('announces the lower-casing in the hint under the field', () => {
+    expect(USERNAME_HINT).toContain('minuscules');
   });
 });

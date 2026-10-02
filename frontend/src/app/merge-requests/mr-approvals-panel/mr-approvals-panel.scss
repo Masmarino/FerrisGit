@@ -1,3 +1,5 @@
+@use '../../shared/layout/list-page';
+
 // Flat content for a ~300px side panel: the hosting `gbt-panel` draws the heading and separators, so there is no card.
 
 :host {
@@ -23,12 +25,10 @@
 }
 
 .mr-approvals__reviews {
+  @include list-page.row-list;
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
-  margin: 0;
-  padding: 0;
-  list-style: none;
 }
 
 .mr-approvals__review {

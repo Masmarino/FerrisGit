@@ -1,7 +1,14 @@
-// Shared harness of the passkey flow files: a real server with MFA enforced, a recording mailer and a real software
-// authenticator (`SoftPasskey`) that verifies the origin and signs like a browser.
+// Shared harness of the flow tests. `spawn_app` starts a server with MFA off for the tests that are not about MFA;
+// `spawn_server` enforces MFA with a recording mailer, and `Device` is a real software authenticator that verifies the
+// origin and signs like a browser. `http` and `git` hold the bare-REST and git helpers.
 
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
+
+pub mod git;
+pub mod http;
+pub mod mail;
+
+pub use mail::{Mail, RecordingEmail, settled_attempts, wait_for_attempts};
 
 use async_trait::async_trait;
 use ferrisgit_api::client_ip::parse_cidr_list;
@@ -21,8 +28,9 @@ use ferrisgit_infrastructure::postgres::webauthn_credential_store::PostgresWebau
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use std::net::SocketAddr;
-use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::path::PathBuf;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 use url::Url;
 use uuid::Uuid;
 use webauthn_authenticator_rs::WebauthnAuthenticator;
@@ -34,73 +42,9 @@ pub const USER_PASSWORD: &str = "password12345";
 pub const WRONG_PASSWORD: &str = "definitely-not-the-password";
 /// The browser origin of the test deployment: the test `Config.public_url`. The relying-party id is `localhost`.
 pub const ORIGIN: &str = "http://localhost:4200";
+/// What the app shell (`index.html`) of a test server contains.
+pub const SHELL: &str = "<html>spa</html>";
 pub const PASSKEY_METHOD_LABEL: &str = "une clé d'accès (passkey)";
-
-pub struct RecordingEmail {
-    pub sent: Mutex<Vec<(String, String)>>,
-    texts: Mutex<Vec<String>>,
-    attempts: AtomicUsize,
-}
-
-impl RecordingEmail {
-    fn new() -> Arc<Self> {
-        Arc::new(Self {
-            sent: Mutex::new(Vec::new()),
-            texts: Mutex::new(Vec::new()),
-            attempts: AtomicUsize::new(0),
-        })
-    }
-
-    pub fn attempts(&self) -> usize {
-        self.attempts.load(Ordering::SeqCst)
-    }
-
-    pub fn texts(&self) -> Vec<String> {
-        self.texts.lock().unwrap().clone()
-    }
-
-    pub fn sent(&self) -> Vec<(String, String)> {
-        self.sent.lock().unwrap().clone()
-    }
-}
-
-#[async_trait]
-impl EmailPort for RecordingEmail {
-    async fn send(
-        &self,
-        to: &str,
-        subject: &str,
-        text_body: &str,
-        _html_body: &str,
-    ) -> Result<(), DomainError> {
-        self.attempts.fetch_add(1, Ordering::SeqCst);
-        self.sent
-            .lock()
-            .unwrap()
-            .push((to.to_string(), subject.to_string()));
-        self.texts.lock().unwrap().push(text_body.to_string());
-        Ok(())
-    }
-}
-
-pub async fn wait_for_attempts(mailer: &RecordingEmail, count: usize) {
-    for _ in 0..100 {
-        if mailer.attempts() >= count {
-            return;
-        }
-        tokio::time::sleep(std::time::Duration::from_millis(20)).await;
-    }
-    panic!(
-        "expected {count} delivery attempt(s), saw {}",
-        mailer.attempts()
-    );
-}
-
-/// Gives a background task the time it would need to (wrongly) send something, then reads the counter.
-pub async fn settled_attempts(mailer: &RecordingEmail) -> usize {
-    tokio::time::sleep(std::time::Duration::from_millis(300)).await;
-    mailer.attempts()
-}
 
 pub struct Device {
     authenticator: WebauthnAuthenticator<SoftPasskey>,
@@ -307,11 +251,72 @@ pub async fn spawn_with(
     options: Options,
     customise: impl FnOnce(&mut AppState),
 ) -> Server {
+    let mailer = RecordingEmail::new();
+    let recording = mailer.clone();
+    let started = start(pool.clone(), options, move |state| {
+        assert!(
+            state.mfa_enforced,
+            "AppState::new must enforce MFA: production has no way to turn it off"
+        );
+        state.mailer = Arc::new(Mailer::new(recording));
+        customise(state);
+    })
+    .await;
+    Server {
+        addr: started.addr,
+        state: started.state,
+        pool,
+        mailer,
+        client: reqwest::Client::new(),
+    }
+}
+
+/// A server for the tests that are not about MFA: login hands out a plain session, and the mailer is the real one.
+pub struct App {
+    pub addr: SocketAddr,
+    pub state: AppState,
+    pub pool: PgPool,
+    pub storage_root: PathBuf,
+    pub static_dir: PathBuf,
+}
+
+pub async fn spawn_app(pool: PgPool) -> App {
+    spawn_app_with(pool, Options::default(), |_| {}).await
+}
+
+pub async fn spawn_app_with(
+    pool: PgPool,
+    options: Options,
+    customise: impl FnOnce(&mut AppState),
+) -> App {
+    let started = start(pool.clone(), options, |state| {
+        state.mfa_enforced = false;
+        customise(state);
+    })
+    .await;
+    App {
+        addr: started.addr,
+        state: started.state,
+        pool,
+        storage_root: started.storage_root,
+        static_dir: started.static_dir,
+    }
+}
+
+struct Started {
+    addr: SocketAddr,
+    state: AppState,
+    storage_root: PathBuf,
+    static_dir: PathBuf,
+}
+
+/// The storage and static directories are leaked on purpose: they must outlive the spawned `axum::serve` task.
+async fn start(pool: PgPool, options: Options, customise: impl FnOnce(&mut AppState)) -> Started {
     sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
 
     let storage_dir = tempfile::tempdir().unwrap().keep();
     let static_dir = tempfile::tempdir().unwrap().keep();
-    std::fs::write(static_dir.join("index.html"), "<html></html>").unwrap();
+    std::fs::write(static_dir.join("index.html"), SHELL).unwrap();
 
     let config = Config {
         database_url: String::new(),
@@ -326,13 +331,7 @@ pub async fn spawn_with(
         trusted_proxy_cidrs: parse_cidr_list(&options.trusted_proxy_cidrs).unwrap(),
     };
 
-    let mailer = RecordingEmail::new();
-    let mut state = AppState::new(pool.clone(), config.clone()).await;
-    assert!(
-        state.mfa_enforced,
-        "AppState::new must enforce MFA: production has no way to turn it off"
-    );
-    state.mailer = Arc::new(Mailer::new(mailer.clone()));
+    let mut state = AppState::new(pool, config.clone()).await;
     customise(&mut state);
     BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
         .execute(
@@ -353,12 +352,11 @@ pub async fn spawn_with(
         .await
         .unwrap();
     });
-    Server {
+    Started {
         addr,
         state,
-        pool,
-        mailer,
-        client: reqwest::Client::new(),
+        storage_root: storage_dir,
+        static_dir,
     }
 }
 
@@ -376,6 +374,17 @@ pub fn totp_code(secret: &str) -> String {
 /// The code of the following 30 s step: accepted with the server's skew, and newer than the one an enrolment spent.
 pub fn next_step_code(secret: &str) -> String {
     generate_code_at(secret, now_unix() + 30)
+}
+
+/// A six-digit code that no step the server accepts would produce.
+pub fn wrong_code(secret: &str) -> String {
+    let valid: Vec<String> = (-3i64..=3)
+        .map(|step| generate_code_at(secret, (now_unix() as i64 + step * 30) as u64))
+        .collect();
+    (0..1_000_000)
+        .map(|n| format!("{n:06}"))
+        .find(|candidate| !valid.contains(candidate))
+        .unwrap()
 }
 
 pub fn codes_of(body: &Value) -> Vec<String> {

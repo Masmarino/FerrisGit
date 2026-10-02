@@ -1,9 +1,9 @@
-import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { GbtInput, GbtToastService } from '@masmarino/gabarit';
+import { GbtInput } from '@masmarino/gabarit';
 import { of, Subject, throwError } from 'rxjs';
 import { RepositoryCiVariables } from './repository-ci-variables';
 import { CiVariableSummary, RepositorySettingsService } from '../repository-settings.service';
+import { createSettingsSection } from '../settings-section-testing';
 
 describe('RepositoryCiVariables', () => {
   function setup() {
@@ -12,16 +12,7 @@ describe('RepositoryCiVariables', () => {
       setCiVariable: vi.fn(() => of<CiVariableSummary>({ id: 'v1', key: 'KEY', masked: true })),
       deleteCiVariable: vi.fn(() => of<void>(undefined)),
     };
-    const toastStub = { show: vi.fn() };
-    TestBed.configureTestingModule({
-      providers: [
-        { provide: RepositorySettingsService, useValue: repositorySettingsStub },
-        { provide: GbtToastService, useValue: toastStub },
-      ],
-    });
-    const fixture = TestBed.createComponent(RepositoryCiVariables);
-    fixture.componentRef.setInput('repositoryId', 'repo-1');
-    return { fixture, component: fixture.componentInstance, repositorySettingsStub, toastStub };
+    return { ...createSettingsSection(RepositoryCiVariables, [{ provide: RepositorySettingsService, useValue: repositorySettingsStub }]), repositorySettingsStub };
   }
 
   it('lists configured CI variables, masking their value', () => {
@@ -62,7 +53,7 @@ describe('RepositoryCiVariables', () => {
     expect(repositorySettingsStub.setCiVariable).toHaveBeenCalledWith('repo-1', 'API_KEY', 'secret', true);
     expect(component['newVariableKey']()).toBe('');
     expect(component['newVariableValue']()).toBe('');
-    // `refresh()` re-fetched only this section's list (`ngOnInit` never ran here).
+    // The section's list was re-fetched once (`ngOnInit` never ran here).
     expect(repositorySettingsStub.listCiVariables).toHaveBeenCalledTimes(1);
   });
 

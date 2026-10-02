@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::secret_encryption::SecretEncryptorPort;
@@ -34,7 +35,7 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn update(
@@ -53,14 +54,14 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn list_ci_variables(&self, repository_id: Uuid) -> Result<Vec<CiVariable>, DomainError> {
         sqlx::query_as!(CiVariable, "SELECT id, repository_id, key, masked FROM repository_ci_variables WHERE repository_id = $1 ORDER BY key", repository_id)
             .fetch_all(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))
+            .map_err(infra)
     }
 
     async fn set_ci_variable(
@@ -83,7 +84,7 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        .map_err(infra)
     }
 
     async fn delete_ci_variable(&self, id: Uuid, repository_id: Uuid) -> Result<(), DomainError> {
@@ -94,7 +95,7 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
         )
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("ci variable".to_string()));
         }
@@ -111,7 +112,7 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         let mut result = BTreeMap::new();
         for row in rows {
             let value = self.encryptor.decrypt(&row.encrypted_value)?;
@@ -124,8 +125,7 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use ferrisgit_domain::repository::{NewRepository, RepositoryStorePort, RepositoryVisibility};
-    use ferrisgit_domain::user::{NewUser, UserRepositoryPort};
+    use crate::postgres::test_support::seed_owned_repository;
 
     struct FakeEncryptor;
     impl SecretEncryptorPort for FakeEncryptor {
@@ -138,32 +138,7 @@ mod tests {
     }
 
     async fn seed_repository(pool: &PgPool) -> Uuid {
-        let users = crate::postgres::user_repository::PostgresUserRepository::new(pool.clone());
-        let owner_id = users
-            .create(NewUser {
-                username: "florian".to_string(),
-                email: "f@example.com".to_string(),
-                password_hash: "h".to_string(),
-                is_admin: false,
-            })
-            .await
-            .unwrap()
-            .id;
-        let repos = crate::postgres::repository_store::PostgresRepositoryStore::new(pool.clone());
-        repos
-            .create(
-                NewRepository {
-                    owner_id,
-                    name: "hello".to_string(),
-                    group_id: None,
-                    description: String::new(),
-                    visibility: RepositoryVisibility::Private,
-                },
-                "path".to_string(),
-            )
-            .await
-            .unwrap()
-            .id
+        seed_owned_repository(pool, "florian").await.1
     }
 
     #[sqlx::test(migrations = "../../migrations")]

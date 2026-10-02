@@ -1,3 +1,4 @@
+@use '../branch-pair';
 @use '../../shared/layout/list-page';
 
 // The card is Gabarit's `gbt-list-card`. Row bits, aside filters and the creation dialog come from
@@ -16,20 +17,13 @@
   @include list-page.row-status;
 }
 
-// Source and target branches: two quiet monospace chips, as in the detail header. A long branch name truncates at 16rem and both
-// chips shrink (the longer one more) when the meta line is narrower than the pair.
+// A long branch name truncates at 16rem and both chips shrink (the longer one more) when the meta line is narrower than the pair.
 .merge-request-list__branches {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.25rem;
-  min-width: 0;
-  max-width: 100%;
-  overflow-wrap: normal;
+  @include branch-pair.branches;
 }
 
 .merge-request-list__arrow {
-  flex: none;
-  color: var(--text-secondary);
+  @include branch-pair.arrow;
 }
 
 // The meta segments are flex items so each wraps as a unit and the branch pair can be held to the line's width (an inline

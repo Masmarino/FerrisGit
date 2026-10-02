@@ -6,12 +6,14 @@ import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angul
 import { BehaviorSubject } from 'rxjs';
 import { WorkspacePage } from './workspace-page';
 import { GbtToastService } from '@masmarino/gabarit';
+import { CreateGroupModal } from '../../groups/create-group-modal/create-group-modal';
 import { CreateRepositoryModal } from '../create-repository-modal/create-repository-modal';
+import { repositoryFixture } from '../repository-fixtures';
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 
-const OWNED = { id: 'r1', name: 'mine', description: '', owner: 'alice', role: 'owner', visibility: 'public', createdAt: '2026-01-01T00:00:00Z', path: ['alice', 'mine'] };
-const SHARED = { id: 'r2', name: 'shared', description: '', owner: 'bob', role: 'contributor', visibility: 'private', createdAt: '2026-01-02T00:00:00Z', path: ['bob', 'shared'] };
+const OWNED = repositoryFixture({ id: 'r1', visibility: 'public', path: ['alice', 'mine'] });
+const SHARED = repositoryFixture({ id: 'r2', role: 'contributor', createdAt: '2026-01-02T00:00:00Z', path: ['bob', 'shared'] });
 const GROUPS = [
   { id: 'g1', path: 'acme', role: 'maintainer' },
   { id: 'g2', path: 'acme/backend', role: 'reader' },
@@ -64,7 +66,7 @@ describe('WorkspacePage', () => {
     fixture.detectChanges();
 
     const req = http.expectOne((r) => r.url === '/api/repositories' && r.params.get('starred') === 'true');
-    req.flush([{ id: 'r1', name: 'starred-one', description: '', owner: 'alice', role: 'reader', visibility: 'public', createdAt: '2026-01-01T00:00:00Z', path: ['alice', 'starred-one'] }]);
+    req.flush([repositoryFixture({ id: 'r1', role: 'reader', visibility: 'public', path: ['alice', 'starred-one'] })]);
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('starred-one');
@@ -97,8 +99,8 @@ describe('WorkspacePage', () => {
     queryParamMap.next(convertToParamMap({ tab: 'mine' }));
     fixture.detectChanges();
     http.expectOne('/api/repositories').flush([
-      { id: 'r1', name: 'mine', description: '', owner: 'alice', role: 'owner', visibility: 'public', createdAt: '2026-01-01T00:00:00Z', path: ['alice', 'mine'] },
-      { id: 'r2', name: 'shared', description: '', owner: 'bob', role: 'contributor', visibility: 'public', createdAt: '2026-01-01T00:00:00Z', path: ['bob', 'shared'] },
+      repositoryFixture({ id: 'r1', visibility: 'public', path: ['alice', 'mine'] }),
+      repositoryFixture({ id: 'r2', role: 'contributor', visibility: 'public', path: ['bob', 'shared'] }),
     ]);
     fixture.detectChanges();
 
@@ -235,11 +237,13 @@ describe('WorkspacePage', () => {
       return { ...ctx, el: ctx.fixture.nativeElement as HTMLElement };
     }
 
-    it('titles the page with a single h1 and offers exactly one primary action, "Nouveau dépôt"', () => {
+    it('titles the page with a single h1 and offers exactly one primary action, "Nouveau dépôt", next to a secondary "Nouveau groupe"', () => {
       const { el } = loadedAll();
       expect(Array.from(el.querySelectorAll('h1'), (h) => text(h))).toEqual(['Dépôts']);
       const primaries = Array.from(el.querySelectorAll('.gbt-button--primary'));
       expect(primaries.map((b) => text(b))).toEqual(['Nouveau dépôt']);
+      const actions = Array.from(el.querySelectorAll('.gbt-page-header__actions button'), (b) => text(b));
+      expect(actions).toEqual(['Nouveau groupe', 'Nouveau dépôt']);
     });
 
     it('shows the scope tabs in the list card, with the counts it already knows', () => {
@@ -382,6 +386,53 @@ describe('WorkspacePage', () => {
       const second = open();
       expect(second).not.toBe(first);
       expect(second.name()).toBe('');
+    });
+
+    describe('"Nouveau groupe"', () => {
+      const openGroupDialog = (fixture: { nativeElement: HTMLElement; detectChanges(): void }) => {
+        Array.from(fixture.nativeElement.querySelectorAll<HTMLButtonElement>('.gbt-page-header__actions button'))
+          .find((b) => text(b) === 'Nouveau groupe')!
+          .click();
+        fixture.detectChanges();
+      };
+
+      it('is offered to any signed-in user and opens the root-group dialog, rebuilt empty on each opening', () => {
+        const { fixture } = loadedAll();
+        const modal = () => fixture.debugElement.query(By.directive(CreateGroupModal))?.componentInstance as CreateGroupModal;
+
+        openGroupDialog(fixture);
+        const first = modal();
+        expect(first).toBeTruthy();
+        first.name.set('brouillon');
+        first.close.emit();
+        fixture.detectChanges();
+        expect(modal()).toBeUndefined();
+
+        openGroupDialog(fixture);
+        expect(modal()).not.toBe(first);
+        expect(modal().name()).toBe('');
+      });
+
+      it('creates the group at the root, then reloads the lists so that the new group shows up', () => {
+        const { fixture, http } = loadedAll();
+        openGroupDialog(fixture);
+        const modal = fixture.debugElement.query(By.directive(CreateGroupModal)).componentInstance as CreateGroupModal;
+        modal.name.set('nouveau');
+
+        modal.submit();
+
+        const create = http.expectOne('/api/groups');
+        expect(create.request.method).toBe('POST');
+        expect(create.request.body).toEqual({ name: 'nouveau', description: '' });
+        create.flush({ id: 'g3', parentGroupId: null, name: 'nouveau', description: '', createdAt: '2026-01-03T00:00:00Z' });
+        fixture.detectChanges();
+
+        expect(fixture.debugElement.query(By.directive(CreateGroupModal))).toBeNull();
+        http.expectOne('/api/repositories').flush([OWNED, SHARED]);
+        http.expectOne('/api/groups/member').flush([...GROUPS, { id: 'g3', path: 'nouveau', role: 'maintainer' }]);
+        fixture.detectChanges();
+        expect(text(fixture.nativeElement.querySelector('.workspace-grid__items'))).toContain('nouveau');
+      });
     });
   });
 });

@@ -1,0 +1,29 @@
+<div class="docs-nav" [class.docs-nav--open]="navOpen()">
+  <div class="docs-nav__header">
+    <h2 class="docs-nav__heading">Documentation</h2>
+    <gbt-button
+      class="docs-nav__toggle"
+      variant="secondary"
+      size="small"
+      iconName="list"
+      [text]="navOpen() ? 'Masquer le sommaire' : 'Afficher le sommaire'"
+      [ariaExpanded]="navOpen()"
+      [ariaControls]="bodyId"
+      (clicked)="navOpen.set(!navOpen())"
+    />
+  </div>
+
+  <fg-docs-search class="docs-nav__search" (opened)="close()" />
+
+  <div class="docs-nav__body" [id]="bodyId">
+    @for (section of sections(); track section.slug) {
+      <gbt-disclosure class="docs-nav__section" appearance="plain" [headingLevel]="3" [label]="section.title" [open]="section.open" (openChange)="setOpen(section.slug, $event)">
+        <gbt-nav-tabs orientation="vertical" [landmark]="false">
+          @for (page of section.pages; track page.slug) {
+            <a gbtNavTab [routerLink]="page.commands" [active]="page.current" (click)="close()">{{ page.title }}</a>
+          }
+        </gbt-nav-tabs>
+      </gbt-disclosure>
+    }
+  </div>
+</div>

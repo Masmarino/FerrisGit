@@ -2,6 +2,7 @@ import { Component, OnInit, computed, inject, input, signal, viewChild } from '@
 import { Router, RouterLink } from '@angular/router';
 import { Alert, Button, Icon, IconMarker, ListCard, ListCardState, PageHeader } from '@masmarino/gabarit';
 import { WikiList, WikiPageSummary } from '../wiki.service';
+import { sortedByTitle, wikiLink } from '../wiki-links';
 import { WikiLayout } from '../wiki-layout/wiki-layout';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { PageTitleService } from '../../shell/page-title.service';
@@ -30,9 +31,7 @@ export class WikiPageList implements OnInit {
 
   protected countLabel = computed(() => (this.pages().length === 1 ? '1 page' : `${this.pages().length} pages`));
   protected rows = computed(() =>
-    [...this.pages()]
-      .sort((a, b) => a.title.localeCompare(b.title))
-      .map((page) => ({ page, link: this.wikiLink(page.slug) })),
+    sortedByTitle(this.pages()).map((page) => ({ page, link: wikiLink(this.path(), page.slug) })),
   );
   /** The index card's state (a failed load is the alert next to it, not a card state: see the template). */
   protected cardState = computed<ListCardState>(() => (this.state() === 'loading' ? 'loading' : this.pages().length === 0 ? 'empty' : 'ready'));
@@ -55,10 +54,6 @@ export class WikiPageList implements OnInit {
   }
 
   protected createPage(): void {
-    void this.router.navigate(this.wikiLink('new'));
-  }
-
-  private wikiLink(slug: string): string[] {
-    return ['/repositories', ...this.path(), '-', 'wiki', slug];
+    void this.router.navigate(wikiLink(this.path(), 'new'));
   }
 }

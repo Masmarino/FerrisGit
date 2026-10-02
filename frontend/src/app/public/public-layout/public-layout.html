@@ -22,16 +22,21 @@
       />
     </form>
 
-    <div class="public-layout__account">
-      @if (isAuthenticated()) {
-        <a gbtButton class="public-layout__account-link" variant="secondary" size="small" routerLink="/repositories">Mes dépôts</a>
-      } @else {
-        <a gbtButton class="public-layout__account-link" variant="primary" size="small" [routerLink]="login().commands" [queryParams]="login().queryParams">Se connecter</a>
-      }
+    <div class="public-layout__end">
+      <a gbtButton class="public-layout__docs" variant="ghost" size="small" iconName="book-open" routerLink="/docs" routerLinkActive ariaCurrentWhenActive="page"
+        ><span class="public-layout__docs-label">Documentation</span></a
+      >
+      <div class="public-layout__account">
+        @if (isAuthenticated()) {
+          <a gbtButton class="public-layout__account-link" variant="secondary" size="small" routerLink="/repositories">Mes dépôts</a>
+        } @else {
+          <a gbtButton class="public-layout__account-link" variant="primary" size="small" [routerLink]="login().commands" [queryParams]="login().queryParams">Se connecter</a>
+        }
+      </div>
     </div>
   </header>
 
-  <main class="public-layout__content">
+  <main class="public-layout__content" [class.public-layout__content--full]="fullWidth">
     <router-outlet />
   </main>
 </div>

@@ -7,7 +7,7 @@ use ferrisgit_domain::milestone::MilestoneStorePort;
 use ferrisgit_domain::repository::Repository;
 use uuid::Uuid;
 
-use crate::scope_check::is_in_repository_scope;
+use super::require_in_scope::require_milestone_in_scope;
 
 pub struct UpdateMergeRequestUseCase {
     merge_requests: Arc<dyn MergeRequestStorePort>,
@@ -37,23 +37,13 @@ impl UpdateMergeRequestUseCase {
         milestone_id: Option<Uuid>,
     ) -> Result<MergeRequest, DomainError> {
         if let Some(milestone_id) = milestone_id {
-            let milestone = self
-                .milestones
-                .find_by_id(milestone_id)
-                .await?
-                .ok_or_else(|| DomainError::NotFound("milestone".to_string()))?;
-            if !is_in_repository_scope(
+            require_milestone_in_scope(
+                self.milestones.as_ref(),
                 &self.groups,
                 repository,
-                milestone.repository_id,
-                milestone.group_id,
+                milestone_id,
             )
-            .await?
-            {
-                return Err(DomainError::Validation(format!(
-                    "milestone {milestone_id} is not usable on this repository"
-                )));
-            }
+            .await?;
         }
         self.merge_requests
             .update_fields(id, title, description)
@@ -70,22 +60,16 @@ impl UpdateMergeRequestUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeGroups, FakeMergeRequests, FakeMilestones};
+    use crate::use_cases::fixtures;
     use chrono::Utc;
     use ferrisgit_domain::group::Group;
     use ferrisgit_domain::merge_request::MergeRequestStatus;
     use ferrisgit_domain::milestone::NewMilestone;
-    use ferrisgit_domain::repository::RepositoryVisibility;
 
     fn repository(id: Uuid, group_id: Option<Uuid>) -> Repository {
         Repository {
-            id,
-            owner_id: Uuid::new_v4(),
-            name: "r".to_string(),
             group_id,
-            description: String::new(),
-            disk_path: "r.git".to_string(),
-            visibility: RepositoryVisibility::Private,
-            created_at: Utc::now(),
+            ..fixtures::repository_with_id(id, Uuid::new_v4())
         }
     }
 

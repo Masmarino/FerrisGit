@@ -1,6 +1,7 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
-use ferrisgit_domain::job::{Job, JobStatus, JobStorePort, NewJob};
+use ferrisgit_domain::job::{Job, JobStatus, JobStorePort, NewJob, runnable_jobs};
 use sqlx::PgPool;
 use std::collections::BTreeMap;
 use uuid::Uuid;
@@ -15,6 +16,7 @@ impl PostgresJobStore {
     }
 }
 
+#[derive(sqlx::FromRow)]
 struct Row {
     id: Uuid,
     pipeline_id: Uuid,
@@ -34,29 +36,54 @@ struct Row {
     finished_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-impl Row {
-    fn into_domain(self) -> Result<Job, DomainError> {
-        let script: Vec<String> = serde_json::from_value(self.script)
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        let variables: BTreeMap<String, String> = serde_json::from_value(self.variables)
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+/// Everything but `logs` (which can be large): enough to schedule jobs, and to run them.
+macro_rules! select_without_logs {
+    ($tail:literal) => {
+        concat!(
+            "SELECT id, pipeline_id, stage, name, image, script, variables, needs, tags, cache, status, runner_id, ''::text AS logs, created_at, started_at, finished_at FROM jobs ",
+            $tail
+        )
+    };
+}
+
+impl PostgresJobStore {
+    /// Every job of the given pipelines, in creation order (which is stage order): the input `runnable_jobs` expects.
+    async fn pipelines_jobs(&self, pipeline_ids: &[Uuid]) -> Result<Vec<Job>, DomainError> {
+        let rows: Vec<Row> = sqlx::query_as(select_without_logs!(
+            "WHERE pipeline_id = ANY($1) ORDER BY created_at"
+        ))
+        .bind(pipeline_ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(infra)?;
+        rows.into_iter().map(Job::try_from).collect()
+    }
+}
+
+impl TryFrom<Row> for Job {
+    type Error = DomainError;
+
+    fn try_from(row: Row) -> Result<Self, DomainError> {
+        let script: Vec<String> = serde_json::from_value(row.script).map_err(infra)?;
+        let variables: BTreeMap<String, String> =
+            serde_json::from_value(row.variables).map_err(infra)?;
         Ok(Job {
-            id: self.id,
-            pipeline_id: self.pipeline_id,
-            stage: self.stage,
-            name: self.name,
-            image: self.image,
+            id: row.id,
+            pipeline_id: row.pipeline_id,
+            stage: row.stage,
+            name: row.name,
+            image: row.image,
             script,
             variables,
-            needs: self.needs,
-            tags: self.tags,
-            cache: self.cache,
-            status: JobStatus::parse(&self.status)?,
-            runner_id: self.runner_id,
-            logs: self.logs,
-            created_at: self.created_at,
-            started_at: self.started_at,
-            finished_at: self.finished_at,
+            needs: row.needs,
+            tags: row.tags,
+            cache: row.cache,
+            status: JobStatus::parse(&row.status)?,
+            runner_id: row.runner_id,
+            logs: row.logs,
+            created_at: row.created_at,
+            started_at: row.started_at,
+            finished_at: row.finished_at,
         })
     }
 }
@@ -64,10 +91,8 @@ impl Row {
 #[async_trait]
 impl JobStorePort for PostgresJobStore {
     async fn create(&self, new_job: NewJob) -> Result<Job, DomainError> {
-        let script = serde_json::to_value(&new_job.script)
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        let variables = serde_json::to_value(&new_job.variables)
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        let script = serde_json::to_value(&new_job.script).map_err(infra)?;
+        let variables = serde_json::to_value(&new_job.variables).map_err(infra)?;
         let row = sqlx::query_as!(
             Row,
             "INSERT INTO jobs (pipeline_id, stage, name, image, script, variables, needs, tags, cache) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING *",
@@ -83,16 +108,16 @@ impl JobStorePort for PostgresJobStore {
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.into_domain()
+        .map_err(infra)?;
+        Job::try_from(row)
     }
 
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Job>, DomainError> {
         let row = sqlx::query_as!(Row, "SELECT * FROM jobs WHERE id = $1", id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.map(Row::into_domain).transpose()
+            .map_err(infra)?;
+        row.map(Job::try_from).transpose()
     }
 
     async fn list_for_pipeline(&self, pipeline_id: Uuid) -> Result<Vec<Job>, DomainError> {
@@ -103,67 +128,87 @@ impl JobStorePort for PostgresJobStore {
         )
         .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+        .map_err(infra)?;
+        rows.into_iter().map(Job::try_from).collect()
     }
 
+    /// Which jobs may start is decided by `runnable_jobs`, the same rule `list_runnable` applies. It needs the whole
+    /// pipeline, so the candidates are read first and the claim itself is a conditional `UPDATE ... WHERE status =
+    /// 'pending'`: if another runner got there first, the next candidate is tried. A stale read only ever errs on the
+    /// side of waiting, since a `success` never goes back.
     async fn claim_next(
         &self,
         runner_id: Uuid,
         runner_tags: &[String],
     ) -> Result<Option<Job>, DomainError> {
-        let row = sqlx::query_as!(
-            Row,
-            r#"
-            UPDATE jobs
-            SET status = 'running', runner_id = $1, started_at = now()
-            WHERE id = (
-                SELECT id FROM jobs
-                WHERE status = 'pending'
-                  AND tags <@ $2::text[]
-                  AND NOT EXISTS (
-                      SELECT 1 FROM unnest(needs) AS need_name
-                      WHERE NOT EXISTS (
-                          SELECT 1 FROM jobs j2 WHERE j2.pipeline_id = jobs.pipeline_id AND j2.name = need_name AND j2.status = 'success'
-                      )
-                  )
-                ORDER BY created_at
-                FOR UPDATE SKIP LOCKED
-                LIMIT 1
-            )
-            RETURNING *
-            "#,
-            runner_id,
-            runner_tags,
-        )
-        .fetch_optional(&self.pool)
+        let candidates: Vec<Row> = sqlx::query_as(select_without_logs!(
+            "WHERE status = 'pending' AND tags <@ $1::text[] ORDER BY created_at"
+        ))
+        .bind(runner_tags)
+        .fetch_all(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        row.map(Row::into_domain).transpose()
+        .map_err(infra)?;
+        if candidates.is_empty() {
+            return Ok(None);
+        }
+
+        let mut pipeline_ids: Vec<Uuid> = candidates.iter().map(|c| c.pipeline_id).collect();
+        pipeline_ids.sort();
+        pipeline_ids.dedup();
+        let pipelines_jobs = self.pipelines_jobs(&pipeline_ids).await?;
+        let runnable: std::collections::HashSet<Uuid> = pipeline_ids
+            .iter()
+            .flat_map(|pipeline_id| {
+                let jobs: Vec<Job> = pipelines_jobs
+                    .iter()
+                    .filter(|j| &j.pipeline_id == pipeline_id)
+                    .cloned()
+                    .collect();
+                runnable_jobs(&jobs)
+                    .into_iter()
+                    .map(|j| j.id)
+                    .collect::<Vec<_>>()
+            })
+            .collect();
+
+        for candidate in candidates.iter().filter(|c| runnable.contains(&c.id)) {
+            let claimed: Option<Row> = sqlx::query_as(
+                "UPDATE jobs SET status = 'running', runner_id = $1, started_at = now() WHERE id = $2 AND status = 'pending' RETURNING *",
+            )
+            .bind(runner_id)
+            .bind(candidate.id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(infra)?;
+            if let Some(row) = claimed {
+                return Job::try_from(row).map(Some);
+            }
+        }
+        Ok(None)
     }
 
     async fn append_logs(&self, id: Uuid, chunk: &str) -> Result<(), DomainError> {
         sqlx::query!("UPDATE jobs SET logs = logs || $1 WHERE id = $2", chunk, id)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(())
     }
 
     /// The `status NOT IN (...)` predicate enforces "terminal is terminal" in the database instead of a
     /// racy read-then-write. `rows_affected() == 0` means the job was already terminal.
     async fn update_status(&self, id: Uuid, status: JobStatus) -> Result<bool, DomainError> {
-        let result = sqlx::query!(
+        let result = sqlx::query(
             "UPDATE jobs SET status = $1::text, \
                  started_at = CASE WHEN $1::text = 'running' THEN COALESCE(started_at, now()) ELSE started_at END, \
-                 finished_at = CASE WHEN $1::text IN ('success', 'failed', 'canceled') THEN now() ELSE finished_at END \
-             WHERE id = $2 AND status NOT IN ('success', 'failed', 'canceled')",
-            status.as_str(),
-            id
+                 finished_at = CASE WHEN $1::text IN ('success', 'failed', 'canceled', 'skipped') THEN now() ELSE finished_at END \
+             WHERE id = $2 AND status NOT IN ('success', 'failed', 'canceled', 'skipped')",
         )
+        .bind(status.as_str())
+        .bind(id)
         .execute(&self.pool)
         .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+        .map_err(infra)?;
         Ok(result.rows_affected() > 0)
     }
 
@@ -171,7 +216,7 @@ impl JobStorePort for PostgresJobStore {
         let result = sqlx::query!("UPDATE jobs SET status = 'pending', runner_id = NULL, started_at = NULL WHERE runner_id = $1 AND status = 'running'", runner_id)
             .execute(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(result.rows_affected())
     }
 
@@ -179,31 +224,13 @@ impl JobStorePort for PostgresJobStore {
         let row = sqlx::query!("SELECT COUNT(*) as count FROM jobs WHERE status = 'running'")
             .fetch_one(&self.pool)
             .await
-            .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
+            .map_err(infra)?;
         Ok(row.count.unwrap_or(0))
     }
 
     async fn list_runnable(&self, pipeline_id: Uuid) -> Result<Vec<Job>, DomainError> {
-        let rows = sqlx::query_as!(
-            Row,
-            r#"
-            SELECT * FROM jobs
-            WHERE pipeline_id = $1
-              AND status = 'pending'
-              AND NOT EXISTS (
-                  SELECT 1 FROM unnest(needs) AS need_name
-                  WHERE NOT EXISTS (
-                      SELECT 1 FROM jobs j2 WHERE j2.pipeline_id = jobs.pipeline_id AND j2.name = need_name AND j2.status = 'success'
-                  )
-              )
-            ORDER BY created_at
-            "#,
-            pipeline_id,
-        )
-        .fetch_all(&self.pool)
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?;
-        rows.into_iter().map(Row::into_domain).collect()
+        let jobs = self.pipelines_jobs(&[pipeline_id]).await?;
+        Ok(runnable_jobs(&jobs).into_iter().cloned().collect())
     }
 }
 
@@ -426,7 +453,12 @@ mod tests {
         let pipeline_id = seed_pipeline(&pool).await;
         let store = PostgresJobStore::new(pool);
 
-        for terminal in [JobStatus::Success, JobStatus::Failed, JobStatus::Canceled] {
+        for terminal in [
+            JobStatus::Success,
+            JobStatus::Failed,
+            JobStatus::Canceled,
+            JobStatus::Skipped,
+        ] {
             let created = store
                 .create(job(pipeline_id, terminal.as_str(), vec![], vec![]))
                 .await
@@ -440,6 +472,7 @@ mod tests {
                 JobStatus::Success,
                 JobStatus::Failed,
                 JobStatus::Canceled,
+                JobStatus::Skipped,
                 JobStatus::Running,
                 JobStatus::Pending,
             ] {
@@ -536,6 +569,124 @@ mod tests {
             runnable.is_empty(),
             "a job already Running (or terminal) is not Pending and must not be re-submitted"
         );
+    }
+
+    fn job_in_stage(pipeline_id: Uuid, stage: &str, name: &str) -> NewJob {
+        NewJob {
+            stage: stage.to_string(),
+            ..job(pipeline_id, name, vec![], vec![])
+        }
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn a_later_stage_is_neither_listed_nor_claimable_until_the_earlier_ones_all_succeed(
+        pool: PgPool,
+    ) {
+        let pipeline_id = seed_pipeline(&pool).await;
+        let runner_id = seed_runner(&pool).await;
+        let store = PostgresJobStore::new(pool);
+        let compile = store
+            .create(job_in_stage(pipeline_id, "build", "compile"))
+            .await
+            .unwrap();
+        let lint = store
+            .create(job_in_stage(pipeline_id, "build", "lint"))
+            .await
+            .unwrap();
+        let unit = store
+            .create(job_in_stage(pipeline_id, "test", "unit"))
+            .await
+            .unwrap();
+
+        let runnable = store.list_runnable(pipeline_id).await.unwrap();
+        assert_eq!(
+            runnable.iter().map(|j| j.id).collect::<Vec<_>>(),
+            [compile.id, lint.id],
+            "the first stage starts at once, the second one waits"
+        );
+
+        store
+            .update_status(compile.id, JobStatus::Success)
+            .await
+            .unwrap();
+        assert!(
+            store
+                .list_runnable(pipeline_id)
+                .await
+                .unwrap()
+                .iter()
+                .all(|j| j.id != unit.id),
+            "lint has not succeeded yet"
+        );
+        let first = store.claim_next(runner_id, &[]).await.unwrap().unwrap();
+        assert_eq!(first.id, lint.id);
+        assert!(
+            store.claim_next(runner_id, &[]).await.unwrap().is_none(),
+            "unit must not be claimed while lint is running"
+        );
+
+        store
+            .update_status(lint.id, JobStatus::Success)
+            .await
+            .unwrap();
+        let second = store.claim_next(runner_id, &[]).await.unwrap().unwrap();
+        assert_eq!(second.id, unit.id);
+        assert_eq!(second.status, JobStatus::Running);
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn a_failed_earlier_stage_never_releases_the_next_one(pool: PgPool) {
+        let pipeline_id = seed_pipeline(&pool).await;
+        let runner_id = seed_runner(&pool).await;
+        let store = PostgresJobStore::new(pool);
+        let compile = store
+            .create(job_in_stage(pipeline_id, "build", "compile"))
+            .await
+            .unwrap();
+        store
+            .create(job_in_stage(pipeline_id, "test", "unit"))
+            .await
+            .unwrap();
+        store
+            .update_status(compile.id, JobStatus::Failed)
+            .await
+            .unwrap();
+
+        assert!(store.list_runnable(pipeline_id).await.unwrap().is_empty());
+        assert!(store.claim_next(runner_id, &[]).await.unwrap().is_none());
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn claim_next_looks_at_each_pipeline_on_its_own(pool: PgPool) {
+        let first_pipeline = seed_pipeline(&pool).await;
+        let runner_id = seed_runner(&pool).await;
+        let second_pipeline: Uuid = sqlx::query_scalar(
+            "INSERT INTO pipelines (repository_id, commit_sha, execution_engine, triggered_by) SELECT repository_id, 'def', execution_engine, triggered_by FROM pipelines WHERE id = $1 RETURNING id",
+        )
+        .bind(first_pipeline)
+        .fetch_one(&pool)
+        .await
+        .unwrap();
+        let store = PostgresJobStore::new(pool);
+        store
+            .create(job_in_stage(first_pipeline, "build", "compile"))
+            .await
+            .unwrap();
+        store
+            .create(job_in_stage(first_pipeline, "test", "unit"))
+            .await
+            .unwrap();
+        let other = store
+            .create(job_in_stage(second_pipeline, "test", "alone"))
+            .await
+            .unwrap();
+        // Jobs of `first_pipeline` come first by age: its "unit" is blocked, "compile" is taken, then the other
+        // pipeline's job (first stage of its own pipeline) is released.
+        let first = store.claim_next(runner_id, &[]).await.unwrap().unwrap();
+        assert_eq!(first.name, "compile");
+        let second = store.claim_next(runner_id, &[]).await.unwrap().unwrap();
+        assert_eq!(second.id, other.id);
+        assert!(store.claim_next(runner_id, &[]).await.unwrap().is_none());
     }
 
     async fn find(store: &PostgresJobStore, pipeline_id: Uuid, id: Uuid) -> Job {

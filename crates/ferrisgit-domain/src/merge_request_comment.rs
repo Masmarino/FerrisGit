@@ -25,7 +25,7 @@ pub struct CommentAnchor {
 pub struct MergeRequestComment {
     pub id: Uuid,
     pub merge_request_id: Uuid,
-    /// `None` once the author's account was deleted (`ON DELETE SET NULL`): the comment outlives them.
+    /// `None` once the author's account was deleted: the comment outlives them.
     pub author_id: Option<Uuid>,
     pub body: String,
     pub created_at: DateTime<Utc>,

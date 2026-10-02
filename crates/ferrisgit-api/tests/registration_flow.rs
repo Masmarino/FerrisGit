@@ -1,41 +1,15 @@
 // Free registration: a fresh registration gets no session, only the `mfaToken` leading to the mandatory TOTP setup.
 // `mfa_enforced` stays true.
 
-use async_trait::async_trait;
-use ferrisgit_api::{build_router, config::Config, state::AppState};
-use ferrisgit_application::mailer::Mailer;
-use ferrisgit_application::mfa_crypto::generate_code_at;
-use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
-use ferrisgit_domain::email::EmailPort;
-use ferrisgit_domain::error::DomainError;
+mod common;
+
+use common::{ADMIN_PASSWORD, totp_code};
+
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use std::net::SocketAddr;
-use std::sync::{Arc, Mutex};
 
-const ADMIN_PASSWORD: &str = "adminpassword123";
 const PASSWORD: &str = "correct-horse-battery";
-
-struct RecordingEmail {
-    sent: Mutex<Vec<(String, String)>>,
-}
-
-#[async_trait]
-impl EmailPort for RecordingEmail {
-    async fn send(
-        &self,
-        to: &str,
-        subject: &str,
-        _text_body: &str,
-        _html_body: &str,
-    ) -> Result<(), DomainError> {
-        self.sent
-            .lock()
-            .unwrap()
-            .push((to.to_string(), subject.to_string()));
-        Ok(())
-    }
-}
 
 struct Server {
     addr: SocketAddr,
@@ -146,65 +120,12 @@ impl Server {
     }
 }
 
-fn totp_code(secret: &str) -> String {
-    let now = std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap()
-        .as_secs();
-    generate_code_at(secret, now)
-}
-
 async fn spawn_server(pool: PgPool) -> Server {
-    sqlx::migrate!("../../migrations").run(&pool).await.unwrap();
-
-    let storage_dir = tempfile::tempdir().unwrap().keep();
-    let static_dir = tempfile::tempdir().unwrap().keep();
-    std::fs::write(static_dir.join("index.html"), "<html></html>").unwrap();
-
-    let config = Config {
-        database_url: String::new(),
-        jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
-        storage_root: storage_dir.to_string_lossy().to_string(),
-        bind_addr: "127.0.0.1:0".to_string(),
-        static_dir: static_dir.to_string_lossy().to_string(),
-        bootstrap_admin_username: Some("admin".to_string()),
-        bootstrap_admin_password: Some(ADMIN_PASSWORD.to_string()),
-        settings_encryption_key: [b'k'; 32],
-        public_url: "http://localhost:4200".to_string(),
-        trusted_proxy_cidrs: vec![],
-    };
-
-    let mut state = AppState::new(pool.clone(), config.clone()).await;
-    assert!(
-        state.mfa_enforced,
-        "AppState::new must enforce MFA: production has no way to turn it off"
-    );
-    state.mailer = Arc::new(Mailer::new(Arc::new(RecordingEmail {
-        sent: Mutex::new(Vec::new()),
-    })));
-    BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
-        .execute(
-            config.bootstrap_admin_username.clone(),
-            config.bootstrap_admin_password.clone(),
-        )
-        .await
-        .unwrap();
-
-    let app = build_router(state, &static_dir);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
-    tokio::spawn(async move {
-        axum::serve(
-            listener,
-            app.into_make_service_with_connect_info::<SocketAddr>(),
-        )
-        .await
-        .unwrap();
-    });
+    let started = common::spawn_server(pool).await;
     Server {
-        addr,
-        pool,
-        client: reqwest::Client::new(),
+        addr: started.addr,
+        pool: started.pool,
+        client: started.client,
     }
 }
 

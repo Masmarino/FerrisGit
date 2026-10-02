@@ -12,7 +12,7 @@ First release.
 
 **Hosting and collaboration**
 
-- Git over HTTP (smart protocol): clone, fetch and push, authenticated with your username and a personal API token.
+- Git over HTTP (smart protocol): clone, fetch and push, authenticated with your username and a personal access token.
 - Repositories owned by a user or nested inside hierarchical groups, public or private, with per-repository and
   per-group roles (Reader, Contributor, Maintainer).
 - Merge requests with threaded inline comments, code suggestions that can be applied from the interface, approvals and
@@ -24,6 +24,8 @@ First release.
 - Public pages: visitors without an account can browse public repositories read-only (catalogue, README, files,
   commits, releases and release assets). An administrator switches them off, and search engine indexing is a separate
   switch that is off by default (`X-Robots-Tag` and `/robots.txt`).
+- Documentation at `/docs`, open to everyone and independent of the public pages switch: a user guide, the CI/CD
+  reference, administration and self-hosting, and the REST API reference, in French, with search.
 
 **CI/CD**
 
@@ -40,7 +42,7 @@ First release.
   promotion and demotion of administrators, and deletion of a user with anonymisation of their contributions.
 - Instance settings edited in the interface (SMTP, registration, public pages, execution engine, retention), a metrics
   dashboard and a health page.
-- Personal API tokens.
+- Personal access tokens for Git over HTTPS.
 
 **Security and operations**
 
@@ -48,13 +50,19 @@ First release.
   encrypted with AES-GCM.
 - A Content-Security-Policy on every response, per-IP rate limiting of the sign-in, registration, activation,
   password-reset, MFA and public endpoints, and audit events for administrator actions.
-- A Docker image (`masmarino/ferrisgit`), Kubernetes manifests in `k8s/`, and a CI/CD pipeline that scans the sources
-  and the image before publishing.
+- A Docker image (`masmarino/ferrisgit`) and a CI/CD pipeline that scans the sources and the image before publishing.
+- A Helm chart in `helm/ferrisgit` (server, PostgreSQL, execution engine `Role`, `NetworkPolicy`, Traefik `Ingress` with
+  a `letsencrypt-http` certificate by default, or cert-manager), which replaces the former `k8s/` manifests. The CI
+  lints it on every push and deploys each version tag to Kubernetes with `helm upgrade --install --atomic`, pinned to the
+  digest of the image it just pushed.
+- `GET /healthz` (the process runs) and `GET /readyz` (the database answers within 2 seconds, `503` otherwise) next to
+  `GET /health`, for the chart's startup, liveness and readiness probes.
 
 ### Migrations
 
-Two migrations apply at startup, with no manual step: `0001_init` (the schema) and `0002_public_pages` (the two public
-pages switches in `system_settings`). See "Upgrades" in the README.
+Four migrations apply at startup, with no manual step: `0001_init` (the schema), `0002_public_pages` (the two public
+pages switches in `system_settings`), `0003_pipeline_errors` (the error of an invalid pipeline file, and the `skipped` job
+status) and `0004_job_log_retention` (which job logs the retention sweep has cleared). See "Upgrades" in the README.
 
 ## Publishing a version
 

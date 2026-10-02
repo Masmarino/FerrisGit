@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferrisgit_domain::error::DomainError;
@@ -25,10 +26,6 @@ struct Row {
     confirmed: bool,
     last_used_step: Option<i64>,
     created_at: DateTime<Utc>,
-}
-
-fn infra(e: sqlx::Error) -> DomainError {
-    DomainError::Infrastructure(e.to_string())
 }
 
 #[async_trait]
@@ -118,6 +115,7 @@ impl TotpCredentialPort for PostgresTotpCredentialStore {
 mod tests {
     use super::*;
     use crate::aes_gcm_encryptor::AesGcmSecretEncryptor;
+    use crate::postgres::test_support::micros;
     use crate::postgres::test_support::seed_user;
 
     fn store(pool: PgPool) -> PostgresTotpCredentialStore {
@@ -130,8 +128,7 @@ mod tests {
         confirmed: bool,
         last_used_step: Option<i64>,
     ) -> TotpCredential {
-        // Postgres keeps microseconds: truncate so a round-trip compares equal.
-        let created_at = DateTime::from_timestamp_micros(Utc::now().timestamp_micros()).unwrap();
+        let created_at = micros(Utc::now());
         TotpCredential {
             user_id,
             secret: secret.to_string(),

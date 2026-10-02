@@ -121,13 +121,27 @@ pub async fn require_group_role_by_id(
     group_id: Uuid,
     min_role: CollaboratorRole,
 ) -> Result<Group, DomainError> {
+    let (mut chain, _) = require_group_chain_role(state, caller_id, group_id, min_role).await?;
+    Ok(chain.pop().expect("the chain ends with the group"))
+}
+
+/// Like `require_group_role_by_id`, but hands back what the check resolved: the group's ancestor chain (root first,
+/// ending with the group) and the caller's effective role in it. For routes that build paths from the chain.
+pub async fn require_group_chain_role(
+    state: &AppState,
+    caller_id: Uuid,
+    group_id: Uuid,
+    min_role: CollaboratorRole,
+) -> Result<(Vec<Group>, CollaboratorRole), DomainError> {
     let not_found = || DomainError::NotFound("group".to_string());
     let chain = state.groups.ancestor_chain(group_id).await?;
-    let group = chain.last().cloned().ok_or_else(not_found)?;
+    if chain.is_empty() {
+        return Err(not_found());
+    }
     let role =
         effective_role_in_group_chain(state.group_membership.as_ref(), &chain, caller_id).await?;
     match role {
-        Some(r) if r >= min_role => Ok(group),
+        Some(role) if role >= min_role => Ok((chain, role)),
         _ => Err(not_found()),
     }
 }

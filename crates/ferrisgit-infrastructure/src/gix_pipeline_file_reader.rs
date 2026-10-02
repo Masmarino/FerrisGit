@@ -4,6 +4,7 @@ use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::pipeline_file_reader::PipelineFileReaderPort;
 
+use crate::error::blocking;
 use crate::gix_reader::GixRepositoryReader;
 
 pub struct GixPipelineFileReader {
@@ -28,44 +29,22 @@ impl PipelineFileReaderPort for GixPipelineFileReader {
         let revision = revision.to_string();
         let path = path.to_string();
         // Keep blocking work off the async executor: git subprocess calls once deadlocked a `#[sqlx::test]` executor.
-        tokio::task::spawn_blocking(move || {
-            GixRepositoryReader.read_file_at_revision(&full_path, &revision, &path)
-        })
-        .await
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))?
-        .map_err(|e| DomainError::Infrastructure(e.to_string()))
+        blocking(move || GixRepositoryReader.read_file_at_revision(&full_path, &revision, &path))
+            .await
     }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::process::Command;
+    use crate::test_git::git;
 
     fn init_repo_with_pipeline_file(dir: &std::path::Path) {
-        let run = |args: &[&str]| {
-            assert!(
-                Command::new("git")
-                    .args(args)
-                    .current_dir(dir)
-                    .status()
-                    .unwrap()
-                    .success()
-            )
-        };
+        let run = |args: &[&str]| git(dir, args);
         run(&["init", "-q"]);
         std::fs::write(dir.join(".ferrisgit-ci.yml"), "stages: [build]").unwrap();
         run(&["add", "."]);
-        run(&[
-            "-c",
-            "user.email=t@t.com",
-            "-c",
-            "user.name=t",
-            "commit",
-            "-q",
-            "-m",
-            "add pipeline",
-        ]);
+        run(&["commit", "-q", "-m", "add pipeline"]);
     }
 
     #[tokio::test]

@@ -1,3 +1,4 @@
+use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_application::mfa_crypto::verify_backup_code;
 use ferrisgit_domain::error::DomainError;
@@ -13,10 +14,6 @@ impl PostgresBackupCodeStore {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-}
-
-fn infra(e: sqlx::Error) -> DomainError {
-    DomainError::Infrastructure(e.to_string())
 }
 
 #[async_trait]

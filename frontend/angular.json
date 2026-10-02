@@ -21,6 +21,12 @@
               {
                 "glob": "**/*",
                 "input": "public"
+              },
+              {
+                "glob": "{index.json,**/*.md}",
+                "input": "docs",
+                "output": "docs",
+                "ignore": ["superpowers/**"]
               }
             ],
             "styles": [

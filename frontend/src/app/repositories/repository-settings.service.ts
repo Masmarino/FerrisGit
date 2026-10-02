@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { MemberRole } from './repositories.service';
 
 export interface RepositorySettings {
   pipelineFilePath: string;
@@ -16,7 +17,7 @@ export interface CiVariableSummary {
 export interface CollaboratorSummary {
   userId: string;
   username: string;
-  role: 'reader' | 'contributor' | 'maintainer';
+  role: MemberRole;
   createdAt: string;
 }
 

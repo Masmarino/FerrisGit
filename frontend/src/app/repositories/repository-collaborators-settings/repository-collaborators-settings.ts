@@ -2,6 +2,7 @@ import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Alert, Button, Card, ConfirmDangerModal, EmptyState, GbtDateTimePipe, GbtInput, GbtRelativeTimePipe, ListRow, Select, SelectOption, SkeletonList, UserChip, GbtToastService } from '@masmarino/gabarit';
 import { CollaboratorSummary, RepositorySettingsService } from '../repository-settings.service';
+import { createSettingsList } from '../settings-list';
 
 type Role = CollaboratorSummary['role'];
 
@@ -18,10 +19,7 @@ export class RepositoryCollaboratorsSettings implements OnInit {
   private repositorySettings = inject(RepositorySettingsService);
   private toast = inject(GbtToastService);
 
-
-  protected collaborators = signal<CollaboratorSummary[]>([]);
-  /** 'loading' until the first list arrives. If a later refresh fails, the list stays on screen. */
-  protected listState = signal<'loading' | 'loaded' | 'failed'>('loading');
+  protected list = createSettingsList(() => this.repositorySettings.listCollaborators(this.repositoryId()));
   protected newCollaboratorUsername = signal('');
   protected newCollaboratorRole = signal<Role>('contributor');
   protected collaboratorPendingRemoval = signal<CollaboratorSummary | null>(null);
@@ -36,27 +34,7 @@ export class RepositoryCollaboratorsSettings implements OnInit {
   ];
 
   ngOnInit(): void {
-    this.refresh();
-  }
-
-  refresh(): void {
-    this.repositorySettings.listCollaborators(this.repositoryId()).subscribe({
-      next: (c) => {
-        this.collaborators.set(c);
-        this.listState.set('loaded');
-      },
-      error: () => {
-        if (this.listState() !== 'loaded') {
-          this.listState.set('failed');
-        }
-        this.toast.show('Impossible de charger les réglages. Réessayez plus tard.', 'error');
-      },
-    });
-  }
-
-  protected retry(): void {
-    this.listState.set('loading');
-    this.refresh();
+    this.list.refresh();
   }
 
   addCollaborator(): void {
@@ -67,7 +45,7 @@ export class RepositoryCollaboratorsSettings implements OnInit {
     this.repositorySettings.addCollaborator(this.repositoryId(), username, this.newCollaboratorRole()).subscribe({
       next: () => {
         this.newCollaboratorUsername.set('');
-        this.refresh();
+        this.list.refresh();
         this.toast.show('Collaborateur ajouté.');
       },
       error: () => this.toast.show("Impossible d'ajouter ce collaborateur (nom d'utilisateur inconnu, ou vous n'êtes pas le propriétaire de ce dépôt).", 'error'),
@@ -87,7 +65,7 @@ export class RepositoryCollaboratorsSettings implements OnInit {
       next: () => {
         this.removing.set(false);
         this.collaboratorPendingRemoval.set(null);
-        this.refresh();
+        this.list.refresh();
         this.toast.show('Collaborateur retiré.');
       },
       // The confirmation covers the page, so an error must close it first to be visible.
@@ -104,7 +82,7 @@ export class RepositoryCollaboratorsSettings implements OnInit {
     this.setPendingRole(userId, role);
     this.repositorySettings.setCollaboratorRole(this.repositoryId(), username, role).subscribe({
       next: () => {
-        this.collaborators.update((list) => list.map((c) => (c.userId === userId ? { ...c, role } : c)));
+        this.list.items.update((list) => list.map((c) => (c.userId === userId ? { ...c, role } : c)));
         this.setPendingRole(userId, null);
         this.toast.show('Rôle mis à jour.');
       },

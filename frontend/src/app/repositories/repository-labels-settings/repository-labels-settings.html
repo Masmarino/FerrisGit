@@ -33,8 +33,8 @@
   </form>
 </gbt-card>
 
-<gbt-card variant="outlined" icon="tag" heading="Labels" description="Les labels de ce dépôt, proposés sur ses tickets et ses demandes de fusion." [count]="listState() === 'loaded' ? labels().length : null" [flush]="listState() !== 'failed'">
-  @switch (listState()) {
+<gbt-card variant="outlined" icon="tag" heading="Labels" description="Les labels de ce dépôt, proposés sur ses tickets et ses demandes de fusion." [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+  @switch (list.state()) {
     @case ('loading') {
       <div class="repository-labels-settings__loading" aria-busy="true">
         <span class="sr-only" role="status">Chargement des labels…</span>
@@ -48,11 +48,11 @@
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les labels n'ont pas pu être chargés.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="list.retry()" />
       </gbt-alert>
     }
     @default {
-      @if (labels().length === 0) {
+      @if (list.items().length === 0) {
         <gbt-empty-state
           size="compact"
           icon="tag"
@@ -61,7 +61,7 @@
         />
       } @else {
         <ul class="repository-labels-settings__rows" aria-label="Labels">
-          @for (label of labels(); track label.id) {
+          @for (label of list.items(); track label.id) {
             <li>
               <gbt-list-row>
                 <gbt-tag class="repository-labels-settings__tag" [color]="label.color" [title]="label.name">{{ label.name }}</gbt-tag>

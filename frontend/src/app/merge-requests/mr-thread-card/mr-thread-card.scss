@@ -1,5 +1,6 @@
 @use '../timeline-rail' as rail;
 @use '../../shared/layout/card';
+@use '../../shared/layout/list-page';
 
 :host {
   display: block;
@@ -145,9 +146,7 @@ gbt-card {
 }
 
 .mr-thread__comments {
-  margin: 0;
-  padding: 0;
-  list-style: none;
+  @include list-page.row-list;
 }
 
 .mr-thread__comment {

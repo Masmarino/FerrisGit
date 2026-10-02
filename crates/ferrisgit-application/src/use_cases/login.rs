@@ -85,28 +85,28 @@ impl LoginUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{FakeEvents, FakeHasher, FakeUsers};
-    use chrono::Utc;
+    use crate::use_cases::fixtures;
     use ferrisgit_domain::user::User;
-    use uuid::Uuid;
+    use std::sync::atomic::{AtomicUsize, Ordering};
 
     /// Counts `verify` calls, to check that the dummy-hash path calls the hasher.
-    struct CountingHasher(std::sync::atomic::AtomicUsize);
+    struct CountingHasher(AtomicUsize);
     impl PasswordHasherPort for CountingHasher {
         fn hash(&self, plain: &str) -> Result<String, DomainError> {
             Ok(format!("hashed:{plain}"))
         }
         fn verify(&self, plain: &str, hash: &str) -> Result<bool, DomainError> {
-            self.0.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+            self.0.fetch_add(1, Ordering::SeqCst);
             Ok(hash == format!("hashed:{plain}"))
         }
     }
 
-    fn use_case_with(users: Vec<User>) -> LoginUseCase {
-        LoginUseCase::new(
-            Arc::new(FakeUsers::new(users)),
-            Arc::new(FakeHasher),
-            Arc::new(FakeEvents::new()),
-        )
+    /// An account whose password is `password`, as `FakeHasher` and `CountingHasher` hash it.
+    fn account(username: &str, password: &str) -> User {
+        User {
+            password_hash: format!("hashed:{password}"),
+            ..fixtures::user(username)
+        }
     }
 
     fn use_case_with_events(users: Vec<User>) -> (LoginUseCase, Arc<FakeEvents>) {
@@ -119,16 +119,26 @@ mod tests {
         (use_case, events)
     }
 
+    fn use_case_with(users: Vec<User>) -> LoginUseCase {
+        use_case_with_events(users).0
+    }
+
+    fn use_case_with_counting_hasher(
+        users: Vec<User>,
+    ) -> (LoginUseCase, Arc<CountingHasher>, Arc<FakeEvents>) {
+        let hasher = Arc::new(CountingHasher(AtomicUsize::new(0)));
+        let events = Arc::new(FakeEvents::new());
+        let use_case = LoginUseCase::new(
+            Arc::new(FakeUsers::new(users)),
+            hasher.clone(),
+            events.clone(),
+        );
+        (use_case, hasher, events)
+    }
+
     #[tokio::test]
     async fn logging_in_with_correct_credentials_returns_the_user_id() {
-        let user = User {
-            id: Uuid::new_v4(),
-            username: "florian".to_string(),
-            email: "f@example.com".to_string(),
-            password_hash: "hashed:secret".to_string(),
-            is_admin: true,
-            created_at: Utc::now(),
-        };
+        let user = account("florian", "secret");
         let use_case = use_case_with(vec![user.clone()]);
 
         let user_id = use_case.execute("florian", "secret").await.unwrap();
@@ -137,15 +147,7 @@ mod tests {
 
     #[tokio::test]
     async fn a_correct_password_publishes_no_event() {
-        let user = User {
-            id: Uuid::new_v4(),
-            username: "florian".to_string(),
-            email: "f@example.com".to_string(),
-            password_hash: "hashed:secret".to_string(),
-            is_admin: true,
-            created_at: Utc::now(),
-        };
-        let (use_case, events) = use_case_with_events(vec![user]);
+        let (use_case, events) = use_case_with_events(vec![account("florian", "secret")]);
 
         use_case.execute("florian", "secret").await.unwrap();
 
@@ -154,15 +156,7 @@ mod tests {
 
     #[tokio::test]
     async fn logging_in_with_the_wrong_password_is_unauthorized() {
-        let user = User {
-            id: Uuid::new_v4(),
-            username: "florian".to_string(),
-            email: "f@example.com".to_string(),
-            password_hash: "hashed:secret".to_string(),
-            is_admin: true,
-            created_at: Utc::now(),
-        };
-        let use_case = use_case_with(vec![user]);
+        let use_case = use_case_with(vec![account("florian", "secret")]);
 
         let result = use_case.execute("florian", "wrong").await;
         assert!(matches!(result, Err(DomainError::Unauthorized(_))));
@@ -179,31 +173,19 @@ mod tests {
     async fn the_hasher_is_invoked_exactly_once_for_both_known_and_unknown_usernames() {
         // `FakeHasher::verify` is too cheap for a timing test to mean anything, so this only checks that the dummy-hash
         // branch still calls the hasher.
-        let user = User {
-            id: Uuid::new_v4(),
-            username: "florian".to_string(),
-            email: "f@example.com".to_string(),
-            password_hash: "hashed:secret".to_string(),
-            is_admin: true,
-            created_at: Utc::now(),
-        };
-        let hasher = Arc::new(CountingHasher(std::sync::atomic::AtomicUsize::new(0)));
-        let use_case = LoginUseCase::new(
-            Arc::new(FakeUsers::new(vec![user])),
-            hasher.clone(),
-            Arc::new(FakeEvents::new()),
-        );
+        let (use_case, hasher, _) =
+            use_case_with_counting_hasher(vec![account("florian", "secret")]);
 
         let _ = use_case.execute("florian", "wrong").await;
         assert_eq!(
-            hasher.0.load(std::sync::atomic::Ordering::SeqCst),
+            hasher.0.load(Ordering::SeqCst),
             1,
             "known username, wrong password should call verify exactly once"
         );
 
         let _ = use_case.execute("nobody", "wrong").await;
         assert_eq!(
-            hasher.0.load(std::sync::atomic::Ordering::SeqCst),
+            hasher.0.load(Ordering::SeqCst),
             2,
             "unknown username should still call verify exactly once (dummy hash)"
         );
@@ -212,14 +194,7 @@ mod tests {
     #[tokio::test]
     async fn a_wrong_password_for_a_known_username_publishes_login_failed_with_the_real_user_id_as_actor()
      {
-        let user = User {
-            id: Uuid::new_v4(),
-            username: "florian".to_string(),
-            email: "f@example.com".to_string(),
-            password_hash: "hashed:secret".to_string(),
-            is_admin: true,
-            created_at: Utc::now(),
-        };
+        let user = account("florian", "secret");
         let user_id = user.id;
         let (use_case, events) = use_case_with_events(vec![user]);
 
@@ -254,17 +229,6 @@ mod tests {
             published[0].1, None,
             "actor_id must be None for an unknown username"
         );
-    }
-
-    fn account(username: &str, password: &str) -> User {
-        User {
-            id: Uuid::new_v4(),
-            username: username.to_string(),
-            email: format!("{username}@example.com"),
-            password_hash: format!("hashed:{password}"),
-            is_admin: false,
-            created_at: Utc::now(),
-        }
     }
 
     #[tokio::test]
@@ -319,18 +283,13 @@ mod tests {
 
     #[tokio::test]
     async fn an_unknown_mixed_case_username_still_verifies_exactly_once_and_logs_what_was_typed() {
-        let hasher = Arc::new(CountingHasher(std::sync::atomic::AtomicUsize::new(0)));
-        let events = Arc::new(FakeEvents::new());
-        let use_case = LoginUseCase::new(
-            Arc::new(FakeUsers::new(vec![account("alice", "secret")])),
-            hasher.clone(),
-            events.clone(),
-        );
+        let (use_case, hasher, events) =
+            use_case_with_counting_hasher(vec![account("alice", "secret")]);
 
         let result = use_case.execute("Nobody", "secret").await;
 
         assert!(matches!(result, Err(DomainError::Unauthorized(_))));
-        assert_eq!(hasher.0.load(std::sync::atomic::Ordering::SeqCst), 1);
+        assert_eq!(hasher.0.load(Ordering::SeqCst), 1);
         let published = events.security_events();
         assert!(
             matches!(&published[0].0, SecurityEvent::LoginFailed { username } if username == "Nobody")

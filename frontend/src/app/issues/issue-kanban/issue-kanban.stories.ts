@@ -11,27 +11,26 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { GbtToastService } from '@masmarino/gabarit';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { atPhoneWidth, daysAgo, inShellContentArea } from '../../shared/layout/page-story-helpers';
-
-const label = (id: string, name: string, color: string): Label => ({ id, name, color, repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' });
-
-const LABELS: Label[] = [
-  label('l-bug', 'bug', '#dc2626'),
-  label('l-urgent', 'urgent', '#f97316'),
-  label('l-ui', 'interface', '#6366f1'),
-  label('l-docs', 'documentation', '#0ea5e9'),
-  label('l-perf', 'performance', '#16a34a'),
-  label('l-good-first', 'bon premier ticket', '#a855f7'),
-];
-const [BUG, URGENT, UI, DOCS, PERF, GOOD_FIRST] = LABELS;
-
-const MILESTONES: Milestone[] = [
-  { id: 'm1', title: 'v1.0', description: 'Première version stable', dueDate: '2026-11-01', state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'm2', title: 'v1.1', description: '', dueDate: null, state: 'open', repositoryId: 'repo-1', groupId: null, createdAt: '2026-02-01T00:00:00Z' },
-];
-
-const ALICE = { id: 'u1', username: 'alice' };
-const BASTIEN = { id: 'u2', username: 'bastien' };
-const FLORIAN = { id: 'u3', username: 'florian' };
+import {
+  ALICE,
+  BASTIEN,
+  BUG,
+  DOCS,
+  FLORIAN,
+  GOOD_FIRST,
+  LABELS,
+  LONG_TITLE,
+  LONG_USERNAME,
+  MILESTONES,
+  PERF,
+  TITLE_SUBJECTS,
+  TITLE_VERBS,
+  UI,
+  URGENT,
+  fakeRepositoryContextService,
+  fakeToast,
+  label,
+} from '../issue-story-fixtures';
 
 let nextId = 0;
 function issue(fields: Partial<Issue> & Pick<Issue, 'number' | 'title'>): Issue {
@@ -67,11 +66,11 @@ const MIXED: Issue[] = [
 const LONG: Issue[] = [
   issue({
     number: 1287,
-    title: 'Quand on renomme une branche protégée depuis l’interface, les règles de protection restent attachées à l’ancien nom et la nouvelle branche accepte les pushs forcés',
+    title: LONG_TITLE,
     kind: 'bug',
     labels: [BUG, URGENT],
     milestoneId: 'm1',
-    assignee: { id: 'u9', username: 'Maximilien de La Tour d’Auvergne' },
+    assignee: { id: 'u9', username: LONG_USERNAME },
     commentCount: 128,
   }),
   issue({ number: 1286, title: 'Proposer des modèles de tickets par dépôt', kind: 'feature', status: 'in_progress', labels: [UI, DOCS, PERF, GOOD_FIRST, URGENT, BUG], milestoneId: 'm2', commentCount: 2 }),
@@ -79,13 +78,11 @@ const LONG: Issue[] = [
   issue({ number: 1284, title: 'Un label au nom très long', status: 'done', labels: [label('l-long', 'un label dont le nom est vraiment beaucoup trop long pour une carte', '#0f766e')] }),
 ];
 
-const verbs = ['Corriger', 'Ajouter', 'Documenter', 'Tester', 'Simplifier'];
-const subjects = ['la page des pipelines', 'les webhooks', 'la recherche', 'le wiki', 'les jetons d’API', 'la vue kanban'];
 const MANY_IN_ONE_LANE: Issue[] = [
   ...Array.from({ length: 24 }, (_, index) =>
     issue({
       number: 200 - index,
-      title: `${verbs[index % verbs.length]} ${subjects[index % subjects.length]}`,
+      title: `${TITLE_VERBS[index % TITLE_VERBS.length]} ${TITLE_SUBJECTS[index % TITLE_SUBJECTS.length]}`,
       kind: (['task', 'bug', 'feature'] as const)[index % 3],
       labels: index % 4 === 0 ? [BUG] : index % 5 === 0 ? [UI, PERF] : [],
       assignee: index % 3 === 0 ? BASTIEN : null,
@@ -102,12 +99,6 @@ function fakeIssuesService(issues: Issue[], overrides: Partial<Record<keyof Issu
     updateStatus: () => of(issues[0]),
     ...overrides,
   };
-}
-
-const fakeToast = { show: () => {}, dismiss: () => {} };
-
-function fakeRepositoryContextService(role: 'owner' | 'reader' | 'contributor' | 'maintainer' | null) {
-  return { current: () => ({ repositoryId: 'repo-1', path: ['alice', 'ferrisgit'], role, ancestors: [], groupId: null }) };
 }
 
 function withData(options: { issues?: Issue[]; role?: 'owner' | 'reader'; labels?: Label[]; milestones?: Milestone[]; issuesService?: unknown } = {}) {
