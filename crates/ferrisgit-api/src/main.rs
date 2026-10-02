@@ -6,7 +6,7 @@ use tokio::sync::watch;
 use ferrisgit_api::{build_router, config::Config, log_retention_sweep, state::AppState};
 use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
 
-/// Detached: runs for the life of the process. A failed tick logs and the loop continues.
+/// Runs for the life of the process. A failed tick is logged and the loop carries on.
 fn spawn_metrics_snapshot_timer(state: &AppState) {
     let record_metrics_snapshot = state.record_metrics_snapshot.clone();
     tokio::spawn(async move {
@@ -42,8 +42,8 @@ async fn shutdown_signal() {
     }
 }
 
-/// Long-lived connections (the pipeline event streams) never end by themselves: past this delay the server stops
-/// waiting for them.
+/// Long-lived connections (the pipeline event streams) never end by themselves, so after this delay the server
+/// stops waiting for them.
 const SHUTDOWN_GRACE: std::time::Duration = std::time::Duration::from_secs(10);
 
 #[tokio::main]
@@ -79,8 +79,8 @@ async fn main() {
         .await
         .expect("bootstrap admin failed");
 
-    // The token issuer holds the JWT TTL in memory and only gets a new value when an admin saves settings.
-    // Without this, its hardcoded default would replace the configured TTL on every restart.
+    // The token issuer only learns the JWT TTL when an admin saves settings, so seed it here or every restart
+    // falls back to its hardcoded default.
     let settings = state
         .system_settings
         .get()
@@ -108,7 +108,7 @@ async fn main() {
         shutdown_tx.send_replace(true);
     });
     let mut graceful = shutdown_rx.clone();
-    // Populates `ConnectInfo<SocketAddr>`, the per-IP rate limiters' key.
+    // Fills ConnectInfo<SocketAddr>, which the per-IP limiters key on.
     let server = axum::serve(
         listener,
         app.into_make_service_with_connect_info::<SocketAddr>(),

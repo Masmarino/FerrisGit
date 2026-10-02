@@ -69,7 +69,7 @@ impl SetCollaboratorRoleUseCase {
             .find_by_username(username)
             .await?
             .ok_or_else(|| DomainError::Validation("no such user".to_string()))?;
-        // A group repository's `owner_id` only records who created it: it carries no implicit role.
+        // On a group repo `owner_id` is just the creator, not a role.
         if repo.group_id.is_none() && target.id == repo.owner_id {
             return Err(DomainError::Validation(
                 "the owner is already a collaborator".to_string(),
@@ -136,8 +136,7 @@ mod tests {
         webhooks: Arc<FakeWebhooks>,
     }
 
-    /// A personal repository owned by `owner`. `others` exist as accounts, and `roles` are the collaborators they hold
-    /// on it.
+    /// A personal repo of `owner`; `others` are extra accounts and `roles` the collaborator roles on that repo.
     fn harness(owner: &User, others: &[&User], roles: &[(&User, CollaboratorRole)]) -> Harness {
         let users = [&[owner], others].concat().into_iter().cloned().collect();
         harness_over(

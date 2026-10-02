@@ -1,4 +1,4 @@
-// The status/body classification is Gabarit's; only the French messages for the invitation form live here.
+// Gabarit classifies the failure; only the French messages for the invitation form live here.
 export { classifyRegisterFailure, type RegisterFailure } from '@masmarino/gabarit';
 
 export const REGISTER_INVALID_MESSAGE = 'Vérifiez les champs';

@@ -201,7 +201,7 @@ export const Revoked: Story = {
   },
 };
 
-/** Defensive state: a live session without a factor should not exist any more. */
+/** A live session without a factor shouldn't exist any more, but the card still has to cope. */
 export const Disabled: Story = {
   decorators: [withMfa(DISABLED)],
   play: async (context) => {

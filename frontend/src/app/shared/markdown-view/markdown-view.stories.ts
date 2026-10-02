@@ -261,7 +261,7 @@ export const TaskLists: StoryObj<MarkdownProseDemo> = {
     }
     await expect(getComputedStyle(view.querySelector('ol > li')!).listStyleType).toBe('decimal');
 
-    // The checkbox hangs in the gutter: task text starts where ordinary item text does (within 3px).
+    // The checkbox hangs in the gutter, so task text starts where ordinary item text does (within 3px).
     const topPlain = view.querySelector<HTMLLIElement>(':scope > ul > li')!;
     const topTasks = tasks.filter((li) => li.parentElement!.parentElement === view);
     for (const li of topTasks) {

@@ -30,7 +30,7 @@
   border-radius: var(--site-border-radius-sm);
 }
 
-// Gabarit centres the icon on the alert. With several lines of text it belongs next to the title.
+// Gabarit centres the icon on the alert; with several lines it belongs next to the title.
 .invite-user__result ::ng-deep gbt-alert .gbt-alert {
   align-items: flex-start;
 }
@@ -52,8 +52,8 @@
     height: 2.75rem;
   }
 
-  // One line, sending or not: the buttons share the width instead of wrapping. The element is the
-  // footer's own actions row, whose `flex-wrap: wrap` has a higher specificity, hence `:host div`.
+  // One line, sending or not: the buttons share the width instead of wrapping. This is the footer's own actions row,
+  // whose `flex-wrap: wrap` has higher specificity, hence `:host div`.
   :host div.invite-user__actions[modal-footer] {
     flex-wrap: nowrap;
 

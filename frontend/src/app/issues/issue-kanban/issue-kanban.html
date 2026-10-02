@@ -3,7 +3,7 @@
 </gbt-page-header>
 
 <gbt-page-layout width="full">
-  <!-- Filters stay when a filtered refetch fails, so the failing filter can be changed or cleared. They are hidden while the repository has no issues at all. -->
+  <!-- Filters stay when a filtered refetch fails, so the failing one can be changed or cleared. Hidden while the repository has no issues at all. -->
   @if (!isEmptyRepository() && (!loadFailed() || filters.hasSelection())) {
     <div class="issue-kanban__toolbar" role="search" aria-label="Filtrer les tickets">
       <gbt-input
@@ -100,7 +100,7 @@
                     <a class="issue-kanban__card-link" [routerLink]="card.link" [title]="card.issue.title"
                       ><span class="issue-kanban__number">#{{ card.issue.number }}</span> {{ card.issue.title }}</a
                     >
-                    <!-- The drag gesture has no keyboard equivalent: this menu is how to move a card without a mouse. -->
+                    <!-- Dragging has no keyboard equivalent: this menu is how to move a card without a mouse. -->
                     @if (canWrite()) {
                       <gbt-menu class="issue-kanban__move" [label]="card.menuLabel" triggerIcon="ellipsis-vertical" align="end">
                         @for (target of card.moveTargets; track target.status) {

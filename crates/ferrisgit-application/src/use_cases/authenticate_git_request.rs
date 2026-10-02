@@ -22,8 +22,7 @@ pub enum GitAccess {
     Write,
 }
 
-/// Authenticates and authorizes a git smart-HTTP request against an already-resolved `Repository` (path resolution
-/// happens in the route via `ResolvePathUseCase`).
+/// Authenticates and authorizes a git smart-HTTP request for a repository the route has already resolved.
 pub struct AuthenticateGitRequestUseCase {
     api_tokens: Arc<dyn ApiTokenRepositoryPort>,
     events: Arc<dyn EventPublisherPort>,
@@ -62,10 +61,10 @@ impl AuthenticateGitRequestUseCase {
         repo: Repository,
         access: GitAccess,
     ) -> Result<(Repository, Option<Uuid>), DomainError> {
-        // A public repo is readable without credentials while the instance has its public pages on, even when
-        // credentials are sent (a `user:token@host` clone URL always sends Basic Auth). With them off, anonymous
-        // reads are refused like on a private repo; a signed-in user keeps reading it below. A settings read error
-        // counts as "off": better to refuse than to open a repository that may have been closed.
+        // A public repo is readable without credentials while public pages are on, even if credentials are sent (a
+        // user:token@host clone URL always sends Basic Auth). With them off it's refused like a private repo; a
+        // signed-in user still gets in below. A settings read error counts as off: better to refuse than to expose a
+        // repo that may have been closed.
         let public_read =
             matches!(access, GitAccess::Read) && repo.visibility == RepositoryVisibility::Public;
         if public_read && self.anonymous_public_read_allowed().await {
@@ -89,7 +88,7 @@ impl AuthenticateGitRequestUseCase {
             } else {
                 CollaboratorRole::Reader
             };
-            // Any signed-in user reads a public repo, as in the API (`require_role_by_id`).
+            // Any signed-in user can read a public repo, same as in the API.
             let authorized = public_read
                 || self
                     .effective_role(&repo, stored.user_id)
@@ -151,8 +150,7 @@ impl AuthenticateGitRequestUseCase {
         }
     }
 
-    /// The max role comes from `effective_repository_role`, the policy shared with
-    /// `ferrisgit-api::authz::require_role_by_id`. `authz_parity_flow.rs` checks that both callers behave the same.
+    /// Uses the same policy as the API's role check; `authz_parity_flow.rs` keeps the two in line.
     async fn effective_role(
         &self,
         repo: &Repository,
@@ -204,7 +202,7 @@ mod tests {
         }
     }
 
-    /// What the use case is wired to: public pages on, and nothing else unless a test adds it.
+    /// What the use case is wired to: public pages on, nothing else unless a test adds it.
     struct World {
         tokens: Vec<ApiToken>,
         runners: Vec<Runner>,
@@ -358,7 +356,6 @@ mod tests {
 
     #[tokio::test]
     async fn reading_a_public_repository_with_a_foreign_valid_token_is_still_allowed() {
-        // A different user's valid token must not matter for a public read.
         let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Public);
         let (use_case, _) = World {
             tokens: vec![api_token(Uuid::new_v4(), "fg_theirs")],
@@ -403,7 +400,6 @@ mod tests {
     #[tokio::test]
     async fn a_valid_token_belonging_to_neither_the_owner_nor_a_collaborator_is_unauthorized() {
         let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
-        // The stranger is not a collaborator, which is the point of this test.
         let (use_case, _) = World {
             tokens: vec![api_token(Uuid::new_v4(), "fg_stranger")],
             ..World::new()
@@ -425,8 +421,7 @@ mod tests {
 
     #[tokio::test]
     async fn access_is_re_evaluated_fresh_against_current_collaborator_state_not_cached() {
-        // The use case never caches an authorization decision: two instances differing only in the collaborator pair
-        // give opposite outcomes.
+        // Nothing is cached: two instances differing only in the collaborator pair must give opposite outcomes.
         let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
         let collaborator_id = Uuid::new_v4();
         let token = api_token(collaborator_id, "fg_collab");
@@ -449,7 +444,7 @@ mod tests {
             "expected write access while still a listed collaborator, got {before_removal:?}"
         );
 
-        // Same pair, now absent, as after a real removal.
+        // Same pair, now gone, as after a real removal.
         let (after_removal, _) = World {
             tokens: vec![token],
             ..World::new()
@@ -464,7 +459,7 @@ mod tests {
         );
     }
 
-    /// A private repository on which `reader` is a Reader collaborator, with the token `fg_reader`.
+    /// A private repo where `reader` is a Reader collaborator, with token `fg_reader`.
     fn reader_collaborator() -> (Repository, AuthenticateGitRequestUseCase) {
         let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
         let reader_id = Uuid::new_v4();
@@ -497,7 +492,6 @@ mod tests {
         assert!(matches!(write_result, Err(DomainError::Unauthorized(_))));
     }
 
-    /// The runner's token is `fgr_valid`.
     fn runner_use_case() -> (AuthenticateGitRequestUseCase, Arc<FakeEvents>) {
         World {
             runners: vec![runner("fgr_valid")],
@@ -545,7 +539,6 @@ mod tests {
         );
     }
 
-    /// A private repository `name` in `group_id`, created by `creator_id`.
     fn group_repo(creator_id: Uuid, group_id: Uuid, name: &str) -> Repository {
         Repository {
             group_id: Some(group_id),
@@ -617,8 +610,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_creator_of_a_group_repository_with_no_group_role_is_rejected() {
-        // A group repository's `owner_id` ("created by") grants no implicit access: the creator must not keep
-        // read+write after being removed from the group.
+        // On a group repo owner_id is just the creator: once removed from the group they lose access.
         let creator_id = Uuid::new_v4();
         let acme = group(None, "acme");
         let repo = group_repo(creator_id, acme.id, "backend");
@@ -652,7 +644,6 @@ mod tests {
 
     #[tokio::test]
     async fn removing_a_users_group_role_revokes_git_access_on_the_next_request() {
-        // Like the collaborator re-evaluation test, for group membership.
         let creator_id = Uuid::new_v4();
         let member_id = Uuid::new_v4();
         let token = api_token(member_id, "fg_member");
@@ -697,7 +688,7 @@ mod tests {
         );
     }
 
-    /// A public repository, and a stranger (no role anywhere) whose token is `fg_stranger`.
+    /// A public repo, plus a stranger (no role anywhere) with token `fg_stranger`.
     fn public_repo_use_case(
         settings: Arc<dyn PublicPagesSettingsPort>,
     ) -> (Repository, AuthenticateGitRequestUseCase, Arc<FakeEvents>) {

@@ -1,4 +1,4 @@
-// Storybook-only fixtures shared by the pipeline component stories (not imported by the app).
+// Storybook fixtures shared by the pipeline stories, not imported by the app.
 import { JobSummary } from './pipelines.service';
 import { StageGroup, groupByStage } from './pipeline-helpers';
 

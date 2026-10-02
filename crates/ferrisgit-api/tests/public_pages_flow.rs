@@ -185,8 +185,8 @@ fn git(dir: &Path, args: &[&str]) {
     assert!(status.success(), "git {args:?}");
 }
 
-/// Pushes one commit to `remote` and returns its sha. Runs in `spawn_blocking`: a blocking git subprocess would
-/// starve the server task on the same runtime.
+/// Pushes one commit to `remote` and returns its sha. In spawn_blocking, since a blocking git subprocess would starve
+/// the server task on the same runtime.
 async fn push_initial_commit(remote: String) -> String {
     tokio::task::spawn_blocking(move || {
         let work = tempfile::tempdir().unwrap();

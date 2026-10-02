@@ -13,8 +13,8 @@ const DEFAULT_PER_PAGE: u32 = 20;
 const MAX_PER_PAGE: u32 = 50;
 const MAX_PAGE: u32 = 100;
 
-/// The single decision of whether an anonymous visitor may read a repository: it must be `Public` and the
-/// instance must have its public pages on. Every refusal is the same `NotFound` as an unknown id.
+/// Where anonymous access is decided: the repo must be public and the instance must have public pages on. Anything
+/// else is a plain not found, same as an unknown id.
 pub struct RequirePublicRepositoryUseCase {
     settings: Arc<dyn PublicPagesSettingsPort>,
     repositories: Arc<dyn RepositoryStorePort>,
@@ -32,7 +32,7 @@ impl RequirePublicRepositoryUseCase {
     }
 
     pub async fn execute(&self, repository_id: Uuid) -> Result<Repository, DomainError> {
-        // Both lookups always run, so a switched-off instance answers no faster than an unknown id.
+        // Both lookups always run so a switched-off instance doesn't answer faster than an unknown id.
         let (settings, repository) = tokio::join!(
             self.settings.get(),
             self.repositories.find_by_id(repository_id)
@@ -50,7 +50,7 @@ impl RequirePublicRepositoryUseCase {
     }
 }
 
-/// The query string as received: everything is parsed and bounded here so a bad value is a 400 with a reason.
+/// The query string as received. Parsing and bounds live here, so a bad value becomes a 400 with a reason.
 #[derive(Debug, Clone, Default)]
 pub struct RawPublicCatalogSearch {
     pub q: Option<String>,

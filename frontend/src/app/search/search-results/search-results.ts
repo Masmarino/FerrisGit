@@ -30,7 +30,7 @@ const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30
 
 const EMPTY_RESULTS: SearchResponse = { repositories: [], issues: [], mergeRequests: [], users: [] };
 
-/** The API returns at most this many results per category: a full one reads as "8+". */
+/** The API returns at most this many results per category, so a full one reads "8+". */
 const RESULTS_PER_CATEGORY = 8;
 
 type CategoryKey = 'repositories' | 'issues' | 'mergeRequests' | 'users';
@@ -96,7 +96,7 @@ function countLabel(length: number): string {
   return length >= RESULTS_PER_CATEGORY ? `${length}+` : String(length);
 }
 
-/** Gabarit gap: the counter writes `N+` only above its `max`, so a full category is handed over as one past `max`. */
+/** Gabarit gap: the counter only writes `N+` above its `max`, so a full category is passed as `max + 1`. */
 function counterValue(length: number): number {
   return length >= RESULTS_PER_CATEGORY ? RESULTS_PER_CATEGORY + 1 : length;
 }
@@ -156,7 +156,7 @@ function mergeRequestRow(mergeRequest: SearchMergeRequestResult): MergeRequestRo
   };
 }
 
-/** French typography: a non-breaking space just inside the « guillemets », so "»" never wraps alone. */
+/** French typography: non-breaking spaces inside the « guillemets », so "»" never wraps alone. */
 function quoted(query: string): string {
   return `«\u00a0${query}\u00a0»`;
 }
@@ -199,7 +199,7 @@ export class SearchResults implements OnInit {
   protected state = signal<SearchState>('idle');
 
   ngOnInit(): void {
-    // `switchMap` cancels a slower in-flight search so a stale response cannot overwrite newer results.
+    // switchMap drops a slower in-flight search so a stale response can't overwrite newer results.
     this.route.queryParamMap
       .pipe(
         map((params) => (params.get('q') ?? '').trim()),
@@ -218,7 +218,7 @@ export class SearchResults implements OnInit {
     if (!q) {
       return of({ state: 'idle', results: EMPTY_RESULTS });
     }
-    // Clear the previous results right away so they never show under the new query while it loads.
+    // Clear now, or the old results show under the new query while it loads.
     this.results.set(EMPTY_RESULTS);
     this.state.set('loading');
     return this.search.search(q).pipe(

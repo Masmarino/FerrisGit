@@ -7,7 +7,7 @@ import { NotificationBell } from './notification-bell';
 import { Notification, NotificationsService } from '../../notifications/notifications.service';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 
-// `provideRouter` and `provideFerrisgitIcons` return EnvironmentProviders, so they go in `applicationConfig`, not `moduleMetadata`.
+// Environment providers only work in `applicationConfig`, not `moduleMetadata`.
 const withApp = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
 
 function makeNotification(overrides: Partial<Notification> = {}): Notification {
@@ -98,7 +98,7 @@ const meta: Meta<NotificationBell> = {
   component: NotificationBell,
   tags: ['autodocs'],
   decorators: [withApp],
-  // The dropdown is anchored to the end of the trigger, so leave room for it below and to the left.
+  // The dropdown opens below and to the left of the trigger, so leave it room.
   parameters: { layout: 'centered' },
 };
 

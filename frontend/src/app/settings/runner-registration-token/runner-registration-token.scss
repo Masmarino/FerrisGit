@@ -1,6 +1,6 @@
 @use '../fields';
 
-// The field and the modal join the card's form as siblings: this element adds no box of its own.
+// The field and the modal join the card's form as siblings, so this element adds no box of its own.
 :host {
   display: contents;
 }
@@ -43,7 +43,7 @@
   line-height: 1.25rem;
 }
 
-// Gabarit gap: `gbt-secret-reveal` has no size or touch rule (same fix as the runner token card).
+// Gabarit gap: gbt-secret-reveal has no size or touch rule (same fix as the runner token card).
 .admin-settings__generated ::ng-deep .gbt-secret-reveal__value {
   min-height: 2.25rem;
   padding: 0.4375rem 0.75rem;

@@ -188,8 +188,7 @@ impl GroupStorePort for PostgresGroupStore {
             }
         }
 
-        // A user who is Maintainer at several levels of one chain pushes the same (id, path) pair more
-        // than once. Deduplicating by id is enough.
+        // A Maintainer at several levels of one chain pushes the same (id, path) pair more than once, so dedup by id.
         let mut seen = std::collections::HashSet::new();
         result.retain(|g| seen.insert(g.group.id));
         Ok(result)
@@ -670,7 +669,7 @@ mod tests {
             })
             .await
             .unwrap();
-        // Reader on purpose: any role counts here, unlike in `list_writable_groups`
+        // Reader on purpose: any role counts here, unlike in `list_writable_groups`.
         store
             .add_member(mid.id, user, CollaboratorRole::Reader)
             .await

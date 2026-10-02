@@ -1,37 +1,20 @@
 mod common;
 
 use common::http::{delete, get_json, login, post, post_anon, post_json, post_ok, put};
+use common::poll_until;
 
 use serde_json::json;
 use sqlx::PgPool;
 use std::process::Command;
 use std::time::Duration;
 
-/// Kills the child process on drop, including on a panicking unwind, so a failed assertion never orphans the runner.
+/// Kills the child on drop, panics included, so a failed assertion doesn't orphan the runner.
 struct KillOnDrop(std::process::Child);
 
 impl Drop for KillOnDrop {
     fn drop(&mut self) {
         let _ = self.0.kill();
         let _ = self.0.wait();
-    }
-}
-
-async fn poll_until<F, Fut>(mut check: F, timeout: Duration, description: &str) -> serde_json::Value
-where
-    F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = Option<serde_json::Value>>,
-{
-    let deadline = tokio::time::Instant::now() + timeout;
-    loop {
-        if let Some(value) = check().await {
-            return value;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "timed out waiting for: {description}"
-        );
-        tokio::time::sleep(Duration::from_millis(500)).await;
     }
 }
 
@@ -172,7 +155,7 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
     let pipeline_id = pipelines[0]["id"].as_str().unwrap().to_string();
 
     let runner_workdir = tempfile::tempdir().unwrap();
-    // `CARGO_BIN_EXE_ferrisgit-runner` is not set for a dev-dependency's binaries, so `escargot` builds the real runner and returns its path.
+    // CARGO_BIN_EXE_ferrisgit-runner isn't set for a dev-dependency's binaries, so escargot builds the real runner and returns its path.
     let runner_bin = escargot::CargoBuild::new()
         .manifest_path(concat!(
             env!("CARGO_MANIFEST_DIR"),
@@ -288,7 +271,7 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
             .starts_with("fgr_")
     );
 
-    // A runner token is instance-wide: a second valid runner must still be unable to write to a job it never claimed.
+    // A runner token is instance-wide, yet a second valid runner can't write to a job it never claimed.
     let other_runner_token = correct_token_res["token"].as_str().unwrap();
     let job_id = jobs[0]["id"].as_str().unwrap();
 

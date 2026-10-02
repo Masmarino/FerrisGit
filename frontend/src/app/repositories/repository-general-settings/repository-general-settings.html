@@ -35,7 +35,7 @@
       >
         <div class="repository-general-settings__form">
           <div class="repository-general-settings__field" data-field="description">
-            <!-- `(committed)` rather than `(ngModelChange)`: saving on every keystroke would store every half-typed text. -->
+            <!-- (committed), not (ngModelChange): that would save every half-typed text. -->
             <gbt-textarea label="Description" [rows]="3" placeholder="À quoi sert ce dépôt ?" [ngModel]="repo.description" (committed)="updateDescription($event)" />
             <div class="repository-general-settings__field-footer">
               <p class="repository-general-settings__hint">Affichée sous le nom du dépôt et dans les listes.</p>
@@ -76,7 +76,7 @@
   }
 }
 
-<!-- A field's save state: a live region always in the DOM, so each change is announced. -->
+<!-- Always in the DOM, because a live region added already filled isn't announced reliably. -->
 <ng-template #saveState let-state>
   <gbt-save-status class="repository-general-settings__save-state" [state]="state ?? 'idle'" savingLabel="Enregistrement…" savedLabel="Enregistré" errorLabel="Non enregistré" />
 </ng-template>

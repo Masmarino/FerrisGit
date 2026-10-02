@@ -13,12 +13,12 @@ const KINDS: Record<Issue['kind'], IssueKindPresentation> = {
   epic: { label: 'Epic', icon: 'layers' },
 };
 
-/** The one place that maps an issue kind to its label and icon. An unknown kind shows as its raw text with the generic icon. */
+/** The one place mapping an issue kind to its label and icon. An unknown kind shows its raw text with the generic icon. */
 export function issueKindPresentation(kind: string): IssueKindPresentation {
   return Object.hasOwn(KINDS, kind) ? KINDS[kind as Issue['kind']] : { label: kind, icon: 'circle-dot' };
 }
 
-/** The kinds a new issue can be created with (epics are not created from the list). */
+/** Kinds a new issue can have (epics aren't created from the list). */
 export type CreatableIssueKind = 'bug' | 'feature' | 'task';
 
 export const ISSUE_KIND_OPTIONS: SelectOption<CreatableIssueKind>[] = (['bug', 'feature', 'task'] as const).map((value) => ({ value, label: KINDS[value].label }));

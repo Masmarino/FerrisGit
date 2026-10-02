@@ -11,8 +11,8 @@ export const milestoneSelectOptions = (milestones: Milestone[], noneLabel: strin
 ];
 
 /**
- * The label and milestone filters the issue list and the board share: the selection, the options and the data behind
- * them. These two filters are applied by the server, so any change calls `refetch`. Call it from an injection context.
+ * Label and milestone filters shared by the issue list and the board: selection, options and the data behind them.
+ * The server applies both, so any change calls `refetch`. Call it from an injection context.
  */
 export function createIssueFilters(repositoryId: () => string, refetch: () => void) {
   const labelsService = inject(LabelsService);
@@ -50,7 +50,7 @@ export function createIssueFilters(repositoryId: () => string, refetch: () => vo
       refetch();
     },
 
-    /** Clears the selection, and refetches only if there was one to clear. */
+    /** Clears the selection and refetches only if there was one. */
     clear(): void {
       const hadSelection = hasSelection();
       selectedLabelIds.set([]);

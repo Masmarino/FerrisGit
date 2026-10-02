@@ -35,8 +35,7 @@ impl TagCreatorPort for GitTagCreator {
         }
         let repo_path = self.storage_root.join(repository_disk_path);
         let tag_ref = format!("refs/tags/{tag_name}");
-        // With an empty old-value, `update-ref` fails atomically if the ref already exists, so there's no
-        // need for a racy existence check.
+        // An empty old-value makes update-ref fail atomically if the ref exists, so no racy existence check.
         let (ok, _, stderr) =
             run_git(&repo_path, &["update-ref", &tag_ref, target_commit_sha, ""]).await?;
         if !ok {
@@ -55,8 +54,8 @@ impl TagCreatorPort for GitTagCreator {
         let repo_path = self.storage_root.join(repository_disk_path);
         let tag_ref = format!("refs/tags/{tag_name}");
 
-        // `update-ref -d` exits 0 even for a missing ref. Passing the current sha as old-value turns the
-        // delete into a CAS that fails when the tag is already gone, which `NotFound` below relies on.
+        // update-ref -d exits 0 for a missing ref. Passing the current sha as old-value makes it fail,
+        // which the NotFound below relies on.
         let (resolved, current_sha, _) =
             run_git(&repo_path, &["rev-parse", "--verify", "--quiet", &tag_ref]).await?;
         if !resolved {

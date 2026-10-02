@@ -1,6 +1,6 @@
 mod common;
 
-use common::{ADMIN_PASSWORD, RecordingEmail, USER_PASSWORD};
+use common::{ADMIN_PASSWORD, RecordingEmail, USER_PASSWORD, token_of};
 
 use ferrisgit_api::state::AppState;
 use ferrisgit_application::mfa_crypto::generate_code_at;
@@ -281,10 +281,6 @@ fn reset_link(html: &str) -> String {
     link
 }
 
-fn token_of(link: &str) -> String {
-    link.split_once("token=").unwrap().1.to_string()
-}
-
 async fn spawn_server(pool: PgPool) -> Server {
     let started = common::spawn_server(pool).await;
     let admin_id = started.user_id("admin").await;
@@ -475,7 +471,7 @@ async fn the_reset_link_sets_the_new_password_once_and_keeps_the_mfa(pool: PgPoo
     );
 }
 
-/// The account stays locked from the admin's action until the link is used. There is no window where the old password can open a session or enrol a factor after an MFA reset.
+/// From the admin's action until the link is used the account stays locked: after an MFA reset the old password can neither open a session nor enrol a factor.
 #[sqlx::test]
 async fn the_old_password_is_refused_from_the_admin_reset_until_the_link_sets_a_new_one(
     pool: PgPool,
@@ -510,7 +506,7 @@ async fn the_old_password_is_refused_from_the_admin_reset_until_the_link_sets_a_
     assert_eq!(server.login("alice", USER_PASSWORD).await.status(), 401);
 }
 
-/// Combined with an MFA reset: whoever still holds the old password cannot enrol a factor of their own.
+/// With an MFA reset on top, whoever still has the old password can't enrol a factor of their own.
 #[sqlx::test]
 async fn after_an_mfa_reset_and_a_password_reset_the_old_password_cannot_enrol_a_factor(
     pool: PgPool,
@@ -1015,7 +1011,7 @@ async fn an_invited_admin_who_never_activated_does_not_count_toward_the_floor(po
     assert!(!server.is_admin(&carol_id).await);
 }
 
-/// Until carol uses her reset link nobody else can sign in as an admin (and a lapsed link leaves nobody to issue another), so root is refused.
+/// Until carol uses her reset link nobody else can sign in as admin (and if it lapses nobody can issue another), so root is refused.
 #[sqlx::test]
 async fn an_admin_whose_password_reset_is_pending_does_not_count_toward_the_floor(pool: PgPool) {
     let server = spawn_server(pool).await;
@@ -1151,7 +1147,7 @@ async fn setting_the_flag_of_an_unknown_user_is_404_and_a_malformed_body_is_refu
     );
 }
 
-/// The exact key set is the contract, so a field that would let the admin page reach into the repository cannot slip in unnoticed.
+/// The exact key set is the contract, so a field that reaches into the repository can't slip in unnoticed.
 #[sqlx::test]
 async fn an_admin_lists_a_users_personal_repositories_with_their_size_and_nothing_else(
     pool: PgPool,

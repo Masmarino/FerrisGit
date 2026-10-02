@@ -1,4 +1,4 @@
-<!-- One fixed-layout table for the whole file (a tbody per hunk): hunks share the same columns and a long line wraps inside its own half. -->
+<!-- One fixed-layout table for the whole file, a tbody per hunk, so hunks share columns and long lines wrap inside their half. -->
 @if (hunks().length) {
   <table class="file-diff-view__table" [class.file-diff-view__table--single]="layout() !== 'split'">
     <caption class="sr-only">Différences ligne à ligne</caption>
@@ -12,7 +12,7 @@
         <col />
       }
     </colgroup>
-    <!-- The column headers are only for assistive technology. The hidden text sits in a span because an absolutely positioned th would drop out of the fixed layout. -->
+    <!-- Headers are for screen readers only. The hidden text is in a span because an absolutely positioned th would leave the fixed layout. -->
     <thead class="file-diff-view__head">
       <tr>
         @if (showOld()) {

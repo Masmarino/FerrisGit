@@ -200,8 +200,8 @@ describe('RepositoryHeader', () => {
     expect(navigate).not.toHaveBeenCalled();
   });
 
-  // The clone URL does not depend on the ref, and the ref may be what does not exist (a not-found page has
-  // no Cloner panel). So it always goes to the repository root's overview.
+  // The ref may be what's missing, and a not-found page has no Cloner panel, so this always goes to the
+  // root overview.
   it('goes to the repository root overview to reach the Cloner panel from a page without one, whatever the ref', () => {
     const { fixture } = render(repo, 'develop');
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);

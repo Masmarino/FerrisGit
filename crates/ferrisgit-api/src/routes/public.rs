@@ -1,5 +1,5 @@
-//! Anonymous, read-only pages of public repositories. Every route here reads through `require_public_repository`, and
-//! answers private, unknown and switched-off alike with the same 404.
+//! Anonymous, read-only pages of public repositories. Every route reads through `require_public_repository`, and
+//! a private, unknown or switched-off repository all get the same 404.
 
 use std::time::Duration;
 
@@ -40,7 +40,7 @@ const ROBOTS_DISALLOW_ALL: &str = "User-agent: *\nDisallow: /\n";
 const ROBOTS_PUBLIC_PAGES: &str =
     "User-agent: *\nDisallow: /api/\nDisallow: /account\nDisallow: /admin/\n";
 
-/// The only place that decides whether an anonymous visitor may read a repository.
+/// The one place that decides whether an anonymous visitor may read a repository.
 pub async fn require_public_repository(
     state: &AppState,
     repository_id: Uuid,
@@ -53,7 +53,7 @@ pub async fn require_public_repository(
     .await?)
 }
 
-/// A settings read that fails counts as "do not index": the safe side.
+/// If the settings read fails, don't index.
 async fn indexing_allowed(state: &AppState) -> bool {
     state
         .public_pages_settings
@@ -71,7 +71,7 @@ pub async fn robots_txt(State(state): State<AppState>) -> Response {
     ([(header::CONTENT_TYPE, "text/plain; charset=utf-8")], body).into_response()
 }
 
-/// Applied to every response of the application, SPA and API alike.
+/// Runs on every response, SPA and API alike.
 pub async fn robots_tag(State(state): State<AppState>, request: Request, next: Next) -> Response {
     let (mut response, indexing_allowed) =
         tokio::join!(next.run(request), indexing_allowed(&state));
@@ -177,7 +177,7 @@ async fn list(
     }))
 }
 
-/// Groups are never public: only a public repository's path resolves.
+/// Groups are never public, only a public repository's path resolves.
 async fn resolve(
     State(state): State<AppState>,
     Path(path): Path<String>,
@@ -351,7 +351,7 @@ pub fn router(state: AppState) -> Router<AppState> {
             get(release_asset),
         )
         .layer(middleware::from_fn_with_state(state, throttle))
-        // Outside the throttle, so a 429 is not cached either.
+        // Outside the throttle so a 429 gets no-cache too.
         .layer(SetResponseHeaderLayer::overriding(
             header::CACHE_CONTROL,
             HeaderValue::from_static("no-cache"),

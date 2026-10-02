@@ -48,8 +48,8 @@ impl GitBackend {
         if !status.success() {
             return Err(std::io::Error::other("git init --bare failed"));
         }
-        // `git http-backend` rejects `git-receive-pack` with a bare 403 unless `http.receivepack` is set.
-        // Write access is checked upstream, not by git.
+        // http-backend answers git-receive-pack with a bare 403 unless http.receivepack is set.
+        // Write access is checked upstream.
         let config_status = std::process::Command::new("git")
             .args(["config", "http.receivepack", "true"])
             .current_dir(&full_path)
@@ -60,11 +60,9 @@ impl GitBackend {
         Ok(())
     }
 
-    /// Points `HEAD` at the pushed branch when a push leaves it dangling. `init_bare_repo` uses the
-    /// host's default branch name, which a first push rarely matches, and with a dangling `HEAD` the
-    /// repo reads as empty (file browser, push-triggered pipelines). Unlike the wiki variant, this moves
-    /// `HEAD` instead of renaming the branch. It only acts when there is exactly one branch, since with
-    /// several the default is ambiguous.
+    /// A first push rarely matches the default branch name from `init_bare_repo`, which leaves HEAD dangling
+    /// and the repo looking empty (file browser, push pipelines). With exactly one branch, point HEAD at it.
+    /// The wiki variant renames the branch instead.
     pub async fn heal_dangling_head(&self, disk_path: &str) -> std::io::Result<()> {
         let full_path = self.storage_root.join(disk_path);
 
@@ -121,8 +119,7 @@ impl GitBackend {
         Ok(())
     }
 
-    /// Removes a repository's (or wiki's `.wiki.git`) bare directory. A missing path is not an error:
-    /// this is best-effort cleanup after the database row is gone.
+    /// A missing path is fine: this is best-effort cleanup after the database row is gone.
     pub fn remove_bare_repo(&self, disk_path: &str) -> std::io::Result<()> {
         let full_path = self.storage_root.join(disk_path);
         match std::fs::remove_dir_all(&full_path) {
@@ -132,7 +129,7 @@ impl GitBackend {
         }
     }
 
-    /// Total size in bytes of everything under `disk_path`, a plain filesystem walk (like `du`).
+    /// Total size in bytes under `disk_path`, a plain walk like `du`.
     pub fn directory_size(&self, disk_path: &str) -> std::io::Result<u64> {
         fn walk(dir: &std::path::Path) -> std::io::Result<u64> {
             let mut total = 0u64;
@@ -185,9 +182,8 @@ impl GitBackend {
 
         let mut stdout = child.stdout.take().expect("stdout piped");
         let mut raw = Vec::new();
-        // Long on purpose: it only exists to stop a hung child (corrupted repo, disk issue). The route
-        // accepts 500 MiB bodies, and large pushes or clones can take minutes. A short timeout would kill
-        // exactly those.
+        // Long on purpose: this only stops a hung child (corrupt repo, disk trouble). Pushes accept 500 MiB
+        // bodies and can take minutes, so a short timeout would kill exactly those.
         match tokio::time::timeout(
             std::time::Duration::from_secs(600),
             stdout.read_to_end(&mut raw),
@@ -198,7 +194,7 @@ impl GitBackend {
                 read_result?;
             }
             Err(_elapsed) => {
-                // Kill the hung child, or returning the error leaves it running with its FDs open.
+                // Kill the hung child, otherwise it keeps running with its file descriptors open.
                 let _ = child.start_kill();
                 return Err(GitBackendError::Timeout);
             }
@@ -306,8 +302,7 @@ mod tests {
         );
     }
 
-    /// Regression: `child.stderr` was piped but never read, so a failing `upload-pack` that wrote a lot
-    /// to stderr could block forever. The timeout catches the hang if it comes back.
+    /// stderr used to be piped but never read, so a failing upload-pack that wrote a lot could block forever.
     #[tokio::test]
     async fn smart_http_drains_stderr_and_completes_when_git_reports_an_error() {
         let tmp = tempfile::tempdir().unwrap();
@@ -330,12 +325,12 @@ mod tests {
         .await
         .expect("handle_smart_http must not hang even when git writes to stderr and fails");
 
-        // either outcome is fine, as long as the call doesn't hang
-        assert!(result.is_ok() || result.is_err());
+        // Either outcome is fine, the point is not hanging.
+        let _ = result;
     }
 
-    /// Regression: `parse_cgi_response` dropped the `Expires`/`Pragma`/`Cache-Control` headers that
-    /// `info/refs` responses need to carry for intermediate caches.
+    /// parse_cgi_response used to drop Expires/Pragma/Cache-Control, which info/refs responses need for
+    /// intermediate caches.
     #[tokio::test]
     async fn info_refs_response_forwards_cache_control_headers_from_git_http_backend() {
         let tmp = tempfile::tempdir().unwrap();
@@ -369,8 +364,8 @@ mod tests {
         );
     }
 
-    /// Regression: a first push to a branch other than the initial `HEAD` target left `HEAD` dangling.
-    /// The unusual branch name keeps the test independent of the host's git defaults.
+    /// A first push to a branch other than the initial HEAD target left HEAD dangling. The odd branch name
+    /// keeps the test independent of the host's git defaults.
     #[tokio::test]
     async fn heal_dangling_head_repoints_head_to_the_sole_pushed_branch() {
         let tmp = tempfile::tempdir().unwrap();

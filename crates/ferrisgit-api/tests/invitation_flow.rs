@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{ADMIN_PASSWORD, RecordingEmail, totp_code};
+use common::{ADMIN_PASSWORD, RecordingEmail, token_of, totp_code};
 
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -153,10 +153,6 @@ fn activation_link(html: &str) -> String {
         "the token must not be in a query string: {link}"
     );
     link
-}
-
-fn token_of(link: &str) -> String {
-    link.split_once("token=").unwrap().1.to_string()
 }
 
 async fn spawn_server(pool: PgPool) -> Server {

@@ -41,7 +41,7 @@ async function expectPasskeyLayout(canvasElement: HTMLElement) {
   if (doc.clientWidth === 0) {
     return; // hidden docs frame
   }
-  const body = canvasElement.querySelector('.gbt-card')!; // the box (a non-flush body is `display: contents`)
+  const body = canvasElement.querySelector('.gbt-card')!; // the box: a non-flush body is `display: contents`
   for (const row of Array.from(canvasElement.querySelectorAll<HTMLElement>('.gbt-passkey-settings__row'))) {
     const head = rect(row.querySelector('.gbt-passkey-settings__row-head')!);
     await expect(head.right, `row "${row.querySelector('.gbt-passkey-settings__name')?.textContent?.trim()}" inside the card`).toBeLessThanOrEqual(rect(body).right + 0.5);

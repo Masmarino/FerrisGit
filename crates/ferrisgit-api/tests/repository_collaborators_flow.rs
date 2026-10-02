@@ -274,7 +274,7 @@ async fn a_collaborator_can_use_a_repo_they_do_not_own_and_a_stranger_cannot(poo
     );
 }
 
-/// The public Reader bypass must not expose who the collaborators are (a product decision).
+/// The public Reader bypass doesn't show who the collaborators are, on purpose.
 #[sqlx::test]
 async fn a_public_repos_collaborator_list_is_not_exposed_to_a_non_collaborator(pool: PgPool) {
     let addr = common::spawn_app(pool).await.addr;

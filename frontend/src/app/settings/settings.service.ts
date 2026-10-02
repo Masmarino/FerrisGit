@@ -9,7 +9,7 @@ export interface SystemSettings {
   executionEngine: 'docker-runners' | 'kubernetes';
   k8sNamespace: string | null;
   k8sCacheStorageClass: string | null;
-  // Stored hashed server-side; only whether one is configured comes back.
+  // Stored hashed on the server; only whether one is configured comes back.
   runnerRegistrationTokenConfigured: boolean;
   logRetentionDays: number | null;
   maxConcurrentJobs: number | null;
@@ -18,9 +18,9 @@ export interface SystemSettings {
   registrationEnabled: boolean;
   /** Visitors without an account can browse public repositories. */
   publicPagesEnabled: boolean;
-  /** Search engines may index the public pages (only while they are on). */
+  /** Search engines may index the public pages, but only while this is on. */
   seoIndexingEnabled: boolean;
-  // Detected by the server from the cluster (not persisted): used to pre-fill the fields above when unset.
+  // Detected by the server from the cluster, not persisted: pre-fills the fields above when they're unset.
   detectedK8sNamespace: string | null;
   detectedK8sDefaultStorageClass: string | null;
 }
@@ -48,7 +48,7 @@ export interface SmtpSettings {
   port: number;
   security: SmtpSecurity;
   username: string;
-  /** The password itself never comes back, only whether one is stored. */
+  /** The password never comes back, only whether one is stored. */
   passwordSet: boolean;
   fromAddress: string;
   fromName: string;
@@ -59,7 +59,7 @@ export interface SmtpSettingsUpdate {
   port: number;
   security: SmtpSecurity;
   username: string;
-  /** Leave it undefined to keep the stored password. */
+  /** Leave undefined to keep the stored password. */
   password?: string;
   fromAddress: string;
   fromName: string;

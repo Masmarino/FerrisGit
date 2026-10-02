@@ -1,7 +1,7 @@
 import { Component, computed, inject, input } from '@angular/core';
 import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
-// Registers only the languages listed below (see EXTENSION_TO_LANGUAGE) on highlight.js core. The full
-// package would add about 170 unused languages to the repositories chunk.
+// Only the languages below (see EXTENSION_TO_LANGUAGE) go on highlight.js core; the full package would add about 170
+// unused ones to the repositories chunk.
 import hljs from 'highlight.js/lib/core';
 import bash from 'highlight.js/lib/languages/bash';
 import c from 'highlight.js/lib/languages/c';
@@ -72,7 +72,7 @@ const EXTENSION_TO_LANGUAGE: Record<string, string> = {
   dockerfile: 'dockerfile',
 };
 
-/** Guesses a highlight.js language from a file extension; `null` falls back to auto-detection. */
+/** A highlight.js language from a file extension; `null` falls back to auto-detection. */
 export function languageForFileName(fileName: string): string | null {
   const baseName = fileName.split('/').pop() ?? fileName;
   const dotIndex = baseName.lastIndexOf('.');
@@ -80,15 +80,14 @@ export function languageForFileName(fileName: string): string | null {
   return EXTENSION_TO_LANGUAGE[extension] ?? null;
 }
 
-/** Number of lines a file shows: a trailing newline ends the last line rather than starting an
- * empty one, and an empty file still has its one (empty) line. */
+/** Lines a file shows: a trailing newline ends the last line instead of starting a new one, and an empty file has one. */
 export function lineCount(content: string): number {
   if (content === '') return 1;
   const breaks = content.split('\n').length - 1;
   return content.endsWith('\n') ? breaks : breaks + 1;
 }
 
-/** Highlighted source code; the optional line-number gutter is hidden from assistive technology and from copied selections. */
+/** Highlighted source code. The optional line-number gutter is hidden from screen readers and from copied selections. */
 @Component({
   selector: 'fg-code-view',
   standalone: true,
@@ -96,7 +95,7 @@ export function lineCount(content: string): number {
     @if (lineNumbers()) {
       <div class="code-view code-view--numbered">
         <pre class="code-view__line-numbers" aria-hidden="true">{{ lineNumberText() }}</pre>
-        <!-- Focusable: long lines scroll sideways, and a keyboard user must be able to reach them. -->
+        <!-- Focusable so a keyboard user can scroll long lines sideways. -->
         <pre class="code-view__code" tabindex="0"><code class="hljs" [innerHTML]="renderedHtml()"></code></pre>
       </div>
     } @else {

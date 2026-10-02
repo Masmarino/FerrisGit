@@ -62,7 +62,7 @@
   overflow-wrap: anywhere;
 }
 
-// A dot between segments would open or close a wrapped line.
+// A dot between segments could start or end a wrapped line.
 .admin-users__segment {
   white-space: nowrap;
 }
@@ -88,7 +88,7 @@
   @include list-page.row-menu;
 }
 
-// The width the kebab takes in the row (its 32px trigger minus the 8px it overlaps the row's padding).
+// Width the kebab takes in the row: its 32px trigger minus the 8px it overlaps the row's padding.
 .admin-users__busy {
   display: flex;
   align-items: center;

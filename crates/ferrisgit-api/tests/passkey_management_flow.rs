@@ -1,4 +1,4 @@
-// Self-service passkey management, the factor removal rules, and their effect on the admin reset and users list.
+// Self-service passkey management, the rules for removing a factor, and how they affect the admin reset and users list.
 
 mod common;
 
@@ -138,7 +138,7 @@ async fn registration_start_needs_the_password_and_the_per_user_budget_comes_fir
     let alice = server
         .first_setup_with_passkey(&mut device, "alice", USER_PASSWORD, "MacBook")
         .await;
-    // Reset the budget without a clock, so slow password hashing cannot roll a window over mid-test.
+    // Reset the budget by hand, so slow password hashing can't roll the window over mid-test.
     server.reset_budget(&alice.id);
 
     assert_error(
@@ -348,8 +348,8 @@ async fn registration_finish_stores_the_passkey_sends_the_mail_and_refuses_repla
 
 #[sqlx::test]
 async fn a_credential_id_that_already_exists_is_a_409_and_stores_nothing(pool: PgPool) {
-    // The store's uniqueness on `credential_id` (the same authenticator, or another user's) surfaces as a 409.
-    // The soft authenticator always creates a fresh key, so the store is told a row with that id exists.
+    // A duplicate credential_id (same authenticator, or another user's) is a 409. The soft authenticator always makes a
+    // fresh key, so the fake store is told a row with that id already exists.
     let (server, sabotage) = spawn_sabotaged(pool).await;
     server.new_user("alice").await;
     let alice = server
@@ -739,8 +739,8 @@ async fn backup_codes_can_be_regenerated_by_a_passkey_only_user_with_the_passwor
 
 #[sqlx::test]
 async fn a_failed_removal_still_leaves_the_sessions_dead_and_the_passkey_intact(pool: PgPool) {
-    // The epoch is bumped before the removal. If the removal then fails, the sessions are dead and the factor is
-    // intact (harmless), never the other way round (factor gone while a stolen session lives on).
+    // The epoch bump comes before the removal: if the removal fails, the sessions are dead and the factor intact, which is
+    // harmless. The reverse would leave a stolen session alive with the factor gone.
     let (server, sabotage) = spawn_sabotaged(pool).await;
     server.new_user("alice").await;
     let mut macbook = Device::new();

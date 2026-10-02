@@ -135,7 +135,7 @@ export class IssueList implements OnInit {
     source: () => [this.search(), this.sortValue(), this.direction(), this.tab(), this.filters.selectedLabelIds(), this.filters.selectedMilestoneId()],
     computation: () => 1,
   });
-  /** `page` clamped to the tab's page count: closing the only issue of the last page shrinks the tab under `page` and may unmount the pager, leaving an empty page. */
+  /** `page` clamped to the tab's page count. Closing the only issue of the last page shrinks the tab under `page` and may unmount the pager, leaving an empty page. */
   protected currentPage = computed(() => Math.min(this.page(), Math.max(1, Math.ceil(this.tabIssues().length / ISSUES_PAGE_SIZE))));
   protected rows = computed<IssueRow[]>(() => {
     const start = (this.currentPage() - 1) * ISSUES_PAGE_SIZE;
@@ -174,8 +174,8 @@ export class IssueList implements OnInit {
   protected titleError = computed(() => (this.titleTouched() && this.newTitle().trim() === '' ? 'Le titre est requis' : null));
 
   constructor() {
-    // Newest first: with tabs and pages, oldest-first would push new work to the last page. Set
-    // here, not in `createListToolbarState`, whose `asc` default the other lists keep.
+    // Newest first: with tabs and pages, oldest-first would bury new work on the last page. Set here, not in
+    // `createListToolbarState`, whose `asc` default the other lists keep.
     this.direction.set('desc');
   }
 
@@ -194,8 +194,8 @@ export class IssueList implements OnInit {
       },
       error: () => {
         this.loading.set(false);
-        // Already showing the failed card: a second failure gets a toast, since the alert itself
-        // does not re-announce (it was already there, unchanged).
+        // Already on the failed card: a second failure gets a toast, since the alert is unchanged and wouldn't be
+        // announced again.
         if (this.loadFailed()) {
           this.toast.show('Impossible de charger les tickets. Réessayez plus tard.', 'error');
         }

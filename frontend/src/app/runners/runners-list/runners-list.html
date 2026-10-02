@@ -19,7 +19,7 @@
           </div>
           <div class="runners-list__token-body">
             <p class="runners-list__token-usage">Donnez-le au runner dans la variable <code>FERRISGIT_RUNNER_TOKEN</code>.</p>
-            <!-- The token can be hidden (for example on a shared screen). The widget handles the copy, and its live region announces it. -->
+            <!-- The token can be hidden (say, on a shared screen). The widget handles the copy and its live region announces it. -->
             <gbt-secret-reveal
               class="runners-list__token-secret"
               [value]="r.token"
@@ -39,8 +39,8 @@
       </section>
     }
 
-    <!-- The card stays `ready` so its header (heading and count) names it in every state. The list card's own
-         loading, failed and empty states would replace that header. -->
+    <!-- Stays `ready` so the header (heading and count) names the card in every state. The list card's own loading,
+         failed and empty states would replace that header. -->
     <gbt-list-card ariaLabel="Runners enregistrés">
       <div list-card-header class="runners-list__band">
         <span class="runners-list__card-title">
@@ -55,7 +55,7 @@
       @if (!loaded()) {
         <gbt-skeleton-list [rows]="3" loadingLabel="Chargement des runners…" />
       } @else if (loadFailed()) {
-        <!-- The error toast announces it, so this alert stays silent (one announcement, not two). -->
+        <!-- The error toast announces it, so this alert stays silent: one announcement, not two. -->
         <gbt-alert class="runners-list__failed" variant="error" appearance="subtle" live="off">
           Impossible de charger les runners.
           <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retryLoad()" />
@@ -120,9 +120,9 @@
   </div>
 </gbt-page-layout>
 
-<!-- Created each time it opens and destroyed on close, so a closed dialog never keeps a draft. -->
+<!-- Rebuilt on every opening so a closed dialog never keeps a draft. -->
 @if (registerOpen()) {
-  <!-- The form wraps the whole dialog because the submit button lives in the footer slot, outside the body. -->
+  <!-- The form wraps the whole dialog because the submit button is in the footer slot, outside the body. -->
   <form (submit)="$event.preventDefault(); register()">
     <gbt-modal [isOpen]="true" heading="Enregistrer un runner" closeLabel="Fermer" [busy]="registering()" busyLabel="Enregistrement en cours" (closed)="closeRegister()">
       <div class="runners-list__register">

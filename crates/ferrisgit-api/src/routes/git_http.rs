@@ -13,7 +13,7 @@ use uuid::Uuid;
 use crate::git_auth::parse_basic_auth;
 use crate::state::AppState;
 
-/// Requires at least one segment (owner or group) before the `.git` segment.
+/// There has to be at least one segment (owner or group) before the `.git` one.
 fn find_git_segment(segments: &[&str]) -> Option<usize> {
     let idx = segments.iter().position(|s| s.ends_with(".git"))?;
     (idx > 0).then_some(idx)
@@ -24,14 +24,13 @@ pub fn is_git_request_path(path: &str) -> bool {
     find_git_segment(&segments).is_some()
 }
 
-/// The router's static body limit is only a ceiling. This enforces the admin-configured
-/// `max_push_size_mb`.
+/// The router's body limit is only a ceiling, this applies the admin's `max_push_size_mb`.
 fn exceeds_configured_limit(body_len: usize, max_push_size_mb: i32) -> bool {
     body_len > (max_push_size_mb as usize) * 1024 * 1024
 }
 
-/// The `info/refs?service=git-receive-pack` advertisement counts as a write so it is not
-/// readable anonymously on public repos.
+/// The `info/refs?service=git-receive-pack` advertisement counts as a write, so anonymous users can't read it on
+/// public repos.
 fn classify_access(rest: &str, query_string: &str) -> GitAccess {
     let is_receive_pack_info_refs =
         rest == "info/refs" && query_string.contains("service=git-receive-pack");
@@ -42,15 +41,14 @@ fn classify_access(rest: &str, query_string: &str) -> GitAccess {
     }
 }
 
-/// The smart-HTTP body is not parsed for ref updates, so any successful receive-pack
-/// triggers at most one pipeline for the repository's current `HEAD`.
+/// We don't parse the push body for ref updates, so any successful receive-pack triggers at most one pipeline,
+/// for the current `HEAD`.
 fn should_trigger_pipeline_creation(access: &GitAccess, rest: &str, status: u16) -> bool {
     matches!(access, GitAccess::Write) && rest.ends_with("git-receive-pack") && status == 200
 }
 
-/// Awaited before the git response is built so a client that pushes and immediately lists
-/// pipelines sees the new one, at the cost of delaying `git push` by the `HEAD` read and
-/// pipeline creation. Failures are logged and swallowed.
+/// Awaited before the git response goes out so a client that pushes and lists pipelines right away sees the new
+/// one. The price is a slightly slower `git push`. Failures are logged and swallowed.
 async fn trigger_pipeline_creation(
     state: &AppState,
     repo: &ferrisgit_domain::repository::Repository,
@@ -98,8 +96,8 @@ async fn trigger_pipeline_creation(
     }
 }
 
-/// The journal keeps the last-seen tip per source branch: a first sighting only stores it,
-/// a changed tip records the move. Failures are logged and swallowed.
+/// The journal keeps the last tip seen per source branch: the first sighting only stores it, a changed tip records
+/// the move. Failures are logged and swallowed.
 async fn record_pushed_commits(
     state: &AppState,
     repo: &ferrisgit_domain::repository::Repository,
@@ -165,24 +163,23 @@ async fn record_pushed_commits(
     }
 }
 
-/// Repoints the wiki's `HEAD` if a first push landed on a branch other than `main`.
-/// Failures are logged and swallowed.
+/// Repoints the wiki's `HEAD` if the first push landed on a branch other than `main`. Failures are logged and
+/// swallowed.
 async fn heal_wiki_head_after_push(state: &AppState, wiki_disk_path: &str) {
     if let Err(err) = state.wiki_writer.heal_dangling_head(wiki_disk_path).await {
         tracing::error!(error = %err, wiki_disk_path, "failed to heal a possibly-dangling wiki HEAD after push");
     }
 }
 
-/// Must run before `trigger_pipeline_creation`, which reads `HEAD`. A first push leaves it
-/// dangling.
+/// Has to run before `trigger_pipeline_creation`, which reads `HEAD`: a first push leaves it dangling.
 async fn heal_repo_head_after_push(state: &AppState, disk_path: &str) {
     if let Err(err) = state.git_backend.heal_dangling_head(disk_path).await {
         tracing::error!(error = %err, disk_path, "failed to heal a possibly-dangling repository HEAD after push");
     }
 }
 
-/// Infrastructure failures give a 500 without a challenge; every other variant is a uniform
-/// 401 so the failing check is never revealed.
+/// Infrastructure failures are a 500 with no challenge. Everything else is the same 401, so the failing check
+/// isn't revealed.
 fn map_auth_error(err: &DomainError) -> Response {
     match err {
         DomainError::Infrastructure(msg) => {
@@ -223,8 +220,7 @@ pub async fn git_smart_http(state: AppState, req: axum::extract::Request) -> Res
         }
     };
 
-    // The permit is held only while buffering: it caps pre-auth memory exposure, not
-    // authenticated throughput.
+    // Held only while buffering: it caps memory used before auth, not authenticated throughput.
     let permit = state.git_body_semaphore.clone().acquire_owned().await;
     let body_bytes = axum::body::to_bytes(body, MAX_BUFFERED_GIT_BODY_MB * 1024 * 1024).await;
     drop(permit);
@@ -264,8 +260,8 @@ pub async fn git_smart_http(state: AppState, req: axum::extract::Request) -> Res
             repository,
             ..
         }) => repository,
-        // Group paths and unresolvable paths get the same 401 as any auth failure so existence
-        // is never revealed.
+        // A path that is a group, or doesn't resolve, gets the same 401 as any auth failure so existence isn't
+        // revealed.
         _ => return map_auth_error(&DomainError::NotFound("repository".to_string())),
     };
 
@@ -354,7 +350,7 @@ pub async fn git_smart_http(state: AppState, req: axum::extract::Request) -> Res
                     record_pushed_commits(&state, &repo, pusher_id).await;
                 }
             }
-            // `should_trigger_pipeline_creation` here just means "successful git-receive-pack write"
+            // Despite the name, for a wiki this only means a successful receive-pack.
             if is_wiki && should_trigger_pipeline_creation(&access, &rest, response.status) {
                 heal_wiki_head_after_push(&state, &disk_path).await;
             }
@@ -380,13 +376,12 @@ pub async fn git_smart_http(state: AppState, req: axum::extract::Request) -> Res
     }
 }
 
-/// Static ceiling on a buffered body, in MiB. It is the only limit applied before
-/// authentication (axum buffers the whole body), so it must stay close to a realistic
-/// maximum. Pushes above it get 413 regardless of `max_push_size_mb`. A Content-Length
-/// pre-check would not help: git clients send large pushes chunked.
+/// Ceiling on a buffered body, in MiB. It's the only limit before authentication (axum buffers the whole body),
+/// so keep it near a realistic maximum. Bigger pushes get a 413 whatever `max_push_size_mb` says. Checking
+/// Content-Length instead wouldn't help, git clients send large pushes chunked.
 const MAX_BUFFERED_GIT_BODY_MB: usize = 600;
 
-/// Caps concurrent pre-auth body buffers. Eight at the ceiling is about 4.7 GiB in the worst case.
+/// Caps the body buffers held before auth. Eight at the ceiling is about 4.7 GiB worst case.
 pub const MAX_CONCURRENT_GIT_BODY_BUFFERS: usize = 8;
 
 #[cfg(test)]
@@ -503,7 +498,7 @@ mod git_http_tests {
         ));
     }
 
-    /// 500 MiB is the `max_push_size_mb` default.
+    /// 500 is the `max_push_size_mb` default.
     #[test]
     fn the_static_body_ceiling_stays_a_safety_net_just_above_the_default_configurable_limit() {
         const DEFAULT_MAX_PUSH_SIZE_MB: usize = 500;

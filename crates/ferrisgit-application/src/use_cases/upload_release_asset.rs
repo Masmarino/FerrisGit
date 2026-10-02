@@ -21,8 +21,7 @@ impl UploadReleaseAssetUseCase {
         }
     }
 
-    /// The asset id is generated once and used for both the on-disk file name and the row's primary key, so file and
-    /// row share one identity.
+    /// One generated id is used for both the file on disk and the row.
     #[allow(clippy::too_many_arguments)]
     pub async fn execute(
         &self,

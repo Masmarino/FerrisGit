@@ -35,8 +35,7 @@ impl CancelPipelineUseCase {
             .find_by_id(pipeline_id)
             .await?
             .ok_or_else(|| DomainError::NotFound("pipeline".to_string()))?;
-        // Terminal statuses are final (like `JobStorePort::update_status`): otherwise canceling a finished pipeline
-        // would discard its real outcome.
+        // A finished status is final, or canceling would overwrite the real outcome.
         if matches!(
             pipeline.status,
             PipelineStatus::Success | PipelineStatus::Failed | PipelineStatus::Canceled
@@ -96,7 +95,7 @@ mod tests {
         events: Arc<FakeEvents>,
     }
 
-    /// Both engines share one `FakeExecution`, so `execution.canceled()` lists every canceled job.
+    /// Both engines share one `FakeExecution`, so `canceled()` lists every canceled job.
     fn fixture(pipeline: Pipeline, jobs: Vec<Job>) -> Fixture {
         let pipelines = Arc::new(FakePipelines::new(vec![pipeline]));
         let jobs = Arc::new(FakeJobs::new(jobs));
@@ -257,8 +256,7 @@ mod tests {
         ] {
             let pipeline = pipeline(Uuid::new_v4(), terminal_status);
             let pipeline_id = pipeline.id;
-            // A non-terminal job under a finished pipeline is an inconsistency, but it shows that the guard checks the
-            // pipeline's status and returns before touching any job.
+            // A running job under a finished pipeline is inconsistent, but proves the guard returns before touching jobs.
             let running_job = job(pipeline_id, JobStatus::Running);
             let f = fixture(pipeline, vec![running_job.clone()]);
 

@@ -3,8 +3,8 @@
   display: block;
 }
 
-// Gutter and code share one font size and line height, so each number sits level with its line.
-// Only the code column scrolls sideways, and the gutter stays put.
+// Gutter and code share one font size and line height so each number sits level with its line. Only the code column
+// scrolls sideways; the gutter stays put.
 
 $code-font-size: 0.8125rem;
 $code-line-height: 1.25rem;
@@ -47,8 +47,8 @@ $code-padding-block: 0.75rem;
     outline-offset: -2px;
   }
 
-  // The highlighted block grows to its longest line (so the right padding survives the scroll) and
-  // takes the card's colours rather than the theme's white box.
+  // Grow to the longest line so the right padding survives the scroll, and take the card's colours instead of the
+  // theme's white box.
   code.hljs {
     display: block;
     box-sizing: border-box;
@@ -61,8 +61,8 @@ $code-padding-block: 0.75rem;
   }
 }
 
-// The global highlight.js theme (`github.css`) is light only: dark-on-white tokens would be
-// unreadable on the dark card. Same hues as GitHub's dark theme.
+// The global highlight.js theme (github.css) is light only and its tokens would be unreadable on a dark card. These
+// are GitHub's dark hues.
 
 @media (prefers-color-scheme: dark) {
   :host ::ng-deep {

@@ -31,14 +31,14 @@ export class SecuritySettings {
   protected seoIndexingShown = linkedSignal(() => this.settings().seoIndexingEnabled);
 
   protected readonly maxPushSizeFormat = (mb: number): string => `${mb} Mio`;
-  // `gbt-slider` emits `ngModelChange` on every drag tick, unlike `GbtInput`'s `committed`. Debounce so there is one PUT once dragging settles.
+  // `gbt-slider` emits `ngModelChange` on every drag tick, unlike GbtInput's `committed`. Debounce so one PUT goes out once dragging settles.
   private maxPushSizeInput$ = new Subject<number>();
 
   constructor() {
     this.maxPushSizeInput$.pipe(debounceTime(400), takeUntilDestroyed(inject(DestroyRef))).subscribe((mb) => this.setMaxPushSizeMb(mb));
   }
 
-  /** Called on blur (see `GbtInput.committed`); the unchanged-value guard skips the PUT for a blur that edited nothing. */
+  /** Called on blur (see `GbtInput.committed`). The unchanged-value guard skips the PUT for a blur that edited nothing. */
   protected setJwtTtlHours(value: string): void {
     const trimmed = value.trim();
     const hours = Number(trimmed);

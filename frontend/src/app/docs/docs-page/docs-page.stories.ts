@@ -6,11 +6,11 @@ import { atPhoneWidth, inDarkTheme, inShellContentArea, withFerrisgitIcons } fro
 import { withDocs } from '../docs-story-fixtures';
 import { FAILING_DOCS, fakeDocsService, LOADING_DOCS } from '../docs-fixtures';
 
-// `DocsPage` reads its section and page from the route, so the stories render it through the docs routes.
+// DocsPage reads its section and page from the route, so the stories render it through the docs routes.
 @Component({ selector: 'fg-docs-route', standalone: true, imports: [RouterOutlet], template: '<router-outlet />' })
 class DocsRoute {}
 
-/** Real-layout checks jsdom cannot make: nothing overflows the frame, the article stays inside it. */
+/** Layout checks jsdom can't do: nothing overflows the frame and the article stays inside it. */
 async function expectDocsLayout({ canvasElement }: { canvasElement: HTMLElement }) {
   const article = await waitFor(() => {
     const found = canvasElement.querySelector('.docs-page__article');

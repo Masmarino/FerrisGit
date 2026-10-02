@@ -1,5 +1,5 @@
-//! Every complete pipeline shown in the documentation (a fenced block tagged `yaml ferrisgit-ci`) must be accepted by the
-//! real parser, so the examples cannot drift from what FerrisGit actually runs.
+//! Every pipeline example in the docs (a fenced block tagged `yaml ferrisgit-ci`) has to parse with the real parser, so
+//! the docs can't drift from what FerrisGit actually runs.
 
 use std::fs;
 use std::path::{Path, PathBuf};

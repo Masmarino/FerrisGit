@@ -14,6 +14,12 @@
       "port": 4201
     },
     {
+      "name": "website",
+      "runtimeExecutable": "python3",
+      "runtimeArgs": ["-m", "http.server", "4300", "--directory", "website/dist/ferrisgit-website/browser"],
+      "port": 4300
+    },
+    {
       "name": "storybook",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["--prefix", "frontend", "run", "storybook"],

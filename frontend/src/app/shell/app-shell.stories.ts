@@ -18,12 +18,12 @@ import { SidebarCollapseService } from './sidebar-collapse.service';
 import { provideFerrisgitIcons } from '../shared/register-icons';
 import { GbtToastService } from '@masmarino/gabarit';
 
-// `provideRouter` and `provideFerrisgitIcons` return EnvironmentProviders, so they go in `applicationConfig`, not `moduleMetadata`.
-// Routing is disabled (no pages exist here); the active-link story resolves one catch-all route.
+// Environment providers only work in `applicationConfig`, not `moduleMetadata`.
+// Routing is off (there are no pages here); the active-link story resolves one catch-all route.
 @Component({ selector: 'fg-story-blank', template: '', standalone: true })
 class BlankPage {}
 
-// `provideLocationMocks` keeps navigation off the real browser URL, so reloading the story still works.
+// Mock locations keep navigation off the real URL, so reloading the story still works.
 const withActiveRoute = applicationConfig({
   providers: [
     provideLocationMocks(),
@@ -142,7 +142,7 @@ export const AdminGroupCollapsed: Story = {
   decorators: [moduleMetadata({ providers: shellProviders({ me: ADMIN, title: 'Accueil' }) })],
 };
 
-// The Admin group only opens by itself under /admin (routing is disabled here), so the story toggles it.
+// The Admin group only opens by itself under /admin and routing is off, so the story toggles it.
 export const AdminGroupExpanded: Story = {
   decorators: [moduleMetadata({ providers: shellProviders({ me: ADMIN, title: 'Réglages' }) })],
   play: async ({ canvasElement }) => {
@@ -184,7 +184,7 @@ export const UserMenuOpen: Story = {
   },
 };
 
-// `routerLinkActive` only reacts to a resolved navigation, so this story navigates before the shell renders.
+// routerLinkActive needs a finished navigation, hence the navigate before render.
 export const ActiveNavItem: Story = {
   decorators: [
     withActiveRoute,

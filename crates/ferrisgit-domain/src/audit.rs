@@ -41,8 +41,7 @@ pub enum SecurityEvent {
     AdminRevoked {
         target_user_id: Uuid,
     },
-    /// The account row is gone once this is read: the event itself keeps who it was and which personal repositories
-    /// were destroyed with it.
+    /// The account row is gone by the time this is read, so the event keeps who it was and which personal repos went with it.
     UserDeletedByAdmin {
         target_user_id: Uuid,
         username: String,

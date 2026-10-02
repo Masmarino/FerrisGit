@@ -12,8 +12,7 @@ pub enum DomainError {
     RateLimited(String),
     #[error("infrastructure error: {0}")]
     Infrastructure(String),
-    /// A feature that is switched off by the deployment's configuration (for example passkeys with an IP-literal public
-    /// URL). Not a fault, and not the caller's doing. The API answers 503.
+    /// A feature switched off by deployment config, e.g. passkeys with an IP-literal public URL. Answered as 503.
     #[error("service unavailable: {0}")]
     ServiceUnavailable(String),
 }

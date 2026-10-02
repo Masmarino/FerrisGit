@@ -23,12 +23,12 @@ services:
     environment:
       DATABASE_URL: postgres://ferrisgit:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD must be set}@postgres:5432/ferrisgit
       JWT_SECRET: ${JWT_SECRET:?JWT_SECRET must be set}
-      # Exactly 32 characters. It cannot be rotated: see the README (Configuration).
+      # Exactly 32 characters, and it can't be rotated (see the README, Configuration).
       SETTINGS_ENCRYPTION_KEY: ${SETTINGS_ENCRYPTION_KEY:?SETTINGS_ENCRYPTION_KEY must be set}
-      # The server refuses to start without PUBLIC_URL. Compose is the local stack, so it has a default: that also lets
-      # `docker compose` commands run without it, even for the database alone.
+      # The server won't start without PUBLIC_URL. This is the local stack, so it gets a default, which also lets
+      # docker compose commands run without it, even for the database alone.
       PUBLIC_URL: ${PUBLIC_URL:-http://localhost:8080}
-      # CIDRs of the reverse proxy in front of this container, if any (see the README). Empty: X-Forwarded-For is ignored.
+      # CIDRs of the reverse proxy in front of this container, if any (see the README). Empty means X-Forwarded-For is ignored.
       TRUSTED_PROXY_CIDRS: ${TRUSTED_PROXY_CIDRS:-}
       STORAGE_ROOT: /data
       BIND_ADDR: 0.0.0.0:8080

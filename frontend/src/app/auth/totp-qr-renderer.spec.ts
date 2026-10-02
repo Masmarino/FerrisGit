@@ -1,6 +1,6 @@
 import { qrToDataUrl, renderTotpQr } from './totp-qr-renderer';
 
-// jsdom has no canvas, so the package is mocked. What matters here is what it gets called with.
+// jsdom has no canvas, so the package is mocked; what we check is how it's called.
 const toDataURL = vi.hoisted(() => vi.fn());
 vi.mock('qrcode', () => ({ toDataURL }));
 

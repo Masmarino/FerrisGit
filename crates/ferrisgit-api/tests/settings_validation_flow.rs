@@ -5,7 +5,7 @@ use common::http::{login, put};
 use serde_json::json;
 use sqlx::PgPool;
 
-/// `jwtTtlHours` must reject values that expire tokens immediately or make them as good as permanent (every session derives its lifetime from it).
+/// `jwtTtlHours` rejects values that expire tokens at once or make them practically permanent, since every session's lifetime comes from it.
 #[sqlx::test]
 async fn admin_settings_rejects_a_jwt_ttl_hours_outside_the_valid_range(pool: PgPool) {
     let addr = common::spawn_app(pool).await.addr;

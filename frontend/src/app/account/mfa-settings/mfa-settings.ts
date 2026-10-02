@@ -4,10 +4,9 @@ import { MfaSettings as GbtMfaSettings } from '@masmarino/gabarit';
 import { AuthService } from '../../auth/auth.service';
 
 /**
- * Removing the app revokes this session on the server. MFA is mandatory, so no fresh token comes back. On
- * `sessionRevoked` the local session is dropped and the user goes to the sign-in page, where they must enrol again
- * unless a passkey remains. The card goes inert on its own but can't clear the stored token, so this binding is what
- * signs the user out.
+ * Removing the app revokes this session on the server and, MFA being mandatory, no fresh token comes back. On
+ * `sessionRevoked` we drop the local session and go to sign-in, where the user enrols again unless a passkey remains.
+ * The card goes inert by itself but can't clear the stored token, so this binding does the sign-out.
  */
 @Component({
   selector: 'fg-mfa-settings',

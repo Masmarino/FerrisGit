@@ -5,8 +5,8 @@ use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::user::{PasswordHasherPort, UserRepositoryPort};
 use uuid::Uuid;
 
-/// A real argon2 hash, so an unknown username costs the same argon2 run as a wrong password. Otherwise the timing would
-/// reveal which usernames exist.
+/// A real argon2 hash, so an unknown username costs the same as a wrong password. Otherwise timing reveals which
+/// usernames exist.
 const DUMMY_PASSWORD_HASH: &str =
     "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHQ$RdescudvJCsgt3ub+b+dWRWJTmaaJObG";
 
@@ -29,13 +29,11 @@ impl LoginUseCase {
         }
     }
 
-    /// Verifies credentials only and returns the user's id. Session/MFA-token issuance and `LoginSucceeded` are the
-    /// caller's job.
+    /// Only checks credentials and returns the user's id. Issuing the session or MFA token is the caller's job.
     pub async fn execute(&self, username: &str, password: &str) -> Result<Uuid, DomainError> {
         let mut user = self.users.find_by_username(username).await?;
-        // Usernames are stored trimmed and lower-cased. The exact lookup comes first so legacy mixed-case accounts keep
-        // working. The fallback is unambiguous since new accounts are unique case-insensitively. The verify below still
-        // runs exactly once.
+        // Usernames are stored trimmed and lower-cased. Try the exact name first so legacy mixed-case accounts keep
+        // working, then the normalised one. That's unambiguous, new names being unique case-insensitively.
         if user.is_none() {
             let normalised = username.trim().to_lowercase();
             if normalised != username {
@@ -58,8 +56,8 @@ impl LoginUseCase {
                 .await
                 .map_err(|e| DomainError::Infrastructure(e.to_string()))??;
 
-        // Captured before `user.filter(..)` consumes the option: a known username with a wrong password keeps its
-        // real id as the audit `actor_id` (filterable per account for brute-force detection).
+        // Grab the id before `filter` consumes the user: a wrong password on a known username keeps its real id in the
+        // audit event, which makes brute force filterable per account.
         let user_id_if_known = user.as_ref().map(|u| u.id);
 
         let Some(user) = user.filter(|_| is_valid) else {
@@ -89,7 +87,7 @@ mod tests {
     use ferrisgit_domain::user::User;
     use std::sync::atomic::{AtomicUsize, Ordering};
 
-    /// Counts `verify` calls, to check that the dummy-hash path calls the hasher.
+    /// Counts `verify` calls.
     struct CountingHasher(AtomicUsize);
     impl PasswordHasherPort for CountingHasher {
         fn hash(&self, plain: &str) -> Result<String, DomainError> {
@@ -101,7 +99,6 @@ mod tests {
         }
     }
 
-    /// An account whose password is `password`, as `FakeHasher` and `CountingHasher` hash it.
     fn account(username: &str, password: &str) -> User {
         User {
             password_hash: format!("hashed:{password}"),
@@ -171,8 +168,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_hasher_is_invoked_exactly_once_for_both_known_and_unknown_usernames() {
-        // `FakeHasher::verify` is too cheap for a timing test to mean anything, so this only checks that the dummy-hash
-        // branch still calls the hasher.
+        // The fake hasher is too cheap to time, so this only checks the dummy-hash branch still calls the hasher.
         let (use_case, hasher, _) =
             use_case_with_counting_hasher(vec![account("florian", "secret")]);
 

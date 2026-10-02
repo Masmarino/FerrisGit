@@ -19,7 +19,7 @@ const file = (name: string): TreeEntry => ({ name, isDir: false, lastCommit: nul
 
 describe('RepositoryBlobView', () => {
   function setup(blobPath: string[] = ['README.md'], ref = 'main') {
-    // A wildcard route lets `router.navigate(...)` resolve (see `branch-switcher.spec.ts`).
+    // Wildcard route so router.navigate() resolves, as in branch-switcher.spec.ts.
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([{ path: '**', component: DummyRoutedComponent }])] });
     const fixture = TestBed.createComponent(RepositoryBlobView);
     fixture.componentRef.setInput('repositoryId', 'repo-1');
@@ -32,16 +32,15 @@ describe('RepositoryBlobView', () => {
     TestBed.inject(HttpTestingController).verify();
   });
 
-  // Flushes every request still open. Run it after the `detectChanges()` that follows the `getById` flush,
-  // because only then has `RepositoryHeader` rendered its `BranchSwitcher`. Missing its requests would make
-  // `verify()` fail in `afterEach`.
+  // Flushes every open request. Call it after the detectChanges() that follows the getById flush: only
+  // then has RepositoryHeader rendered its BranchSwitcher. Missing its requests fails verify() in afterEach.
   function flushRepo(http: HttpTestingController, fixture: ComponentFixture<RepositoryBlobView>) {
     http.expectOne(API).flush(REPO);
     fixture.detectChanges();
     sweep(http);
   }
 
-  // `getLanguages` resolves to `{ languages: [...] }`, not a bare array like the other swept endpoints.
+  // getLanguages answers `{ languages: [...] }`, not a bare array like the other endpoints.
   function sweep(http: HttpTestingController) {
     http.match(() => true).forEach((req) => req.flush(req.request.url.includes('/languages/') ? { languages: [] } : []));
   }
@@ -50,9 +49,8 @@ describe('RepositoryBlobView', () => {
     http.expectOne(`${API}/blob/${ref}/${path}`).flush(body);
   }
 
-  // The page only needs names and kinds from a tree listing (navigator levels, the file-or-folder check),
-  // not each entry's last commit. Every tree request must carry `lastCommit=false`, or the server walks up
-  // to 200 commits per entry for nothing.
+  // The page only needs names and kinds from a tree listing, not each entry's last commit. Every tree
+  // request must carry lastCommit=false, or the server walks up to 200 commits per entry for nothing.
   const treeRequest = (path: string, ref = 'main') => (req: HttpRequest<unknown>) =>
     req.url === `${API}/tree/${ref}${path ? `/${path}` : ''}` && req.params.get('lastCommit') === 'false';
 
@@ -131,12 +129,12 @@ describe('RepositoryBlobView', () => {
     it('redirects to the equivalent tree route when the blob path is actually a directory', async () => {
       const { fixture, http, router } = setup(['src']);
       fixture.detectChanges();
-      // Flush `getById` directly, without the catch-all that would empty-flush the `tree` request asserted below.
+      // Flush getById directly: the catch-all would empty-flush the tree request asserted below.
       http.expectOne(API).flush(REPO);
       http.expectOne(`${API}/blob/main/src`).flush('not found', { status: 404, statusText: 'Not Found' });
       http.expectOne(treeRequest('src')).flush([{ name: 'main.rs', isDir: false, lastCommit: null }]);
       await fixture.whenStable();
-      // Change detection after the navigation mounts `BranchSwitcher`, so flush its `listBranches`/`listTags` requests too.
+      // Change detection after the navigation mounts BranchSwitcher, so flush its listBranches/listTags requests too.
       sweep(http);
 
       expect(router.url).toBe('/repositories/alice/hello/-/tree/main/src');
@@ -169,7 +167,7 @@ describe('RepositoryBlobView', () => {
       const failed = el(fixture).querySelector('gbt-alert .gbt-alert');
       expect(failed?.textContent).toContain("Le fichier n'a pas pu être chargé");
       expect(failed?.textContent).toContain('Réessayez dans un instant.');
-      // The toast announces it, so the message in the card stays silent (one live region, not two).
+      // The toast announces it, so the message in the card stays silent.
       expect(failed?.getAttribute('data-variant')).toBe('error');
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
@@ -225,8 +223,8 @@ describe('RepositoryBlobView', () => {
 
     describe('Copier', () => {
       let writeText: ReturnType<typeof vi.fn>;
-      // jsdom has no clipboard. The stub is an own property of `navigator` and is restored exactly, since spec files
-      // share one global scope.
+      // jsdom has no clipboard. The stub goes on navigator and is restored exactly, since spec files share
+      // one global scope.
       let savedClipboard: PropertyDescriptor | undefined;
 
       beforeEach(() => {
@@ -300,7 +298,7 @@ describe('RepositoryBlobView', () => {
         const status = el(fixture).querySelector('gbt-copy-button [role="status"]') as HTMLElement;
         expect(status.textContent?.trim()).toBe('Copie impossible, contenu sélectionné');
         expect(window.getSelection()?.toString().replace(/\s+/g, ' ').trim()).toBe('fn main() {}');
-        // A refusal asks the user to act: it stays twice as long as a success.
+        // A refusal needs the user to act, so it stays twice as long as a success.
         await vi.advanceTimersByTimeAsync(3999);
         fixture.detectChanges();
         expect(status.textContent?.trim()).toBe('Copie impossible, contenu sélectionné');

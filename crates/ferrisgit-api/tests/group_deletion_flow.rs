@@ -121,7 +121,7 @@ async fn a_contributor_member_cannot_delete_a_group(pool: PgPool) {
     )
     .await
     .status();
-    // `add_member` returns a bare `Result<(), ApiError>`, which axum renders as 200, not 204.
+    // add_member returns a bare Result<(), ApiError>, which axum renders as 200, not 204.
     assert_eq!(status, 200);
     let contributor_jwt = login(&client, addr, "contributor", "password12345").await;
 

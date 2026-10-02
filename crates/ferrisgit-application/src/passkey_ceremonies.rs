@@ -1,11 +1,10 @@
 //! In-progress WebAuthn ceremonies between `start` and `finish`.
 //!
-//! Kept in memory, not persisted: a restart mid-ceremony only makes the client retry (there is a single replica). Each
-//! ceremony is single use, bound to the user and lives five minutes. The store is capped per user and in total because
-//! the login-time `start` routes are unauthenticated. Past a cap, the oldest ceremony is dropped.
+//! Kept in memory: there's a single replica, so a restart mid-ceremony just makes the client retry. A ceremony is single
+//! use, bound to its user and lives five minutes. The store is capped per user and in total because the login `start`
+//! routes are unauthenticated, and past a cap the oldest ceremony goes.
 //!
-//! Nothing here may panic or spin. A dangling entry (for example after a recovered poisoned lock) is dropped and
-//! skipped rather than trusted.
+//! Nothing in here may panic or spin: a dangling entry, say after a recovered poisoned lock, is dropped, not trusted.
 
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Mutex;
@@ -51,8 +50,8 @@ impl Ceremonies {
         Some(entry)
     }
 
-    /// Insertion order is only an optimisation for the sweep (it stops at the first live entry): `take_at`
-    /// checks the taken entry's own expiry, so correctness never depends on that order.
+    /// Insertion order only lets the sweep stop at the first live entry. `take_at` checks the entry's own expiry, so
+    /// correctness doesn't depend on it.
     fn drop_expired(&mut self, now: DateTime<Utc>) {
         while let Some((seq, challenge_id)) = self.by_age.iter().next().map(|(seq, id)| (*seq, *id))
         {
@@ -76,7 +75,7 @@ impl Ceremonies {
             }
             self.by_age.remove(&seq);
         }
-        // Entries without any age bookkeeping cannot be ordered: better none than an unbounded store.
+        // Entries with no age record can't be ordered, and an unbounded store is worse than an empty one.
         let had_orphans = !self.entries.is_empty();
         self.entries.clear();
         self.per_user.clear();
@@ -128,7 +127,7 @@ impl PasskeyCeremonies {
         )
     }
 
-    /// Both caps are clamped to at least 1: a zero cap could never be satisfied.
+    /// Both caps are at least 1, since a zero cap could never be satisfied.
     pub fn with_limits(ttl: Duration, max_total: usize, max_per_user: usize) -> Self {
         Self {
             ceremonies: Mutex::new(Ceremonies::default()),
@@ -148,7 +147,7 @@ impl PasskeyCeremonies {
         self.put_at(user_id, state, Utc::now())
     }
 
-    /// Single use, like a nonce; another user's attempt leaves the ceremony for its owner.
+    /// Single use, like a nonce. Another user's attempt leaves the ceremony for its owner.
     pub fn take(&self, challenge_id: Uuid, user_id: Uuid) -> Option<CeremonyState> {
         self.take_at(challenge_id, user_id, Utc::now())
     }
@@ -197,7 +196,7 @@ impl PasskeyCeremonies {
         ceremonies.drop_expired(now);
         let entry = ceremonies.entries.get(&challenge_id)?;
         if entry.expires_at <= now {
-            // Past its own expiry although an older ceremony held the sweep back (the clock stepped back).
+            // Expired although an older ceremony held the sweep back, which happens when the clock steps back.
             ceremonies.remove(challenge_id);
             return None;
         }
@@ -432,7 +431,7 @@ mod tests {
         let t0 = Utc::now();
         let (first_user, second_user) = (Uuid::new_v4(), Uuid::new_v4());
         let first = store.put_at(first_user, state(), t0);
-        // The clock stepped back 3 minutes: the ceremony stored second expires (t0 + 2 min) before the first one.
+        // The clock stepped back 3 minutes, so the second ceremony expires (t0 + 2 min) before the first.
         let second = store.put_at(second_user, state(), t0 - Duration::minutes(3));
 
         assert!(
@@ -502,7 +501,7 @@ mod tests {
         store.put(Uuid::new_v4(), state());
         let last = store.put(user, state());
 
-        let _ = (a, b); // whatever the healing dropped, nothing may panic and the newest must be takeable
+        let _ = (a, b); // whatever got dropped, nothing may panic and the newest has to be takeable
         assert!(store.take(last, user).is_some());
         assert!(store.len() <= 3);
         let inner = store.lock();

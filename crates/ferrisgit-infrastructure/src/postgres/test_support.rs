@@ -2,7 +2,7 @@ use chrono::{DateTime, Duration, Utc};
 use sqlx::PgPool;
 use uuid::Uuid;
 
-/// Inserts a bare user row (no password worth guessing) and returns its id.
+/// A bare user row, no password worth guessing.
 pub(crate) async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
     let id = Uuid::new_v4();
     sqlx::query!(
@@ -18,7 +18,6 @@ pub(crate) async fn seed_user(pool: &PgPool, username: &str) -> Uuid {
     id
 }
 
-/// Inserts a private repository owned by `owner_id` and returns its id.
 pub(crate) async fn seed_repository(pool: &PgPool, owner_id: Uuid, name: &str) -> Uuid {
     let id = Uuid::new_v4();
     sqlx::query!(

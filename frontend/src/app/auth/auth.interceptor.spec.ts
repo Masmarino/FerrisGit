@@ -69,7 +69,7 @@ describe('authInterceptor', () => {
       http.get('/api/notifications').subscribe({ error: () => {} });
       const late = httpTesting.expectOne('/api/notifications');
       expect(late.request.headers.get('Authorization')).toBe('Bearer old');
-      auth.setToken('new'); // for example, the password change handing back a fresh session
+      auth.setToken('new'); // e.g. a password change handing back a fresh session
       late.flush('unauthorized', unauthorized);
 
       expect(logoutSpy).not.toHaveBeenCalled();

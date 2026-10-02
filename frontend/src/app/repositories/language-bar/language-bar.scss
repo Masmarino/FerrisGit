@@ -2,7 +2,7 @@
   display: block;
 }
 
-// Hairline gaps keep neighbouring colours apart. Each segment keeps a few pixels so a 0.1 % language stays visible.
+// Hairline gaps between colours, and a few pixels minimum per segment so a 0.1 % language stays visible.
 .language-bar__segments {
   display: flex;
   gap: 2px;

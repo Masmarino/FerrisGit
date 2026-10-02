@@ -67,7 +67,7 @@
                     par <span class="merge-request-list__author">Utilisateur supprimé</span>
                   }
                 </span>
-                <!-- Each separator belongs to the segment after it, so a wrapped line does not end on a dangling "·". -->
+                <!-- The separator belongs to the segment after it, so a wrapped line never ends on a dangling "·". -->
                 @if (row.ended; as ended) {
                   <span class="merge-request-list__when">
                     <span aria-hidden="true"> · </span>{{ ended.verb }} <time [attr.datetime]="ended.at" [title]="ended.at | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ ended.at | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
@@ -80,7 +80,7 @@
                 }
               </span>
 
-              <!-- Only open merge requests can be closed or merged, so all rows in a tab share the same trailing actions. Merging also takes the Maintainer role. -->
+              <!-- Only open merge requests can be closed or merged, so every row in a tab has the same trailing actions. Merging also needs the Maintainer role. -->
               @if (canWrite() && row.mergeRequest.status === 'open') {
                 <span row-trailing class="merge-request-list__trailing">
                   <gbt-menu class="merge-request-list__menu" [label]="row.menuLabel" triggerIcon="ellipsis-vertical" align="end">
@@ -176,9 +176,9 @@
   }
 </gbt-page-layout>
 
-<!-- Closing it drops the draft, and a failed creation keeps it open with the draft. The form is rebuilt each time it opens. -->
+<!-- Rebuilt on each opening, so closing drops the draft. A failed creation keeps it open with the draft. -->
 @if (createOpen()) {
-  <!-- The form wraps the whole dialog because the submit button sits in the footer slot, outside the body. -->
+  <!-- The form wraps the whole dialog because the submit button is in the footer slot, outside the body. -->
   <form (submit)="$event.preventDefault(); createMergeRequest()">
     <gbt-modal [isOpen]="true" heading="Nouvelle demande de fusion" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="closeCreate()">
       <div class="merge-request-list__create-form">

@@ -4,7 +4,7 @@ import { ReleaseDetail, ReleasesService, ReleaseSummary, TagSummary } from '../r
 
 const BASE = '/api/public/repositories';
 
-/** The read side of `ReleasesService` under `/api/public`, for the release pages and the branch switcher on the public routes. */
+/** The read side of `ReleasesService` under `/api/public`, for the release pages and branch switcher on public routes. */
 @Injectable({ providedIn: 'root' })
 export class PublicReleasesService implements Pick<ReleasesService, 'listTags' | 'list' | 'detail' | 'downloadAsset'> {
   private http = inject(HttpClient);

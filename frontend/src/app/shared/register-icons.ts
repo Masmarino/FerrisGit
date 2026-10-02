@@ -1,7 +1,7 @@
 import { inject, provideAppInitializer } from '@angular/core';
 import { IconRegistry } from '@masmarino/gabarit';
 
-/** The icons Gabarit does not ship. `search` is also in Gabarit's set; this one overrides it for a different stroke. */
+/** The icons Gabarit doesn't ship. `search` is in its set too; ours overrides it with a different stroke. */
 const FERRISGIT_ICONS: Record<string, string> = {
   'folder-git-2': `<path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/><circle cx="13" cy="13" r="2"/><path d="M13 15v3"/>`,
   search: `<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>`,
@@ -10,7 +10,7 @@ const FERRISGIT_ICONS: Record<string, string> = {
   'git-merge': `<circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M6 21V9a9 9 0 0 0 9 9"/>`,
   'git-branch': `<line x1="6" x2="6" y1="3" y2="15"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/>`,
   github: `<path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/>`,
-  // Issue statuses: a ring that fills up (to do, in progress, in review, done).
+  // Issue statuses: a ring that fills up from to do to done.
   'circle-half': `<circle cx="12" cy="12" r="10"/><path d="M12 12V6a6 6 0 0 1 0 12z" fill="currentColor" stroke="none"/>`,
   'circle-three-quarters': `<circle cx="12" cy="12" r="10"/><path d="M12 12V6a6 6 0 1 1-6 6z" fill="currentColor" stroke="none"/>`,
   'git-pull-request-closed': `<circle cx="6" cy="6" r="3"/><path d="M6 9v12"/><path d="m21 3-6 6"/><path d="m21 9-6-6"/><path d="M18 11.5V15"/><circle cx="18" cy="18" r="3"/>`,

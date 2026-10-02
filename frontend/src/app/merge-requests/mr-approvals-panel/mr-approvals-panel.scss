@@ -1,6 +1,6 @@
 @use '../../shared/layout/list-page';
 
-// Flat content for a ~300px side panel: the hosting `gbt-panel` draws the heading and separators, so there is no card.
+// Flat content for a ~300px side panel; the hosting gbt-panel draws the heading and separators, so no card.
 
 :host {
   display: block;
@@ -12,7 +12,7 @@
   gap: 0.75rem;
 }
 
-// Gabarit gap: the alert is sized for a page column. In the panel it keeps its tint and icon but gets a little tighter.
+// Gabarit gap: the alert is sized for a page column, so tighten it for the panel.
 .mr-approvals__alert ::ng-deep {
   .gbt-alert {
     gap: 0.5rem;
@@ -82,8 +82,8 @@
   font-size: 0.8125rem;
 }
 
-// Side by side when they fit; in a 300px aside they wrap, and each then fills its row, so the two
-// read as a pair of equal-width actions rather than two ragged buttons.
+// Side by side when they fit. In a 300px aside they wrap and each fills its row, so they still look like
+// a matched pair.
 .mr-approvals__actions {
   display: flex;
   flex-wrap: wrap;

@@ -13,7 +13,7 @@
   @include settings-section.field-row(minmax(0, 3fr) minmax(0, 2fr));
 }
 
-// The events, grouped by subject, on a quiet inset panel. `gbt-checkbox-group` lays the groups out as columns.
+// Events grouped by subject on a quiet inset panel; the checkbox group lays the groups out as columns.
 .repository-webhooks__webhook-events {
   min-width: 0;
   padding: 1rem;
@@ -21,7 +21,7 @@
   border-radius: var(--site-border-radius-sm);
   background: color-mix(in srgb, var(--bg-panel) 60%, var(--bg-principal));
 
-  // Gabarit gap: the group's `gap` skips a fieldset's legend, so it sits right on the first group label.
+  // Gabarit gap: the group's gap skips a fieldset legend, which then touches the first label.
   ::ng-deep .gbt-checkbox-group__legend {
     margin-bottom: 0.75rem;
   }
@@ -59,7 +59,7 @@
 
 .repository-webhooks__event {
   @include settings-section.chip;
-  display: inline-block; // A text-only chip, displayed as a block so a chip too long for the row ends in an ellipsis.
+  display: inline-block; // Needs a block box for the ellipsis to apply to a chip too long for the row.
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;

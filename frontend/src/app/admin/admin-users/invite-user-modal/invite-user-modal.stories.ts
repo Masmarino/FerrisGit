@@ -7,7 +7,7 @@ import { InviteUserModal } from './invite-user-modal';
 import { AdminUser, AdminUsersService, InviteResult } from '../../admin-users.service';
 import { provideFerrisgitIcons } from '../../../shared/register-icons';
 
-// `provideFerrisgitIcons` returns EnvironmentProviders, so it goes in `applicationConfig`, not `moduleMetadata`.
+// provideFerrisgitIcons returns EnvironmentProviders: applicationConfig, not moduleMetadata.
 const withIcons = applicationConfig({ providers: [provideFerrisgitIcons()] });
 
 const ACTIVATION_URL = 'https://ferrisgit.example.com/activate#token=3f9c1a7be25d4c8e9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f708192a3b4c5';

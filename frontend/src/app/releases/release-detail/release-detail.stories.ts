@@ -111,7 +111,7 @@ function withData(options: { release?: ReleaseDetailResponse; role?: 'owner' | '
 const rect = (el: Element) => el.getBoundingClientRect();
 const centreY = (el: Element) => rect(el).top + rect(el).height / 2;
 
-/** Layout checks jsdom cannot make: no horizontal overflow, aside beside the main column from 769px, file-row buttons and names inside their card. */
+/** Layout checks jsdom can't make: no horizontal overflow, aside beside the main column from 769px, file-row buttons and names inside their card. */
 function assertPageLayout(canvas: HTMLElement): void {
   const layout = canvas.querySelector('gbt-page-layout');
   const main = canvas.querySelector('.gbt-page-layout__main');

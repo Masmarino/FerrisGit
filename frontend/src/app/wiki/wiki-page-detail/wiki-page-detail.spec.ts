@@ -56,7 +56,7 @@ describe('WikiPageDetail', () => {
     return { fixture, component: fixture.componentInstance, router, el: fixture.nativeElement as HTMLElement };
   }
 
-  // Spies (`window.confirm`, `router.navigate`) must not outlive their test: spec files share one global scope.
+  // Spies (`window.confirm`, `router.navigate`) mustn't outlive their test: spec files share one global scope.
   afterEach(() => {
     vi.restoreAllMocks();
   });
@@ -376,7 +376,7 @@ describe('WikiPageDetail', () => {
 
       buttonByText(el.querySelectorAll<HTMLElement>('li.wiki-history__item')[1], 'Voir cette version')!.click();
       fixture.detectChanges();
-      // The nested card's own `[card-header]` must not take over the history card's header.
+      // The nested card's own `[card-header]` mustn't take over the history card's header.
       expect(text(historyHost.querySelector(':scope > .gbt-card__header h2'))).toBe('Révisions');
       const versionHost = el.querySelector('.wiki-history__version gbt-card')!;
       const versionHeader = versionHost.querySelector(':scope > .gbt-card__header')!;

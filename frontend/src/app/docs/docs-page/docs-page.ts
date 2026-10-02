@@ -15,15 +15,15 @@ type DocsView =
   | { kind: 'not-found'; firstPage: string[] | null }
   | { kind: 'page'; location: DocsLocation; content: string };
 
-/** The callouts of the docs' Markdown: a quote whose first words are `**Note**` or `**Attention**`. */
+/** The docs' Markdown callouts: a quote that starts with `**Note**` or `**Attention**`. */
 const CALLOUTS: Record<string, string> = { note: 'note', attention: 'warning' };
 
 const keyOf = (section: string | null, page: string | null) => `${section}/${page}`;
 
 /**
  * One documentation page (`/docs/<section>/<page>`), in the public layout or the shell: the navigation, the page with
- * its breadcrumb and its neighbours, and the outline beside it on a wide screen. An unknown address gets a "not found"
- * inside the same frame.
+ * its breadcrumb and neighbours, and on a wide screen the outline beside it. An unknown address gets a "not found" in
+ * the same frame.
  */
 @Component({
   selector: 'fg-docs-page',
@@ -65,7 +65,7 @@ export class DocsPage {
   protected outline = signal<MarkdownOutlineEntry[]>([]);
   protected showOutline = computed(() => this.view().kind === 'page' && hasOutline(this.outline()));
 
-  // The navigation the reader asked for (page and `#fragment`), handled once its page is on screen.
+  // What the reader navigated to (page and `#fragment`), handled once the page is on screen.
   private wanted: { key: string; fragment: string | null; moveFocus: boolean } | null = null;
   private renderedKey: string | null = null;
 
@@ -75,8 +75,8 @@ export class DocsPage {
       this.pageTitle.set(view.kind === 'page' ? view.location.page.title : view.kind === 'not-found' ? 'Page introuvable' : 'Documentation');
     });
 
-    // Params and fragment change one after the other within a navigation: wait for both. The first visit (the page
-    // load) does not move the focus; later ones do, as a new page would.
+    // Params and fragment change one after the other within a navigation, so wait for both. The first visit leaves the
+    // focus alone; later ones move it, as a new page would.
     let first = true;
     combineLatest([this.route.paramMap, this.route.fragment])
       .pipe(debounceTime(0), takeUntilDestroyed(inject(DestroyRef)))
@@ -116,7 +116,7 @@ export class DocsPage {
     return docsPageCommands(location.section.slug, location.section.pages[0].slug);
   }
 
-  /** After each render of the page: the outline, the callouts, then the pending navigation. */
+  /** After each render: the outline, the callouts, then the pending navigation. */
   protected onRendered(entries: MarkdownOutlineEntry[]): void {
     this.outline.set(entries);
     const content = this.content();
@@ -141,7 +141,7 @@ export class DocsPage {
     return this.host.nativeElement.querySelector<HTMLElement>('.docs-page__content');
   }
 
-  /** Scrolls to the `#fragment` (the outline's `user-content-…` id or the bare slug of a link), or to the top of a new page. */
+  /** Scrolls to the `#fragment` (an outline `user-content-…` id or the bare slug from a link), or to the top of a new page. */
   private settle(): void {
     const wanted = this.wanted;
     const content = this.content();
@@ -167,7 +167,7 @@ export class DocsPage {
     }
   }
 
-  // Headings are not focusable: -1 lets the next Tab continue from there.
+  // Headings aren't focusable; -1 lets the next Tab carry on from there.
   private focus(element: HTMLElement): void {
     if (element.tabIndex < 0) {
       element.setAttribute('tabindex', '-1');

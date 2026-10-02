@@ -15,7 +15,7 @@ use ferrisgit_domain::wiki_page::{
 use crate::error::blocking;
 use crate::gix_reader::{DiffLineKindRaw, FileChangeKindRaw, GixRepositoryReader};
 
-/// Reads merge-request data from a repository's git refs and objects. Also implements `DiffReaderPort`.
+/// Reads merge-request data from a repo's refs and objects. Also implements `DiffReaderPort`.
 pub struct GixMergeRequestReader {
     storage_root: PathBuf,
 }
@@ -201,7 +201,7 @@ mod tests {
         run(&["commit", "--allow-empty", "-q", "-m", "root"]);
         run(&["checkout", "-q", "-b", "feature"]);
         run(&["commit", "--allow-empty", "-q", "-m", "feature work"]);
-        // `is_default` is a live read of HEAD, so switch back to `main` after `checkout -b feature`.
+        // is_default reads HEAD live, so switch back to main after `checkout -b feature`.
         run(&["checkout", "-q", "main"]);
     }
 

@@ -36,8 +36,8 @@ impl SmtpSettingsPort for PostgresSmtpSettingsStore {
             .await
             .map_err(infra)?;
         let Some(row) = row else { return Ok(None) };
-        // A row that cannot be decrypted (database restored from a dump made under another key, or the key rotated)
-        // must not lock the admin out of the settings page: report "no password", so they are asked for it again.
+        // A row that can't be decrypted (dump restored under another key, or a rotated key) shouldn't lock the admin
+        // out of the settings page: report "no password" so they're asked for it again.
         let password = match &row.encrypted_password {
             Some(ciphertext) => match self.encryptor.decrypt(ciphertext) {
                 Ok(password) => Some(password),

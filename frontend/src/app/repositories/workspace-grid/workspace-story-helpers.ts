@@ -1,4 +1,4 @@
-// Storybook-only fixtures and layout guards for the workspace grid and the pages built on it.
+// Storybook fixtures and layout guards for the workspace grid and the pages built on it.
 import { waitFor } from 'storybook/test';
 import { Repository } from '../repositories.service';
 import { repositoryFixture } from '../repository-fixtures';
@@ -59,11 +59,11 @@ export const MANY_REPOSITORIES: Repository[] = Array.from({ length: 40 }, (_, in
 
 const rect = (el: Element) => el.getBoundingClientRect();
 
-/** Layout guards at any viewport: no horizontal overflow, aside beside the main column from 769px of layout width and under it otherwise, one-line row titles on one right edge, every icon registered. */
+/** Layout guards at any viewport: no horizontal overflow, aside beside the main column from 769px and under it below, one-line row titles ending on one edge, all icons registered. */
 export function assertWorkspaceLayout(canvas: HTMLElement): void {
   const doc = canvas.ownerDocument.documentElement;
   if (doc.clientWidth === 0) {
-    return; // Storybook renders the story in a hidden frame (docs page): no layout to measure.
+    return; // Hidden frame (docs page), nothing to measure.
   }
   if (doc.scrollWidth > doc.clientWidth + 1) throw new Error(`horizontal overflow: ${doc.scrollWidth}px of content in ${doc.clientWidth}px`);
 

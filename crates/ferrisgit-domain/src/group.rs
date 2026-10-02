@@ -11,7 +11,7 @@ pub struct Group {
     pub parent_group_id: Option<Uuid>,
     pub name: String,
     pub description: String,
-    /// `None` once the creator's account was deleted. Informational only, never an access grant.
+    /// `None` once the creator's account is deleted. Informational, never an access grant.
     pub created_by: Option<Uuid>,
     pub created_at: DateTime<Utc>,
 }
@@ -42,30 +42,27 @@ pub struct GroupWithPath {
 pub trait GroupStorePort: Send + Sync {
     async fn create(&self, new_group: NewGroup) -> Result<Group, DomainError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Group>, DomainError>;
-    /// `parent_id: None` looks among root groups.
+    /// `None` for `parent_id` searches the root groups.
     async fn find_child_by_name(
         &self,
         parent_id: Option<Uuid>,
         name: &str,
     ) -> Result<Option<Group>, DomainError>;
     async fn list_children(&self, parent_id: Option<Uuid>) -> Result<Vec<Group>, DomainError>;
-    /// Root-first; the last element is `group_id` itself.
+    /// Root first, ending with `group_id` itself.
     async fn ancestor_chain(&self, group_id: Uuid) -> Result<Vec<Group>, DomainError>;
 
-    /// Groups where they hold direct Maintainer membership, plus every descendant of such a group.
+    /// Groups where the user is a direct Maintainer, plus all their descendants.
     async fn list_writable_groups(&self, user_id: Uuid) -> Result<Vec<GroupWithPath>, DomainError>;
-    /// Groups where they hold direct membership at any role, plus every descendant (permission inherits downward).
-    /// Used to discover group repositories for `GET /repositories`.
+    /// Groups where the user is a direct member at any role, plus all descendants since permissions inherit downward.
     async fn list_member_group_ids(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError>;
-    /// Cascades to the group's `group_members` rows, the only thing referencing it once the caller has confirmed (see
-    /// `DeleteGroupUseCase`) it has no child group or repository. Defaulted to `unimplemented!` like
-    /// `RepositoryStorePort::delete`.
+    /// Cascades to `group_members`. The caller has already checked there are no child groups or repositories.
+    /// Defaults to `unimplemented!` like `RepositoryStorePort::delete`.
     async fn delete(&self, _id: Uuid) -> Result<(), DomainError> {
         unimplemented!("delete")
     }
-    /// Deletes the group only if it is still empty at the moment of the delete, in one atomic step. Otherwise a
-    /// repository or subgroup created after `DeleteGroupUseCase`'s checks would be silently cascade-deleted. `false` if
-    /// the group doesn't exist or wasn't empty. Defaulted to `unimplemented!` like `delete`.
+    /// Deletes only if the group is still empty at that very moment, atomically, so a repo or subgroup created after the
+    /// use case's checks isn't cascade-deleted. `false` if missing or not empty.
     async fn delete_if_empty(&self, _id: Uuid) -> Result<bool, DomainError> {
         unimplemented!("delete_if_empty")
     }

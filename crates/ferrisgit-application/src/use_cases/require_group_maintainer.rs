@@ -4,9 +4,8 @@ use ferrisgit_domain::group_membership::GroupMembershipPort;
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use uuid::Uuid;
 
-/// Checks that `caller_id` may manage `group_id`: a Maintainer role on the group or on any of its ancestors counts.
-/// Returns the group's ancestor chain (root first, the group itself last), which the last-maintainer checks need. A
-/// caller who may not manage it gets the same `NotFound` as an unknown group.
+/// Maintainer on the group or any ancestor is enough. Returns the ancestor chain (root first) for the
+/// last-maintainer checks. Anyone else gets the same not found as for an unknown group.
 pub(crate) async fn require_group_maintainer(
     groups: &dyn GroupStorePort,
     group_membership: &dyn GroupMembershipPort,

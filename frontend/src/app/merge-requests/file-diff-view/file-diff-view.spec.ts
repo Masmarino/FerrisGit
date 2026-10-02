@@ -22,7 +22,7 @@ describe('FileDiffView', () => {
 
     const cells = fixture.nativeElement.querySelectorAll('td');
     const text = Array.from(cells as NodeListOf<HTMLElement>).map((c) => c.textContent?.trim());
-    // Both sides get a literal +/- prefix, so colour is not the only signal for a colourblind reader.
+    // Both sides get a literal +/- prefix, so colour isn't the only signal.
     expect(text).toContain('-old');
     expect(text).toContain('+new');
   });
@@ -45,7 +45,7 @@ describe('FileDiffView', () => {
     expect(tables[0].querySelectorAll('col').length).toBe(4);
     const headers: HTMLTableCellElement[] = Array.from(tables[0].querySelectorAll('thead th'));
     expect(headers.map((th) => th.textContent?.trim())).toEqual(['Ligne (ancienne version)', 'Ancienne version', 'Ligne (nouvelle version)', 'Nouvelle version']);
-    // A visually hidden th would leave the fixed-layout grid: the hidden text is a span inside it.
+    // A visually hidden th would leave the fixed-layout grid, so the hidden text is a span inside it.
     expect(headers.every((th) => !th.classList.contains('sr-only') && th.querySelector('span.sr-only') !== null)).toBe(true);
   });
 
@@ -147,7 +147,7 @@ describe('FileDiffView', () => {
     expect(text).toContain('because');
   });
 
-  // Two reviewers (or one twice) can anchor root comments to the same file/line/side: every thread must render, not just the last.
+  // Two roots can anchor to the same file, line and side: every thread must render, not just the last.
   it('renders every independent thread anchored to the same line, not just the last one', () => {
     const file: FileDiff = { path: 'README.md', change: 'modified', hunks: [{ rows: [{ oldLine: null, oldContent: null, newLine: 2, newContent: 'new\n', kind: 'added' }] }] };
     const fixture = setup(file);
@@ -201,8 +201,8 @@ describe('FileDiffView', () => {
     expect(badges).toEqual(['Résolu']);
   });
 
-  // gbt-textarea is a ControlValueAccessor bound with [ngModel]. It writes a cleared value back into its view
-  // in a microtask, and the app is zoneless, so the test waits for `whenStable` before reading the field.
+  // gbt-textarea writes a cleared value back into its view in a microtask, and the app is zoneless, so
+  // wait for whenStable before reading the field.
   it('clears the reply draft after submitting, even though the thread row is never torn down', () => {
     const file: FileDiff = { path: 'README.md', change: 'modified', hunks: [{ rows: [{ oldLine: null, oldContent: null, newLine: 2, newContent: 'new\n', kind: 'added' }] }] };
     const fixture = setup(file);
@@ -424,7 +424,7 @@ describe('FileDiffView', () => {
   it('does not render the apply button for a pending suggestion when the viewer has no write access', () => {
     const file: FileDiff = { path: 'README.md', change: 'modified', hunks: [{ rows: [{ oldLine: null, oldContent: null, newLine: 2, newContent: 'b\n', kind: 'added' }] }] };
     const fixture = setup(file);
-    // `canWrite` is left unset to check that it defaults to false.
+    // canWrite is left unset on purpose: it must default to false.
     fixture.componentRef.setInput('comments', [
       { id: 'root', authorId: 'u1', body: 'swap this', createdAt: '2026-01-01', replyToId: null, filePath: 'README.md', lineNumber: 2, endLine: null, side: 'new', outdated: false, resolved: false, suggestedContent: 'x\n', appliedAt: null, appliedCommitSha: null },
     ]);

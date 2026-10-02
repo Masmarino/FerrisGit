@@ -66,7 +66,7 @@ describe('WikiLayout', () => {
     expect(layout.getAttribute('data-width')).toBe('wide');
     expect(layout.hasAttribute('data-sticky-nav')).toBe(true);
     expect(el.querySelector('nav.gbt-page-layout__nav')?.getAttribute('aria-label')).toBe('Pages du wiki');
-    // The layout already wraps [page-nav] in a <nav>: the shell does not nest a second landmark.
+    // The layout already wraps [page-nav] in a <nav>, so the shell doesn't nest a second landmark.
     expect(el.querySelectorAll('nav').length).toBe(1);
   });
 
@@ -157,9 +157,9 @@ describe('WikiLayout', () => {
     const failed = el.querySelector('gbt-alert .gbt-alert');
     expect(text(failed)).toBe('Les pages n’ont pas pu être chargées.');
     expect(failed?.getAttribute('data-variant')).toBe('error');
-    // No other view announces the nav's failure (detail, edit): the nav does, once.
+    // No other view (detail, edit) announces the nav's failure, so the nav does, once.
     expect(failed?.getAttribute('role')).toBe('alert');
-    // Outside the body: the body is folded away (display: none) on narrow layouts, and an alert in it is never announced.
+    // Outside the body: it's folded away (display: none) on narrow layouts, and an alert in it is never announced.
     expect(failed?.closest('.wiki-nav__body')).toBeNull();
     expect(host.failures).toBe(1);
     expect(host.loaded).toEqual([]);

@@ -21,14 +21,14 @@ struct Fixture {
     user_id: Uuid,
 }
 
-/// Wraps a `FakeTotp` to script the races a real database can produce between two of the service's calls.
+/// A `FakeTotp` that can replay the races a real database allows between two calls of the service.
 #[derive(Default)]
 struct SpyTotp {
     inner: Arc<FakeTotp>,
-    /// `Some(snapshot)`: `get` returns that stale view while the inner store is already ahead.
+    /// When set, `get` returns this stale view while the inner store is already ahead.
     stale_get: Mutex<Option<Option<TotpCredential>>>,
-    /// `Some(credential)`: right after a successful `set_last_used_step`, that credential is upserted
-    /// (a concurrent `enroll_totp` landing between the CAS and the confirm).
+    /// When set, upserted right after a successful `set_last_used_step`: an enrolment landing between the CAS and the
+    /// confirm.
     enroll_after_cas: Mutex<Option<TotpCredential>>,
     fail_delete: bool,
 }
@@ -76,12 +76,12 @@ impl TotpCredentialPort for SpyTotp {
     }
 }
 
-/// Wraps `FakePasskeys` to script what a real database could do between two of the service's calls.
+/// Same idea as `SpyTotp`, for passkeys.
 #[derive(Default)]
 struct SpyPasskeys {
     inner: Arc<FakePasskeys>,
     fail_delete: bool,
-    /// The first `count_for_user` answers are taken from here (a stale count), then the real one.
+    /// `count_for_user` answers from here first (stale counts), then falls back to the real one.
     scripted_counts: Mutex<Vec<i64>>,
 }
 
@@ -130,7 +130,7 @@ impl WebauthnCredentialPort for SpyPasskeys {
     }
 }
 
-/// A TOTP that is confirmed for the first read only, as if it were removed by a concurrent request right after.
+/// Only the first read sees the credential, as if a concurrent request removed it right after.
 struct FlickerTotp {
     inner: Arc<FakeTotp>,
     reads: std::sync::atomic::AtomicUsize,
@@ -224,7 +224,7 @@ fn service_over(f: &Fixture, totp: Arc<dyn TotpCredentialPort>) -> MfaService {
     )
 }
 
-/// The password is the one `FakeHasher` accepts for `"s3cret!"`.
+/// The password is "s3cret!", the one `FakeHasher` accepts for this hash.
 fn user(name: &str) -> User {
     User {
         password_hash: "hashed:s3cret!".to_string(),
@@ -262,8 +262,7 @@ fn stored_secret(f: &Fixture) -> String {
         .secret
 }
 
-/// Enrols and confirms with the current code. Confirm consumes the current step, so the first
-/// challenge must use the next step's code (`code_for_next_step`).
+/// Confirming uses up the current step, so the first challenge afterwards needs `code_for_next_step`.
 async fn enrolled(f: &Fixture) -> Vec<String> {
     let enrollment = f.service.enroll_totp(f.user_id).await.unwrap();
     let code = generate_code_at(&enrollment.secret_base32, now_unix());
@@ -363,7 +362,7 @@ async fn confirming_with_a_valid_code_confirms_stores_ten_hashes_and_returns_ver
 async fn confirming_with_a_wrong_code_is_a_validation_error_and_stays_unconfirmed() {
     let f = fixture();
     let enrollment = f.service.enroll_totp(f.user_id).await.unwrap();
-    // Everything the service could accept, even across a step boundary: now-1 ..= now+1, plus now+2.
+    // Steps now-1 to now+2 cover everything the service could accept, even across a step boundary.
     let accepted: Vec<String> = [
         now_unix() - 30,
         now_unix(),
@@ -472,7 +471,7 @@ async fn a_code_from_an_older_step_than_the_last_used_one_is_refused() {
         .await
         .unwrap();
 
-    // The current step is now behind `last_used_step` (= current + 1): inside the skew window, still refused.
+    // Current step is now behind the last used one (current + 1). Still inside the skew window, still refused.
     let current = generate_code_at(&stored_secret(&f), now_unix());
     assert!(is_unauthorized(
         f.service
@@ -483,7 +482,7 @@ async fn a_code_from_an_older_step_than_the_last_used_one_is_refused() {
 
 #[tokio::test]
 async fn a_previous_step_code_is_accepted_only_when_its_step_is_newer_than_the_last_used_one() {
-    // The "previous step" must still be the previous one when the service reads the clock.
+    // Avoid a step boundary between here and the service's own clock read.
     if now_unix() % TOTP_STEP_SECS >= TOTP_STEP_SECS - 3 {
         tokio::time::sleep(std::time::Duration::from_secs(4)).await;
     }
@@ -831,8 +830,8 @@ async fn backdate_pending(f: &Fixture, age: chrono::Duration) {
 
 #[tokio::test]
 async fn an_abandoned_pending_enrolment_can_no_longer_be_confirmed_and_mints_no_codes() {
-    // The secret was shown once, the user cancelled, and later someone who recorded it confirms with a session
-    // alone.
+    // The user saw the secret and walked away. Someone who noted it down must not be able to confirm it later with
+    // just a session.
     let f = fixture();
     let enrollment = f.service.enroll_totp(f.user_id).await.unwrap();
     backdate_pending(&f, chrono::Duration::minutes(16)).await;
@@ -1154,7 +1153,7 @@ async fn issuing_backup_codes_needs_a_factor_and_replaces_the_old_set() {
     );
     assert_eq!(f.backup.hashes_of(f.user_id).len(), 0);
 
-    // Dormant codes left behind by a removed factor are wiped by the refusal, never revived.
+    // Leftover codes from a removed factor get wiped by the refusal, never revived.
     f.backup
         .replace_all(f.user_id, &[hash_backup_code("dormant")])
         .await
@@ -1525,7 +1524,7 @@ async fn a_totp_removed_concurrently_does_not_leave_codes_behind_the_last_passke
     let f = fixture();
     enrolled(&f).await;
     let passkey = f.passkeys.seed(f.user_id, "MacBook");
-    // The passkey removal reads the TOTP as still there (codes kept); a parallel removal deletes it right after.
+    // The removal sees the TOTP (so keeps the codes), then a parallel removal deletes it.
     let flicker = Arc::new(FlickerTotp {
         inner: f.totp.clone(),
         reads: std::sync::atomic::AtomicUsize::new(0),
@@ -1551,7 +1550,7 @@ async fn a_totp_removed_concurrently_does_not_leave_codes_behind_the_last_passke
 async fn a_passkey_removed_concurrently_does_not_leave_codes_behind_the_totp() {
     let f = fixture();
     enrolled(&f).await;
-    // remove_totp counts the passkeys: a stale "1" (kept the codes), then the truth: none.
+    // First a stale count of 1 (so the codes are kept), then the real count of 0.
     let spy = Arc::new(SpyPasskeys {
         inner: f.passkeys.clone(),
         scripted_counts: Mutex::new(vec![1]),
@@ -1652,7 +1651,7 @@ async fn the_first_passkey_setup_is_refused_when_a_passkey_already_exists_and_bu
             .is_ok(),
         "no fresh codes were minted, the old set is intact"
     );
-    // The refusal came before the ceremony was taken: it is still there for its owner.
+    // The refusal happened before the ceremony was taken, so it's still usable.
     f.passkeys.delete(existing.id, f.user_id).await.unwrap();
     assert!(
         passkeys
@@ -1809,7 +1808,7 @@ async fn enrolling_is_refused_when_the_upsert_finds_a_credential_confirmed_in_be
     let f = fixture();
     enrolled(&f).await;
     let confirmed = f.totp.credential_of(f.user_id).unwrap();
-    // The has-confirmed check reads a stale "nothing there"; only the upsert's own refusal can catch it.
+    // The confirmed check reads stale "nothing there", so only the upsert's own refusal can catch it.
     let spy = SpyTotp::over(f.totp.clone());
     *spy.stale_get.lock().unwrap() = Some(None);
 
@@ -1934,7 +1933,7 @@ async fn verify_challenge_honours_a_lost_cas_even_when_the_read_was_stale() {
         .verify_challenge(f.user_id, Some(&code), None)
         .await
         .unwrap();
-    // The second attempt read the credential before the first advanced the step: only the CAS can refuse it.
+    // This attempt read the credential before the first one advanced the step, so only the CAS can refuse it.
     let spy = SpyTotp::over(f.totp.clone());
     *spy.stale_get.lock().unwrap() = Some(Some(stale));
 
@@ -1996,7 +1995,7 @@ async fn a_backup_code_is_refused_when_the_credential_is_gone_but_codes_remain()
 async fn a_backup_code_is_refused_while_the_credential_is_only_pending() {
     let f = fixture();
     let codes = enrolled(&f).await;
-    // The store refuses to overwrite a confirmed row, so recreate a pending one from scratch.
+    // The store won't overwrite a confirmed row, so delete it and put a pending one in its place.
     f.totp.delete(f.user_id).await.unwrap();
     f.totp
         .upsert(&TotpCredential {

@@ -21,8 +21,8 @@ pub struct NewLabel {
     pub group_id: Option<Uuid>,
 }
 
-/// Scoped to exactly one of `repository_id`/`group_id` (the store rejects anything else). Assignment-time scope
-/// validation lives in the application use cases.
+/// A label belongs to exactly one of `repository_id` / `group_id`, which the store enforces. Scope checks at assignment
+/// time live in the use cases.
 #[async_trait]
 pub trait LabelStorePort: Send + Sync {
     async fn create(&self, new_label: NewLabel) -> Result<Label, DomainError>;
@@ -38,8 +38,7 @@ pub trait LabelStorePort: Send + Sync {
         label_ids: &[Uuid],
     ) -> Result<(), DomainError>;
     async fn list_for_issue(&self, issue_id: Uuid) -> Result<Vec<Label>, DomainError>;
-    /// Batched variant of `list_for_issue`, for rendering label chips on a list of
-    /// issues without one query per row. Each returned pair is `(issue_id, label)`.
+    /// Batched `list_for_issue` to render label chips on a list without a query per row, as `(issue_id, label)` pairs.
     async fn list_for_issues(&self, issue_ids: &[Uuid]) -> Result<Vec<(Uuid, Label)>, DomainError>;
 
     async fn set_labels_for_merge_request(

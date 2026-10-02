@@ -32,12 +32,12 @@
   }
 }
 
-// The switch, then what it does: the hint lines up with the switch's label, past its track.
+// The hint lines up with the switch's label, past its track.
 .repository-pipeline-settings__switch {
   max-width: 32rem;
 
   .repository-pipeline-settings__field-footer {
-    padding-left: 2.75rem; // gbt-switch's 2.25rem track and 0.5rem gap
+    padding-left: 2.75rem; // gbt-switch's 2.25rem track plus its 0.5rem gap
   }
 }
 

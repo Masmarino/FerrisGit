@@ -1,11 +1,11 @@
-// Specs and Storybook only: a browser whose WebAuthn is whatever the test says.
+// Specs and Storybook only: a browser whose WebAuthn is whatever the test wants.
 
 export interface StubbedCredentials {
   create?: (options?: unknown) => Promise<unknown>;
   get?: (options?: unknown) => Promise<unknown>;
 }
 
-/** Replaces `navigator.credentials` and `PublicKeyCredential` (`null`: no WebAuthn); returns the restore function. */
+/** Replaces `navigator.credentials` and `PublicKeyCredential` (`null` for no WebAuthn) and returns the restore function. */
 export function stubPasskeyBrowser(credentials: StubbedCredentials | null): () => void {
   const realCredentials = Object.getOwnPropertyDescriptor(navigator, 'credentials');
   const realConstructor = Object.getOwnPropertyDescriptor(globalThis, 'PublicKeyCredential');

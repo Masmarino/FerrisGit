@@ -8,8 +8,8 @@ import { RepositoryPathResolver } from './repository-path-resolver';
 import { RepositoryDetail } from '../repository-detail/repository-detail';
 import { RepositoryContextService } from '../repository-context.service';
 
-// `repositories/**` makes `ActivatedRoute.url` include the literal `repositories` prefix, which must be
-// stripped before `resolve()` and before the `path` input reaches children.
+// The `repositories/**` route leaves the literal "repositories" prefix in the url; it has to be stripped
+// before resolve() and before the path reaches children.
 function urlSegments(paths: string[]): UrlSegment[] {
   return paths.map((path) => new UrlSegment(path, {}));
 }
@@ -17,7 +17,7 @@ function urlSegments(paths: string[]): UrlSegment[] {
 describe('RepositoryPathResolver', () => {
   function setup() {
     const url$ = new Subject<UrlSegment[]>();
-    // `snapshot.fragment`: the tree view reads it (the `#cloner` fragment) once its repository loads.
+    // The tree view reads snapshot.fragment (#cloner) once its repository loads.
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: ActivatedRoute, useValue: { url: url$, snapshot: { fragment: null } } }],
     });
@@ -38,7 +38,7 @@ describe('RepositoryPathResolver', () => {
 
     http.expectOne('/api/resolve/admin/my-repo').flush({ type: 'personalRepository', repositoryId: 'repo-1' });
 
-    // Resolving enters the repository context, which fetches the role: flush it so verify() passes.
+    // Resolving enters the repository context, which fetches the role. Flush it so verify() passes.
     http.expectOne('/api/repositories/by-id/repo-1').flush({ role: 'reader' });
   });
 
@@ -100,7 +100,7 @@ describe('RepositoryPathResolver', () => {
 
     fixture.detectChanges();
 
-    // Rendering RepositoryDetail fires its own requests: flush them so verify() passes.
+    // RepositoryDetail fires its own requests; flush them so verify() passes.
     http.match(() => true).forEach((req) => req.flush([]));
 
     const child = fixture.debugElement.query(By.directive(RepositoryDetail));
@@ -161,7 +161,7 @@ describe('RepositoryPathResolver', () => {
 
     url$.next(urlSegments(['repositories', 'admin', 'my-repo', '-', 'blob']));
 
-    // `notFound` never enters the repository context, so only the resolve call fires here.
+    // notFound never enters the repository context, so only the resolve call fires.
     http.expectOne('/api/resolve/admin/my-repo').flush({ type: 'personalRepository', repositoryId: 'repo-1' });
 
     expect(fixture.componentInstance['view']().kind).toBe('notFound');
@@ -186,7 +186,7 @@ describe('RepositoryPathResolver', () => {
 
     url$.next(urlSegments(['repositories', 'admin', 'my-repo']));
 
-    // A redundant second resolve() would make `expectOne` fail.
+    // A second resolve() would make expectOne fail.
     http.expectOne('/api/resolve/admin/my-repo').flush({ type: 'personalRepository', repositoryId: 'repo-1' });
     http.expectOne('/api/repositories/by-id/repo-1').flush({ role: 'reader' });
   });
@@ -199,9 +199,9 @@ describe('RepositoryPathResolver', () => {
     http.expectOne('/api/resolve/admin/my-repo').flush({ type: 'personalRepository', repositoryId: 'repo-1' });
     http.expectOne('/api/repositories/by-id/repo-1').flush({ role: 'reader' });
 
-    // No `detectChanges()` here: rendering the real pipeline shell would need route and HTTP stubs.
+    // No detectChanges(): rendering the real pipeline shell would need route and HTTP stubs.
     const view = fixture.componentInstance['view'];
-    // Records every write to the signal: an `effect` would only see the settled value and miss a `loading` reset followed by a synchronous re-set.
+    // Record every write to the signal; an effect would only see the settled value and miss a loading reset followed by a synchronous re-set.
     const seen: string[] = [];
     const originalSet = view.set.bind(view);
     const setSpy = vi.spyOn(view, 'set').mockImplementation((value) => {

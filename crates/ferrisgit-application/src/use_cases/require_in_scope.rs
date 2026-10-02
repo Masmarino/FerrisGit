@@ -9,7 +9,7 @@ use uuid::Uuid;
 
 use crate::scope_check::is_in_repository_scope;
 
-/// Every label must exist and be attached to `repository` itself or to one of its groups.
+/// Labels must exist and belong to the repository or one of its groups.
 pub(crate) async fn require_labels_in_scope(
     labels: &dyn LabelStorePort,
     groups: &Arc<dyn GroupStorePort>,
@@ -30,7 +30,7 @@ pub(crate) async fn require_labels_in_scope(
     Ok(())
 }
 
-/// The milestone must exist and be attached to `repository` itself or to one of its groups.
+/// Same rule as for labels.
 pub(crate) async fn require_milestone_in_scope(
     milestones: &dyn MilestoneStorePort,
     groups: &Arc<dyn GroupStorePort>,

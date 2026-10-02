@@ -22,7 +22,7 @@ pub(crate) struct RepositoryRef {
     path: Vec<String>,
 }
 
-/// Results often share a repository and each resolution costs lookups, hence the cache.
+/// Results often share a repository and resolving one costs lookups, hence the cache.
 pub(crate) type RepositoryRefs = HashMap<Uuid, RepositoryRef>;
 
 pub(crate) async fn repository_ref(

@@ -4,7 +4,7 @@ use common::http::{create_user, get, login};
 
 use sqlx::PgPool;
 
-/// The `AdminUser` guard rejects a non-admin on every handler.
+/// Every handler here turns a non-admin away.
 #[sqlx::test]
 async fn admin_metrics_endpoints_are_admin_gated_and_shaped_as_expected(pool: PgPool) {
     let addr = common::spawn_app(pool).await.addr;

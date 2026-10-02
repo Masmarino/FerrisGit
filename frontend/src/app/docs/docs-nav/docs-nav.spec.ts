@@ -95,7 +95,7 @@ describe('DocsNav', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     expect(el.querySelector('.docs-nav--open')).not.toBeNull();
 
-    // Choosing a page folds it again.
+    // Picking a page folds it again.
     el.querySelector<HTMLAnchorElement>('a[gbtNavTab]')!.click();
     fixture.detectChanges();
     expect(el.querySelector('.docs-nav--open')).toBeNull();

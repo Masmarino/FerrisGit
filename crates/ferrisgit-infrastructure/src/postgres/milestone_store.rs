@@ -218,7 +218,7 @@ mod tests {
         assert!(store.find_by_id(created.id).await.unwrap().is_none());
     }
 
-    /// Deleting a milestone must detach, not delete, referencing issues/MRs (`ON DELETE SET NULL`).
+    /// Deleting a milestone detaches the issues and MRs that reference it instead of deleting them (ON DELETE SET NULL).
     #[sqlx::test(migrations = "../../migrations")]
     async fn deleting_a_milestone_nulls_it_out_of_issues_and_merge_requests_without_deleting_them(
         pool: PgPool,
@@ -331,7 +331,7 @@ mod tests {
     async fn a_milestone_with_both_repository_and_group_scope_is_rejected_by_the_db(pool: PgPool) {
         let repository_id = seed_repository(&pool).await;
         let group_id = Uuid::new_v4();
-        // No group row is seeded. The CHECK fires before the FK would, so this still tests the XOR constraint.
+        // No group row is seeded: the CHECK fires before the FK, so this still tests the XOR constraint.
         let result = sqlx::query!(
             "INSERT INTO milestones (title, repository_id, group_id) VALUES ($1, $2, $3)",
             "v1.0",

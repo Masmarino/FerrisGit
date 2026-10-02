@@ -2,9 +2,8 @@ use async_trait::async_trait;
 
 use crate::error::DomainError;
 
-/// Reads a file's content at a specific commit without checking it out. `revision` is a full sha and `path` is
-/// `/`-separated and repo-relative. `Ok(None)` when the file didn't exist at that revision: that is the common case,
-/// never an error.
+/// Reads a file at a given commit without checking it out. `revision` is a full sha, `path` is `/`-separated and
+/// repo-relative. `Ok(None)` when the file doesn't exist there, which is the common case and not an error.
 #[async_trait]
 pub trait PipelineFileReaderPort: Send + Sync {
     async fn read_file_at_revision(

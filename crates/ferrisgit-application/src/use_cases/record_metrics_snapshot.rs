@@ -38,8 +38,8 @@ impl RecordMetricsSnapshotUseCase {
         for repo in &repositories {
             let directory_size = self.directory_size.clone();
             let disk_path = repo.disk_path.clone();
-            // `directory_size` does synchronous I/O, hence `spawn_blocking`. A failure for one repository (deleted on
-            // disk, permissions) contributes 0 rather than failing the whole snapshot.
+            // Blocking I/O, hence spawn_blocking. A repo that fails (deleted on disk, permissions) counts as 0 instead
+            // of failing the whole snapshot.
             let size =
                 tokio::task::spawn_blocking(move || directory_size.directory_size(&disk_path))
                     .await

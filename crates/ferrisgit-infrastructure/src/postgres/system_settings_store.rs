@@ -46,8 +46,8 @@ impl TryFrom<Row> for SystemSettings {
 
 #[async_trait]
 impl SystemSettingsStorePort for PostgresSystemSettingsStore {
-    /// The single row is not seeded by the migration, so `get()` upserts on read. `DO UPDATE SET id = true`
-    /// is a no-op write that exists only so `RETURNING` yields the existing row.
+    /// The migration doesn't seed the single row, so `get()` upserts on read. `DO UPDATE SET id = true` is a
+    /// no-op write that only makes RETURNING yield the existing row.
     async fn get(&self) -> Result<SystemSettings, DomainError> {
         let row = sqlx::query_as!(
             Row,
@@ -59,10 +59,9 @@ impl SystemSettingsStorePort for PostgresSystemSettingsStore {
         SystemSettings::try_from(row)
     }
 
-    /// Singly-optional fields use `COALESCE($n, column)`, so `None` leaves the column unchanged.
-    /// Doubly-optional fields (`Some(None)` clears to NULL) can't use COALESCE, which can't tell
-    /// "unchanged" from "clear". Each one gets an `is_some()` flag plus the flattened value instead:
-    /// `CASE WHEN $flag THEN $value ELSE column END`.
+    /// Optional fields use `COALESCE($n, column)`, so None leaves the column alone. COALESCE can't tell "unchanged"
+    /// from "clear" for the doubly-optional ones (`Some(None)` clears to NULL), so those get an is_some() flag plus
+    /// the flattened value: `CASE WHEN $flag THEN $value ELSE column END`.
     async fn update(&self, update: SystemSettingsUpdate) -> Result<SystemSettings, DomainError> {
         self.get().await?;
         let row = sqlx::query_as!(

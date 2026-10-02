@@ -1,6 +1,6 @@
 <div class="mr-system-note">
   <gbt-icon-marker class="mr-system-note__marker" size="sm" appearance="outline" [icon]="marker().icon" [tone]="marker().tone" />
-  <!-- Inline flow (not flex) so a long sentence wraps like text. &ngsp; keeps a real space between the pieces that Angular would otherwise drop. -->
+  <!-- Inline flow, not flex, so a long sentence wraps like text. &ngsp; keeps the space between pieces that Angular would drop. -->
   <p class="mr-system-note__text">
     @if (event().actor; as actor) {
       <strong class="mr-system-note__actor">{{ actor.username }}</strong>&ngsp;

@@ -66,16 +66,16 @@ async fn create(
     }))
 }
 
-/// Bumps the target's token epoch, which kills their sessions and pending `mfa` tokens (the admin's own session
-/// only if they reset themselves), then deletes their factors. Idempotent. 404 for an unknown user.
+/// Bumps the target's token epoch, which kills their sessions and pending MFA tokens (the admin's own session
+/// only on a self-reset), then deletes their factors. Idempotent, 404 for an unknown user.
 async fn reset_mfa(
     AdminUser(admin_id): AdminUser,
     State(state): State<AppState>,
     Path(user_id): Path<Uuid>,
 ) -> Result<StatusCode, ApiError> {
     let user = require_user(&state, user_id).await?;
-    // Bump first, delete second. If the deletion fails, the sessions are dead and the factor intact (a retry
-    // finishes the job), never the other way round.
+    // Bump first, delete second: if the delete fails the sessions are dead and a retry finishes the job. The
+    // other order could leave live sessions with no factor.
     state.users.bump_token_epoch(user_id).await?;
     state.mfa.reset(user_id).await?;
     state
@@ -88,7 +88,7 @@ async fn reset_mfa(
         )
         .await
         .ok();
-    // Best effort: mail failures never fail a reset that happened.
+    // A mail failure doesn't undo a reset that already happened.
     if is_valid_mailbox(&user.email) {
         state.mailer.send_in_background(
             user.email.clone(),
@@ -136,7 +136,7 @@ impl From<UserListing> for AdminUserRow {
     }
 }
 
-/// No pagination, capped at 1000 rows (instance-scale data).
+/// Not paginated, capped at 1000 rows: an instance never gets close.
 async fn list(
     AdminUser(_admin_id): AdminUser,
     State(state): State<AppState>,
@@ -168,14 +168,14 @@ struct InvitationResponse {
     email_sent: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     email_error: Option<String>,
-    /// Only present when the mail could not be sent, so the admin can hand it over by other means.
+    /// Only set when the mail didn't go out, so the admin can hand it over another way.
     #[serde(skip_serializing_if = "Option::is_none")]
     activation_url: Option<String>,
 }
 
-/// The mail is awaited so the admin learns whether it went out, but a delivery failure never fails the request.
-/// The token sits in the URL fragment (`#token=`), which browsers never send to a server, so it stays out of
-/// access logs. Neither the token nor the URL is logged.
+/// The mail is awaited so the admin learns whether it went out, but a delivery failure doesn't fail the request.
+/// The token is in the URL fragment, which browsers never send, so it stays out of access logs. Neither it nor
+/// the URL is logged.
 async fn deliver_invitation(
     state: &AppState,
     invited: InvitedUser,
@@ -207,7 +207,7 @@ async fn deliver_invitation(
     let username = user.username.clone();
     let row = AdminUserRow::new(user, user_state, mfa_enabled);
 
-    // Reads come first: a database failure must not surface after the mail already left.
+    // Reads first, so a database failure can't show up after the mail already left.
     let outcome = state
         .mailer
         .send(
@@ -250,10 +250,9 @@ struct PasswordResetResponse {
 }
 
 /// Revokes every session of the target and kills their current password at once, then mails a 1 h link. 400 for
-/// the admin's own account (a sole admin could lock themselves out with nobody to issue a link) and for an account
-/// pending activation. Like `deliver_invitation`, the mail is awaited and the link is returned only when it did not
-/// go out (SMTP failure, or an address that is not a deliverable mailbox such as the bootstrap admin's
-/// `@localhost`).
+/// the admin's own account (a sole admin could lock themselves out) and for an account pending activation. Like
+/// `deliver_invitation`, the mail is awaited and the link comes back only if it didn't go out (SMTP failure, or an
+/// address that isn't a real mailbox, like the bootstrap admin's `@localhost`).
 async fn reset_password(
     AdminUser(admin_id): AdminUser,
     State(state): State<AppState>,
@@ -322,8 +321,8 @@ struct SetAdminRequest {
     is_admin: bool,
 }
 
-/// 409 for demoting the last active admin (an admin pending activation does not count). Effective on the target's
-/// next request since `AdminUser` reads the flag from the database. Audited only when the flag actually changed.
+/// 409 for demoting the last active admin (one pending activation doesn't count). Takes effect on the target's
+/// next request, since `AdminUser` reads the flag from the database. Only audited when the flag actually changed.
 async fn set_admin(
     AdminUser(admin_id): AdminUser,
     State(state): State<AppState>,
@@ -384,8 +383,8 @@ async fn resend_invitation(
     deliver_invitation(&state, invited).await
 }
 
-/// Metadata and size only, never file content, so this route is no way into what the user wrote. Group
-/// repositories they created are not listed because they belong to the group.
+/// Metadata and size only, never content, so this is no way into what the user wrote. Group repositories they
+/// created aren't listed: they belong to the group.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct AdminUserRepositoryRow {
@@ -397,7 +396,7 @@ struct AdminUserRepositoryRow {
     size_bytes: Option<u64>,
 }
 
-/// All sizes are computed in a single blocking task, off the async runtime.
+/// All sizes are computed in one blocking task, off the async runtime.
 async fn list_repositories(
     AdminUser(_admin_id): AdminUser,
     State(state): State<AppState>,
@@ -408,7 +407,7 @@ async fn list_repositories(
     let git_backend = state.git_backend.clone();
     let disk_paths: Vec<String> = repositories.iter().map(|r| r.disk_path.clone()).collect();
     let count = disk_paths.len();
-    // A size that cannot be computed is `null`, never an error.
+    // A size we can't compute is null, not an error.
     let sizes: Vec<Option<u64>> = tokio::task::spawn_blocking(move || {
         disk_paths
             .iter()
@@ -435,8 +434,8 @@ async fn list_repositories(
 
 /// Deletes the account and personal repositories in one transaction, then their storage on disk. What they wrote
 /// elsewhere stays, attributed to a deleted user. 409 for the last active admin or the last Maintainer of a group
-/// hierarchy. Every refusal comes before anything is written. The audit event keeps the username and destroyed
-/// repository names, since the rows are gone.
+/// hierarchy, checked before anything is written. The audit event keeps the username and repository names, since
+/// the rows are gone.
 async fn delete_user(
     AdminUser(admin_id): AdminUser,
     State(state): State<AppState>,

@@ -24,7 +24,7 @@ import { createSettingsList } from '../settings-list';
 
 type WebhookEvent = (typeof WEBHOOK_EVENT_OPTIONS)[number];
 
-/** Each event: its short label inside its group (the checkboxes), its full label on its own (rows, history). */
+/** `label` is the short form inside a group (checkboxes), `full` the standalone one (rows, history). */
 const EVENT_GROUPS: { label: string; events: { value: WebhookEvent; label: string; full: string }[] }[] = [
   {
     label: 'Demandes de fusion',
@@ -100,10 +100,10 @@ export class RepositoryWebhooks implements OnInit {
     const id = this.expandedWebhookId();
     return id === null ? null : (this.deliveriesByWebhook()[id] ?? null);
   });
-  /** The webhook whose history could not be loaded (the drawer says so instead of loading forever). */
+  /** Webhook whose history failed to load, so the drawer can say so instead of spinning. */
   protected deliveriesFailedFor = signal<string | null>(null);
   protected webhookPendingDelete = signal<WebhookSummary | null>(null);
-  /** True while the confirmed deletion runs: the confirmation stays open and ignores a second click. */
+  /** Keeps the confirmation open and inert while the delete request runs. */
   protected deleting = signal(false);
 
   protected selectionSummary = computed(() => {
@@ -161,7 +161,7 @@ export class RepositoryWebhooks implements OnInit {
         this.list.refresh();
         this.toast.show('Webhook supprimé.');
       },
-      // The confirmation covers the page, so an error must close it first to be visible.
+      // Close the confirmation first, it covers the page and would hide the error.
       error: () => {
         this.deleting.set(false);
         this.webhookPendingDelete.set(null);

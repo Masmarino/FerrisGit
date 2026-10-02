@@ -67,8 +67,8 @@ gbt-card {
   gap: 1.125rem;
 }
 
-// Gabarit's inline list stacks terms and values based on the viewport (a 768px media query). Here the card's width is
-// what matters, and it always has room for two columns. The `dl` outweighs Gabarit's rules, media query included.
+// Gabarit's inline list stacks terms and values on narrow viewports (768px media query), but here the card's width is
+// what counts and two columns always fit. The dl selector beats Gabarit's rules, media query included.
 .admin-health__facts {
   display: block;
 

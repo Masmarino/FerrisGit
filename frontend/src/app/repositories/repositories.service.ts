@@ -2,10 +2,9 @@ import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { RepositoryVisibility } from './repository-visibility';
 
-/** What the signed-in user is on a repository, as the API reports it. */
 export type RepositoryRole = 'owner' | 'reader' | 'contributor' | 'maintainer';
 
-/** A role that can be granted to a collaborator or a group member: the owner is never granted. */
+/** Roles that can be granted; the owner never is. */
 export type MemberRole = Exclude<RepositoryRole, 'owner'>;
 
 export interface Repository {
@@ -16,7 +15,7 @@ export interface Repository {
   role: RepositoryRole;
   visibility: RepositoryVisibility;
   createdAt: string;
-  /** The resolvable segment path: `[ownerUsername, name]` or `[...ancestorGroupNames, name]`. `owner` is only the creator's username, so build links from `path`. */
+  /** `[ownerUsername, name]` or `[...ancestorGroupNames, name]`. Build links from this: `owner` is just the creator. */
   path: string[];
   starCount?: number;
   isStarred?: boolean;
@@ -95,7 +94,7 @@ export class RepositoriesService {
     return this.http.get<Repository>(`/api/repositories/by-id/${repositoryId}`);
   }
 
-  /** Only the fields present change. The name and owner are not editable: they are part of the clone URL. */
+  /** Only the fields present change. Name and owner are fixed because they are in the clone URL. */
   update(repositoryId: string, update: { description?: string; visibility?: RepositoryVisibility }) {
     return this.http.patch<Repository>(`/api/repositories/by-id/${repositoryId}`, update);
   }
@@ -104,7 +103,7 @@ export class RepositoriesService {
     return this.http.delete<void>(`/api/repositories/by-id/${repositoryId}`);
   }
 
-  /** Lists a folder at `ref`. `options.lastCommit: false` skips the server's costly per-entry last-commit lookup, and `lastCommit` is then `null`. */
+  /** `lastCommit: false` skips the server's expensive per-entry last-commit lookup; entries then have a null `lastCommit`. */
   treeAt(repositoryId: string, ref: string, path: string[], options?: { lastCommit?: boolean }) {
     const suffix = path.length > 0 ? `/${path.map(encodeURIComponent).join('/')}` : '';
     const params = options?.lastCommit === false ? new HttpParams().set('lastCommit', 'false') : undefined;

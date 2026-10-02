@@ -4,9 +4,8 @@ use uuid::Uuid;
 
 use crate::error::DomainError;
 
-/// A registered passkey. `passkey_json` is the serialized `webauthn_rs` `Passkey` (public key, signature
-/// counter, backup flags), opaque to the domain: it is public material, so it needs no encryption at rest,
-/// but it is never logged (`Debug` redacts it).
+/// A registered passkey. `passkey_json` is the serialized `webauthn_rs` `Passkey`, opaque to the domain. It's public
+/// material so it isn't encrypted at rest, but it's never logged: `Debug` redacts it.
 #[derive(Clone, PartialEq, Eq)]
 pub struct StoredPasskey {
     pub id: Uuid,
@@ -34,22 +33,22 @@ impl std::fmt::Debug for StoredPasskey {
 
 #[async_trait]
 pub trait WebauthnCredentialPort: Send + Sync {
-    /// Oldest first (`created_at`, then `id`).
+    /// Oldest first.
     async fn list_for_user(&self, user_id: Uuid) -> Result<Vec<StoredPasskey>, DomainError>;
     async fn count_for_user(&self, user_id: Uuid) -> Result<i64, DomainError>;
-    /// `false` means a credential with this `credential_id` already exists (the same authenticator registered twice, or
-    /// another user's). Nothing is written and the existing row is never overwritten.
+    /// `false` if a credential with this `credential_id` already exists, the same authenticator registered twice or another
+    /// user's. Nothing is written.
     async fn insert(&self, passkey: &StoredPasskey) -> Result<bool, DomainError>;
-    /// Stores the updated serialized passkey (signature counter, backup state) and sets `last_used_at` to now.
+    /// Stores the updated passkey (signature counter, backup state) and sets `last_used_at` to now.
     async fn update_after_authentication(
         &self,
         id: Uuid,
         passkey_json: &str,
     ) -> Result<(), DomainError>;
-    /// Scoped to `user_id`: `false` when the id does not belong to that user (nothing is deleted).
+    /// Scoped to `user_id`: `false`, and nothing deleted, if the passkey belongs to someone else.
     async fn delete(&self, id: Uuid, user_id: Uuid) -> Result<bool, DomainError>;
     async fn delete_all_for_user(&self, user_id: Uuid) -> Result<(), DomainError>;
-    /// Which of these users have at least one passkey, in a single query (safe over a whole user list).
+    /// Which of these users have at least one passkey, in one query.
     async fn user_ids_with_passkeys(&self, user_ids: &[Uuid]) -> Result<Vec<Uuid>, DomainError>;
 }
 

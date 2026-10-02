@@ -5,8 +5,8 @@ import { AuthLogo } from '../auth-logo/auth-logo';
 import { consumeLinkToken } from '../link-token';
 
 /**
- * Owns the `/reset-password#token=…` URL, like `ActivatePage`; Gabarit's reset page asks for the new password.
- * `passwordReset` is left unbound so the user stays on the kit's success view until they choose to sign in.
+ * Owns the `/reset-password#token=…` URL, like `ActivatePage`; Gabarit's page asks for the new password. Leaving
+ * `passwordReset` unbound keeps the user on the kit's success view until they choose to sign in.
  */
 @Component({
   selector: 'fg-reset-password-page',
@@ -18,7 +18,7 @@ import { consumeLinkToken } from '../link-token';
       <a gbtButton variant="link" gbtAuthFooterLink routerLink="/login">Se connecter</a>
     </gbt-auth-reset-password>
   `,
-  // The logo artwork has a transparent margin above the drawing; this pulls it back to the panel's padding.
+  // The logo artwork has a transparent top margin; the offset pulls it back to the panel's padding.
   styles: ':host { --gbt-auth-panel-logo-offset: -0.5rem; }',
 })
 export class ResetPasswordPage {

@@ -28,8 +28,8 @@ use crate::state::AppState;
 
 const FORWARDED_FOR: HeaderName = HeaderName::from_static("x-forwarded-for");
 
-/// Axum's `ConnectInfo` fails the request when the server was not built with
-/// `into_make_service_with_connect_info`, and `Option<ConnectInfo>` is not supported. This one never fails.
+/// Axum's `ConnectInfo` fails the request when the server wasn't built with `into_make_service_with_connect_info`,
+/// and `Option<ConnectInfo>` isn't supported. This one never fails.
 pub(crate) struct MaybeConnectInfo(pub(crate) Option<SocketAddr>);
 
 impl<S: Send + Sync> FromRequestParts<S> for MaybeConnectInfo {
@@ -78,7 +78,7 @@ struct AuthConfigResponse {
     public_pages_enabled: bool,
 }
 
-/// `token` is `null` for a local account (always, in production): the password step only yields an `mfaToken`.
+/// `token` is null for a local account (always, in production): the password step only gives an `mfaToken`.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LoginResponse {
@@ -115,8 +115,8 @@ struct ChangePasswordRequest {
     new_password: String,
 }
 
-/// Behind a trusted proxy (`TRUSTED_PROXY_CIDRS`) the forwarded client address, else the TCP peer. Without
-/// `ConnectInfo` everybody shares one bucket, which beats no rate limiting.
+/// Behind a trusted proxy (`TRUSTED_PROXY_CIDRS`) the forwarded client address, otherwise the TCP peer. Without
+/// `ConnectInfo` everybody shares one bucket, which still beats no limit.
 pub(crate) fn client_ip(
     state: &AppState,
     connect_info: Option<SocketAddr>,
@@ -160,7 +160,7 @@ async fn login(
 }
 
 /// Shared by login and registration, so a fresh registration lands in the MFA setup like a first login. With
-/// `mfa_enforced == false` (tests only) it is a plain session.
+/// `mfa_enforced` off (tests only) it's a plain session.
 async fn login_outcome(state: &AppState, user_id: Uuid) -> Result<LoginResponse, ApiError> {
     if !state.mfa_enforced {
         let token = issue_session(state, user_id).await?;
@@ -187,8 +187,8 @@ async fn auth_config(State(state): State<AppState>) -> Result<Json<AuthConfigRes
     }))
 }
 
-/// The answer is the login response: no session, only the `mfaToken` of the mandatory MFA setup. 409 for a taken
-/// username or e-mail (the per-IP throttle bounds probing).
+/// Answers like login: no session, just the `mfaToken` for the mandatory MFA setup. 409 for a taken username or
+/// e-mail (the per-IP throttle limits probing).
 async fn register(
     MaybeConnectInfo(connect_info): MaybeConnectInfo,
     headers: HeaderMap,
@@ -216,8 +216,8 @@ async fn register(
     login_outcome(&state, user.id).await.map(Json)
 }
 
-/// 204 with no session. One generic 400 for an unknown, expired or used token and for a rule-breaking password
-/// (the link stays usable).
+/// 204 with no session. One generic 400 for an unknown, expired or used token and for a password that breaks the
+/// rules (the link stays usable).
 async fn activate(
     MaybeConnectInfo(connect_info): MaybeConnectInfo,
     headers: HeaderMap,
@@ -243,9 +243,9 @@ async fn activate(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Mirrors `activate`. A success sends a mail, because the link may have been handed over by an admin or
-/// intercepted, and the account holder must learn their password was set. It shares activation's per-IP budget: a
-/// well-formed token costs an argon2 run before the lookup, and a single budget caps a client's total argon2 cost.
+/// Mirrors `activate`. A success sends a mail, since the link may have come from an admin or been intercepted and
+/// the account holder should know their password was set. Shares activation's per-IP budget: a well-formed token
+/// costs an argon2 run before the lookup, so one budget caps a client's total argon2 cost.
 async fn reset_password(
     MaybeConnectInfo(connect_info): MaybeConnectInfo,
     headers: HeaderMap,
@@ -268,7 +268,7 @@ async fn reset_password(
     )
     .execute(&req.token, &req.password)
     .await?;
-    // Best effort: mail failures never fail a reset that already succeeded.
+    // A mail failure doesn't undo a reset that already succeeded.
     if let Ok(Some(user)) = state.users.find_by_id(user_id).await
         && is_valid_mailbox(&user.email)
     {
@@ -280,8 +280,8 @@ async fn reset_password(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// The setup is only offered to an account with no factor at all. A factor that cannot be read gives a 5xx here,
-/// not "no factor", which would offer an enrolment to an account that already has one.
+/// Only offered to an account with no factor at all. A factor we can't read is a 5xx, not "no factor", which
+/// would offer an enrolment to an account that already has one.
 pub(crate) async fn mfa_login_response(
     state: &AppState,
     user_id: Uuid,
@@ -303,7 +303,7 @@ pub(crate) async fn issue_session(state: &AppState, user_id: Uuid) -> Result<Str
     issue_session_with_epoch(state, user_id, epoch).await
 }
 
-/// Uses an epoch the caller already read. If the user's epoch has moved since, the session starts out revoked.
+/// Takes an epoch the caller already read: if the user's epoch moved since, the session is born revoked.
 pub(crate) async fn issue_session_with_epoch(
     state: &AppState,
     user_id: Uuid,
@@ -351,18 +351,18 @@ async fn change_password(
     State(state): State<AppState>,
     Json(req): Json<ChangePasswordRequest>,
 ) -> Result<Json<SessionResponse>, ApiError> {
-    // Same per-user budget as the MFA endpoints: this is also a current-password oracle.
+    // Same per-user budget as the MFA endpoints, since this is also a current-password oracle.
     crate::routes::mfa::within_budget(&state, user_id)?;
-    // Sessions only come from MFA (tests aside) and disabling a factor bumps the epoch, so no factor-less session
-    // exists. The fresh session below cannot renew one that should be forced through enrolment.
+    // Sessions only come from MFA (tests aside) and disabling a factor bumps the epoch, so no session without a
+    // factor exists. The fresh session below can't renew one that should be forced through enrolment.
     let use_case = ChangePasswordUseCase::new(state.users.clone(), state.hasher.clone());
     use_case
         .execute(user_id, &req.current_password, &req.new_password)
         .await?;
-    // The epoch bump revoked this request's JWT; hand back a fresh one so the caller's session survives.
+    // The epoch bump killed this request's JWT, so hand back a fresh one to keep the caller signed in.
     let epoch = state.users.get_token_epoch(user_id).await?;
     let token = state.token_issuer.issue(user_id, epoch)?;
-    // Best effort: mail failures never fail a password change that already succeeded.
+    // A mail failure doesn't undo a password change that already succeeded.
     if let Ok(Some(user)) = state.users.find_by_id(user_id).await
         && is_valid_mailbox(&user.email)
     {
@@ -375,7 +375,7 @@ async fn change_password(
 }
 
 pub fn router() -> Router<AppState> {
-    // `layer` wraps only what was added before it, so the body limit hits the unauthenticated routes alone.
+    // layer() only wraps the routes added before it, so the body limit hits the unauthenticated ones alone.
     let unauthenticated = Router::new()
         .route("/auth/config", get(auth_config))
         .route("/auth/register", post(register))

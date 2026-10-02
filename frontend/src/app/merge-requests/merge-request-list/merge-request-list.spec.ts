@@ -207,7 +207,7 @@ describe('MergeRequestList', () => {
 
       const card = el.querySelector('gbt-list-card')!;
       expect(card.querySelector('.gbt-list-card')!.getAttribute('data-state')).toBe('failed');
-      // The card's failed block is the announcement: exactly one alert on the page, and the error toast is not fired for it.
+      // The failed card is the announcement: one alert on the page, and no error toast.
       const alerts = el.querySelectorAll('[role="alert"]');
       expect(alerts).toHaveLength(1);
       expect(card.contains(alerts[0])).toBe(true);
@@ -705,7 +705,7 @@ describe('MergeRequestList', () => {
   });
 
   describe('creation modal', () => {
-    // The form's NgForm registers its ngModel controls (and writes their values) a microtask later.
+    // NgForm registers its ngModel controls, and writes their values, a microtask later.
     async function openModal(fixture: { detectChanges(): void; whenStable(): Promise<unknown> }, el: HTMLElement): Promise<HTMLElement> {
       buttonByText(el.querySelector('.gbt-page-header__actions')!, 'Nouvelle demande de fusion')!.click();
       fixture.detectChanges();

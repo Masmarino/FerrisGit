@@ -36,23 +36,23 @@ pub mod users;
 pub mod webhooks;
 pub mod wikis;
 
-/// Liveness: the process answers. Never touches the database, so a database outage does not get the pod restarted.
-/// Served on `/health` and `/healthz`.
+/// Liveness, served on `/health` and `/healthz`. Never touches the database, so an outage doesn't get the pod
+/// restarted.
 pub async fn health() -> &'static str {
     "ok"
 }
 
-/// How long `/readyz` waits for the database before it answers 503: a probe must not hang along with it.
+/// How long `/readyz` waits for the database before answering 503, so the probe doesn't hang with it.
 pub const READINESS_TIMEOUT: Duration = Duration::from_secs(2);
 
-/// True when the database answers its trivial query within `timeout`. The check is the one behind Admin > Health.
+/// True if the database answers a trivial query within `timeout`. Same check as Admin > Health.
 pub async fn database_answers(check: &dyn HealthCheckPort, timeout: Duration) -> bool {
     tokio::time::timeout(timeout, check.check())
         .await
         .is_ok_and(|health| health.status == ComponentHealth::Up)
 }
 
-/// Readiness: the database answers. The 503 carries no detail (the reason is for the Admin > Health page).
+/// Readiness: the database answers. The 503 has no detail, that's for the Admin > Health page.
 pub async fn ready(State(state): State<AppState>) -> (StatusCode, &'static str) {
     if database_answers(state.health_check.as_ref(), READINESS_TIMEOUT).await {
         (StatusCode::OK, "ok")
@@ -62,7 +62,7 @@ pub async fn ready(State(state): State<AppState>) -> (StatusCode, &'static str) 
 }
 
 /// For `Option<Option<T>>` fields with `#[serde(default)]`: absent is `None`, `null` is `Some(None)`, a value is
-/// `Some(Some(v))`. Plain serde collapses absent and `null`, so an omitted field in a full-replace PATCH would
+/// `Some(Some(v))`. Plain serde treats absent and `null` alike, so a field left out of a full-replace PATCH would
 /// silently clear stored data.
 pub fn deserialize_present<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
 where

@@ -1,17 +1,16 @@
-//! MFA endpoints. A user has MFA when they have a confirmed TOTP or at least one passkey.
+//! MFA endpoints. A user has MFA with a confirmed TOTP or at least one passkey.
 //!
-//! Unauthenticated routes are authorised by the `mfa-pending` token in the body. Every handler runs the
-//! gate in `pending_user` first. Only a success spends the token, so a failed attempt never burns it, and the
-//! per-user limiter caps guessing. The passkey `start` routes verify nothing and spend no per-user attempt (a
-//! dismissed browser prompt must not lock a user out). Each one still parks a ceremony in memory, so they spend
-//! a per-IP budget first. First-enrolment routes are refused once the user has a factor, so a password-only
-//! token cannot add a second one.
+//! The unauthenticated routes are authorised by the `mfa-pending` token in the body, and every handler goes through
+//! `pending_user` first. Only a success spends the token, so a failed attempt doesn't burn it, and the per-user
+//! limiter caps guessing. The passkey `start` routes verify nothing and cost no per-user attempt (a dismissed
+//! browser prompt mustn't lock anyone out), but each parks a ceremony in memory, so they spend a per-IP budget.
+//! First-enrolment routes refuse a user who already has a factor, so a password-only token can't add a second one.
 //!
-//! Self-service routes (`/me/mfa/...`) take a session. Removing a factor first bumps the token epoch (all
-//! sessions die), then removes it.
+//! Self-service routes (`/me/mfa/...`) take a session. Removing a factor bumps the token epoch first (killing all
+//! sessions), then removes it.
 //!
-//! When `PUBLIC_URL` cannot carry passkeys (IP-literal or plain-http non-localhost host), their ceremony routes
-//! answer 503; listing and deleting keep working. Malformed passkey bodies are 400 (`StrictJson`).
+//! When `PUBLIC_URL` can't carry passkeys (IP literal, or plain http on a non-localhost host) the ceremony routes
+//! answer 503, while listing and deleting keep working. Malformed passkey bodies are a 400 (`StrictJson`).
 
 use axum::extract::{DefaultBodyLimit, FromRequest, Path, Request, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -35,7 +34,7 @@ use crate::error::ApiError;
 use crate::routes::auth::{MaybeConnectInfo, SessionResponse, client_ip, issue_session_with_epoch};
 use crate::state::AppState;
 
-/// Enough for a token and a short code. The 2 MB axum default would let an unauthenticated caller push megabytes.
+/// Plenty for a token and a short code. Axum's 2 MB default would let anyone push megabytes without logging in.
 pub(crate) const UNAUTHENTICATED_BODY_LIMIT_BYTES: usize = 16 * 1024;
 
 const TOTP_METHOD_LABEL: &str = "une application d'authentification (TOTP)";
@@ -84,9 +83,9 @@ fn invalid_token() -> ApiError {
     DomainError::Unauthorized("invalid or expired token".to_string()).into()
 }
 
-/// One error for every token problem, so a forged token is indistinguishable from an expired, revoked or spent
-/// one. Read-only and before the limiter: asking again about a spent token must not burn the user's budget or
-/// a TOTP step the legitimate next login needs.
+/// One error for every token problem, so a forged token looks like an expired, revoked or spent one. Read-only and
+/// ahead of the limiter: asking again about a spent token mustn't burn the user's budget or a TOTP step the next
+/// legitimate login needs.
 async fn verified_pending(state: &AppState, mfa_token: &str) -> Result<PendingToken, ApiError> {
     let pending = state.mfa_pending.verify(mfa_token)?;
     ensure_epoch_is_current(state, &pending).await?;
@@ -104,8 +103,8 @@ async fn pending_user(state: &AppState, mfa_token: &str) -> Result<PendingToken,
     Ok(pending)
 }
 
-/// An epoch bump (password change, MFA reset, disable) makes the token stale. Only a vanished user reads as an
-/// invalid token; infrastructure failures stay 5xx.
+/// An epoch bump (password change, MFA reset, disable) makes the token stale. A vanished user reads as an invalid
+/// token too, but infrastructure failures stay 5xx.
 async fn ensure_epoch_is_current(state: &AppState, pending: &PendingToken) -> Result<(), ApiError> {
     match state.users.get_token_epoch(pending.user_id).await {
         Ok(current) if current == pending.epoch => Ok(()),
@@ -114,7 +113,7 @@ async fn ensure_epoch_is_current(state: &AppState, pending: &PendingToken) -> Re
     }
 }
 
-/// `consume` returning false means a concurrent request already spent the token. The session gets the token's
+/// `consume` returning false means a concurrent request already spent the token. The session carries the token's
 /// epoch, so a bump since the gate leaves it revoked.
 async fn complete_login(
     state: &AppState,
@@ -163,8 +162,8 @@ async fn verify(
     }
 }
 
-/// Held from the "no factor yet" check to token consumption. The token is checked again once the lock is held,
-/// so the second of two concurrent setups fails before it replaces the first one's backup codes.
+/// Held from the "no factor yet" check until the token is spent. The token is checked again once the lock is
+/// taken, so the second of two concurrent setups fails before it replaces the first one's backup codes.
 async fn first_setup_guard<'a>(
     state: &'a AppState,
     mfa_token: &str,
@@ -177,8 +176,8 @@ async fn first_setup_guard<'a>(
     Ok(guard)
 }
 
-/// The pending token only proves the password. A user with a passkey must not enrol a TOTP through it, or
-/// anyone with the password could skip the passkey.
+/// The pending token only proves the password. If a user with a passkey could enrol a TOTP through it, anyone
+/// with the password could skip the passkey.
 async fn refuse_when_a_passkey_exists(state: &AppState, user_id: Uuid) -> Result<(), ApiError> {
     if state.mfa.factors(user_id).await?.has_passkey {
         return Err(DomainError::Validation(ALREADY_SET_UP.to_string()).into());
@@ -191,7 +190,7 @@ async fn enroll(
     Json(req): Json<SetupTokenRequest>,
 ) -> Result<Json<EnrollResponse>, ApiError> {
     let pending = pending_user(&state, &req.mfa_token).await?;
-    // Under the lock too: a pending enrolment created just after a passkey setup finished would survive it.
+    // Under the lock too, or an enrolment started just after a passkey setup finished would survive it.
     let _setup = first_setup_guard(&state, &req.mfa_token, pending.user_id).await?;
     refuse_when_a_passkey_exists(&state, pending.user_id).await?;
     let enrollment = state.mfa.enroll_totp(pending.user_id).await?;
@@ -201,7 +200,7 @@ async fn enroll(
     }))
 }
 
-/// Refused like step 1 when a passkey appeared since the enrolment started.
+/// Refused like the first step if a passkey appeared since the enrolment started.
 async fn confirm(
     State(state): State<AppState>,
     Json(req): Json<ConfirmRequest>,
@@ -228,7 +227,7 @@ async fn confirm(
     }))
 }
 
-/// Best effort: mail failures never fail an enrolment that already succeeded.
+/// A mail failure doesn't undo an enrolment that already succeeded.
 async fn notify_enrolled(state: &AppState, user_id: Uuid, method_label: &str) {
     if let Ok(Some(user)) = state.users.find_by_id(user_id).await
         && is_valid_mailbox(&user.email)
@@ -260,7 +259,7 @@ fn bad_body() -> ApiError {
     DomainError::Validation("invalid request body".to_string()).into()
 }
 
-/// Raw JSON so the handler decides where it is parsed (after the availability check, before the token lookup).
+/// Raw JSON, so the handler picks where it's parsed: after the availability check, before the token lookup.
 fn parse_credential<T: DeserializeOwned>(credential: serde_json::Value) -> Result<T, ApiError> {
     serde_json::from_value(credential).map_err(|_| bad_body())
 }
@@ -273,7 +272,7 @@ fn ensure_passkeys_available(state: &AppState) -> Result<(), ApiError> {
     }
 }
 
-/// Spent before anything else: each start parks a ceremony in memory, whatever the token.
+/// Spent first, since every start parks a ceremony in memory whatever the token.
 fn within_start_budget(
     state: &AppState,
     connect_info: Option<std::net::SocketAddr>,
@@ -289,7 +288,7 @@ fn within_start_budget(
     }
 }
 
-/// webauthn-rs nests the challenge under a second `publicKey`, unwrapped here.
+/// webauthn-rs nests the challenge under a second `publicKey`, which we unwrap.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ChallengeResponse {
@@ -334,14 +333,14 @@ async fn passkey_start(
 ) -> Result<Json<ChallengeResponse>, ApiError> {
     within_start_budget(&state, connect_info, &headers)?;
     ensure_passkeys_available(&state)?;
-    // Not counted against the per-user budget: a `start` verifies nothing, and a dismissed prompt must not lock
-    // the user out of every MFA path. Its cost is bounded by the per-IP budget and the per-user ceremony cap.
+    // Not counted against the per-user budget: a start verifies nothing, and a dismissed prompt shouldn't lock
+    // the user out of every MFA path. The per-IP budget and the per-user ceremony cap bound the cost.
     let pending = verified_pending(&state, &req.mfa_token).await?;
     let (challenge_id, challenge) = state.passkeys.start_authentication(pending.user_id).await?;
     challenge_response(challenge_id, &challenge.public_key)
 }
 
-/// Failures give the same 401 as a wrong TOTP code and do not spend the token.
+/// A failure is the same 401 as a wrong TOTP code and doesn't spend the token.
 async fn passkey_finish(
     State(state): State<AppState>,
     StrictJson(req): StrictJson<AssertionRequest>,
@@ -358,7 +357,7 @@ async fn passkey_finish(
             let token = complete_login(&state, &req.mfa_token, &pending).await?;
             Ok(Json(SessionResponse { token }))
         }
-        // `NotFound` means the passkey was deleted between assertion and counter write: a failed login, not a 404.
+        // Passkey deleted between the assertion and the counter write: a failed login, not a 404.
         Err(DomainError::Unauthorized(_) | DomainError::NotFound(_)) => {
             state
                 .events
@@ -392,7 +391,8 @@ async fn setup_passkey_start(
     challenge_response(challenge_id, &challenge.public_key)
 }
 
-/// `finish_first_passkey_setup` re-checks that no factor exists before taking the ceremony (start/finish race).
+/// `finish_first_passkey_setup` re-checks that no factor exists before taking the ceremony, in case of a
+/// start/finish race.
 async fn setup_passkey_finish(
     State(state): State<AppState>,
     StrictJson(req): StrictJson<SetupPasskeyFinishRequest>,
@@ -482,8 +482,8 @@ struct BackupCodesResponse {
     backup_codes: Vec<String>,
 }
 
-/// Called before the business call whatever its outcome, so a wrong password cannot be probed faster than a
-/// wrong code.
+/// Called before the business call whatever its outcome, so a wrong password can't be probed faster than a wrong
+/// code.
 pub(crate) fn within_budget(state: &AppState, user_id: Uuid) -> Result<(), ApiError> {
     if state.mfa_limiter.check(user_id) {
         Ok(())
@@ -492,7 +492,7 @@ pub(crate) fn within_budget(state: &AppState, user_id: Uuid) -> Result<(), ApiEr
     }
 }
 
-/// Not counted against the limiter: it answers nothing an attacker could guess at.
+/// Not counted against the limiter, there's nothing in the answer to guess at.
 async fn status(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -512,7 +512,7 @@ async fn status(
     }))
 }
 
-/// Refused (400) while a confirmed TOTP exists, so a stolen session cannot silently swap the factor.
+/// 400 while a confirmed TOTP exists, so a stolen session can't quietly swap the factor.
 async fn enroll_self(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -559,8 +559,8 @@ async fn regenerate(
     Ok(Json(BackupCodesResponse { backup_codes }))
 }
 
-/// The epoch is bumped before the deletion. If the deletion then fails, the sessions are dead and the factor
-/// intact, never the other way round. Backup codes are kept while a passkey remains.
+/// Bumps the epoch before deleting: if the delete fails, the sessions are dead and the factor intact, never the
+/// reverse. Backup codes stay while a passkey remains.
 async fn disable(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -581,8 +581,8 @@ async fn disable(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// Needs the current password (a stolen session must not plant an attacker's authenticator) and counts against
-/// the per-user budget before the password is looked at.
+/// Needs the current password (a stolen session shouldn't be able to plant an attacker's authenticator) and spends
+/// the per-user budget before the password is checked.
 async fn register_passkey_start(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -619,8 +619,8 @@ async fn register_passkey_finish(
     Ok((StatusCode::CREATED, Json(passkey.into())))
 }
 
-/// 404 for another user's or an unknown passkey, without signing anyone out. As in `disable`, the epoch is bumped
-/// before the removal. Works when passkeys are unavailable.
+/// 404 for someone else's or an unknown passkey, without signing anyone out. Bumps the epoch before removing, like
+/// `disable`. Works when passkeys are unavailable.
 async fn delete_passkey(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -632,7 +632,7 @@ async fn delete_passkey(
         .mfa
         .check_password(user_id, &req.current_password)
         .await?;
-    // Checked before the bump so a stale or foreign id is a plain 404 that logs nobody out.
+    // Before the bump, so a stale or foreign id is a plain 404 that doesn't log anyone out.
     if !state
         .passkeys
         .list(user_id)
@@ -671,7 +671,7 @@ fn self_service_router() -> Router<AppState> {
 }
 
 pub fn router() -> Router<AppState> {
-    // `layer` wraps only what was added before it, so the body limit hits the unauthenticated routes alone.
+    // layer() only wraps the routes added before it, so the body limit hits the unauthenticated ones alone.
     let unauthenticated = Router::new()
         .route("/auth/mfa/verify", post(verify))
         .route("/auth/mfa/setup/totp/enroll", post(enroll))

@@ -136,7 +136,7 @@ const longLinesFile: FileDiff = {
 const manyHunksFile: FileDiff = {
   path: 'frontend/src/app/merge-requests/merge-requests.service.ts',
   change: 'modified',
-  // Even hunks add a line and odd ones remove one, so the new side runs one line ahead after an even hunk.
+  // Even hunks add a line, odd ones remove one, so the new side is one line ahead after an even hunk.
   hunks: Array.from({ length: 6 }, (_, index) => {
     const start = 12 + index * 40;
     const shift = index % 2;
@@ -198,7 +198,7 @@ const suggestionComments: Comment[] = [
   }),
 ];
 
-// The file's card as the merge request page draws it (`.mr-diff__file`); `cardWidth` holds it to a phone's content width.
+// The file card as the merge request page draws it; cardWidth pins it to a phone's content width.
 const inFileCard = componentWrapperDecorator(
   (story) => `<article [style.max-width]="cardWidth" style="margin-inline: auto; min-width: 0;">
     <gbt-card variant="outlined" [flush]="true">
@@ -209,7 +209,7 @@ const inFileCard = componentWrapperDecorator(
   ({ parameters }) => ({ cardWidth: parameters['cardWidth'] ?? null }),
 );
 
-/** Layout checks jsdom cannot make: every hunk shares the same columns, no code cell overflows, gutters keep their padding, no sideways page scroll. */
+/** Layout checks jsdom can't make: hunks share columns, no code cell overflows, gutters keep their padding, no sideways page scroll. */
 async function expectDiffLayout({ canvasElement }: { canvasElement: HTMLElement }): Promise<void> {
   const table = canvasElement.querySelector<HTMLTableElement>('.file-diff-view__table');
   await expect(table, 'the diff table is rendered').not.toBeNull();

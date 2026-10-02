@@ -36,7 +36,7 @@ async fn login(
     .await
 }
 
-/// Gives the bootstrap admin a deliverable `email` (`admin@localhost` is not a deliverable mailbox).
+/// Gives the bootstrap admin a real email, since admin@localhost isn't a deliverable mailbox.
 async fn admin_jwt_with_email(client: &reqwest::Client, addr: SocketAddr, email: &str) -> String {
     let jwt = login(client, addr, "admin", "adminpassword123")
         .await
@@ -152,7 +152,7 @@ async fn a_successful_change_swaps_which_password_logs_in_and_revokes_the_old_jw
         .unwrap();
     let new_jwt = new_login["token"].as_str().unwrap();
 
-    // A password change bumps the token epoch: the pre-change JWT stops authenticating immediately.
+    // A password change bumps the epoch, so the old JWT stops working at once.
     let old_jwt_after_change = get(&client, addr, &old_jwt, "/auth/me").await;
     assert_eq!(
         old_jwt_after_change.status(),
@@ -233,7 +233,7 @@ async fn a_failed_change_returns_no_token(pool: PgPool) {
         "a rejected change must not hand out a token, got {body}"
     );
 
-    // No epoch bump on failure.
+    // A failed change doesn't bump the epoch.
     let still = get(&client, addr, &jwt, "/auth/me").await;
     assert_eq!(still.status(), 200);
 }
@@ -283,7 +283,7 @@ async fn a_refused_password_change_sends_nothing(pool: PgPool) {
     .await;
     assert_eq!(res.status(), 400);
 
-    // The mail is sent from a background task, so an immediate "nothing sent" proves nothing. A later successful change must be the only delivery attempt.
+    // The mail goes out from a background task, so "nothing sent yet" proves nothing. A later successful change has to be the only delivery attempt.
     let ok = post(
         &client,
         addr,
@@ -358,7 +358,7 @@ async fn an_address_no_relay_can_deliver_to_gets_no_notification(pool: PgPool) {
         .unwrap()
         .to_string();
 
-    // Shows the background task works, and that the first change made no attempt of its own.
+    // Proves the background task works, and that the first change made no attempt.
     let set = patch(
         &client,
         addr,

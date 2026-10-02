@@ -4,7 +4,6 @@ import { Alert, Button, Card, ConfirmDangerModal, EmptyState, GbtInput, ListRow,
 import { Label, LabelsService } from '../../labels/labels.service';
 import { createSettingsList } from '../settings-list';
 
-/** The label colours offered, each with the name a screen reader reads for its swatch. */
 const LABEL_PALETTE: { color: string; name: string }[] = [
   { color: '#dc2626', name: 'Rouge' },
   { color: '#ea580c', name: 'Orange' },
@@ -78,7 +77,7 @@ export class RepositoryLabelsSettings implements OnInit {
         this.list.refresh();
         this.toast.show('Label supprimé.');
       },
-      // The confirm modal covers the card, so an error must close it first to be visible.
+      // Close the modal first, it covers the card and would hide the error.
       error: () => {
         this.labelPendingDelete.set(null);
         this.toast.show('Impossible de supprimer ce label.', 'error');

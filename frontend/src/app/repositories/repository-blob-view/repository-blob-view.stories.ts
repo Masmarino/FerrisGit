@@ -40,7 +40,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import hljs from 'highlight.js/lib/core';
 import DOMPurify from 'dompurify';
 
-/** Number of lines a file shows: a trailing newline ends the last line. */
+/** A trailing newline ends the last line rather than starting a new one. */
 export function lineCount(content: string): number {
   if (content === '') return 1;
   const breaks = content.split('\\n').length - 1;
@@ -123,7 +123,7 @@ function blobRepositories({ blob, failingLevels = [], treeStatus }: BlobStory): 
 
 const text = (content: string): BlobContent => ({ sha: '9f3c2a1', size: new TextEncoder().encode(content).length, isBinary: false, content });
 
-/** Real-layout check jsdom cannot make: above 768px the navigator is a column beside the file card, else above it. */
+/** Needs real layout, which jsdom lacks: above 768px the navigator sits beside the file card, below it above. */
 async function expectNavigatorPlacement({ canvasElement }: { canvasElement: HTMLElement }) {
   const layout = canvasElement.querySelector('gbt-page-layout') as HTMLElement;
   const nav = canvasElement.querySelector<HTMLElement>('.repository-blob-view__nav');
@@ -146,7 +146,7 @@ async function expectNavigatorPlacement({ canvasElement }: { canvasElement: HTML
   }
 }
 
-/** A file inside the app shell's content area. Above about 768px of layout width, the navigator is a column. */
+/** A file in the app shell's content area; the navigator becomes a column above about 768px. */
 const meta: Meta<RepositoryBlobView> = {
   title: 'Repositories/RepositoryBlobView',
   component: RepositoryBlobView,

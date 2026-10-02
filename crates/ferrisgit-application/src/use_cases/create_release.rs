@@ -28,9 +28,8 @@ impl CreateReleaseUseCase {
         }
     }
 
-    /// If `tag_name` already exists and points at `target_commit_sha`, it is reused as is (no write). If it exists but
-    /// points somewhere else, the request is rejected: moving an existing tag is out of scope, and a release always
-    /// follows whatever commit its tag already targets. If it doesn't exist yet, it is created first.
+    /// An existing tag on `target_commit_sha` is reused as is. One pointing elsewhere is rejected, since a release
+    /// follows whatever commit its tag targets and we never move tags. A missing tag is created first.
     #[allow(clippy::too_many_arguments)]
     pub async fn execute(
         &self,

@@ -25,9 +25,8 @@ impl CreateRepositoryUseCase {
         }
     }
 
-    /// `init_disk_repo` gets the disk path (`{owner_id}/{name}.git`) before the row is persisted, so a disk-init
-    /// failure never leaves an orphaned row. `settings_update` applies on top of the default settings (created lazily).
-    /// An all-`None` update is a no-op.
+    /// The bare repo is initialised on disk before the row is created, so a failure there never leaves an orphaned row.
+    /// `settings_update` is applied on top of the default settings.
     #[allow(clippy::too_many_arguments)]
     pub async fn execute(
         &self,
@@ -134,8 +133,7 @@ mod tests {
     }
 
     impl Fixture {
-        /// Creates a private personal repository `name` for a new owner, with default settings and a disk init that
-        /// always works.
+        /// A private personal repo for a new owner, default settings, disk init always succeeds.
         async fn create(&self, name: &str) -> Result<Repository, DomainError> {
             self.use_case
                 .execute(

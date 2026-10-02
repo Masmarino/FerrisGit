@@ -98,7 +98,7 @@ async fn a_trusted_proxy_gives_each_forwarded_client_its_own_bucket_and_an_untru
     assert_eq!(behind_proxy.register(Some("198.51.100.9")).await, 429);
     assert_eq!(behind_proxy.login(Some("198.51.100.9")).await, 429);
     assert_eq!(behind_proxy.activate(Some("198.51.100.9")).await, 429);
-    // ...and cannot shake it off by prepending fake addresses: the proxy appends the real one on the right.
+    // ...and prepending fake addresses doesn't shake it off, the proxy appends the real one on the right.
     assert_eq!(
         behind_proxy.register(Some("9.9.9.9, 198.51.100.9")).await,
         429

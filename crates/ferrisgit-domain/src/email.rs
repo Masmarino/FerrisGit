@@ -30,15 +30,15 @@ impl SmtpSecurity {
     }
 }
 
-/// Kept apart from `SystemSettings` so the password never rides along in a row that is echoed over HTTP.
+/// Separate from `SystemSettings` so the password never rides along in a row that gets echoed over HTTP.
 #[derive(Clone, PartialEq, Eq)]
 pub struct SmtpSettings {
     pub host: String,
     pub port: u16,
     pub security: SmtpSecurity,
-    /// Empty means "no SMTP authentication" (an internal relay).
+    /// Empty means no SMTP auth (internal relay).
     pub username: String,
-    /// Plaintext at this layer. Encryption at rest is the persistence adapter's job.
+    /// Plaintext here; encrypting at rest is the adapter's job.
     pub password: Option<String>,
     pub from_address: String,
     pub from_name: String,
@@ -58,8 +58,8 @@ impl std::fmt::Debug for SmtpSettings {
     }
 }
 
-/// Kept small on purpose: length, no whitespace or control characters, one `@`, a dotted domain. Rejects
-/// `admin@localhost` (an address no relay can deliver to) as well as anything malformed.
+/// Deliberately loose: length, no whitespace, one `@`, a dotted domain. It still rejects `admin@localhost`, which no
+/// relay can deliver to.
 pub fn is_valid_mailbox(address: &str) -> bool {
     address.len() <= 254
         && !address.chars().any(|c| c.is_whitespace() || c.is_control())
@@ -74,7 +74,7 @@ pub fn is_valid_mailbox(address: &str) -> bool {
 
 #[async_trait]
 pub trait SmtpSettingsPort: Send + Sync {
-    /// `None` means never configured: mail is simply unavailable, which is not an error in itself.
+    /// `None` means mail was never configured, which is not an error.
     async fn get(&self) -> Result<Option<SmtpSettings>, DomainError>;
     async fn save(&self, settings: &SmtpSettings) -> Result<(), DomainError>;
 }

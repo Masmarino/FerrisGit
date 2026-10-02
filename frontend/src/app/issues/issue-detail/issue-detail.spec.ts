@@ -85,7 +85,7 @@ describe('IssueDetail', () => {
     return ctx;
   }
 
-  /** The pickers are gated behind write access, so tests driving them set the repository context's role first. */
+  /** The pickers need write access, so tests driving them set the repository context's role first. */
   function setRole(role: Role): void {
     TestBed.inject(RepositoryContextService).current.set({ repositoryId: 'repo-1', path: ['acme', 'widget'], role, ancestors: [], groupId: null });
   }
@@ -208,7 +208,7 @@ describe('IssueDetail', () => {
       expect(el.querySelector('[aria-busy="true"]')).toBeNull();
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toBe("Ce ticket n'a pas pu être chargé.");
-      // The toast announces it, so the inline message stays silent (one live region, not two).
+      // The toast announces it, so the inline message stays silent: one live region, not two.
       expect(failed?.getAttribute('data-variant')).toBe('error');
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();

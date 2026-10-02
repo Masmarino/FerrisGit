@@ -6,9 +6,9 @@ import { groupCreationError, GroupsService } from '../groups.service';
 const NAME_REQUIRED = 'Le nom est requis';
 
 /**
- * The "Nouveau groupe" dialog, for a group at the root. Any signed-in user can create one: the server only refuses a
- * name that a user account or another root group already uses. The parent renders it under `@if`, so it is rebuilt each
- * time it opens and never keeps an old draft. A failed creation leaves it open with the draft.
+ * The "Nouveau groupe" dialog, for a group at the root. Any signed-in user can create one; the server only refuses a
+ * name already used by a user account or another root group. The parent renders it under `@if`, so it's rebuilt on each
+ * open and never keeps an old draft. A failed creation leaves it open with the draft.
  */
 @Component({
   selector: 'fg-create-group-modal',
@@ -24,7 +24,7 @@ export class CreateGroupModal {
   close = output<void>();
   created = output<void>();
 
-  // Not `protected` because the spec calls them directly.
+  // Public so the spec can call them.
   name = signal('');
   description = signal('');
   error = signal('');

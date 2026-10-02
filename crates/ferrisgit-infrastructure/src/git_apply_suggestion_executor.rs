@@ -1,6 +1,6 @@
 use std::path::{Path, PathBuf};
 
-use crate::git_cli;
+use crate::git_cli::{self, identity_env};
 use async_trait::async_trait;
 use ferrisgit_domain::apply_suggestion_executor::ApplySuggestionExecutorPort;
 use ferrisgit_domain::error::DomainError;
@@ -16,8 +16,7 @@ impl GitApplySuggestionExecutor {
     }
 }
 
-/// Returns stdout untrimmed: callers reading file content must not trim it, and callers that want a
-/// single token use `run_git`, which trims.
+/// Stdout untrimmed, for reading file content. `run_git` trims, for single tokens.
 async fn run_git_raw(
     repo_path: &Path,
     args: &[&str],
@@ -38,8 +37,8 @@ async fn run_git(
     Ok((output.success, output.stdout_trimmed(), output.stderr))
 }
 
-/// Splits `content` into lines that keep their trailing `\n` (the last keeps none if the file has none),
-/// matching `DiffLine::content` so spliced lines need no newline adjustment.
+/// Splits into lines that keep their `\n` (the last has none if the file has none), like `DiffLine::content`,
+/// so spliced lines need no adjusting.
 fn split_keep_newlines(content: &str) -> Vec<String> {
     let mut lines = Vec::new();
     let mut start = 0;
@@ -145,16 +144,11 @@ impl ApplySuggestionExecutorPort for GitApplySuggestionExecutor {
             )));
         }
 
-        let identity_env = [
-            ("GIT_AUTHOR_NAME", committer_name),
-            ("GIT_AUTHOR_EMAIL", committer_email),
-            ("GIT_COMMITTER_NAME", committer_name),
-            ("GIT_COMMITTER_EMAIL", committer_email),
-        ];
+        let commit_env = identity_env(committer_name, committer_email);
         let (ok, commit_sha, stderr) = run_git(
             &repo_path,
             &["commit-tree", &tree_oid, "-p", expected_tip, "-m", message],
-            &identity_env,
+            &commit_env,
             None,
         )
         .await?;
@@ -431,7 +425,7 @@ mod tests {
             init_bare_repo_with_a_file(tmp.path(), "README.md", "line one\nline two\n");
         let stale_tip = rev_parse(&bare_path, "refs/heads/main");
 
-        // Move the branch tip past the stale `expected_tip`, as another push racing ahead would.
+        // Move the tip past the stale `expected_tip`, like a racing push would.
         git(
             &work_path,
             &[

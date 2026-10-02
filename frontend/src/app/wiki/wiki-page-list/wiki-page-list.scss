@@ -33,8 +33,8 @@
   font-size: 0.75rem;
 }
 
-// The pages as tiles: as many columns as fit ~18rem each, one on a phone. Doubled class: the list
-// card resets a direct child `ul` (`margin`, `padding`, bullets) with a more specific rule.
+// The pages as tiles: as many columns as fit ~18rem each, one on a phone. Doubled class because the list card
+// resets a direct child `ul` (`margin`, `padding`, bullets) with a more specific rule.
 .wiki-page-list__items.wiki-page-list__items {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(min(18rem, 100%), 1fr));

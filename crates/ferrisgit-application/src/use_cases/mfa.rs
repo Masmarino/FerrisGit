@@ -1,6 +1,6 @@
-//! Every MFA use case (TOTP, backup codes, admin reset). Passkey ceremonies live in `PasskeyService`.
-//! `MfaService` sees the TOTP secret in plaintext (encryption at rest is the adapter's job). Security events and
-//! token-epoch bumps are left to the caller.
+//! MFA use cases: TOTP, backup codes, admin reset. Passkey ceremonies are in `PasskeyService`.
+//! The TOTP secret is plaintext here (the adapter encrypts it at rest). Security events and token-epoch bumps are the
+//! caller's job.
 
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -25,7 +25,7 @@ pub struct MfaStatus {
 #[derive(Clone, PartialEq, Eq)]
 pub struct TotpEnrollment {
     pub secret_base32: String,
-    /// Contains the secret too (`secret=...`).
+    /// The secret is in here too.
     pub otpauth_url: String,
 }
 
@@ -50,7 +50,7 @@ impl MfaFactors {
     }
 }
 
-/// Confirming needs no password, so an abandoned enrolment must not stay confirmable for long.
+/// Confirming needs no password, so an abandoned enrolment can't stay confirmable for long.
 const PENDING_TOTP_TTL_MINUTES: i64 = 15;
 
 pub struct MfaService {
@@ -106,7 +106,6 @@ impl MfaService {
         })
     }
 
-    /// Refused once a confirmed credential exists.
     pub async fn enroll_totp(&self, user_id: Uuid) -> Result<TotpEnrollment, DomainError> {
         let user = self
             .users
@@ -120,7 +119,7 @@ impl MfaService {
         }
         let secret_base32 = mfa_crypto::generate_secret_base32();
         let otpauth_url = mfa_crypto::otpauth_url(&secret_base32, &user.username)?;
-        // The store never overwrites a confirmed row: `false` means one appeared since the check above.
+        // The store never overwrites a confirmed row, so `false` means one appeared since the check above.
         if !self
             .totp
             .upsert(&TotpCredential {
@@ -143,10 +142,8 @@ impl MfaService {
     }
 
     /// Returns the plaintext backup codes, the only time they exist outside their hashes.
-    /// Each step is atomic in the store. `set_last_used_step` claims the code's step, `confirm(user, step)` only
-    /// matches a row still unconfirmed at that step, and only the winner of the confirm writes the codes.
-    /// If writing the codes fails, the credential stays confirmed without codes and the user regenerates them with the
-    /// password.
+    /// Two racing confirms can't both get codes: the step is claimed first, then `confirm` only matches a row still
+    /// unconfirmed at that step. If writing the codes fails, the user regenerates them with the password.
     pub async fn confirm_totp(
         &self,
         user_id: Uuid,
@@ -161,7 +158,7 @@ impl MfaService {
                 "TOTP is already enrolled".to_string(),
             ));
         }
-        // A stale enrolment answers like a wrong code, before the code is looked at.
+        // A stale enrolment looks like a wrong code, and we don't even check the code.
         if Utc::now() - credential.created_at > self.pending_ttl {
             return Err(DomainError::Validation("invalid code".to_string()));
         }
@@ -178,7 +175,7 @@ impl MfaService {
         self.store_new_backup_codes(user_id).await
     }
 
-    /// Every refusal is the same `Unauthorized("invalid code")` so nothing reveals which factor exists.
+    /// Every refusal is the same "invalid code", so nothing reveals which factor exists.
     pub async fn verify_challenge(
         &self,
         user_id: Uuid,
@@ -201,11 +198,10 @@ impl MfaService {
         self.issue_backup_codes(user_id).await
     }
 
-    /// Private on purpose: it asks for no password, so it may only run behind something that already authorised the
-    /// caller.
+    /// Private on purpose: no password is asked, so callers must have authorised the user already.
     async fn issue_backup_codes(&self, user_id: Uuid) -> Result<Vec<String>, DomainError> {
         if !self.factors(user_id).await?.any() {
-            // Whatever codes are stored are dormant leftovers of a removed factor: never let them come back to life.
+            // Leftover codes from a removed factor, they must not come back to life.
             self.backup.delete_all(user_id).await?;
             return Err(DomainError::Validation(
                 "no MFA factor is enrolled".to_string(),
@@ -214,17 +210,14 @@ impl MfaService {
         self.store_new_backup_codes(user_id).await
     }
 
-    /// Replaces the user's backup codes with fresh ones and returns the plaintext.
     async fn store_new_backup_codes(&self, user_id: Uuid) -> Result<Vec<String>, DomainError> {
         let (plaintext, hashes) = mfa_crypto::generate_backup_codes();
         self.backup.replace_all(user_id, &hashes).await?;
         Ok(plaintext)
     }
 
-    /// Registers the first passkey and issues the backup codes in one operation, so no caller can mint codes for a user
-    /// who already has a factor.
-    /// Refuses (`Validation`) when any factor exists, before the ceremony is taken. If issuing the codes fails, the new
-    /// passkey is removed again.
+    /// Registers the first passkey and issues the backup codes in one go, so nobody can mint codes for a user who
+    /// already has a factor. Refuses before the ceremony is taken, and removes the passkey again if the codes fail.
     pub async fn finish_first_passkey_setup(
         &self,
         passkeys: &PasskeyService,
@@ -237,8 +230,8 @@ impl MfaService {
             return Err(DomainError::Validation("MFA is already set up".to_string()));
         }
         self.backup.delete_all(user_id).await?;
-        // Any TOTP row here is an unconfirmed enrolment from the setup. Left behind, it would let whoever knows its
-        // secret confirm it with a session alone and get backup codes.
+        // Any TOTP row left here is an unconfirmed enrolment. Whoever knows its secret could confirm it with just a
+        // session and get backup codes.
         self.totp.delete(user_id).await?;
         let stored = passkeys
             .finish_registration(user_id, challenge_id, credential, name)
@@ -246,15 +239,14 @@ impl MfaService {
         match self.issue_backup_codes(user_id).await {
             Ok(codes) => Ok((stored, codes)),
             Err(e) => {
-                // Best effort: if this fails too the user has a passkey and no codes, recoverable with the password.
+                // Best effort. If this fails too, the user has a passkey and no codes, fixable with the password.
                 let _ = self.passkeys.delete(stored.id, user_id).await;
                 Err(e)
             }
         }
     }
 
-    /// A wrong password is a `Validation` (400), not `Unauthorized`: the caller is already authenticated,
-    /// and a 401 would trip the client's auto-logout over a mistyped form value.
+    /// A wrong password is a 400, not a 401: the client would log the user out over a typo.
     pub async fn check_password(
         &self,
         user_id: Uuid,
@@ -280,10 +272,9 @@ impl MfaService {
         }
     }
 
-    /// Deletes the TOTP credential (pending included). When no factor remains the backup codes go first, so a partial
-    /// failure leaves a TOTP without codes rather than live codes without a factor.
-    /// The check runs again after the deletion, in case a passkey was removed at the same time. The caller bumps the
-    /// token epoch before calling.
+    /// Pending enrolments go too. When no factor would remain, the backup codes are deleted first: a failure halfway
+    /// then leaves a TOTP without codes, not live codes without a factor. The count is checked again afterwards in case
+    /// a passkey was removed at the same time. The caller bumps the token epoch before calling.
     pub async fn remove_totp(&self, user_id: Uuid) -> Result<(), DomainError> {
         let passkey_remains = self.passkeys.count_for_user(user_id).await? > 0;
         if !passkey_remains {
@@ -296,9 +287,8 @@ impl MfaService {
         Ok(())
     }
 
-    /// Scoped to the owner: an unknown id is `NotFound("passkey")` and nothing is touched. Removing the last factor
-    /// deletes the backup codes first, and the check runs again afterwards, as in `remove_totp`.
-    /// The caller bumps the token epoch before calling. This is the only way to delete a passkey.
+    /// The only way to delete a passkey. Same codes-first ordering and re-check as `remove_totp`, and the caller bumps
+    /// the token epoch before calling. Someone else's passkey id is a plain not found.
     pub async fn remove_passkey(&self, user_id: Uuid, passkey_id: Uuid) -> Result<(), DomainError> {
         let owned = self.passkeys.list_for_user(user_id).await?;
         if !owned.iter().any(|passkey| passkey.id == passkey_id) {
@@ -317,8 +307,8 @@ impl MfaService {
         Ok(())
     }
 
-    /// Removes every factor (backup codes, passkeys, TOTP, in that order) so a partial failure never leaves live
-    /// codes behind a removed factor. The caller bumps the token epoch before calling.
+    /// Codes first, then passkeys, then TOTP, so a failure halfway never leaves live codes without a factor. The
+    /// caller bumps the token epoch before calling.
     pub async fn reset(&self, user_id: Uuid) -> Result<(), DomainError> {
         self.backup.delete_all(user_id).await?;
         self.passkeys.delete_all_for_user(user_id).await?;
@@ -342,8 +332,8 @@ impl MfaService {
             .ok_or_else(invalid_code)?;
         let step = mfa_crypto::matching_step(&credential.secret, code, now_unix())
             .ok_or_else(invalid_code)?;
-        // A step already accepted (or older) is a replay. This check alone is not enough under concurrency: the
-        // compare-and-swap below is what lets only one of several simultaneous attempts through.
+        // A step already used (or older) is a replay. This check alone doesn't stop concurrent attempts, the
+        // compare-and-swap does.
         if credential.last_used_step.is_some_and(|last| step <= last)
             || !self.totp.set_last_used_step(user_id, step).await?
         {
@@ -353,8 +343,7 @@ impl MfaService {
     }
 
     async fn verify_backup(&self, user_id: Uuid, backup_code: &str) -> Result<(), DomainError> {
-        // Backup codes are a recovery path for a confirmed TOTP or a passkey, never a standalone factor:
-        // without either (reset, half-finished enrolment) any leftover code is worthless.
+        // Backup codes only back up a TOTP or a passkey. With neither (after a reset, say) leftover codes are useless.
         if !self.factors(user_id).await?.any() {
             return Err(invalid_code());
         }

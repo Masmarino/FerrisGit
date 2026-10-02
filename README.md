@@ -21,6 +21,7 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 - [Security](#security)
 - [Operations](#operations)
 - [Deploying to Kubernetes](#deploying-to-kubernetes)
+- [Website](#website)
 - [Development](#development)
 - [Repository layout](#repository-layout)
 - [Roadmap](#roadmap)
@@ -516,6 +517,65 @@ losing data; the `Deployment`s and `Service`s must be recreated (their selectors
 the names the chart renders, is in the documentation page *Déploiement sur Kubernetes*
 (`docs/administration/deploiement-kubernetes.md`).
 
+## Website
+
+The public site, <https://www.ferrisgit.pro>, lives in [`website/`](website). It is an Angular project of its own (it shares
+nothing with `frontend/`), prerendered to static files and served by nginx. The application is at
+<https://app.ferrisgit.pro>; `ferrisgit.pro` redirects to `www`.
+
+- **Pages and languages.** Home, Features and Roadmap, in English (the default), French, Italian, Spanish and German:
+  fifteen prerendered pages under `/<lang>/`, `/<lang>/features/` and `/<lang>/roadmap/`. The root `/` is not a page: nginx
+  redirects it to the language of the visitor's `Accept-Language` header, or to `/en/`.
+- **Local development.** Node 26:
+
+  ```bash
+  cd website
+  npm ci
+  npm start        # development server on http://localhost:4200
+  npm run lint
+  npm test
+  npm run build    # prerendered site in dist/ferrisgit-website/browser, then scripts/check-dist.mjs checks it
+  ```
+
+  `npm start` and `npm run build` regenerate `public/sitemap.xml` from `src/app/seo/site.json` first (it is not committed).
+
+- **Generated assets.** These are committed, so a normal build does not regenerate them (commands run from `website/`):
+  - `npm run images`: the logos, favicon, Apple touch icon and the social previews, one per language;
+  - `npm run plan`: the template of the architecture drawing, `src/app/shared/architecture-plan/architecture-plan.html`;
+  - `python3 scripts/subset-fonts.py`: the subset Instrument Sans and IBM Plex Mono in `public/fonts/`, from the
+    `@fontsource` packages (needs `fonttools` and `brotli`);
+  - `node scripts/capture-screens.mjs`: the product screenshots in `public/images/screens/`, from the application's
+    Storybook; the instructions are at the top of that script.
+- **Image.** `website/Dockerfile` builds the site in a Node stage and serves it with nginx as an unprivileged user on port 8080
+  (read-only root filesystem, `/tmp` only). `website/docker/nginx.conf` holds the redirects, the cache rules and the security
+  headers. The Content-Security-Policy is generated from the built pages at image build time: the pages carry no inline script
+  (`npm run build` fails if one appears), so it is `script-src 'self'`, and an inline event handler fails the image build.
+  The image is `masmarino/ferrisgit-website`:
+
+  ```bash
+  docker build -t ferrisgit-website website/
+  docker run --rm --read-only --tmpfs /tmp -p 8080:8080 ferrisgit-website   # http://localhost:8080
+  ```
+
+- **Chart.** [`website/helm/ferrisgit-website`](website/helm/ferrisgit-website) deploys one stateless pod, a `Service`, an
+  `Ingress` for `www.ferrisgit.pro` and `ferrisgit.pro` and a `NetworkPolicy`. It follows the conventions of the application
+  chart: Traefik's `letsencrypt-http` resolver by default (or a cert-manager `ingress.clusterIssuer`, never both), the
+  `traefik-https` and `traefik-headers` middlewares and the `traefik-mintls13` TLSOption (`""` for none), `image.tag`
+  without a default and an optional `image.digest`.
+
+  ```bash
+  helm upgrade --install ferrisgit-website ./website/helm/ferrisgit-website \
+    --namespace ferrisgit-website --create-namespace --set image.tag=<release>
+  ```
+
+- **Deployment.** Only with version tags, together with the application: see
+  [Continuous integration and delivery](#continuous-integration-and-delivery). The release is `ferrisgit-website`, in the
+  namespace `ferrisgit-website`.
+- **DNS.** Before the first deploy, add an A record for `www.ferrisgit.pro` and one for `ferrisgit.pro` pointing at the
+  Traefik load balancer; Traefik's resolver needs both to issue the certificate. The cluster needs the same Traefik
+  middlewares and TLSOption as the application.
+- **No tracking.** The site sets no cookie and loads nothing from another origin: no analytics, fonts or scripts from a CDN.
+
 ## Development
 
 ### Prerequisites
@@ -588,12 +648,21 @@ pull request and on demand:
 | Build, scan & push Docker image | `main`, `release/**`, tags | Builds the image, scans it with Trivy and Grype, and only then pushes it. |
 | GitHub release | tags | Creates the GitHub release of the tag once the image is pushed, with the matching [`CHANGELOG.md`](CHANGELOG.md) section as its notes. |
 | Helm chart lint | always | `helm lint --strict` and `helm template` of `helm/ferrisgit` with the default values, with cert-manager instead of the Traefik resolver, and with several switches off; checks that setting `ingress.certResolver` and `ingress.clusterIssuer` together is refused. |
+| Detect website changes | always | Compares the run with its base (the previous commit of a push, the target branch of a pull request) and says whether `website/` or the workflow changed. A version tag always counts as a change. |
+| Website lint, build & chart | when the site changed | `npm ci`, `npm run lint`, `npm test` and `npm run build` in `website/`, then `helm lint --strict` and `helm template` of `website/helm/ferrisgit-website` with the default values, with cert-manager instead of the Traefik resolver, with the middlewares off, without the ingress and with a digest; checks that both certificate sources together, and a missing `image.tag`, are refused. |
 | Deploy to Kubernetes | tags | Upgrades the production release with `helm upgrade --install --atomic`, pinned to the digest of the image just pushed. Needs the `production` environment, the secret `KUBE_CONFIG` (base64 kubeconfig) and the variable `TRUSTED_PROXY_CIDRS`; `FERRISGIT_INGRESS_HOST`, `FERRISGIT_CERT_RESOLVER` and `FERRISGIT_CLUSTER_ISSUER` are optional. Two deploys never run at once, and the commit must be on `main`. |
+| Build, scan & push website image | tags | After the site checks and the check that the tagged commit is on `main`: builds `website/Dockerfile`, scans the image with Trivy and Grype, and only then pushes `masmarino/ferrisgit-website:<version>`. |
+| Deploy website to Kubernetes | tags | Upgrades the `ferrisgit-website` release in the `ferrisgit-website` namespace (created if missing) with `helm upgrade --install --atomic`, pinned to the digest of the website image. Same `production` environment and `KUBE_CONFIG` as the application; two website deploys never run at once. |
 
 The image is pushed to Docker Hub as `masmarino/ferrisgit` (`latest` and `sha-*` from `main`, the version from a tag)
 only when the repository secrets `DOCKERHUB_USERNAME` and `DOCKERHUB_TOKEN` are set; without them the image is still
 built and scanned. A version tag is then deployed to Kubernetes by the Deploy job, see
 [Deploying to Kubernetes](#deploying-to-kubernetes).
+
+The [website](#website) is built and shipped by its own jobs, which never hold back the application's: the image
+`masmarino/ferrisgit-website` is built only from a version tag (same secrets and same scans), and the same tag deploys it.
+The checks of the site run when `website/` or the workflow changed, so a push that leaves the site alone does not rebuild it.
+The kubeconfig behind `KUBE_CONFIG` must be allowed to create the `ferrisgit-website` namespace.
 
 To publish a version, bump `version` in `[workspace.package]` of `Cargo.toml`, add a `## [X.Y.Z] - YYYY-MM-DD` section
 at the top of [`CHANGELOG.md`](CHANGELOG.md), merge to `main` and push the tag `vX.Y.Z` on that commit. A missing section
@@ -658,6 +727,7 @@ migrations/                  SQL schema (applied at startup)
 docs/                        documentation pages (Markdown) and their index
 .sqlx/                       SQLx offline query metadata
 helm/ferrisgit/              Helm chart (Kubernetes deployment)
+website/                     public site (Angular, prerendered), its Dockerfile, nginx configuration and Helm chart
 .github/                     GitHub Actions workflow (ci-cd.yml) and Dependabot configuration
 .cargo/audit.toml            accepted RustSec advisories, with their justification
 rust-toolchain.toml          pinned Rust toolchain
@@ -675,10 +745,10 @@ CHANGELOG.md                 release notes, one section per version
 None of the items below exists yet: they are the direction the project is heading in, version by version, and the
 details will change as they are designed. Items are only ticked once they ship.
 
-### 0.2: a CI foundation for checks, and five languages
+### 0.2: a CI foundation for checks, five languages and a theme setting
 
 Code scanning needs the platform to understand *checks*: results that belong to a commit, show up on a merge request,
-and can stop a merge. This version builds that, and translates the interface.
+and can stop a merge. This version builds that, translates the interface and lets people choose its theme.
 
 - [ ] Protected branches: no direct push, merge only through a merge request, required approvals and required checks.
 - [ ] Pipelines on merge requests, with their status shown on the merge request and required before a merge.
@@ -691,6 +761,8 @@ and can stop a merge. This version builds that, and translates the interface.
   Italian, Spanish and German. The language follows the browser on a first visit, can be changed on the fly and is saved
   on the account; the e-mails FerrisGit sends use the recipient's language, and the public pages follow the reader's
   `Accept-Language`. The documentation is translated afterwards.
+- [ ] Dark mode as a setting: choose system, light or dark, saved on the account and applied without a flash. The interface
+  follows the system preference today and has no switch. The logo of the signed-in shell follows the theme too.
 
 ### 0.3: the analysis engine, secrets and dependencies
 
@@ -746,6 +818,19 @@ look at what a merge request introduces (the "clean as you code" approach), so a
 - [ ] Self-service password reset, e-mail notifications with per-user settings, and single sign-on (OIDC, LDAP).
 - [ ] An audit log page in the administration, Prometheus metrics, and backup and restore tooling.
 - [ ] Webhooks with retries, a delivery log and more events (push, release).
+
+### Under consideration, not scheduled
+
+Ideas with no version yet; what they contain is still to be defined.
+
+- [ ] AI agents on a repository. Candidates: a review assistant on merge requests, summaries of merge requests and
+  commits, an explanation of why a pipeline failed, issue triage and labelling. Whatever ships has to fit a self-hosted
+  platform: a model endpoint the administrator chooses (a local one included), opt-in per repository, scoped
+  credentials, and every action recorded.
+- [ ] A commit graph in the repository view: branches, merges and tags drawn together, next to the file tree and the
+  commit list that already exist.
+- [ ] Profile photos, stored in S3-compatible object storage. The initials stay as the fallback, and the same storage
+  could later hold release files and pipeline artifacts.
 
 ### Connecting with ArtiFerris
 

@@ -9,9 +9,9 @@ export interface PipelineSummary {
   createdAt: string;
   finishedAt: string | null;
   triggeredBy: UserRef | null;
-  /** Null when it cannot be resolved; the list endpoint resolves it for the 50 newest pipelines only. */
+  /** Null when it can't be resolved; the list endpoint only resolves it for the 50 newest pipelines. */
   commitMessage: string | null;
-  /** The parser's message when the pipeline file was invalid: such a pipeline is failed from the start and has no job. */
+  /** The parser's message when the pipeline file was invalid. Such a pipeline fails from the start and has no job. */
   error: string | null;
 }
 
@@ -19,12 +19,12 @@ export interface JobSummary {
   id: string;
   stage: string;
   name: string;
-  /** `skipped`: never started, because a job it depends on (or a previous stage) did not succeed. */
+  /** `skipped` means it never started, because a job it depends on (or a previous stage) didn't succeed. */
   status: 'pending' | 'running' | 'success' | 'failed' | 'canceled' | 'skipped';
   needs: string[];
   tags: string[];
   logs: string;
-  /** When the log retention emptied this job's log; absent or `null` while the log is intact. */
+  /** When log retention emptied this job's log; absent or null while the log is intact. */
   logsPurgedAt?: string | null;
   createdAt: string;
   startedAt: string | null;

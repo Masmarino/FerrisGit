@@ -7,7 +7,7 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { RegisterPage } from './register-page';
 import { provideFerrisgitAuth } from '../auth-kit';
 
-// The enrolment draws its QR code with FerrisGit's renderer, which lazily imports `qrcode`. jsdom has no canvas.
+// Enrolment draws its QR code through our renderer, which lazily imports `qrcode`; jsdom has no canvas.
 vi.mock('qrcode', () => ({ toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,QR') }));
 
 @Component({ standalone: true, template: '<p>page</p>' })

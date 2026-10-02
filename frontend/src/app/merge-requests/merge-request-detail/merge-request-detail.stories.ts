@@ -239,7 +239,7 @@ function withData(mr: MergeRequestSummary, role: 'owner' | 'reader' | 'contribut
 
 const rect = (el: Element) => el.getBoundingClientRect();
 
-/** Layout checks jsdom cannot make: no horizontal overflow, aside beside the main column from 769px (and none on the Modifications tab), header actions centred on the title's first line. */
+/** Layout checks jsdom can't make: no horizontal overflow, aside beside the main column from 769px (none on Modifications), header actions centred on the title's first line. */
 function assertPageLayout(canvas: HTMLElement, expectAside: boolean): void {
   const layout = canvas.querySelector('gbt-page-layout');
   const main = canvas.querySelector('.gbt-page-layout__main');
@@ -374,7 +374,7 @@ export const ReadOnly: Story = {
   },
 };
 
-/** A Contributor reviews and closes but cannot merge: the header keeps Fermer only. */
+/** A Contributor can review and close but not merge, so the header keeps only Fermer. */
 export const ContributorCannotMerge: Story = {
   decorators: [withData(openMergeRequest, 'contributor', { reviewSummary: satisfiedReviewSummary })],
   play: async (context) => {
@@ -420,7 +420,7 @@ export const ChangesTab: Story = {
   },
 };
 
-/** The review bar over the diff fits the main column and, when actions share its row, both are centred on it. */
+/** The review bar over the diff fits the main column, and when actions share its row both are centred. */
 async function expectReviewBar(canvas: HTMLElement, status: string) {
   await waitFor(() => button(canvas, '[role="tab"]', 'Modifications').click());
   await expectPageLayout(false)({ canvasElement: canvas });

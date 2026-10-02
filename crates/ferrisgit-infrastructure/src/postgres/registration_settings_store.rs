@@ -4,8 +4,8 @@ use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::registration::RegistrationSettingsPort;
 use sqlx::PgPool;
 
-/// The registration switch lives on the `system_settings` singleton row, but is read and written with its own
-/// runtime queries so `PostgresSystemSettingsStore` (and its compile-time checked queries) stay untouched.
+/// The switch lives on the `system_settings` singleton row but has its own runtime queries, so
+/// `PostgresSystemSettingsStore` and its compile-time checked queries stay untouched.
 pub struct PostgresRegistrationSettingsStore {
     pool: PgPool,
 }
@@ -29,7 +29,7 @@ impl RegistrationSettingsPort for PostgresRegistrationSettingsStore {
     }
 
     async fn set_enabled(&self, enabled: bool) -> Result<(), DomainError> {
-        // Upsert of the singleton: creates it with the column defaults when missing, and only ever touches this column.
+        // Upsert of the singleton: creates it with the column defaults when missing and only ever touches this column.
         sqlx::query("INSERT INTO system_settings (id, registration_enabled) VALUES (true, $1) ON CONFLICT (id) DO UPDATE SET registration_enabled = EXCLUDED.registration_enabled")
             .bind(enabled)
             .execute(&self.pool)
@@ -88,7 +88,7 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(rows, 1);
-        // The row created this way carries the column defaults, so the system settings store reads it normally.
+        // The row created this way has the column defaults, so the system settings store reads it normally.
         let settings = PostgresSystemSettingsStore::new(pool).get().await.unwrap();
         assert_eq!(settings.execution_engine, ExecutionEngine::DockerRunners);
         assert_eq!(settings.jwt_ttl_hours, 12);

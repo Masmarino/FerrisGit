@@ -6,29 +6,29 @@ use uuid::Uuid;
 
 use crate::error::DomainError;
 
-/// Shared by the create/update-time URL validator and the delivery-time `SafeWebhookResolver`. Checking at creation
-/// alone is not enough: a hostname can be re-pointed at an internal address after saving (DNS rebinding), so the
-/// resolver enforces it again atomically with the connection.
+/// Used by the URL validator at create/update time and again by `SafeWebhookResolver` at delivery. Checking once isn't
+/// enough: a hostname can be re-pointed at an internal address after saving (DNS rebinding), so the resolver checks
+/// atomically with the connection.
 pub fn is_disallowed_webhook_target(ip: IpAddr) -> bool {
     match ip {
         IpAddr::V4(v4) => {
             v4.is_loopback()
                 || v4.is_unspecified()
-                || v4.is_link_local() // covers 169.254.0.0/16, including the 169.254.169.254 cloud metadata address
+                || v4.is_link_local() // 169.254.0.0/16, which includes the cloud metadata address 169.254.169.254
                 || v4.is_private() // 10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16
                 || v4.is_multicast()
-                // 100.64.0.0/10 - shared address space (CGNAT, RFC 6598)
+                // 100.64.0.0/10, shared CGNAT space
                 || (v4.octets()[0] == 100 && (v4.octets()[1] & 0xc0) == 64)
         }
         IpAddr::V6(v6) => {
             v6.is_loopback()
                 || v6.is_unspecified()
                 || v6.is_multicast()
-                // fc00::/7 - unique local addresses
+                // fc00::/7, unique local
                 || (v6.segments()[0] & 0xfe00) == 0xfc00
-                // fe80::/10 - link-local addresses
+                // fe80::/10, link-local
                 || (v6.segments()[0] & 0xffc0) == 0xfe80
-                // 64:ff9b::/96 - NAT64 well-known prefix (RFC 6052): re-check the embedded IPv4 address
+                // 64:ff9b::/96 (NAT64): check the embedded IPv4 address
                 || (v6.segments()[0..6] == [0x0064, 0xff9b, 0, 0, 0, 0]
                     && is_disallowed_webhook_target(IpAddr::V4(std::net::Ipv4Addr::new(
                         (v6.segments()[6] >> 8) as u8,
@@ -36,7 +36,7 @@ pub fn is_disallowed_webhook_target(ip: IpAddr) -> bool {
                         (v6.segments()[7] >> 8) as u8,
                         (v6.segments()[7] & 0xff) as u8,
                     ))))
-                // 2002::/16 - 6to4: re-check the embedded IPv4 address
+                // 2002::/16 (6to4): check the embedded IPv4 address
                 || (v6.segments()[0] == 0x2002
                     && is_disallowed_webhook_target(IpAddr::V4(std::net::Ipv4Addr::new(
                         (v6.segments()[1] >> 8) as u8,
@@ -44,7 +44,7 @@ pub fn is_disallowed_webhook_target(ip: IpAddr) -> bool {
                         (v6.segments()[2] >> 8) as u8,
                         (v6.segments()[2] & 0xff) as u8,
                     ))))
-                // ::ffff:0:0/96 - IPv4-mapped addresses: re-check the embedded IPv4 address
+                // ::ffff:0:0/96 (IPv4-mapped): check the embedded IPv4 address
                 || v6.to_ipv4_mapped().is_some_and(|v4| is_disallowed_webhook_target(IpAddr::V4(v4)))
         }
     }
@@ -99,27 +99,24 @@ pub trait WebhookStorePort: Send + Sync {
     async fn create(&self, new_webhook: NewWebhook) -> Result<Webhook, DomainError>;
     async fn list_for_repository(&self, repository_id: Uuid) -> Result<Vec<Webhook>, DomainError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Webhook>, DomainError>;
-    /// Scoped by `repository_id` so a webhook of another repository cannot be updated by guessing its id. `NotFound`
-    /// if no match.
+    /// Scoped by `repository_id` so a webhook of another repo can't be updated by guessing its id. `NotFound` if no match.
     async fn update(
         &self,
         id: Uuid,
         repository_id: Uuid,
         update: WebhookUpdate,
     ) -> Result<Webhook, DomainError>;
-    /// Scoped by `repository_id` so a webhook of another repository cannot be deleted by guessing its id. `NotFound`
-    /// if no match.
+    /// Scoped by `repository_id` so a webhook of another repo can't be deleted by guessing its id. `NotFound` if no match.
     async fn delete(&self, id: Uuid, repository_id: Uuid) -> Result<(), DomainError>;
     async fn list_active_for_event(
         &self,
         repository_id: Uuid,
         event_kind: &str,
     ) -> Result<Vec<Webhook>, DomainError>;
-    /// Decrypts one webhook's secret for HMAC-signing a delivery: the only place a plaintext secret is reconstructed.
+    /// Decrypts one webhook's secret to sign a delivery. The only place a plaintext secret is rebuilt.
     async fn resolve_secret_plaintext(&self, webhook_id: Uuid) -> Result<String, DomainError>;
     async fn record_delivery(&self, delivery: NewWebhookDelivery) -> Result<(), DomainError>;
-    /// Most recent first, capped at `limit`. Scoped by `repository_id`; `NotFound` if `webhook_id`/`repository_id`
-    /// don't match.
+    /// Most recent first. `NotFound` if the webhook doesn't belong to `repository_id`.
     async fn list_deliveries(
         &self,
         webhook_id: Uuid,

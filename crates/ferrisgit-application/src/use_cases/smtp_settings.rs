@@ -56,7 +56,7 @@ impl UpdateSmtpSettingsUseCase {
             name => name.to_string(),
         };
         let username = input.username.trim().to_string();
-        // The stored row is read only when its password is actually needed, so an unreadable row never blocks a fresh save.
+        // Only read the stored row when its password is needed, so an unreadable row can't block a fresh save.
         let password = match input.password {
             _ if username.is_empty() => None,
             Some(p) if !p.is_empty() => Some(p),
@@ -125,7 +125,7 @@ mod tests {
         }
     }
 
-    /// A store whose stored row cannot be read (for example encrypted under another key): `get` fails, `save` works.
+    /// The stored row can't be read (say it was encrypted under another key): `get` fails, `save` works.
     #[derive(Default)]
     struct UnreadableSmtpSettings {
         saved: Mutex<Option<SmtpSettings>>,

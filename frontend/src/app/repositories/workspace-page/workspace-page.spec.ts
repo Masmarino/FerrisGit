@@ -109,8 +109,8 @@ describe('WorkspacePage', () => {
     expect(text).not.toContain('shared');
   });
 
-  // `forkJoin` cancels the sibling request once one source errors. Whether that shows up as cancelled or
-  // still open is an implementation detail, so flush it only if it is still live.
+  // forkJoin cancels the sibling request once one source errors. Whether that reads as cancelled or still
+  // open is an implementation detail, so flush only if it's still live.
   function failAllTab(http: HttpTestingController): void {
     const reposReq = http.expectOne('/api/repositories');
     const groupsReq = http.expectOne('/api/groups/member');
@@ -248,8 +248,8 @@ describe('WorkspacePage', () => {
 
     it('shows the scope tabs in the list card, with the counts it already knows', () => {
       const { el } = loadedAll();
-      // The "Tous" tab adds up 2 repositories and 2 groups, and "Mes dépôts" and "Groupes" are counted from the same
-      // responses. "Favoris" needs its own request, so it shows no count until it is opened.
+      // "Tous" adds up 2 repositories and 2 groups, and "Mes dépôts" and "Groupes" count from the same
+      // responses. "Favoris" needs its own request, so no count until it's opened.
       expect(tabLabels(el)).toEqual(['Tous (4)', 'Mes dépôts (1)', 'Favoris', 'Groupes (2)']);
       expect(el.querySelector('.workspace-page__tabs [aria-checked="true"]')?.textContent).toContain('Tous');
     });
@@ -327,10 +327,10 @@ describe('WorkspacePage', () => {
       const el = ctx.fixture.nativeElement as HTMLElement;
 
       expect(el.querySelectorAll('gbt-list-card gbt-skeleton-list .gbt-skeleton-list__row')).toHaveLength(5);
-      // One polite status, outside any aria-busy region (a busy ancestor can hold the announcement back).
+      // One polite status, outside any aria-busy region (those can hold back the announcement).
       expect(text(el.querySelector('gbt-skeleton-list [role="status"]'))).toBe('Chargement…');
       expect(el.querySelector('[aria-busy="true"]')).toBeNull();
-      // The card stays `ready` (its own loading state would remove the header and the tabs in it).
+      // The card stays ready: its own loading state would remove the header and the tabs.
       expect(el.querySelector('gbt-list-card .gbt-list-card')!.getAttribute('data-state')).toBe('ready');
       expect(tabLabels(el)).toEqual(['Tous', 'Mes dépôts', 'Favoris', 'Groupes']);
       ctx.http.expectOne('/api/repositories').flush([]);
@@ -347,7 +347,7 @@ describe('WorkspacePage', () => {
       const failed = el.querySelector('gbt-list-card gbt-alert .gbt-alert')!;
       expect(failed).not.toBeNull();
       expect(failed.getAttribute('data-variant')).toBe('error');
-      // The page's error toast announces it once: the alert in the card is silent.
+      // The page's toast announces it once; the alert in the card stays silent.
       expect(failed.getAttribute('role')).toBeNull();
       expect(failed.getAttribute('aria-live')).toBeNull();
       expect(el.querySelector('[role="alert"]')).toBeNull();

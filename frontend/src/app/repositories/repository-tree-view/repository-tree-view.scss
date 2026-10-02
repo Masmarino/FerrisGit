@@ -15,7 +15,7 @@ $row-height: 40px;
   min-width: 0;
 }
 
-// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+// Gabarit gap: gbt-card sets its own text styles; inherit the page's instead.
 gbt-card {
   @include card.inherit-text;
 }
@@ -89,8 +89,8 @@ gbt-card {
   white-space: nowrap;
 }
 
-// `table-layout: fixed` takes column widths from the first row, which is the header row. Its cells stay in the
-// layout, with visually hidden labels and zero height.
+// table-layout: fixed reads column widths from the first row, so the header row stays in the layout
+// with hidden labels and zero height.
 .repository-tree-view__table {
   width: 100%;
   border-collapse: collapse;
@@ -246,9 +246,8 @@ gbt-card {
   text-align: center;
 }
 
-// Narrow card (phone, or a squeezed main column): the commit-message column is hidden, header cell included,
-// or it would still claim its width. The name takes its room. The banner drops the sha, and the author
-// shrinks to their avatar.
+// Narrow card: hide the commit-message column (header cell too, or it keeps its width), drop the sha
+// from the banner and shrink the author to an avatar.
 @container repository-files (max-width: 599px) {
   .repository-tree-view__col-message,
   .repository-tree-view__row-message {
@@ -259,7 +258,7 @@ gbt-card {
     width: 6.5rem;
   }
 
-  // Right-aligned, so the left padding is only a gutter: a smaller one fits `il y a 59 min`.
+  // Right-aligned, so the left padding is just a gutter; a smaller one still fits "il y a 59 min".
   .repository-tree-view__row .repository-tree-view__row-date {
     padding-left: 0.5rem;
   }
@@ -272,9 +271,8 @@ gbt-card {
     gap: 0.5rem;
   }
 
-  // The author shrinks to their avatar (the name stays for screen readers and in the tooltip), so the
-  // message keeps a readable width. `flex: none` and `min-width` are needed because, with the name out of
-  // the flow, a shrinkable chip would collapse under its 24px avatar and the message would run over it.
+  // Avatar only (the name stays for screen readers and the tooltip). Without flex: none and min-width the
+  // chip would collapse under its 24px avatar and the message would run over it.
   .repository-tree-view__latest-author {
     flex: none;
     min-width: 24px;
@@ -346,8 +344,8 @@ gbt-card {
   font-weight: 600;
 }
 
-// Wraps instead of scrolling: the long clone URL stays readable on a phone, and the commands still
-// copy as written (a soft wrap adds no newline).
+// Wrap instead of scroll so the long clone URL stays readable on a phone. A soft wrap adds no newline,
+// so copying still gives the command as written.
 .repository-tree-view__command {
   margin: 0;
   padding: 0.75rem 1rem;

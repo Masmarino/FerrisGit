@@ -97,8 +97,8 @@ impl MergeMergeRequestUseCase {
         }
     }
 
-    /// Merges a merge request (clean, conflict-free merges only), then triggers a pipeline on the target's new tip. The
-    /// commit was written with git plumbing and never went through the push path that normally starts one.
+    /// Clean merges only. The pipeline on the new tip is started here, since the merge commit never goes through the
+    /// push path that normally triggers one.
     pub async fn execute(
         &self,
         merge_request_id: Uuid,
@@ -191,7 +191,7 @@ impl MergeMergeRequestUseCase {
                         .await
                         .ok();
 
-                    // Nobody to notify once the author's account is gone.
+                    // The author's account may be gone, then there's nobody to notify.
                     if let Some(mr_author_id) = mr.author_id
                         && mr_author_id != user_id
                     {
@@ -214,7 +214,7 @@ impl MergeMergeRequestUseCase {
         }
     }
 
-    /// Only reviews of the source branch's current tip count: a push after a review makes it stale.
+    /// Only reviews of the current tip count, a push after a review makes it stale.
     async fn require_approvals(
         &self,
         mr: &MergeRequest,
@@ -338,8 +338,7 @@ mod tests {
         }
     }
 
-    /// CI is disabled in `FakeRepositorySettings`, so this is never called; it only satisfies
-    /// `JobExecutionResolver::new`.
+    /// Never called (the fake settings have CI off), it just fills the resolver's constructor.
     struct NoopExecutor;
     #[async_trait]
     impl JobExecutionPort for NoopExecutor {
@@ -351,15 +350,15 @@ mod tests {
         }
     }
 
-    /// What a test decides about the world; everything else is a plain default (a clean merge, no approval required).
+    /// Defaults to a clean merge with no approval required.
     struct Scenario {
         mr: MergeRequest,
         outcome: MergeOutcome,
         reviews: Vec<MergeRequestReview>,
-        /// Tip of the source branch, `None` when the repository has no branch at all.
+        /// `None` means the repository has no branch at all.
         source_tip: Option<&'static str>,
         required_approvals: i32,
-        /// Accounts that exist besides the repository owner.
+        /// Accounts besides the repository owner.
         accounts: Vec<Uuid>,
         owner_has_an_account: bool,
     }
@@ -453,7 +452,6 @@ mod tests {
     }
 
     impl Harness {
-        /// Merges as the merge request's own author.
         async fn merge_as_author(&self) -> Result<MergeMergeRequestResult, DomainError> {
             self.use_case
                 .execute(self.mr.id, self.mr.author_id.unwrap())
@@ -466,7 +464,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn a_clean_merge_marks_the_request_merged_and_triggers_a_pipeline() {
+    async fn a_clean_merge_marks_the_request_merged_on_the_target() {
         let h = Scenario::new(merge_request(MergeRequestStatus::Open)).build();
 
         let result = h.merge_as_author().await.unwrap();
@@ -484,8 +482,7 @@ mod tests {
                 "main".to_string()
             )
         );
-        // CI is disabled in the fake, so no pipeline is created. This only checks that the use case was called with the
-        // new commit.
+        // CI is off in the fake settings, so the pipeline step runs but creates nothing.
         assert!(h.pipelines.snapshot().is_empty());
     }
 
@@ -663,7 +660,7 @@ mod tests {
         let mr = merge_request(MergeRequestStatus::Open);
         let merger_id = Uuid::new_v4();
         assert_ne!(Some(merger_id), mr.author_id);
-        // Both the owner and the merger must resolve via `find_by_id` for the webhook/notification block.
+        // The webhook/notification block needs both the owner and the merger to exist as users.
         let h = Scenario {
             accounts: vec![merger_id],
             owner_has_an_account: true,

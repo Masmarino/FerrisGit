@@ -98,8 +98,8 @@ export class IssueKanban implements OnInit {
 
   protected readonly laneIds = STATUSES.map(laneId);
   /**
-   * A touch drag starts only after a 250ms press, so a swipe that starts on a card scrolls the board
-   * (or the page) instead of picking the card up. The mouse drags at once. Kept as one stable object.
+   * Touch drags start after a 250ms press, so a swipe that starts on a card scrolls the board (or the page) instead
+   * of picking it up. The mouse drags at once. One stable object.
    */
   protected readonly dragStartDelay = { touch: 250, mouse: 0 };
   protected readonly skeletonCards = [['72%', '48%'], ['58%'], ['66%', '40%']];
@@ -159,7 +159,7 @@ export class IssueKanban implements OnInit {
       next: (issues) => {
         const board = emptyBoard();
         for (const issue of issues) {
-          // An unknown status (a newer backend) has no lane: the card is left out rather than crash the board.
+          // An unknown status (a newer backend) has no lane: leave the card out rather than crash the board.
           board[issue.status]?.push(issue);
         }
         this.board.set(board);
@@ -179,7 +179,7 @@ export class IssueKanban implements OnInit {
     this.filters.clear();
   }
 
-  /** A card dropped on a lane. The CDK indices count only the shown cards, which a search may have filtered, so place it next to the visible card it was dropped by. Moving to another lane saves the new status. */
+  /** A card dropped on a lane. The CDK indices only count the shown cards, which a search may have filtered, so place it next to the visible card it was dropped by. Another lane means saving the new status. */
   drop(event: CdkDragDrop<Issue[]>, target: Status): void {
     const issue = event.item.data as Issue;
     const origin = this.laneOf(issue.id);
@@ -190,7 +190,7 @@ export class IssueKanban implements OnInit {
     this.place(issue, origin, target, (full) => insertionIndex(full, shown, event.currentIndex));
   }
 
-  /** The keyboard way to move a card (the drag gesture has no equivalent): it goes to the end of the target lane, is announced, and focus follows it. */
+  /** Keyboard way to move a card (dragging has no equivalent): it goes to the end of the target lane, is announced, and focus follows. */
   protected moveTo(issue: Issue, target: Status): void {
     const origin = this.laneOf(issue.id);
     if (!origin || origin === target) {
@@ -218,8 +218,8 @@ export class IssueKanban implements OnInit {
     }
     this.issuesService.updateStatus(this.repositoryId(), issue.number, target).subscribe({
       error: () => {
-        // Only revert if the card is still where this move left it: a newer, overlapping move may
-        // already have taken it elsewhere, and putting it back here would duplicate it.
+        // Only revert if the card is still where this move left it: a newer, overlapping move may have taken it elsewhere,
+        // and putting it back here would duplicate it.
         const current = this.board();
         if (current[target].some((candidate) => candidate.id === issue.id)) {
           const originList = current[origin].slice();

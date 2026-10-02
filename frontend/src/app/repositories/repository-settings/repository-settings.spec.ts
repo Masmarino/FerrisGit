@@ -40,7 +40,7 @@ const PANELS: [string, Type<unknown>][] = [
 
 describe('RepositorySettings', () => {
   async function setup(url = SETTINGS_URL) {
-    // Every HTTP-backed service of the 7 sections needs a stub, since each is rendered when selected.
+    // Each of the 7 sections renders when selected, so every HTTP-backed service needs a stub.
     const repositorySettingsStub = {
       get: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 })),
       update: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 })),

@@ -13,7 +13,7 @@ function normalise(value: string): string {
 /**
  * The wiki's frame shared by its three views: the "Pages" nav in `[page-nav]`, the view in the main column, its
  * `[page-aside]` re-projected. The shell loads the page list once per instance and hands it to the view through
- * `loaded`, so the index and creation form do not fetch it again.
+ * `loaded`, so the index and the creation form don't fetch it again.
  */
 @Component({
   selector: 'fg-wiki-layout',
@@ -26,7 +26,7 @@ export class WikiLayout implements OnInit {
   repositoryId = input.required<string>();
   path = input.required<string[]>();
   currentSlug = input<string | null>(null);
-  /** False on the creation form itself: "Nouvelle page" would lead back to where the user is. */
+  /** False on the creation form itself: "Nouvelle page" would lead back to where the user already is. */
   offerCreate = input(true);
 
   loaded = output<WikiList>();

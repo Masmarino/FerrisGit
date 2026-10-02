@@ -37,7 +37,7 @@ pub(crate) struct ReleaseSummaryResponse {
     title: String,
     draft: bool,
     prerelease: bool,
-    /// `null` once the author's account was deleted; `author` is then `null` too.
+    /// `null` once the author's account is deleted, and so is `author`.
     author_id: Option<Uuid>,
     author: Option<UserRef>,
     notes_excerpt: String,
@@ -47,7 +47,7 @@ pub(crate) struct ReleaseSummaryResponse {
 }
 
 impl ReleaseSummaryResponse {
-    /// Every handler returning release summaries goes through here so they carry the same fields.
+    /// Every handler that returns release summaries builds them here, so the fields stay the same.
     async fn build_many(
         state: &AppState,
         releases: Vec<Release>,
@@ -85,7 +85,7 @@ pub(crate) struct ReleaseAssetResponse {
     filename: String,
     content_type: String,
     size_bytes: i64,
-    /// `null` once the uploader's account was deleted; `uploader` is then `null` too.
+    /// `null` once the uploader's account is deleted, and so is `uploader`.
     uploaded_by: Option<Uuid>,
     uploader: Option<UserRef>,
     created_at: DateTime<Utc>,
@@ -114,12 +114,12 @@ pub(crate) struct ReleaseDetailResponse {
     notes: String,
     draft: bool,
     prerelease: bool,
-    /// `null` once the author's account was deleted; `author` is then `null` too.
+    /// `null` once the author's account is deleted, and so is `author`.
     author_id: Option<Uuid>,
     author: Option<UserRef>,
     created_at: DateTime<Utc>,
     published_at: Option<DateTime<Utc>>,
-    /// Resolved live from git. `None` if the tag was deleted after the release was created.
+    /// Read live from git. `None` if the tag was deleted after the release.
     target_commit_sha: Option<String>,
     assets: Vec<ReleaseAssetResponse>,
 }
@@ -131,7 +131,7 @@ pub(crate) struct TagResponse {
     target_sha: String,
 }
 
-/// Feeds the dropdown of existing tags in the "New release" form. Same `Reader` gate as the branches route.
+/// Feeds the existing-tags dropdown of the "New release" form. Same Reader gate as the branches route.
 async fn list_tags(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -156,9 +156,8 @@ pub(crate) async fn tags_response(
     ))
 }
 
-/// For a tag left without a release, for example when a draft was created against the wrong commit and then
-/// deleted (`CreateReleaseUseCase` refuses to recreate it elsewhere). `DeleteTagUseCase` refuses while a release
-/// references it.
+/// For a tag left without a release, say a draft created against the wrong commit and then deleted
+/// (`CreateReleaseUseCase` won't recreate the tag elsewhere). `DeleteTagUseCase` refuses while a release uses it.
 async fn delete_tag(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -180,8 +179,8 @@ async fn list(
     Path(repository_id): Path<Uuid>,
 ) -> Result<Json<Vec<ReleaseSummaryResponse>>, ApiError> {
     let repo = require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Reader).await?;
-    // Separate from the Reader check above: this one only decides whether drafts are included, so `.is_ok()`
-    // turns it into a boolean instead of rejecting a plain Reader.
+    // Separate from the Reader check above: this only decides whether drafts are included, hence `.is_ok()`
+    // instead of rejecting a plain Reader.
     let include_drafts =
         require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Maintainer)
             .await
@@ -203,7 +202,7 @@ pub(crate) async fn releases_response(
     ))
 }
 
-/// A missing tag and a draft hidden from the caller must answer exactly the same.
+/// A missing tag and a draft the caller can't see have to answer identically.
 pub(crate) fn release_not_found() -> ApiError {
     DomainError::NotFound("release".to_string()).into()
 }
@@ -234,8 +233,8 @@ struct CreateReleaseRequest {
     prerelease: bool,
 }
 
-/// Rejects names that cannot be a single `{tag_name}` path segment or that `git check-ref-format` rejects, so an
-/// invalid name never reaches `git update-ref`.
+/// Rejects names that can't be one `{tag_name}` path segment or that `git check-ref-format` refuses, so a bad name
+/// never reaches `git update-ref`.
 fn validate_tag_name(tag_name: &str) -> Result<(), DomainError> {
     if tag_name.is_empty() {
         return Err(DomainError::Validation(
@@ -352,7 +351,7 @@ async fn detail(
 ) -> Result<Json<ReleaseDetailResponse>, ApiError> {
     let repo = require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Reader).await?;
     let release = find_release(&state, &repo, &tag_name).await?;
-    // A draft must look exactly like a missing release to a non-Maintainer (same `NotFound`).
+    // To a non-Maintainer a draft has to look exactly like a missing release.
     if release.draft
         && require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Maintainer)
             .await
@@ -374,7 +373,7 @@ struct UpdateReleaseRequest {
     notes: Option<String>,
     #[serde(default)]
     prerelease: Option<bool>,
-    /// Only `Some(false)` on a draft does anything: it publishes it. There is no un-publish.
+    /// Only `Some(false)` on a draft does anything: it publishes. There's no un-publish.
     #[serde(default)]
     draft: Option<bool>,
 }
@@ -512,7 +511,7 @@ async fn download_asset(
     asset_download_response(&state, &release, asset_id).await
 }
 
-/// `release` must already be one the caller may see.
+/// `release` has to be one the caller may already see.
 pub(crate) async fn asset_download_response(
     state: &AppState,
     release: &Release,
@@ -525,7 +524,7 @@ pub(crate) async fn asset_download_response(
         .ok_or_else(|| DomainError::NotFound("release asset".to_string()))?;
 
     let path = state.release_asset_storage.absolute_path(&asset.disk_path);
-    // A file missing out-of-band is a 404 for this asset, not a 500.
+    // A file that vanished from disk is a 404 for this asset, not a 500.
     let file = tokio::fs::File::open(&path).await.map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
             DomainError::NotFound("release asset".to_string())
@@ -535,7 +534,7 @@ pub(crate) async fn asset_download_response(
     })?;
     let body = Body::from_stream(tokio_util::io::ReaderStream::new(file));
 
-    // Escape `"` in the client-supplied filename so it cannot smuggle extra `Content-Disposition` parameters.
+    // Escape quotes in the client-supplied filename so it can't smuggle in extra Content-Disposition parameters.
     let escaped_filename = asset.filename.replace('"', "\\\"");
     let headers = [
         (header::CONTENT_TYPE, asset.content_type.clone()),
@@ -543,7 +542,7 @@ pub(crate) async fn asset_download_response(
             header::CONTENT_DISPOSITION,
             format!("attachment; filename=\"{escaped_filename}\""),
         ),
-        // Stops a browser from sniffing the echoed content type into something more dangerous, like HTML.
+        // Keeps a browser from sniffing the echoed content type into something nastier, like HTML.
         (header::X_CONTENT_TYPE_OPTIONS, "nosniff".to_string()),
     ];
     Ok((headers, body).into_response())

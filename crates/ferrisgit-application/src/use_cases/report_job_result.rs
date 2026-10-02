@@ -49,16 +49,14 @@ impl ReportJobResultUseCase {
         }
     }
 
-    /// `status` must be terminal (`Success`, `Failed`, `Canceled`). When every job in the pipeline is terminal the
-    /// pipeline follows: `Failed` if any failed, else `Canceled` if any canceled, else `Failed` if any was skipped
-    /// (which only happens behind a failure or a cancellation), else `Success`.
+    /// `status` must be terminal. Once every job is terminal the pipeline follows: failed if any job failed, else
+    /// canceled if any was canceled, else failed if any was skipped, else success.
     ///
-    /// A report for a job that is already terminal is dropped entirely: a runner finishing after its pipeline was
-    /// canceled must not un-cancel anything. The store enforces this atomically (`JobStorePort::update_status`).
+    /// A report for a job that is already terminal is dropped, so a runner finishing late can't un-cancel a canceled
+    /// pipeline. The store enforces that atomically.
     ///
-    /// A `Failed`/`Canceled` status also skips every job that can no longer start because of it (`unreachable_jobs`:
-    /// its dependents through `needs` and through stage barriers, transitively). Nothing would ever claim those, so
-    /// the pipeline would otherwise stay non-terminal forever.
+    /// A failed or canceled job also skips everything that can no longer start because of it (its dependents through
+    /// `needs` and stage barriers, transitively). Nothing would claim those, and the pipeline would never finish.
     pub async fn execute(
         &self,
         job_id: Uuid,
@@ -82,10 +80,11 @@ impl ReportJobResultUseCase {
             self.skip_unreachable_jobs(job.pipeline_id).await?;
         }
 
-        let mut cascade_triggered_by = None;
-        if status == JobStatus::Success {
-            cascade_triggered_by = self.submit_newly_runnable_jobs(job.pipeline_id).await?;
-        }
+        let cascade_triggered_by = if status == JobStatus::Success {
+            self.submit_newly_runnable_jobs(job.pipeline_id).await?
+        } else {
+            None
+        };
 
         let siblings = self.jobs.list_for_pipeline(job.pipeline_id).await?;
         if !siblings.iter().all(|j| j.status.is_terminal()) {
@@ -102,7 +101,7 @@ impl ReportJobResultUseCase {
             PipelineStatus::Success
         };
 
-        // Only the first failure of a pipeline notifies: a re-aggregation of an already failed one stays quiet.
+        // Only the first failure notifies, re-aggregating an already failed pipeline stays quiet.
         let triggered_by = if pipeline_status == PipelineStatus::Failed {
             self.pipelines
                 .find_by_id(job.pipeline_id)
@@ -131,8 +130,8 @@ impl ReportJobResultUseCase {
         Ok(cascade_triggered_by.or(triggered_by))
     }
 
-    /// Marks `Skipped` every `Pending` job that can never start (`unreachable_jobs`). It looks at the whole pipeline,
-    /// not just the reported job, so it is idempotent and also sweeps jobs stranded earlier.
+    /// Looks at the whole pipeline, not just the reported job, so it can be repeated and also catches jobs stranded
+    /// earlier.
     async fn skip_unreachable_jobs(&self, pipeline_id: Uuid) -> Result<(), DomainError> {
         let siblings = self.jobs.list_for_pipeline(pipeline_id).await?;
         let to_skip: Vec<Uuid> = unreachable_jobs(&siblings)
@@ -156,12 +155,9 @@ impl ReportJobResultUseCase {
         Ok(())
     }
 
-    /// Submits each newly runnable job to the engine the pipeline was created with, never the live `execution_engine`
-    /// setting (hot-swap guarantee, as in `CancelPipelineUseCase`). A submission failure is reported back through
-    /// `execute` itself (boxed async recursion, bounded by the job count).
-    ///
-    /// The recursion's `Option<Uuid>` (who to notify) is propagated up: the caller's own re-aggregation would not
-    /// rediscover it, since the pipeline is already `Failed`.
+    /// Uses the engine the pipeline was created with, not the live setting, so switching engines doesn't affect running
+    /// pipelines. A job that fails to submit is reported as failed through `execute` (recursion, bounded by the job
+    /// count). Who to notify is passed up, since the caller's own aggregation would see the pipeline as already failed.
     async fn submit_newly_runnable_jobs(
         &self,
         pipeline_id: Uuid,
@@ -185,8 +181,8 @@ impl ReportJobResultUseCase {
     }
 }
 
-/// The pipeline goes `Pending` -> `Running` as soon as one of its jobs starts, whichever engine started it. A
-/// pipeline that is already running or finished is left alone and nothing is published.
+/// Flips a pending pipeline to running when its first job starts, whichever engine started it. Already running or
+/// finished pipelines are left alone and nothing is published.
 pub async fn mark_pipeline_running(
     pipelines: &Arc<dyn PipelineStorePort>,
     events: &Arc<dyn PipelineEventPublisherPort>,
@@ -206,8 +202,8 @@ pub async fn mark_pipeline_running(
     Ok(())
 }
 
-/// Given the `Option<Uuid>` returned by `execute`, creates a `PipelineFailed` notification. Does nothing if
-/// `triggered_by` is `None` or a lookup comes back empty, and never blocks the caller.
+/// Takes what `execute` returned and sends the pipeline-failed webhook and notification. Best effort: it gives up
+/// silently on `None` or a missing record and never fails the caller.
 pub async fn notify_pipeline_failure(
     triggered_by: Option<Uuid>,
     pipeline_id: Uuid,

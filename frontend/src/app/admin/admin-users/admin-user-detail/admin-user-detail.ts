@@ -67,7 +67,7 @@ type View = 'loading' | 'failed' | 'not-found' | 'self' | 'ready';
 const USERS_LINK = '/admin/users';
 const bytes = (value: number) => formatBytes(value, 'fr', { binaryUnits: 'legacy' });
 
-/** Sum of the known sizes. It is a lower bound when some could not be computed. */
+/** Sum of the known sizes, so a lower bound when some couldn't be computed. */
 export function totalSize(repositories: AdminUserRepository[]): { label: string; complete: boolean } | null {
   if (repositories.length === 0) {
     return null;
@@ -80,7 +80,7 @@ export function totalSize(repositories: AdminUserRepository[]): { label: string;
   return known.length === repositories.length ? { label: bytes(sum), complete: true } : { label: `au moins ${bytes(sum)}`, complete: false };
 }
 
-/** Lists everything the deletion destroys, before the administrator types the username. */
+/** Everything the deletion destroys, listed before the administrator types the username. */
 export function deletionMessage(username: string, repositories: AdminUserRepository[]): string {
   const size = totalSize(repositories);
   let personal: string;
@@ -114,8 +114,8 @@ export function deletionRefusal(username: string, message: unknown): string | nu
 }
 
 /**
- * There is no single-user endpoint, so the page reads the capped list (`GET /admin/users`) and picks the account from it.
- * The signed-in administrator's own account is not managed here.
+ * No single-user endpoint, so the page reads the capped list (`GET /admin/users`) and picks the account from it.
+ * Your own account isn't managed here.
  */
 @Component({
   selector: 'fg-admin-user-detail',
@@ -405,7 +405,7 @@ export class AdminUserDetail implements OnInit {
           this.toast.show(passwordResetToast(user.email));
           this.focusActions();
         } else {
-          // The reset went through and the old password no longer works, so this link is the user's only way back in.
+          // The old password no longer works, so this link is the user's only way back in.
           this.showMailFailure({ kind: 'password-reset', username: user.username, url: result.resetUrl, emailError: result.emailError });
         }
       },
@@ -522,7 +522,7 @@ export class AdminUserDetail implements OnInit {
         }
         const refusal = err.status === 409 ? deletionRefusal(user.username, apiMessage(err)) : null;
         if (refusal) {
-          // An expected refusal the administrator can act on, so it stays on the page until dismissed instead of in a passing toast.
+          // An expected refusal the administrator can act on: keep it on the page until dismissed, not in a passing toast.
           this.deletionRefused.set(refusal);
           afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>('.admin-user-detail__refusal')?.focus(), { injector: this.injector });
         } else if (err.status === 400) {

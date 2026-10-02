@@ -1,5 +1,5 @@
-// FerrisGit's French wording of the Gabarit auth kit, provided once for the whole app by `provideFerrisgitAuth()` so the
-// nested pieces (enrolment, QR, backup codes) are French too.
+// French wording for the Gabarit auth kit. `provideFerrisgitAuth()` provides it app-wide so the nested pieces
+// (enrolment, QR, backup codes) are French too.
 import type { AuthLabels } from '@masmarino/gabarit';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans quelques minutes';
@@ -188,7 +188,7 @@ export const FR_AUTH_LABELS = {
     failed: "L'activation a échoué, réessayez.",
     tooManyAttempts: TOO_MANY_ATTEMPTS,
   },
-  // The kit's intro says nothing about the old password. FerrisGit's server voids it as soon as the admin resets it, so this intro says so.
+  // The kit's intro doesn't mention the old password, but our server voids it on an admin reset, so ours says so.
   resetPassword: {
     heading: 'Choisissez un nouveau mot de passe',
     intro: 'Un administrateur a réinitialisé le mot de passe de votre compte : votre ancien mot de passe ne fonctionne plus. Choisissez-en un nouveau pour vous reconnecter.',

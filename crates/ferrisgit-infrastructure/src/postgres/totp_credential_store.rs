@@ -36,9 +36,9 @@ impl TotpCredentialPort for PostgresTotpCredentialStore {
             .fetch_optional(&self.pool)
             .await
             .map_err(infra)?;
-        // A secret that can't be decrypted (key rotated, dump restored under another key) is an error, not "no
-        // credential". Treating it as absent would let the user re-enrol around a factor that still exists.
-        // An admin can reset the user's MFA to recover.
+        // An undecryptable secret (rotated key, dump restored under another key) is an error, not "no credential":
+        // treating it as absent would let the user re-enrol around a factor that still exists. An admin can reset
+        // their MFA to recover.
         row.map(|row| {
             Ok(TotpCredential {
                 user_id: row.user_id,
@@ -53,7 +53,7 @@ impl TotpCredentialPort for PostgresTotpCredentialStore {
 
     async fn upsert(&self, credential: &TotpCredential) -> Result<bool, DomainError> {
         let encrypted_secret = self.encryptor.encrypt(&credential.secret)?;
-        // The WHERE on the conflict branch is what refuses to overwrite a confirmed factor, atomically.
+        // The WHERE on the conflict branch is what atomically refuses to overwrite a confirmed factor.
         let result = sqlx::query(
             "INSERT INTO totp_credentials (user_id, encrypted_secret, confirmed, last_used_step, created_at) VALUES ($1, $2, $3, $4, $5) \
              ON CONFLICT (user_id) DO UPDATE SET encrypted_secret = EXCLUDED.encrypted_secret, confirmed = EXCLUDED.confirmed, \

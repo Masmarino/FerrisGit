@@ -108,7 +108,7 @@ const meta: Meta<MergeRequestTimeline> = {
 export default meta;
 type Story = StoryObj<MergeRequestTimeline>;
 
-/** Everything hung on the rail (card avatars, thread avatar and markers, system notes, composer) sits within 0.5px of its axis. */
+/** Everything on the rail (avatars, markers, system notes, composer) is within 0.5px of its axis. */
 const RAIL_MARKERS = '.mr-comment__avatar, .mr-thread__avatar, .mr-thread__marker, .mr-system-note__marker, .mr-timeline__composer-marker';
 
 export const Full: Story = {

@@ -58,7 +58,7 @@ describe('MergeRequestDetail', () => {
 
   type Fixture = ReturnType<typeof setup>['fixture'];
 
-  // Answers the initial requests on load. `repo` also flushes the label and milestone lists (specs that don't care leave them unanswered).
+  // Answers the initial requests. `repo` also flushes the label and milestone lists; specs that don't care leave them unanswered.
   function flushInitial(
     httpMock: HttpTestingController,
     options: { mr?: Record<string, unknown>; diff?: unknown[]; comments?: unknown[]; reviews?: unknown; timeline?: unknown; labels?: unknown[]; milestones?: unknown[] } = {},
@@ -124,7 +124,7 @@ describe('MergeRequestDetail', () => {
       expect(toasts()).toContainEqual(['error', 'Impossible de charger cette demande de fusion.']);
       const failed = el(fixture).querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toBe("Cette demande de fusion n'a pas pu être chargée.");
-      // The toast announces it, so the inline message stays silent (one live region, not two).
+      // The toast announces it, so the inline message stays silent.
       expect(failed?.getAttribute('data-variant')).toBe('error');
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
@@ -193,7 +193,7 @@ describe('MergeRequestDetail', () => {
       expect(text(el(closed.fixture).querySelector('.gbt-page-header fg-status-badge'))).toBe('Fermée');
     });
 
-    // Counted from GET /comments, which the page reloads after each comment it posts: the detail's own `commentCount` would go stale.
+    // Counted from GET /comments, which the page reloads after each post; the detail's own commentCount would go stale.
     it('counts the comments (none, one, several) and follows new ones', () => {
       const comment = (id: string) => ({ id, authorId: 'u1', author: alice, body: 'x', createdAt: '2026-01-02T00:00:00Z', replyToId: null, filePath: null });
       const none = loaded('owner', { mr: { commentCount: 0 } });
@@ -623,7 +623,7 @@ describe('MergeRequestDetail', () => {
       expect(barButton(fixture, 'Approuver')).toBeTruthy();
       expect(barButton(fixture, 'Demander des changements')).toBeTruthy();
       expect(reviewBar.querySelector('.gbt-button--primary')).toBeNull();
-      // A status line, not a live region: the toast of a review is what announces a change.
+      // A status line, not a live region: the review's toast does the announcing.
       const box = reviewBar.querySelector('.gbt-alert')!;
       expect(box.getAttribute('data-variant')).toBe('neutral');
       expect(box.getAttribute('role')).toBeNull();

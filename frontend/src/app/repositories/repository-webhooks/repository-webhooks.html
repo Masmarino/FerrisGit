@@ -58,7 +58,7 @@
                 <span class="repository-webhooks__url" [title]="row.webhook.url">{{ row.webhook.url }}</span>
                 <gbt-badge [variant]="row.webhook.active ? 'success' : 'neutral'" [icon]="row.webhook.active ? 'circle-check' : 'circle-slash'">{{ row.webhook.active ? 'Actif' : 'Inactif' }}</gbt-badge>
                 <span row-meta class="repository-webhooks__meta">
-                  <!-- Gabarit gap: a badge that truncates with an ellipsis inside a row (`gbt-badge`'s inner box cannot shrink), with an outline look. -->
+                  <!-- Gabarit gap: gbt-badge's inner box can't shrink, so it can't truncate with an ellipsis in a row. Hence this outline chip. -->
                   <span class="repository-webhooks__events">
                     @for (event of row.events; track $index) {
                       <span class="repository-webhooks__event" [title]="event">{{ event }}</span>

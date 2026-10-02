@@ -140,7 +140,7 @@
         @if (r.targetCommitSha; as sha) {
           <gbt-badge mono [fullText]="sha">{{ shortSha() }}</gbt-badge>
         } @else {
-          <!-- Gabarit gap: a `gbt-alert` warning has role=alert, but this is a lasting fact about the page, so it needs a non-assertive warning. -->
+          <!-- Gabarit gap: a gbt-alert warning has role=alert, but this is a lasting fact about the page, so it needs a non-assertive one. -->
           <p class="release-detail__missing-tag">
             <gbt-icon name="alert-triangle" aria-hidden="true" />
             <span>Le tag git de cette release a été supprimé ; le commit cible n'est plus disponible.</span>

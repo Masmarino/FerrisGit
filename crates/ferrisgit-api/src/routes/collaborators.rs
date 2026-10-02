@@ -41,8 +41,7 @@ async fn list(
     State(state): State<AppState>,
     Path(repository_id): Path<Uuid>,
 ) -> Result<Json<Vec<CollaboratorResponse>>, ApiError> {
-    // Not `require_role_by_id`: a public repository's Reader bypass must not expose its collaborator list to an
-    // arbitrary visitor.
+    // Not `require_role_by_id`: its public-repository bypass would show the collaborator list to any visitor.
     let repo =
         require_explicit_role_by_id(&state, user_id, repository_id, CollaboratorRole::Reader)
             .await?;

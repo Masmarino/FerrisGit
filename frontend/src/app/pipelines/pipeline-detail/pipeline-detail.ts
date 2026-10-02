@@ -37,8 +37,8 @@ export class PipelineDetail implements OnInit, OnDestroy {
   private pollHandle: ReturnType<typeof setInterval> | null = null;
   private tickHandle: ReturnType<typeof setInterval> | null = null;
   private destroyed = false;
-  // Captured for each in-flight request. A response that arrives after a newer request started (out-of-order delivery,
-  // or overlap with a poll tick) is dropped.
+  // Captured per in-flight request: a response that arrives after a newer request started (out-of-order delivery, or
+  // overlap with a poll tick) is dropped.
   private requestSeq = 0;
 
   protected pipeline = signal<PipelineDetailModel | null>(null);
@@ -58,7 +58,7 @@ export class PipelineDetail implements OnInit, OnDestroy {
     if (!pipeline) {
       return '—';
     }
-    // Pipelines finished before migration 0003 have no finishedAt: counting up to "now" would be wrong.
+    // Pipelines finished before migration 0003 have no finishedAt, so counting up to "now" would be wrong.
     if (isTerminal(pipeline.status) && pipeline.finishedAt === null) {
       return '—';
     }

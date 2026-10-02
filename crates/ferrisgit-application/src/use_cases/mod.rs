@@ -1,4 +1,4 @@
-//! One module per action. The `pub(crate)` modules up front are the checks and builders several use cases share.
+//! One module per action, after the `pub(crate)` ones that hold what several use cases share.
 
 pub(crate) mod collaborator_guard;
 pub(crate) mod event_context;

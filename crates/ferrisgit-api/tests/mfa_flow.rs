@@ -1,5 +1,5 @@
-// Mandatory-MFA login: login only returns an `mfa-pending` token. The session comes from verify or the first-enrolment confirm.
-// `mfa_enforced` stays true here, unlike the other flow files.
+// Mandatory-MFA login: login only returns an `mfa-pending` token, the session comes from verify or the first-enrolment
+// confirm. Unlike the other flow files, `mfa_enforced` stays true.
 
 mod common;
 
@@ -223,7 +223,7 @@ async fn login_is_still_rate_limited_per_ip_in_front_of_the_mfa_step(pool: PgPoo
         statuses.contains(&401) && statuses.contains(&429),
         "expected 401s then 429s, got {statuses:?}"
     );
-    // The gate is the connection, not the outcome: the right password is refused too.
+    // The limit is per connection, not per failure: the right password is refused too.
     assert_eq!(server.login("admin", ADMIN_PASSWORD).await.status(), 429);
 }
 
@@ -332,7 +332,7 @@ async fn setup_confirm_completes_the_first_login(pool: PgPool) {
 async fn confirm_sends_the_enrolled_mail_when_the_address_is_a_valid_mailbox(pool: PgPool) {
     let server = spawn_server(pool).await;
     let admin = server.enrolled("admin", ADMIN_PASSWORD).await;
-    // `PATCH /auth/me` needs a session a not-yet-enrolled user cannot have, hence the direct repository call.
+    // PATCH /auth/me needs a session an unenrolled user can't have, hence the direct repository call.
     server
         .create_user(&admin.session, "dave", "dave@localhost")
         .await;
@@ -475,7 +475,7 @@ async fn the_mfa_token_is_single_use_after_success(pool: PgPool) {
         401
     );
 
-    // The refusal of a spent token did not burn the legitimate next code: a fresh login can use it.
+    // Refusing the spent token didn't burn the legitimate next code, a fresh login can still use it.
     let fresh = server.mfa_token("admin", ADMIN_PASSWORD).await;
     assert_eq!(
         server
@@ -640,8 +640,8 @@ async fn mfa_attempts_are_rate_limited_per_user(pool: PgPool) {
             .status(),
         429
     );
-    // A refused attempt is refused before the factor is even looked at. The right code that was refused did not
-    // burn its TOTP step, and the refused backup code was not consumed.
+    // A refused attempt is refused before the factor is even looked at: the right code didn't burn its TOTP step and the
+    // backup code wasn't consumed.
     assert_eq!(
         server.last_used_steps().await,
         step_before,
@@ -693,7 +693,7 @@ async fn a_password_change_invalidates_a_pending_mfa_token(pool: PgPool) {
         401
     );
 
-    // Same for the enrolment path: bumping the epoch of a not-yet-enrolled user kills their pending token.
+    // Same on the enrolment path: bumping the epoch of an unenrolled user kills their pending token.
     let bob_id = server
         .state
         .users
@@ -817,7 +817,7 @@ async fn failed_challenges_and_completed_logins_leave_security_events(pool: PgPo
 async fn login_fails_closed_when_the_stored_totp_secret_cannot_be_read(pool: PgPool) {
     let server = spawn_server(pool.clone()).await;
     server.enrolled("admin", ADMIN_PASSWORD).await;
-    // As after an encryption-key rotation: the row exists but its secret can no longer be decrypted.
+    // Like after a key rotation: the row exists but its secret can't be decrypted any more.
     sqlx::query("UPDATE totp_credentials SET encrypted_secret = $1")
         .bind(vec![0u8; 4])
         .execute(&pool)
@@ -826,7 +826,7 @@ async fn login_fails_closed_when_the_stored_totp_secret_cannot_be_read(pool: PgP
 
     let res = server.login("admin", ADMIN_PASSWORD).await;
 
-    // A 5xx, never "no factor, please enrol" (which would let the user enrol around the existing one).
+    // A 5xx, never "no factor, please enrol": that would let the user enrol around the existing one.
     assert_eq!(res.status(), 500);
     let body = res.text().await.unwrap();
     assert!(!body.contains("mfaToken"), "{body}");

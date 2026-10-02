@@ -107,8 +107,6 @@ mod tests {
         assert!(matches!(result, Err(DomainError::Validation(_))));
     }
 
-    /// Label writes are all-or-nothing: a mix of a usable and an out-of-scope label is rejected whole and the
-    /// existing set is left as it was.
     #[tokio::test]
     async fn a_mix_of_in_scope_and_out_of_scope_labels_writes_nothing_and_leaves_the_existing_set_intact()
      {
@@ -151,8 +149,7 @@ mod tests {
             .await
             .unwrap();
 
-        // `good` passes validation before `bad` fails, so this checks that the usable label is not written on the way
-        // to finding the unusable one.
+        // `good` is validated before `bad` fails, it must not be written in the meantime.
         let result = use_case
             .execute(merge_request_id, &repository, vec![good.id, bad.id])
             .await;

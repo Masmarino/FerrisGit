@@ -27,7 +27,7 @@
   font-weight: 600;
 }
 
-// An unmasked value shows in the logs: the badge says so in words, and the warning tint backs it up.
+// An unmasked value shows in the logs: the badge says so, and the warning tint backs it up.
 .repository-ci-variables__value {
   max-width: 100%;
 }
@@ -41,8 +41,8 @@
     grid-template-columns: minmax(0, 1fr);
   }
 
-  // The chip shows only its icon (lock or eye, plus the warning tint) and leaves the words to screen readers,
-  // so the key and its actions stay on one line.
+  // Icon only (lock or eye, plus the tint), the words stay for screen readers. Keeps the key and its
+  // actions on one line.
   .repository-ci-variables__dots {
     display: none;
   }

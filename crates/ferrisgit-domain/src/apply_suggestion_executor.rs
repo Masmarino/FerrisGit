@@ -2,17 +2,12 @@ use async_trait::async_trait;
 
 use crate::error::DomainError;
 
-/// Commits a suggestion's replacement to `branch` as one new single-parent commit, touching no other branch.
-/// `expected_tip` is the branch sha the caller validated the anchor against. The git write re-checks it atomically
-/// (compare-and-swap on the ref), like `MergeExecutorPort::merge`.
+/// Commits a suggestion's replacement to `branch` as one new commit, leaving other branches alone. The ref update is a
+/// compare-and-swap on `expected_tip`, like the merge executor.
+/// Lines are 1-based and inclusive at `expected_tip`. Empty `new_content` deletes the range, which is fine.
 ///
-/// `start_line`/`end_line` are 1-based inclusive lines of `file_path` at `expected_tip` (the source side a suggestion
-/// is anchored to). `new_content` replaces the range as is, with any number of lines. An empty one deletes the range,
-/// which is not an error.
-///
-/// Known limitation: the file is read with `git show` and decoded lossily as UTF-8. Binary files (NUL byte) are
-/// rejected upstream, but a text file with invalid UTF-8 and no NUL byte would be silently corrupted. The whole diff
-/// and comment subsystem assumes UTF-8.
+/// The file is decoded lossily as UTF-8: binary files are rejected upstream, but invalid UTF-8 without a NUL byte would
+/// be silently mangled. The whole diff and comment code assumes UTF-8.
 #[async_trait]
 pub trait ApplySuggestionExecutorPort: Send + Sync {
     #[allow(clippy::too_many_arguments)]

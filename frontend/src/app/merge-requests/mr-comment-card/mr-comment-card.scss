@@ -9,7 +9,7 @@ gbt-card {
   @include card.inherit-text;
 }
 
-// Centred on the header's 24px line. The header is the host's first row, above the box, at the card's left edge.
+// Centred on the header's 24px line. The header sits above the box, at the card's left edge.
 .mr-comment__avatar {
   @include rail.on-rail(rail.$avatar-size, (24px - rail.$avatar-size) * 0.5);
 }

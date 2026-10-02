@@ -1,5 +1,5 @@
-// Anonymous Git reads of a public repository (and of its wiki) follow the "Pages publiques" switch: with it off they are
-// refused exactly like a private repository, and signed-in users are not affected.
+// Anonymous Git reads of a public repository (and its wiki) follow the "Pages publiques" switch: with it off they are
+// refused exactly like a private repository. Signed-in users aren't affected.
 
 mod common;
 
@@ -19,7 +19,7 @@ use sqlx::PgPool;
 
 async fn spawn(pool: PgPool) -> Server {
     spawn_with(pool, Options::default(), |state| {
-        state.mfa_enforced = false; // these tests are not about MFA: they log in with a plain session
+        state.mfa_enforced = false; // not about MFA, so log in with a plain session
     })
     .await
 }
@@ -87,7 +87,7 @@ fn git(dir: &Path, args: &[&str]) {
     assert!(status.success(), "git {args:?}");
 }
 
-/// Pushes one commit to `remote`. Runs in `spawn_blocking`: a blocking git subprocess would starve the server task.
+/// Pushes one commit to `remote`. In spawn_blocking, because a blocking git subprocess would starve the server task.
 async fn push_commit(remote: String) {
     tokio::task::spawn_blocking(move || {
         let work = tempfile::tempdir().unwrap();
@@ -106,7 +106,7 @@ async fn push_commit(remote: String) {
 async fn clone_succeeds(url: String) -> bool {
     tokio::task::spawn_blocking(move || {
         let work = tempfile::tempdir().unwrap();
-        // No credential helper either: a developer's keychain must not answer the server's challenge.
+        // No credential helper either, so a developer's keychain can't answer the server's challenge.
         let output = Command::new("git")
             .args(["-c", "credential.helper=", "clone", "-q", &url, "checkout"])
             .env("GIT_TERMINAL_PROMPT", "0")

@@ -1,11 +1,11 @@
 import { WikiPageSummary } from './wiki.service';
 
-/** The route of the wiki, or of one of its pages and sub-pages (`slug`, `'edit'`). */
+/** Route of the wiki, or of one of its pages and sub-pages (`slug`, `'edit'`). */
 export function wikiLink(path: string[], ...rest: string[]): string[] {
   return ['/repositories', ...path, '-', 'wiki', ...rest];
 }
 
-/** What a page is called until its title has loaded: the slug, without its hyphens. */
+/** What a page is called until its title has loaded: the slug, minus its hyphens. */
 export function titleFromSlug(slug: string): string {
   return slug.replace(/-/g, ' ');
 }

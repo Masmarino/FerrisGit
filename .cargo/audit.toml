@@ -1,6 +1,6 @@
 [advisories]
-# RUSTSEC-2023-0071 (Marvin Attack, RSA timing side-channel): `rsa` only appears in Cargo.lock, through sqlx-mysql,
-# the optional MySQL driver of sqlx that this workspace does not enable. `cargo tree -i rsa --target all -e all`
-# finds no path to it from any workspace crate, so it is never compiled or linked, and no patched `rsa` release exists.
-# Re-check if a dependency starts using RSA, or once a fixed `rsa` ships.
+# RUSTSEC-2023-0071 (Marvin Attack, RSA timing side channel): rsa only shows up in Cargo.lock, through sqlx-mysql, a
+# MySQL driver this workspace doesn't enable. `cargo tree -i rsa --target all -e all` finds no path to it from any
+# workspace crate, so it is never compiled or linked, and there's no patched rsa release anyway. Re-check if a dependency
+# starts using RSA, or once a fixed rsa ships.
 ignore = ["RUSTSEC-2023-0071"]

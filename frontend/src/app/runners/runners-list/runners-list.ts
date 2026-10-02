@@ -32,14 +32,14 @@ const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30
 const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;
 
 /**
- * Every authenticated request records a heartbeat (a runner polls every 5 s by default), so two minutes of silence
- * means stopped or unreachable, with room for a slow network or a longer poll interval. The API has no explicit status.
+ * Every authenticated request records a heartbeat (a runner polls every 5 s by default), so two minutes of silence means
+ * stopped or unreachable, with room for a slow network or a longer poll interval. The API has no explicit status.
  */
 export const ONLINE_THRESHOLD_MS = 2 * 60 * 1000;
 
 export type RunnerConnectivity = 'online' | 'offline' | 'never';
 
-/** Online below the threshold, including a heartbeat slightly in the future (clock skew). */
+/** Online below the threshold, which includes a heartbeat slightly in the future (clock skew). */
 export function runnerConnectivity(lastHeartbeatAt: string | null, now: Date = new Date()): RunnerConnectivity {
   if (!lastHeartbeatAt) {
     return 'never';
@@ -78,7 +78,7 @@ function rowDate(iso: string, now: Date): RowDate {
   return { iso, label: /^\d/.test(relative) ? `le ${relative}` : relative, title: formatDateTime(iso, 'fr', ABSOLUTE_OPTIONS) };
 }
 
-/** "En ligne" is derived from the last heartbeat when the list is loaded; the page does not poll. */
+/** "En ligne" is derived from the last heartbeat when the list loads; the page doesn't poll. */
 @Component({
   selector: 'fg-runners-list',
   standalone: true,
@@ -209,7 +209,7 @@ export class RunnersList implements OnInit {
         this.closeRegister();
         this.toast.show('Runner enregistré.');
         this.refresh();
-        // The dialog gives the focus back to its opener, so move it on to the token, the next thing to do.
+        // The dialog gives focus back to its opener, so move it on to the token, the next thing to do.
         afterNextRender(() => this.tokenCard()?.nativeElement.focus(), { injector: this.injector });
       },
       error: () => {

@@ -91,8 +91,7 @@ impl ApplySuggestionCommentUseCase {
                 "this comment has no anchor to apply a suggestion against".to_string(),
             ));
         };
-        // Last line of defense before a git write: suggestions are spliced with new-side line numbers, so an old-side
-        // one would silently corrupt the wrong lines.
+        // Last check before the git write: an old-side suggestion would silently splice the wrong lines.
         if side == DiffSide::Old {
             return Err(DomainError::Validation(
                 "a suggestion can only be anchored to the new side of the diff".to_string(),
@@ -112,10 +111,9 @@ impl ApplySuggestionCommentUseCase {
             .await?
             .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
 
-        // Resolve `tip_sha` before the diff re-read: it is `expected_tip` for the git compare-and-swap. If a push
-        // lands between the two reads, the diff may be newer while `tip_sha` is older, so the CAS fails cleanly with
-        // `Conflict`. The reverse order would validate against stale content while the CAS succeeds on the newer tip,
-        // silently writing wrong content. Do not reorder.
+        // Read the tip before re-reading the diff, don't swap them. It's the expected tip of the git compare-and-swap,
+        // so a push landing in between makes the swap fail with Conflict. The other way round we'd validate stale
+        // content and the swap would succeed on the newer tip, writing the wrong thing.
         let tip_sha = source_branch_tip(
             self.branch_reader.as_ref(),
             &repo.disk_path,
@@ -198,8 +196,8 @@ mod tests {
         }
     }
 
-    /// A merge request whose source branch `feature` is at `tip123`, whose diff adds line 2 of `README.md`, and an
-    /// applier whose git write ends in `executor_result`.
+    /// A merge request from `feature` (at `tip123`) whose diff adds line 2 of `README.md`, and an applier whose git
+    /// write ends in `executor_result`.
     struct Setup {
         use_case: ApplySuggestionCommentUseCase,
         store: Arc<FakeMergeRequests>,
@@ -240,7 +238,6 @@ mod tests {
         }
     }
 
-    /// An open merge request whose git write succeeds with `newsha`.
     fn open_setup() -> Setup {
         setup(MergeRequestStatus::Open, Ok("newsha".to_string()))
     }
@@ -252,7 +249,6 @@ mod tests {
             id
         }
 
-        /// Seeds `comment` and applies it.
         async fn apply(
             &self,
             comment: MergeRequestComment,
@@ -358,8 +354,7 @@ mod tests {
     async fn applying_an_outdated_multi_line_suggestion_is_rejected() {
         let s = open_setup();
 
-        // `find_lines` needs every line of the range to exist without gaps, so a range ending at line 3 can never
-        // match.
+        // The diff has no line 3, so the range can't match.
         let result = s
             .apply(MergeRequestComment {
                 end_line: Some(3),

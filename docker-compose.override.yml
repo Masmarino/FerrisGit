@@ -1,4 +1,4 @@
-# Compose merges this file in automatically: it publishes PostgreSQL for scripts/dev.sh and local tools.
+# Compose merges this file in on its own. It publishes PostgreSQL for scripts/dev.sh and local tools.
 services:
   postgres:
     ports:

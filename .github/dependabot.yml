@@ -31,6 +31,26 @@ updates:
     schedule:
       interval: "weekly"
 
+  - package-ecosystem: "npm"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+    open-pull-requests-limit: 10
+    groups:
+      angular:
+        patterns: ["@angular/*", "@angular-devkit/*", "@schematics/*"]
+      npm-minor-and-patch:
+        update-types: ["minor", "patch"]
+    ignore:
+      # Angular pins its supported TypeScript range; move it with Angular.
+      - dependency-name: "typescript"
+        update-types: ["version-update:semver-major", "version-update:semver-minor"]
+
+  - package-ecosystem: "docker"
+    directory: "/website"
+    schedule:
+      interval: "weekly"
+
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:

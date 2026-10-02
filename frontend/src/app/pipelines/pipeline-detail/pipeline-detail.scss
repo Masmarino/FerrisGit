@@ -4,7 +4,7 @@
   @include list-page.page-host;
 }
 
-// Segments wrap as units; the commit message may break, a date or a duration never does.
+// Segments wrap as units: the commit message may break, a date or a duration never does.
 .pipeline-detail__meta {
   display: flex;
   flex-wrap: wrap;
@@ -42,7 +42,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-// The parser's message, as it came: the position it points at is only readable in a fixed-width font.
+// The parser's message as it came: the position it points at is only readable in a fixed-width font.
 .pipeline-detail__error-message {
   margin: 0;
   font-family: var(--gbt-font-mono);
@@ -70,7 +70,7 @@
   min-width: 0;
 }
 
-// The way back out of the "job not found" state: a plain text link (Gabarit has no link-as-button yet).
+// The way back out of the "job not found" state: a plain text link, Gabarit has no link-as-button yet.
 .pipeline-detail__not-found a {
   color: var(--primary);
   font-weight: 600;

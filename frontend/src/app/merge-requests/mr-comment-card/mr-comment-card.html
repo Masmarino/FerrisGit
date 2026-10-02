@@ -9,7 +9,7 @@
         <span class="mr-comment__badge">{{ badge() }}</span>
       }
       <time class="mr-comment__date" [attr.datetime]="createdAt()" [title]="createdAt() | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ createdAt() | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
-      <!-- Hung on the rail, level with the byline: the header sits above the card's box, and the avatar comes last so the byline is read first. -->
+      <!-- Hung on the rail beside the byline. Last in the DOM so screen readers get the byline first. -->
       <gbt-avatar class="mr-comment__avatar" [name]="authorName()" />
     </div>
     <p class="mr-comment__body">{{ body() }}</p>

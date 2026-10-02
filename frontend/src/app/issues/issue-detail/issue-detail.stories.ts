@@ -129,7 +129,7 @@ const centreY = (el: Element) => rect(el).top + rect(el).height / 2;
 
 const RAIL_AXIS = 16;
 
-/** Layout checks jsdom cannot make, at any viewport: no horizontal overflow, aside beside the main column from 769px, avatars and composer marker centred on the rail. */
+/** Layout checks jsdom can't make, at any viewport: no horizontal overflow, aside beside the main column from 769px, avatars and composer marker centred on the rail. */
 function assertPageLayout(canvas: HTMLElement): number {
   const layout = canvas.querySelector('gbt-page-layout');
   const main = canvas.querySelector('.gbt-page-layout__main');

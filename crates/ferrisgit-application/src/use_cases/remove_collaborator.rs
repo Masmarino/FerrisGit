@@ -122,8 +122,7 @@ mod tests {
         webhooks: Arc<FakeWebhooks>,
     }
 
-    /// A personal repository owned by `owner`. `others` exist as accounts, and `roles` are the collaborators they hold
-    /// on it.
+    /// A personal repo of `owner`; `others` are extra accounts and `roles` the collaborator roles on that repo.
     fn harness(owner: &User, others: &[&User], roles: &[(&User, CollaboratorRole)]) -> Harness {
         let users = [&[owner], others].concat().into_iter().cloned().collect();
         harness_over(
@@ -302,8 +301,8 @@ mod tests {
     async fn removing_a_target_who_was_never_a_collaborator_does_not_notify_them() {
         let owner = user("owner");
         let target = user("alice");
-        // `target` holds no role on purpose. The store's `remove` is a no-op for a pair that never existed, so `execute`
-        // must detect that beforehand and skip the notification.
+        // No role for the target on purpose. The store's remove is a no-op for an unknown pair, so the use case has to
+        // notice that itself.
         let h = harness(&owner, &[&target], &[]);
 
         let result = h.use_case.execute(h.repo_id, owner.id, target.id).await;

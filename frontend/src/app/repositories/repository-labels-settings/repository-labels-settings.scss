@@ -12,7 +12,7 @@
   @include settings-section.field-row(minmax(0, 1fr) minmax(0, 14rem));
 }
 
-// The preview sits level with the field: its caption lines up with the field's label, the tag with the input.
+// Caption lines up with the field's label, the tag with the input.
 .repository-labels-settings__preview {
   display: flex;
   flex-direction: column;
@@ -55,8 +55,7 @@
   gap: 0.5rem;
 }
 
-// Each radio is drawn as a 28px colour swatch. A ring in the text colour marks the chosen one, and a check
-// mark shows it without relying on colour. The focus ring is the accent outline.
+// Each radio is a 28px swatch. The chosen one gets a ring and a check mark, so it isn't colour-only.
 .repository-labels-settings__swatch {
   position: relative;
   width: 1.75rem;

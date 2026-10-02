@@ -1,5 +1,5 @@
 <gbt-page-layout width="wide" asideWidth="sm" navLabel="Documentation" asideLabel="Sur cette page" stickyNav>
-  <!-- Each projected block has a single root: Angular projects a control-flow block into a named slot only then. -->
+  <!-- One root per projected block: a control-flow block only gets projected into a named slot that way. -->
   @if (index(); as index) {
     <fg-docs-nav page-nav [index]="index" [section]="sectionSlug()" [page]="pageSlug()" />
   }

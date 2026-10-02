@@ -47,8 +47,7 @@ impl SubmitMergeRequestReviewUseCase {
         }
     }
 
-    /// Access control (owner or collaborator) is up to the caller. Like `AddMergeRequestCommentUseCase`, this use case
-    /// does not check it again.
+    /// Doesn't check access (owner or collaborator), the caller does, as with `AddMergeRequestCommentUseCase`.
     pub async fn execute(
         &self,
         merge_request_id: Uuid,
@@ -123,7 +122,7 @@ impl SubmitMergeRequestReviewUseCase {
                 .await
                 .ok();
 
-            // Nobody to notify once the author's account is gone.
+            // The author's account may be gone, then there's nobody to notify.
             if let Some(mr_author_id) = mr.author_id
                 && mr_author_id != user_id
             {
@@ -170,7 +169,7 @@ mod tests {
     }
 
     impl Harness {
-        /// An open merge request of `author` on a repository of `owner`, whose source branch `feature` is at `sha1`.
+        /// An open merge request by `author`, its source branch `feature` at `sha1`.
         fn new() -> Self {
             Self::build(true, &[("feature", "sha1")])
         }

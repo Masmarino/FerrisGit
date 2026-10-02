@@ -49,7 +49,7 @@ pub(crate) enum ResolveResponse {
 }
 
 impl ResolveResponse {
-    /// `chain` is the group chain of a group repository, `None` for a personal one.
+    /// `chain` is `None` for a personal repository.
     pub(crate) fn repository(repository_id: Uuid, chain: Option<&[Group]>) -> Self {
         match chain {
             None => Self::PersonalRepository { repository_id },
@@ -61,7 +61,7 @@ impl ResolveResponse {
     }
 }
 
-/// Every failure to find the path, including an empty one, is `NotFound("path")`.
+/// Any failure to find the path, an empty one included, is `NotFound("path")`.
 pub(crate) async fn resolve_path(state: &AppState, path: &str) -> Result<ResolvedPath, ApiError> {
     let segments: Vec<String> = path
         .split('/')
@@ -79,7 +79,7 @@ pub(crate) async fn resolve_path(state: &AppState, path: &str) -> Result<Resolve
     Ok(use_case.execute(&segments).await?)
 }
 
-/// A path the caller cannot read looks like a path that does not exist.
+/// A path the caller can't read looks like one that doesn't exist.
 fn unreadable_path_is_missing(error: DomainError) -> DomainError {
     match error {
         DomainError::NotFound(_) | DomainError::Unauthorized(_) => {

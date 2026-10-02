@@ -236,8 +236,7 @@ describe('AdminDashboard', () => {
       fixture.detectChanges();
       expect(card(el).querySelector('[aria-busy="true"]')).toBeNull();
       expect(fixture.debugElement.queryAll(By.directive(LineChart))).toHaveLength(2);
-      // The status region stays in the DOM (emptied, not removed): a screen reader needs it there before the
-      // text changes to notice the change.
+      // Emptied, not removed: a screen reader needs the region in the DOM before its text changes.
       expect(text(card(el).querySelector('.gbt-list-card__body [role="status"]'))).toBe('');
     });
 
@@ -248,7 +247,7 @@ describe('AdminDashboard', () => {
       expect(toastStub.show).toHaveBeenCalledWith("Impossible de charger l'historique des métriques. Réessayez plus tard.", 'error');
       const failed = card(el).querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toContain("L'historique n'a pas pu être chargé");
-      // The toast announces it. The card shows it silently with a retry button, so there is one live region, not two.
+      // The toast announces it; the card stays silent with a retry button, so there's only one live region.
       expect(failed?.getAttribute('data-variant')).toBe('error');
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();

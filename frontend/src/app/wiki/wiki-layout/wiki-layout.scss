@@ -1,7 +1,7 @@
 @use '../../shared/layout/list-page';
 
 // The wiki's frame: the "Pages" nav column of a wide `gbt-page-layout`. Stacked layouts (≤ 768px) fold the list
-// behind a toggle so a phone reaches the page first.
+// behind a toggle so a phone gets to the page first.
 
 :host {
   display: block;
@@ -96,7 +96,7 @@
   white-space: nowrap;
 }
 
-// The current page: an accent-tinted pill with a leading bar, like Gabarit's active vertical `gbtNavTab`, so it does not rely on tint alone.
+// The current page: an accent-tinted pill with a leading bar, like Gabarit's active vertical `gbtNavTab`, so it doesn't rely on tint alone.
 .wiki-nav__link[aria-current='page'] {
   background: color-mix(in srgb, var(--primary) 10%, transparent);
   color: var(--text-primary);
@@ -160,7 +160,7 @@
     margin-top: 0.5rem;
   }
 
-  // The toggle already says "pages", so the heading is only for assistive technology.
+  // The toggle already says "pages", so the heading is for assistive technology only.
   .wiki-nav__heading {
     @include list-page.visually-hidden;
   }

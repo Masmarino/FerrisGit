@@ -15,9 +15,8 @@ impl GitMergeExecutor {
     }
 }
 
-/// Merge commits are authored by the server itself: the port carries no user identity, and the
-/// production container has no global git config, so without this `git commit-tree` fails with
-/// "Author identity unknown".
+/// The port has no user identity and the production container has no git config, so without this
+/// commit-tree fails with "Author identity unknown".
 const MERGE_IDENTITY: [(&str, &str); 4] = [
     ("GIT_AUTHOR_NAME", "FerrisGit"),
     ("GIT_AUTHOR_EMAIL", "noreply@ferrisgit.local"),
@@ -134,7 +133,7 @@ mod tests {
     use super::*;
     use crate::test_git::{git, git_command, git_stdout, init_bare_with_clone, rev_parse};
 
-    /// A bare repository whose `feature` branch is one commit ahead of `main`.
+    /// Bare repo with `feature` one commit ahead of `main`.
     fn init_bare_repo_with_diverging_branches(dir: &Path) -> PathBuf {
         let (bare, work) = init_bare_with_clone(dir);
         let commit = |message: &str| git(&work, &["commit", "--allow-empty", "-q", "-m", message]);
@@ -180,7 +179,7 @@ mod tests {
 
     #[tokio::test]
     async fn the_merge_commit_carries_a_fixed_server_identity_instead_of_depending_on_git_config() {
-        // Regression: without a global git identity (as in the production container) `git commit-tree` failed.
+        // No global git identity here, like in production: commit-tree used to fail.
         let tmp = tempfile::tempdir().unwrap();
         let bare = init_bare_repo_with_diverging_branches(tmp.path());
         let executor = GitMergeExecutor::new(tmp.path().to_path_buf());
@@ -245,7 +244,7 @@ mod tests {
 
     #[tokio::test]
     async fn update_ref_with_a_stale_expected_old_value_is_rejected_by_git_itself() {
-        // Tests the compare-and-swap directly, because the race inside `merge()` can't be reproduced deterministically.
+        // The race inside merge() can't be reproduced reliably, so test the compare-and-swap directly.
         let tmp = tempfile::tempdir().unwrap();
         let (bare, work) = init_bare_with_clone(tmp.path());
         let run = |args: &[&str]| git(&work, args);

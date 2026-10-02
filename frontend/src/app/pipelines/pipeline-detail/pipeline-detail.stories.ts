@@ -184,7 +184,7 @@ export const Failed: Story = {
   ],
 };
 
-/** A pipeline file that does not parse: the pipeline failed at once, without job, and says why. */
+/** A pipeline file that doesn't parse: the pipeline fails at once, with no job, and says why. */
 export const InvalidPipelineFile: Story = {
   decorators: [
     applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation())] }),

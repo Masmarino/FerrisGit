@@ -9,25 +9,23 @@ pub struct TagInfo {
     pub target_sha: String,
 }
 
-/// Live read from git refs; nothing about tags is persisted.
+/// Live read from the git refs, nothing is persisted.
 #[async_trait]
 pub trait TagReaderPort: Send + Sync {
     async fn list_tags(&self, repository_disk_path: &str) -> Result<Vec<TagInfo>, DomainError>;
 }
 
-/// Creates or deletes a repository's lightweight git tags (a plain `refs/tags/<name>` ref pointing at a commit, never
-/// an annotated tag object).
+/// Creates and deletes lightweight tags (a plain `refs/tags/<name>` ref, never an annotated tag object).
 #[async_trait]
 pub trait TagCreatorPort: Send + Sync {
-    /// Errs `Conflict` if a tag with this name already exists.
+    /// `Conflict` if the tag already exists.
     async fn create_tag(
         &self,
         repository_disk_path: &str,
         tag_name: &str,
         target_commit_sha: &str,
     ) -> Result<(), DomainError>;
-    /// `NotFound` if no such tag. Unconditional (no compare-and-swap): `DeleteTagUseCase` decides whether a tag is
-    /// safe to delete (no release references it).
+    /// `NotFound` if there is no such tag. No compare-and-swap: `DeleteTagUseCase` decides whether deleting is safe.
     async fn delete_tag(
         &self,
         repository_disk_path: &str,

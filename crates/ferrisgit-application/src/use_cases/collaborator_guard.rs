@@ -8,9 +8,8 @@ use ferrisgit_domain::repository_collaborator::{
 };
 use uuid::Uuid;
 
-/// Loads the repository and checks that `caller_id` is allowed to manage its collaborators: the owner of a personal
-/// repository, or anyone whose effective role is Maintainer, a group role inherited down the hierarchy included. A
-/// caller who may not manage them gets the same `NotFound` as an unknown repository.
+/// Loads the repo if `caller_id` may manage its collaborators: owner of a personal repo, or anyone whose effective
+/// role (inherited group roles included) is Maintainer. Everyone else gets the same `NotFound` as for an unknown repo.
 pub(crate) async fn require_collaborator_manager(
     repositories: &dyn RepositoryStorePort,
     collaborators: &dyn RepositoryCollaboratorStorePort,

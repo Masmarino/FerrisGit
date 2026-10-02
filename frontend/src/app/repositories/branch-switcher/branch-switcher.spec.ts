@@ -11,7 +11,7 @@ class DummyRoutedComponent {}
 
 describe('BranchSwitcher', () => {
   function setup() {
-    // A wildcard route lets `router.navigate(...)` resolve: the router rejects navigation when no route matches.
+    // Without a wildcard route, router.navigate() rejects.
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([{ path: '**', component: DummyRoutedComponent }]), provideFerrisgitIcons()],
     });

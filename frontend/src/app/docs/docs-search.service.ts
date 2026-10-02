@@ -9,10 +9,10 @@ export interface DocsSearchHit {
   sectionTitle: string;
   pageTitle: string;
   commands: string[];
-  /** The heading that matched best, as its `user-content-…` id, so the result lands on it. */
+  /** Id of the best matching heading (`user-content-…`), so the result lands on it. */
   fragment: string | null;
   heading: string | null;
-  /** Some body text around the first match, or the page's description when only its title or headings match. */
+  /** Body text around the first match, or the page's description when only the title or headings match. */
   excerpt: { before: string; match: string; after: string };
 }
 
@@ -20,7 +20,7 @@ interface Field {
   text: string;
   /** Lower-cased, accents removed. */
   folded: string;
-  /** For each character of `folded`, its position in `text`. */
+  /** Where each character of `folded` sits in `text`. */
   origin: number[];
 }
 
@@ -40,7 +40,7 @@ interface Document {
   body: Field;
 }
 
-/** Lower case without accents, character by character, remembering where each folded character came from. */
+/** Lower case without accents, character by character, keeping track of where each one came from. */
 function fold(text: string): Field {
   let folded = '';
   const origin: number[] = [];
@@ -60,7 +60,7 @@ export function searchTokens(query: string): string[] {
   return [...new Set(fold(query).folded.split(/[^\p{L}\p{N}]+/u).filter(Boolean))];
 }
 
-/** Inline Markdown down to its text: links and images keep their label, emphasis and code marks go. */
+/** Inline Markdown down to its text: links and images keep their label, emphasis and code marks are dropped. */
 function inlineText(line: string): string {
   return line
     .replace(/!?\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -71,8 +71,8 @@ function inlineText(line: string): string {
 }
 
 /**
- * Title, headings and body text of one page. The heading ids follow `fg-markdown-view`: every h1–h4 takes
- * `user-content-<slug>`, a repeated slug gets `-2`, `-3`… in document order.
+ * Title, headings and body text of one page. Heading ids follow `fg-markdown-view`: `user-content-<slug>` on every
+ * h1–h4, and `-2`, `-3`… on a repeated slug in document order.
  */
 export function parseDocsPage(markdown: string): { headings: { id: string; text: string }[]; body: string } {
   const headings: { id: string; text: string }[] = [];
@@ -111,7 +111,7 @@ export function parseDocsPage(markdown: string): { headings: { id: string; text:
       continue;
     }
     if (/^\s*\|?\s*:?-{3,}/.test(line)) {
-      continue; // a table's separator row
+      continue; // table separator row
     }
     body.push(inlineText(line.replace(/^\s*(>\s*)+/, '').replace(/^\s*([-*+]|\d+[.)])\s+/, '').replace(/\|/g, ' ')));
   }
@@ -148,7 +148,7 @@ function excerptAround(field: Field, token: string): DocsSearchHit['excerpt'] | 
   const end = at + token.length < field.origin.length ? field.origin[at + token.length] : field.text.length;
   let from = Math.max(0, start - EXCERPT_BEFORE);
   let to = Math.min(field.text.length, from + EXCERPT_LENGTH);
-  // Whole words only at both cuts.
+  // Cut on word boundaries at both ends.
   if (from > 0) {
     const space = field.text.indexOf(' ', from);
     from = space >= 0 && space < start ? space + 1 : from;
@@ -165,16 +165,16 @@ function excerptAround(field: Field, token: string): DocsSearchHit['excerpt'] | 
 }
 
 /**
- * Search over the whole documentation, in the browser. Nothing is fetched until the first search (or `prepare()`):
- * then every page once, kept by `DocsService`. Every word of the query must appear in the page; a page ranks
- * higher for a word in its title than in a heading, and in a heading than in its text.
+ * Search over the whole documentation, in the browser. Nothing is fetched until the first search (or `prepare()`),
+ * then every page once, kept by `DocsService`. Every word of the query must appear in the page; a word in the title
+ * ranks higher than one in a heading, and a heading higher than the text.
  */
 @Injectable({ providedIn: 'root' })
 export class DocsSearchService {
   private docs = inject(DocsService);
   private documents: Promise<Document[]> | null = null;
 
-  /** Starts loading the pages ahead of the first search (the search field calls it on focus). */
+  /** Starts loading the pages before the first search; the field calls it on focus. */
   prepare(): void {
     this.load().catch(() => {});
   }
@@ -187,7 +187,7 @@ export class DocsSearchService {
           if (order.length === 0) {
             return of([]);
           }
-          // A page that fails to load is left out of the results rather than failing the whole search.
+          // A page that fails to load drops out of the results instead of failing the whole search.
           return forkJoin(
             order.map(({ section, page }, position) =>
               this.docs.page(section.slug, page.slug).pipe(
@@ -241,7 +241,7 @@ export class DocsSearchService {
       if (!complete) {
         continue;
       }
-      // The heading holding the most words of the query, the first one on a tie.
+      // The heading with the most query words, the first one on a tie.
       let heading: Heading | null = null;
       let headingMatches = 0;
       for (const candidate of document.headings) {

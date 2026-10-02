@@ -11,7 +11,7 @@
           par <span class="issue-detail__meta-author">{{ author.username }}</span>
         }
       </span>
-      <!-- Each separator belongs to the segment after it, so a wrapped line does not end on a dangling "·". -->
+      <!-- Each separator belongs to the segment after it, so a wrapped line never ends on a dangling "·". -->
       @if (i.closedAt; as closedAt) {
         <span class="issue-detail__meta-closed">
           <span aria-hidden="true"> · </span>fermé

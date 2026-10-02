@@ -25,7 +25,7 @@ describe('PasskeySettings', () => {
   function setup(passkeys: Passkey[] = [MACBOOK, YUBIKEY], config: Observable<AuthConfig> = of({ registrationEnabled: false, passkeysAvailable: true })) {
     const calls: string[] = [];
     const auth = { setToken: vi.fn(), logout: vi.fn(() => calls.push('logout')), authConfig: vi.fn(() => config) };
-    // No LOCALE_ID here: the page's `[locale]="'fr'"` is what makes the dates French.
+    // No LOCALE_ID on purpose: the page's `[locale]="'fr'"` is what makes the dates French.
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), provideFerrisgitAuth(), { provide: AuthService, useValue: auth }],
     });
@@ -91,7 +91,7 @@ describe('PasskeySettings', () => {
   it('says adding is impossible, in French, when the server cannot run passkeys', () => {
     const { el } = setup([MACBOOK], of({ registrationEnabled: false, passkeysAvailable: false }));
 
-    // jsdom has no WebAuthn, so the browser's reason is shown first, in French.
+    // jsdom has no WebAuthn, so the browser's reason shows first, in French.
     expect(text(el.querySelector('gbt-alert'))).toContain("Ce navigateur ne prend pas en charge les clés d'accès");
   });
 

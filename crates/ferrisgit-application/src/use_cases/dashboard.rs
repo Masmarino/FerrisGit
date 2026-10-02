@@ -136,8 +136,7 @@ mod tests {
         }
     }
 
-    /// The shared `FakeNotifications` filters by recipient, so tests that care about dashboard activity must seed one
-    /// for the user under test.
+    /// `FakeNotifications` filters by recipient, so seed one for the user under test.
     fn fake_notification(recipient_id: Uuid) -> Notification {
         Notification {
             id: Uuid::new_v4(),

@@ -1,12 +1,11 @@
-//! Serialises the completion of a user's first MFA setup.
+//! Serialises a user's first MFA setup.
 //!
-//! The setup routes check "no factor yet", write their factor and backup codes, and only then spend the
-//! `mfa-pending` token. Two concurrent setups for one user would both pass the check, and the loser would replace
-//! the codes the winner is about to show. Holding this lock from the check to token consumption makes the second
-//! one see the first one's outcome before it writes anything.
+//! The setup routes check "no factor yet", write the factor and backup codes, then spend the `mfa-pending` token.
+//! Two concurrent setups would both pass the check and the loser would overwrite the codes the winner is about to
+//! show. Holding this lock from the check to the token spend makes the second one see the first one's result.
 //!
-//! Striped rather than one lock per user, so there is no map to grow or clean up. It lives in memory, so it only
-//! holds for one replica, like the ceremonies and the spent-token set it protects.
+//! Striped instead of one lock per user, so there is no map to grow. In memory only, so it protects one replica,
+//! like the ceremonies and the spent-token set.
 
 use tokio::sync::{Mutex, MutexGuard};
 use uuid::Uuid;

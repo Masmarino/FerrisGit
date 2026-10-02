@@ -3,11 +3,10 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { activationToken } from '@masmarino/gabarit';
 
 /**
- * Reads the token of a mailed link (`<path>#token=…`; `?token=` still works for mails sent before) and scrubs it, and
- * any other parameter, from the address bar and the history entry. The fragment is preferred so no server sees the token.
- * Call it from a field initializer: it needs an injection context. The page keeps the result in a plain field, not a
- * value that follows the URL, because the kit's page restarts when its `token` changes. A token not shaped like the
- * server's comes back as `null`.
+ * Reads the token of a mailed link (`#token=…`, or `?token=` for older mails) and scrubs it, and any other parameter,
+ * from the address bar and history. The fragment is preferred so no server ever sees the token. Call it from a field
+ * initializer (it needs an injection context) and keep the result in a plain field: the kit's page restarts when its
+ * `token` changes, so it can't follow the URL. A malformed token comes back as `null`.
  */
 export function consumeLinkToken(path: string): string | null {
   const router = inject(Router);

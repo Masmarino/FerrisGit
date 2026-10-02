@@ -29,7 +29,7 @@ import { StatusBadge, StatusPresentation, statusPresentation } from '../../share
 
 type StatusTab = 'all' | 'active' | 'success' | 'failed';
 
-/** The API returns every pipeline at once: pagination is client-side. */
+/** The API returns every pipeline at once, so pagination is client-side. */
 const PIPELINES_PAGE_SIZE = 25;
 
 const SORT_OPTIONS: ListToolbarSortOption<'date'>[] = [{ value: 'date', label: 'Date' }];
@@ -39,7 +39,7 @@ const ORDER_OPTIONS: SelectOption<'asc' | 'desc'>[] = [
   { value: 'asc', label: 'Plus anciens' },
 ];
 
-/** A queued pipeline is "en cours" too. */
+/** A queued pipeline counts as "en cours" too. */
 const TAB_STATUSES: Record<Exclude<StatusTab, 'all'>, PipelineSummary['status'][]> = {
   active: ['pending', 'running'],
   success: ['success'],
@@ -58,9 +58,9 @@ interface PipelineRow {
   duration: string | null;
 }
 
-/** Running durations are as of the last load (the list does not tick). Pipelines finished before migration 0003 have no `finishedAt`, so they show no duration rather than a wrong one. */
+/** Running durations are as of the last load (the list doesn't tick). Pipelines finished before migration 0003 have no `finishedAt`, so they show no duration rather than a wrong one. */
 function durationText(pipeline: PipelineSummary, now: number): string | null {
-  // An invalid pipeline file fails at once and nothing ever ran: a duration of 0s would only be noise.
+  // An invalid pipeline file fails at once and nothing ever ran, so a duration of 0s would be noise.
   if (pipeline.error !== null) {
     return null;
   }
@@ -121,7 +121,7 @@ export class PipelineList implements OnInit {
   protected direction = this.searchSort.direction;
   protected readonly orderOptions = ORDER_OPTIONS;
   protected filteredList = this.searchSort.filtered(() => this.list(), {
-    // A SHA matches from its start, a commit message anywhere: `text`'s plain substring matching cannot express both.
+    // A SHA matches from its start, a commit message anywhere: `text`'s plain substring matching can't express both.
     matches: (pipeline, query) => pipeline.commitSha.toLowerCase().startsWith(query) || (pipeline.commitMessage?.toLowerCase().includes(query) ?? false),
     sortBy: { date: (pipeline) => pipeline.createdAt },
     locale: 'fr',
@@ -150,7 +150,7 @@ export class PipelineList implements OnInit {
     source: () => [this.search(), this.direction(), this.tab()],
     computation: () => 1,
   });
-  /** `page`, clamped to the tab's page count. A refresh can shrink the tab below `page`, and once the pager unmounts nothing else would bring it back. */
+  /** `page` clamped to the tab's page count. A refresh can shrink the tab below `page`, and once the pager unmounts nothing else would bring it back. */
   protected currentPage = computed(() => Math.min(this.page(), Math.max(1, Math.ceil(this.tabList().length / PIPELINES_PAGE_SIZE))));
   protected rows = computed<PipelineRow[]>(() => {
     const start = (this.currentPage() - 1) * PIPELINES_PAGE_SIZE;

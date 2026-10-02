@@ -6,13 +6,12 @@ use ferrisgit_domain::password_reset::PasswordResetPort;
 use ferrisgit_domain::user::{User, UserRepositoryPort};
 use uuid::Uuid;
 
-/// Grants or removes the admin flag, including one's own. The floor: the instance never ends up without an active
-/// administrator, since there is no bootstrap once accounts exist. An admin with a pending invitation or password reset
-/// does not count: they cannot sign in and the link may lapse. Same reasoning as `group_maintainer_guard`, at instance
-/// scope.
+/// Grants or removes the admin flag, one's own included. The instance must never be left without an active admin,
+/// since there is no bootstrap once accounts exist. An admin with a pending invitation or password reset isn't active:
+/// they can't sign in yet and the link may lapse. Same idea as `group_maintainer_guard`, for the whole instance.
 ///
-/// Self-demotion is not special-cased. The flag is read from the database on every admin request (`AdminUser`), so a
-/// demotion takes effect on the next request without revoking sessions.
+/// Self-demotion needs no special case: the flag is read from the database on every admin request, so it takes effect
+/// on the next one without revoking sessions.
 pub struct SetAdminUseCase {
     users: Arc<dyn UserRepositoryPort>,
     invitations: Arc<dyn UserInvitationPort>,
@@ -32,9 +31,8 @@ impl SetAdminUseCase {
         }
     }
 
-    /// `true` only if the flag actually changed: promoting an admin or demoting a non-admin succeeds without writing
-    /// anything and returns `false`, so the caller audits real changes only. `NotFound` for an unknown user, `Conflict`
-    /// for the demotion of the last active admin.
+    /// Returns whether the flag changed. Promoting an admin or demoting a non-admin writes nothing and returns `false`,
+    /// so the caller only audits real changes.
     pub async fn execute(&self, target_user_id: Uuid, is_admin: bool) -> Result<bool, DomainError> {
         let target = self
             .users
@@ -44,8 +42,8 @@ impl SetAdminUseCase {
         if target.is_admin == is_admin {
             return Ok(false);
         }
-        // The clear, early refusal. It is a check-then-act on its own, so `set_admin` enforces the same floor again,
-        // atomically, in the store (two admins demoting each other at once must not both pass this check).
+        // Early refusal with a clear error. Check-then-act isn't safe on its own (two admins demoting each other at
+        // once would both pass), so the store enforces the floor again atomically.
         if !is_admin {
             ensure_not_last_active_admin(
                 self.users.as_ref(),
@@ -60,9 +58,8 @@ impl SetAdminUseCase {
     }
 }
 
-/// The floor's early refusal shared by every operation removing an admin (demotion, `DeleteUserUseCase`): `Conflict`
-/// when `target` is an active admin and no other remains. Same definition of active as `count_admins`, or this check
-/// would refuse what the store allows. The store enforces it again atomically.
+/// Early refusal shared by everything that removes an admin (demotion, user deletion): a conflict when `target` is
+/// the last active admin. "Active" must match `count_admins`, otherwise this would refuse what the store allows.
 pub(crate) async fn ensure_not_last_active_admin(
     users: &dyn UserRepositoryPort,
     invitations: &dyn UserInvitationPort,
@@ -226,7 +223,7 @@ mod tests {
         assert!(f.users.get(root.id).unwrap().is_admin);
     }
 
-    /// carol cannot sign in until she activates, so root is still the last usable admin.
+    /// Carol can't sign in until she activates, so root is the last usable admin.
     #[tokio::test]
     async fn an_admin_still_pending_activation_does_not_count_toward_the_floor() {
         let root = user("root", true);
@@ -258,7 +255,7 @@ mod tests {
         assert!(f.users.get(root.id).unwrap().is_admin);
     }
 
-    /// If carol's link lapses nobody could sign in to issue another one.
+    /// If carol's link lapsed, nobody could sign in to issue another one.
     #[tokio::test]
     async fn an_admin_with_a_pending_password_reset_does_not_count_toward_the_floor() {
         let root = user("root", true);
@@ -296,8 +293,8 @@ mod tests {
         assert!(f.users.get(root.id).unwrap().is_admin);
     }
 
-    /// The count is stale (another demotion landed between count and write). The use case must pass on the store's
-    /// refusal instead of reporting success.
+    /// Reports a stale admin count, as if another demotion landed between the count and the write. The store's
+    /// refusal must come through instead of a success.
     struct StaleCount(Arc<FakeUsers>);
 
     #[async_trait::async_trait]

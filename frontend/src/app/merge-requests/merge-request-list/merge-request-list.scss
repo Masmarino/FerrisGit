@@ -1,8 +1,7 @@
 @use '../branch-pair';
 @use '../../shared/layout/list-page';
 
-// The card is Gabarit's `gbt-list-card`. Row bits, aside filters and the creation dialog come from
-// `shared/layout/_list-page.scss`.
+// The card is gbt-list-card; row bits, aside filters and the creation dialog come from shared/layout/_list-page.scss.
 
 :host {
   @include list-page.page-host;
@@ -17,7 +16,7 @@
   @include list-page.row-status;
 }
 
-// A long branch name truncates at 16rem and both chips shrink (the longer one more) when the meta line is narrower than the pair.
+// A long branch name truncates at 16rem, and when the meta line is narrower than the pair both chips shrink, the longer more.
 .merge-request-list__branches {
   @include branch-pair.branches;
 }
@@ -26,8 +25,8 @@
   @include branch-pair.arrow;
 }
 
-// The meta segments are flex items so each wraps as a unit and the branch pair can be held to the line's width (an inline
-// box cannot: its percentage max-width resolves against the intrinsic width).
+// Flex items so each segment wraps as a unit and the branch pair can be held to the line's width. An
+// inline box can't: its percentage max-width resolves against the intrinsic width.
 .merge-request-list__meta {
   display: flex;
   flex-wrap: wrap;
@@ -40,8 +39,8 @@
   @include list-page.row-author;
 }
 
-// "ouverte il y a 2 j", "fusionnée hier" or a comment count never breaks inside itself; the author's
-// name may (a very long one).
+// "ouverte il y a 2 j", "fusionnée hier" and the comment count never break inside; a very long author
+// name may.
 .merge-request-list__when,
 .merge-request-list__comments {
   white-space: nowrap;
@@ -56,7 +55,7 @@
   @include list-page.row-menu;
 }
 
-// Three tabs with counts barely fit on one line in a phone-width card: tighter padding, and a label wraps its count under it.
+// Three tabs with counts barely fit at phone width: tighter padding, and a label may wrap its count below it.
 @container gbt-list-card (max-width: 419px) {
   .merge-request-list__tabs {
     flex: 1 1 auto;
@@ -122,8 +121,8 @@
   }
 }
 
-// The buttons no longer fit side by side, so they go full width with the primary on top. The footer is
-// Gabarit's and sits outside the form's size container, and the dialog is 90vw wide below 533px.
+// The buttons stop fitting side by side, so stack them full width with the primary on top. The footer is
+// Gabarit's, outside the form's size container, and the dialog is 90vw wide below 533px.
 @media (max-width: 466px) {
   .merge-request-list__create-actions {
     flex-direction: column-reverse;

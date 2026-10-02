@@ -1,5 +1,5 @@
 <gbt-page-header heading="Utilisateurs">
-  <!-- Always rendered (a blank line until the counts are known), so the page doesn't shift when they arrive. -->
+  <!-- Always rendered, blank until the counts arrive, so the page doesn't shift. -->
   <p header-meta class="admin-users__summary">{{ summary() ?? '\u00a0' }}</p>
   <gbt-button header-actions class="admin-users__invite" iconName="user-plus" text="Inviter un utilisateur" (clicked)="openInvite()" />
 </gbt-page-header>
@@ -84,8 +84,7 @@
                       <gbt-badge [variant]="mfa.variant" [icon]="mfa.icon">{{ mfa.label }}</gbt-badge>
                     }
                   </span>
-                  <!-- Every row keeps its actions column (a menu, or a spinner of the same width), so all
-                       rows end on the same edge. Every row has at least the administrator flag's item. -->
+                  <!-- Every row keeps its actions column (a menu, or a spinner of the same width) so all rows end on the same edge. -->
                   @if (row.busy; as busyLabel) {
                     <span class="admin-users__busy"><gbt-spinner size="sm" [label]="busyLabel" /></span>
                   } @else {
@@ -132,7 +131,7 @@
   </div>
 </gbt-page-layout>
 
-<!-- Created each time it opens and destroyed on close, so a closed dialog never keeps a draft. -->
+<!-- Rebuilt on every opening so a closed dialog never keeps a draft. -->
 @if (inviteOpen()) {
   <fg-invite-user-modal (close)="closeInvite()" (invited)="onInvited()" />
 }

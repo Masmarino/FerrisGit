@@ -1,5 +1,5 @@
-// The source and target branch chips with an arrow between them, shared by the list rows and the detail header.
-// They shrink with the line they sit on, so a long branch name truncates instead of pushing its neighbours away.
+// Source and target branch chips with an arrow, shared by the list rows and the detail header. They shrink
+// with their line, so a long branch name truncates instead of pushing its neighbours away.
 @mixin branches {
   display: inline-flex;
   align-items: center;

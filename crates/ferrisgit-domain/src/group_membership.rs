@@ -13,14 +13,14 @@ pub trait GroupMembershipPort: Send + Sync {
         user_id: Uuid,
         role: CollaboratorRole,
     ) -> Result<(), DomainError>;
-    /// Errors with `DomainError::NotFound("group member")` if the pair doesn't exist.
+    /// `NotFound("group member")` if the pair doesn't exist.
     async fn set_member_role(
         &self,
         group_id: Uuid,
         user_id: Uuid,
         role: CollaboratorRole,
     ) -> Result<(), DomainError>;
-    /// A no-op (not an error) if the pair doesn't exist.
+    /// Doesn't fail if the pair doesn't exist.
     async fn remove_member(&self, group_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
     async fn list_members(&self, group_id: Uuid) -> Result<Vec<GroupMember>, DomainError>;
     async fn get_member_role(

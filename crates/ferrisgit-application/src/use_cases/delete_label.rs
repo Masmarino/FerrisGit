@@ -37,7 +37,7 @@ mod tests {
 
     #[tokio::test]
     async fn deleting_an_unknown_label_id_succeeds_without_error() {
-        // Like the real store: deleting a label that is already gone is not a failure worth surfacing.
+        // Same as the real store: a label that's already gone isn't an error.
         let use_case = DeleteLabelUseCase::new(Arc::new(FakeLabels::empty()));
 
         use_case.execute(Uuid::new_v4()).await.unwrap();

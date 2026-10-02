@@ -16,6 +16,7 @@ use uuid::Uuid;
 use crate::auth_middleware::AuthUser;
 use crate::authz::{
     effective_role_in_group_chain, require_group_chain_role, require_group_role_by_id,
+    role_label_or_reader,
 };
 use crate::error::ApiError;
 use crate::routes::user_ref::require_user;
@@ -134,8 +135,8 @@ async fn writable(
     ))
 }
 
-/// Unlike `writable`, not restricted to groups the caller can create things under. One `ancestor_chain` call
-/// per group builds its display path.
+/// Unlike `writable`, not limited to groups the caller can create things in. Costs one `ancestor_chain` call per
+/// group, to build the display path.
 async fn member(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -149,10 +150,9 @@ async fn member(
             .map(|g| g.name.as_str())
             .collect::<Vec<_>>()
             .join("/");
-        // Always `Some` in practice. The fallback only avoids a panic.
-        let role = effective_role_in_group_chain(state.group_membership.as_ref(), &chain, user_id)
-            .await?
-            .map_or_else(|| "reader".to_string(), |r| r.as_str().to_string());
+        let role = role_label_or_reader(
+            effective_role_in_group_chain(state.group_membership.as_ref(), &chain, user_id).await?,
+        );
         result.push(GroupMembershipResponse { id, path, role });
     }
     Ok(Json(result))
@@ -256,7 +256,7 @@ async fn list_repositories(
 ) -> Result<Json<Vec<crate::routes::repositories::RepositoryResponse>>, ApiError> {
     let (chain, role) =
         require_group_chain_role(&state, user_id, group_id, CollaboratorRole::Reader).await?;
-    // Every repository here shares this group's ancestor chain and the caller's role, both already resolved above.
+    // All these repositories share the chain and the caller's role resolved above.
     let group_path: Vec<String> = chain.iter().map(|g| g.name.clone()).collect();
     let role = role.as_str();
     let repos = state.repositories.list_for_group(group_id).await?;

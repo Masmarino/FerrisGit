@@ -5,7 +5,7 @@ use std::net::SocketAddr;
 use reqwest::{StatusCode, redirect::Policy};
 use sqlx::PgPool;
 
-/// The built app as the server finds it: the shell, and the documentation copied under `docs/` as static files.
+/// The built app as the server sees it: the shell, and the docs copied under `docs/` as static files.
 async fn spawn_server(pool: PgPool) -> SocketAddr {
     let app = common::spawn_app(pool).await;
     let static_dir = &app.static_dir;
@@ -19,7 +19,7 @@ async fn spawn_server(pool: PgPool) -> SocketAddr {
     app.addr
 }
 
-/// A redirect would be followed silently by a default client: this one shows it.
+/// A default client follows redirects silently, this one doesn't.
 fn client() -> reqwest::Client {
     reqwest::Client::builder()
         .redirect(Policy::none())
@@ -27,8 +27,8 @@ fn client() -> reqwest::Client {
         .unwrap()
 }
 
-/// `/docs/...` is the documentation's static files and its SPA pages at once. The files must come back as themselves
-/// (not the shell, not a git request), and the pages as the shell.
+/// `/docs/...` is both static doc files and SPA pages. Files have to come back as themselves (not the shell, not git),
+/// pages as the shell.
 #[sqlx::test]
 async fn the_documentation_files_are_served_as_files_and_its_pages_as_the_app(pool: PgPool) {
     let addr = spawn_server(pool).await;
@@ -68,7 +68,7 @@ async fn the_documentation_files_are_served_as_files_and_its_pages_as_the_app(po
     assert_eq!(page.headers()["cache-control"], "no-cache");
     assert_eq!(page.text().await.unwrap(), "# Présentation\n");
 
-    // The SPA routes, including the two that are also folders of the build: the shell, never a redirect to `/docs/`.
+    // SPA routes, including the two that are also build folders: the shell, never a redirect to /docs/.
     for route in [
         "/docs",
         "/docs/demarrer",
@@ -89,7 +89,7 @@ async fn the_documentation_files_are_served_as_files_and_its_pages_as_the_app(po
         assert_eq!(res.text().await.unwrap(), common::SHELL, "{route}");
     }
 
-    // A missing page is not served as Markdown: the app (`DocsService`) recognises the shell as "not found".
+    // A missing page comes back as the shell, which DocsService reads as "not found".
     let missing = client
         .get(format!("http://{addr}/docs/demarrer/absente.md"))
         .send()
@@ -98,7 +98,6 @@ async fn the_documentation_files_are_served_as_files_and_its_pages_as_the_app(po
     assert_eq!(missing.status(), StatusCode::NOT_FOUND);
     assert_eq!(missing.text().await.unwrap(), common::SHELL);
 
-    // The site root still serves the shell as before.
     let root = client.get(format!("http://{addr}/")).send().await.unwrap();
     assert_eq!(root.status(), StatusCode::OK);
     assert_eq!(root.text().await.unwrap(), common::SHELL);

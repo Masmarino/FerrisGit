@@ -20,7 +20,7 @@ const RETENTION_ERROR = 'Entrez un nombre entier de jours, 1 ou plus, ou laissez
 
 const configuredOrDetected = (configured: string | null, detected: string | null) => configured ?? detected ?? '';
 
-/** The "Exécution" section: where the jobs run, how runners register, the Kubernetes target and the log retention. */
+/** The "Exécution" section: where jobs run, how runners register, the Kubernetes target and log retention. */
 @Component({
   selector: 'fg-execution-settings',
   standalone: true,
@@ -77,7 +77,7 @@ export class ExecutionSettings {
 
   /**
    * Saved on blur only when edited (`markEdited`), so tabbing through a field pre-filled from the cluster saves
-   * nothing. Saving the detected StorageClass is how the admin confirms that it supports ReadWriteMany.
+   * nothing. Saving the detected StorageClass is how the admin confirms it supports ReadWriteMany.
    */
   protected markEdited(field: K8sField): void {
     this.edited[field] = true;

@@ -43,7 +43,7 @@ describe('RepositoryMilestonesSettings', () => {
     fixture.detectChanges();
 
     expect(fixture.nativeElement.textContent).toContain('v1.0');
-    // The raw ISO instant should not reach the page. It is formatted in French, in UTC, so the stored day does not shift west of UTC.
+    // No raw ISO instant on the page. It's formatted in French and in UTC, so the stored day doesn't shift west of UTC.
     expect(fixture.nativeElement.textContent).toContain('1 mars 2026');
     expect(fixture.nativeElement.textContent).not.toContain('2026-03-01T00:00:00.000Z');
   });
@@ -63,7 +63,7 @@ describe('RepositoryMilestonesSettings', () => {
     component['newMilestoneDueDate'].set(new Date(2026, 2, 1));
     component.addMilestone();
 
-    // `gbt-date-picker` gives a local-midnight `Date`, but the API's `due_date` only accepts RFC 3339 (anything else is a 422), so it is turned into a UTC instant.
+    // The picker gives a local-midnight Date, but due_date only accepts RFC 3339 (anything else is a 422), so it becomes a UTC instant.
     expect(milestonesServiceStub.create).toHaveBeenCalledWith({ repositoryId: 'repo-1' }, 'v1.0', '', '2026-03-01T00:00:00.000Z');
     expect(component['newMilestoneTitle']()).toBe('');
     expect(component['newMilestoneDueDate']()).toBeNull();
@@ -72,7 +72,7 @@ describe('RepositoryMilestonesSettings', () => {
   it('converts a picked calendar day to RFC 3339 without shifting the day across a timezone', () => {
     const { component } = setup();
 
-    // Rebuilt at UTC midnight from the same Y/M/D, because `.toISOString()` on a local-midnight `Date` moves the day back in time zones ahead of UTC.
+    // Same Y/M/D at UTC midnight: toISOString() on local midnight would move the day back east of UTC.
     expect(component['dueDateForApi'](new Date(2026, 2, 1))).toBe('2026-03-01T00:00:00.000Z');
     expect(component['dueDateForApi'](new Date(2026, 11, 31))).toBe('2026-12-31T00:00:00.000Z');
     expect(component['dueDateForApi'](null)).toBeNull();
@@ -121,12 +121,12 @@ describe('RepositoryMilestonesSettings', () => {
     fixture.detectChanges();
 
     expect(component['milestonePendingDelete']()).toEqual(milestone);
-    // French terms only: "tickets" and "demandes de fusion", not "issues" or "merge requests".
+    // French terms only ("tickets", "demandes de fusion"), never "issues" or "merge requests".
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')?.textContent).toContain(
       "Ce milestone sera retiré de tous les tickets et de toutes les demandes de fusion qui l'utilisent. Cette action est irréversible.",
     );
 
-    // Skips `ConfirmDangerModal`'s typed confirmation, which has its own tests.
+    // The typed confirmation has its own tests, so skip it here.
     component.deleteMilestone();
     fixture.detectChanges();
 
@@ -222,7 +222,7 @@ describe('RepositoryMilestonesSettings', () => {
       fixture.detectChanges();
       const el = fixture.nativeElement as HTMLElement;
       expect(el.querySelectorAll('gbt-skeleton-list .gbt-skeleton-list__row')).toHaveLength(3);
-      // One polite status, outside any aria-busy region (a busy ancestor can hold the announcement back).
+      // One polite status, outside any aria-busy region (those can hold back the announcement).
       expect(text(el.querySelector('gbt-skeleton-list [role="status"]'))).toBe('Chargement des milestones…');
       expect(el.querySelector('[aria-busy="true"]')).toBeNull();
 
@@ -240,7 +240,7 @@ describe('RepositoryMilestonesSettings', () => {
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toContain("Les milestones n'ont pas pu être chargés");
       expect(failed?.getAttribute('data-variant')).toBe('error');
-      // The error toast announces the failure, so the inline block stays silent (one live region, not two).
+      // The toast announces the failure, so the inline block stays silent.
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
       expect(failed?.querySelector('button')?.textContent?.trim()).toBe('Réessayer');

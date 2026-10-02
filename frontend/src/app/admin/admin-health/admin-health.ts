@@ -68,9 +68,8 @@ export class AdminHealth implements OnInit {
   private toast = inject(GbtToastService);
 
   protected health = signal<HealthStatus | null>(null);
-  // Not the same as `health()?.database.status === 'down'`, which comes from a successful response. This flags the
-  // request itself failing. That happens when Postgres is down, because the `AdminUser` extractor queries it before the
-  // handler runs and the request fails with a 500.
+  // Different from `health()?.database.status === 'down'`, which comes from a successful response: this is the request
+  // itself failing, e.g. Postgres down (the AdminUser extractor queries it before the handler runs, so the request 500s).
   protected loadError = signal(false);
   protected checking = signal(false);
   protected checkedAt = signal<Date | null>(null);

@@ -54,7 +54,7 @@ mod tests {
         pods.list(&ListParams::default())
             .await
             .expect("list pods must be permitted");
-        // A 400 ("not ready yet") is fine, but a 403 means the `get` verb on `pods/log` is missing.
+        // A 400 (not ready yet) is fine, a 403 means the `get` verb on pods/log is missing.
         if let Err(err) = pods
             .logs(&pod_name(the_job.id), &LogParams::default())
             .await
@@ -73,7 +73,7 @@ mod tests {
         pvcs.list(&ListParams::default())
             .await
             .expect("list pvcs must be permitted");
-        // `list` doesn't prove `create`: provision a PVC through the production path.
+        // `list` doesn't prove `create`, so provision a PVC through the production path.
         ensure_cache_pvcs(
             &scoped,
             &ns.name,

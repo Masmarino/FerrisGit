@@ -10,7 +10,7 @@ import { PageTitleService } from '../../shell/page-title.service';
 
 const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;
 const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;
-// Gabarit's relative wording joins number and unit with a NBSP, while `text()` collapses whitespace, so normalize here too.
+// Gabarit's relative wording joins number and unit with a NBSP while `text()` collapses whitespace, so normalize here too.
 const relativeTime = (iso: string) => formatRelativeTime(iso, 'fr', undefined, RELATIVE_OPTIONS).replace(/\s+/g, ' ').trim();
 const absoluteDateTime = (iso: string) => formatDateTime(iso, 'fr', ABSOLUTE_OPTIONS);
 

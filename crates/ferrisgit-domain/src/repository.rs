@@ -70,16 +70,14 @@ pub trait RepositoryStorePort: Send + Sync {
         name: &str,
     ) -> Result<Option<Repository>, DomainError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Repository>, DomainError>;
-    /// Cascades to every row referencing the repository (nothing is left pointing at it). Does not touch
-    /// disk: the caller removes the bare git directory, the wiki's, and release asset files. Defaulted to
-    /// `unimplemented!` like `list_public`/`search` so test doubles need no stub.
+    /// Cascades to every row pointing at the repository but leaves the disk alone: the caller removes the bare repo, the
+    /// wiki and the release assets. Defaults to `unimplemented!` so test doubles need no stub.
     async fn delete(&self, _id: Uuid) -> Result<(), DomainError> {
         unimplemented!("delete")
     }
     async fn list_for_group(&self, group_id: Uuid) -> Result<Vec<Repository>, DomainError>;
-    /// Changes the description and/or the visibility (`None` leaves a field as is) and returns the updated
-    /// repository, `NotFound` if it does not exist. The name and owner never change here: they are part of the clone
-    /// URL. Defaulted to `unimplemented!` like `delete`.
+    /// Changes the description and/or visibility (`None` keeps the field) and returns the updated repository. Name and owner
+    /// never change here since they're part of the clone URL. `NotFound` if missing.
     async fn update_details(
         &self,
         _id: Uuid,
@@ -88,18 +86,15 @@ pub trait RepositoryStorePort: Send + Sync {
     ) -> Result<Repository, DomainError> {
         unimplemented!("update_details")
     }
-    /// Every repository regardless of owner or visibility, for admin-metrics aggregation. Defaulted to
-    /// `unimplemented!` like `list_public`/`search`.
+    /// Every repository, whatever the owner or visibility, for admin metrics.
     async fn list_all(&self) -> Result<Vec<Repository>, DomainError> {
         unimplemented!("list_all")
     }
-    /// Every id with `visibility == Public`; the only caller is `visible_repository_ids`. Defaulted to
-    /// `unimplemented!` like `search`.
+    /// Ids of all public repositories. Only `visible_repository_ids` calls it.
     async fn list_public(&self) -> Result<Vec<Uuid>, DomainError> {
         unimplemented!("list_public")
     }
-    /// Full-text search restricted to `ids` (the caller's accessible set), never called with an unfiltered scope. The
-    /// default body only saves test doubles a stub.
+    /// Full-text search within `ids`, the caller's accessible set. Never call it with an unfiltered scope.
     async fn search(
         &self,
         _ids: &[Uuid],

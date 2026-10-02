@@ -10,8 +10,8 @@ use ferrisgit_domain::merge_request_event::{
     MergeRequestEventKind, MergeRequestEventPort, NewMergeRequestEvent,
 };
 
-/// Best-effort recorder of merge request activity for the timeline. Every method swallows
-/// (and logs) a failure: a broken journal must never fail the user action that triggered it.
+/// Best-effort recorder of merge request activity for the timeline. Failures are logged and swallowed: a broken journal
+/// must never fail the user action behind it.
 pub struct MergeRequestActivity {
     events: Arc<dyn MergeRequestEventPort>,
 }
@@ -68,8 +68,8 @@ impl MergeRequestActivity {
         .await;
     }
 
-    /// `milestones` is the (before, after) pair of milestone titles, or `None` when they could not be looked up: an
-    /// unknown milestone is never recorded as a change.
+    /// `milestones` is the (before, after) pair of titles, `None` when they couldn't be looked up, in which case no
+    /// milestone change is recorded.
     pub async fn edited(
         &self,
         mr_id: Uuid,

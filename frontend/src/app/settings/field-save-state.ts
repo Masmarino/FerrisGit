@@ -2,7 +2,7 @@ import { Component, inject, input } from '@angular/core';
 import { SaveStatus } from '@masmarino/gabarit';
 import { SettingsEditor, SettingsField } from './settings-editor';
 
-/** A field's save state. It is a live region that stays in the DOM, so each change is announced. */
+/** A field's save state. A live region that stays in the DOM, so each change is announced. */
 @Component({
   selector: 'fg-field-save-state',
   standalone: true,

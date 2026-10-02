@@ -93,7 +93,7 @@
     justify-self: end;
   }
 
-  // One date per line, because a wrapped "·" would start the second line.
+  // One date per line, since a wrapped "·" would start the second line.
   .api-tokens-list__meta {
     flex-direction: column;
 

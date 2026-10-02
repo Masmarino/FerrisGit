@@ -3,11 +3,10 @@ use ferrisgit_domain::repository::{Repository, RepositoryStorePort};
 use ferrisgit_domain::user::UserRepositoryPort;
 use uuid::Uuid;
 
-/// What a webhook payload and its notifications need to name: the repository, the user who owns it and the one who
-/// acted.
+/// The repository, its owner and the actor: what a webhook payload and its notifications need to name.
 ///
-/// Webhooks and notifications are side effects of an action that already succeeded, so every lookup here is best
-/// effort: a missing row or a store error yields `None` and the side effects are skipped, never turned into a failure.
+/// Webhooks and notifications come after an action that already succeeded, so every lookup is best effort: a missing
+/// row or a store error gives `None` and the side effects are skipped, never a failure.
 pub(crate) struct EventContext {
     pub repository: Repository,
     pub owner_username: String,
@@ -29,7 +28,6 @@ impl EventContext {
         Self::for_repository(users, repository, actor_id).await
     }
 
-    /// For callers that already hold the repository.
     pub(crate) async fn for_repository(
         users: &dyn UserRepositoryPort,
         repository: Repository,
@@ -44,8 +42,7 @@ impl EventContext {
         })
     }
 
-    /// A notification for `recipient_id` with only the repository and the actor filled in; callers add the rest with
-    /// struct update syntax.
+    /// A notification with only the repository and actor filled in; callers add the rest with struct update syntax.
     pub(crate) fn notification(
         &self,
         kind: NotificationKind,

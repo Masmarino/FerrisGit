@@ -26,7 +26,7 @@ import { GroupsService } from '../../groups/groups.service';
 import { MemberRole, Repository, RepositoriesService, RepositoryRole } from '../repositories.service';
 import { canMaintain } from '../repository-role';
 
-/** Client-side pagination: the listings return every group and repository at once. */
+/** Paginated client-side: the API returns every group and repository at once. */
 export const WORKSPACE_PAGE_SIZE = 25;
 
 export interface WorkspaceGroupItem {
@@ -35,7 +35,7 @@ export interface WorkspaceGroupItem {
   link: string[];
   path: string;
   role?: MemberRole;
-  /** Known for a group's subgroups (`GET /groups/{id}/children`), not for the member groups. */
+  /** Only known for subgroups (`GET /groups/{id}/children`), not for member groups. */
   description?: string;
   createdAt?: string;
 }
@@ -75,7 +75,7 @@ interface WorkspaceRow {
   canDelete: boolean;
 }
 
-/** `acme/backend/infra` under `acme/backend` reads `infra`; any other path stays whole. */
+/** `acme/backend/infra` under `acme/backend` reads `infra`. */
 function relativePath(path: string, basePath: string): string {
   return basePath && path.startsWith(`${basePath}/`) ? path.slice(basePath.length + 1) : path;
 }
@@ -99,7 +99,7 @@ function groupRow(group: WorkspaceGroupItem, basePath: string): WorkspaceRow {
     menuLabel: `Actions du groupe ${group.path}`,
     group,
     repository: null,
-    // Copying a group's path and deleting it are maintainer actions.
+    // Copy path and delete are maintainer actions.
     hasMenu: canManage,
     canDelete: canManage,
   };
@@ -130,7 +130,7 @@ function repositoryRow(repository: Repository, basePath: string): WorkspaceRow {
   };
 }
 
-/** The list card of the repositories page and of a group's page. Search and sort live here, and `fg-workspace-grid-filters` shows them in the aside. */
+/** List card of the repositories page and of a group page. Owns search and sort; the filters component shows them in the aside. */
 @Component({
   selector: 'fg-workspace-grid',
   standalone: true,
@@ -146,11 +146,11 @@ export class WorkspaceGrid {
   searchLabel = input.required<string>();
   emptyHeading = input.required<string>();
   emptyMessage = input<string>('');
-  /** A heading in the card's header, on a group's page. The repositories page projects its tabs there instead (`[grid-tabs]`). */
+  /** Header heading on a group page; the repositories page projects tabs there instead. */
   heading = input<string | null>(null);
-  /** What the list shows (a tab, a group): back to the first page when it changes, not on a mere refresh. */
+  /** What the list shows (a tab, a group). Changing it goes back to page 1, a plain refresh doesn't. */
   scope = input<string>('');
-  /** The group whose page this is: its items' titles read relative to it (`infra`, not `acme/backend/infra`). */
+  /** The group whose page this is; item titles are shown relative to it. */
   basePath = input<string>('');
 
   changed = output<void>();
@@ -160,7 +160,7 @@ export class WorkspaceGrid {
   private groupsService = inject(GroupsService);
   private toast = inject(GbtToastService);
 
-  // Newest first by default: the repository just created is the one looked for.
+  // Newest first: you're usually looking for the repository you just created.
   private readonly searchSort = createListToolbarState<WorkspaceSortKey>({ sortOptions: SORT_OPTIONS, defaultSort: 'date', defaultDirection: 'desc' });
   readonly search = this.searchSort.search;
   readonly sortValue = this.searchSort.sortValue;
@@ -169,10 +169,10 @@ export class WorkspaceGrid {
 
   protected isEmpty = computed(() => this.groups().length === 0 && this.repositories().length === 0);
   private filteredGroups = this.searchSort.filtered(() => this.groups(), {
-    // The title as shown: on a group's page, `acme` does not match every row of `acme`.
+    // Match on the title as shown, so searching "acme" on the acme page doesn't match every row.
     text: (group) => relativePath(group.path, this.basePath()),
-    // `compare` rather than `sortBy`: a member group has no `createdAt`, and `ListToolbarState` just reverses the
-    // whole ascending result for "Décroissant", so the path fallback has to follow `direction()` itself.
+    // compare instead of sortBy: a member group has no createdAt, and descending just reverses the
+    // ascending result, so the path fallback has to apply the direction itself.
     compare: (a, b, key) => {
       if (key === 'name') {
         return a.path.localeCompare(b.path);
@@ -201,7 +201,7 @@ export class WorkspaceGrid {
     source: () => [this.search(), this.sortValue(), this.direction(), this.scope()],
     computation: () => 1,
   });
-  /** The page actually shown: `page` clamped to the page count (a refresh can shrink the list under it). */
+  /** `page` clamped to the page count, since a refresh can shrink the list. */
   protected currentPage = computed(() => Math.min(this.page(), Math.max(1, Math.ceil(this.allRows().length / WORKSPACE_PAGE_SIZE))));
   protected rows = computed(() => {
     const start = (this.currentPage() - 1) * WORKSPACE_PAGE_SIZE;
@@ -224,10 +224,7 @@ export class WorkspaceGrid {
     return this.copyText(this.repositoriesService.cloneUrl(repo.path), 'URL de clonage copiée');
   }
 
-  /**
-   * A menu item has no button to show a status, so the result is a toast. Tries the Clipboard API, then the
-   * legacy path (plain-HTTP instances have no `navigator.clipboard`), and shows an error toast if both fail.
-   */
+  // A menu item has no button to show a status, hence the toast.
   private async copyText(text: string, done: string): Promise<void> {
     const copied = await copyToClipboard(text);
     if (copied) {
@@ -237,8 +234,8 @@ export class WorkspaceGrid {
     }
   }
 
-  // The menu hands the focus back to its trigger when an item is chosen, so the confirmation dialog opens
-  // over the row's own kebab and puts the focus back on it when it goes.
+  // The menu gives focus back to its trigger on selection, so the dialog opens over the row's kebab
+  // and returns focus there when it closes.
   protected confirmDeleteRepo(repo: Repository): void {
     this.deleteRepoTarget.set(repo);
   }

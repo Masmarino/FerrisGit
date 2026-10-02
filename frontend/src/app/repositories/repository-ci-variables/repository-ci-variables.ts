@@ -21,7 +21,7 @@ export class RepositoryCiVariables implements OnInit {
   protected newVariableKey = signal('');
   protected newVariableValue = signal('');
   protected variablePendingDelete = signal<CiVariableSummary | null>(null);
-  /** True while the confirmed deletion runs: the confirmation stays open and ignores a second click. */
+  /** Keeps the confirmation open and inert while the delete request runs. */
   protected deleting = signal(false);
 
   ngOnInit(): void {
@@ -61,7 +61,7 @@ export class RepositoryCiVariables implements OnInit {
         this.list.refresh();
         this.toast.show('Variable supprimée.');
       },
-      // The confirmation covers the page, so an error must close it first to be visible.
+      // Close the confirmation first, it covers the page and would hide the error.
       error: () => {
         this.deleting.set(false);
         this.variablePendingDelete.set(null);

@@ -58,7 +58,7 @@
                     par <span class="pipeline-list__author">{{ user.username }}</span>
                   }
                 </span>
-                <!-- The separator belongs to the segment after it: a wrapped line never ends on a dangling "·". -->
+                <!-- The separator belongs to the segment after it, so a wrapped line never ends on a dangling "·". -->
                 @if (row.duration; as duration) {
                   <span class="pipeline-list__duration"><span aria-hidden="true"> · </span>{{ duration }}</span>
                 }

@@ -14,7 +14,7 @@ const TOO_MANY: &str = "too many attempts, try again later";
 const ALREADY_SET_UP: &str = "MFA is already set up";
 const UNAVAILABLE: &str = "passkeys are not available on this server";
 
-/// Same length as the original, so it still parses but cannot verify.
+/// Same length as the original, so it parses but can't verify.
 fn tampered(credential: &Value) -> Value {
     let mut tampered = credential.clone();
     let signature = tampered["response"]["signature"]
@@ -245,7 +245,7 @@ async fn the_next_login_is_a_passkey_challenge_and_the_mfa_token_is_single_use(p
     );
     assert_eq!(start["publicKey"]["rpId"], json!("localhost"));
 
-    // A failed assertion is a plain 401 and must not spend the token nor burn the login.
+    // A failed assertion is a plain 401 and doesn't spend the token or burn the login.
     let genuine = device.assert(&start["publicKey"]);
     assert_refused(
         server
@@ -375,7 +375,7 @@ async fn every_failed_assertion_is_the_same_401_and_changes_nothing(pool: PgPool
     )
     .await;
 
-    // Another user's token cannot finish this ceremony, and does not spend it either.
+    // Another user's token can't finish this ceremony, and doesn't spend it.
     let bobs_token = server.pending_token(&bob.id).await;
     let (alices_challenge, alices_key) = server.start_login_challenge(&token).await;
     let alices_assertion = alices_device.assert(&alices_key);
@@ -657,8 +657,8 @@ async fn setup_with_a_passkey_is_refused_when_a_factor_already_exists(pool: PgPo
 
 #[sqlx::test]
 async fn a_pending_token_cannot_bolt_a_totp_onto_a_passkey_user(pool: PgPool) {
-    // The mfaToken only proves the password. If the TOTP setup routes accepted it for a user whose factor is a
-    // passkey, anybody with the password could enrol their own authenticator and skip the passkey entirely.
+    // The mfaToken only proves the password. If the TOTP setup routes took it for a user whose factor is a passkey,
+    // anyone with the password could enrol their own authenticator and skip the passkey.
     let server = spawn_unthrottled(pool).await;
     server.new_user("alice").await;
     server.new_user("bob").await;
@@ -941,8 +941,8 @@ async fn a_totp_confirmation_and_a_passkey_setup_racing_on_one_token_leave_exact
 
 #[sqlx::test]
 async fn a_pending_totp_enrolment_does_not_survive_a_passkey_setup(pool: PgPool) {
-    // A secret shown during the setup must not stay confirmable: a session alone (no password) could otherwise
-    // confirm it later, plant a TOTP and receive brand new backup codes.
+    // A secret shown during setup mustn't stay confirmable, or a session alone (no password) could confirm it later,
+    // plant a TOTP and get fresh backup codes.
     let server = spawn_server(pool).await;
     server.new_user("alice").await;
     let id = server.user_id("alice").await;
@@ -1021,7 +1021,7 @@ async fn the_per_user_budget_covers_the_passkey_finish_and_a_refused_call_consum
     let alice = server
         .first_setup_with_passkey(&mut device, "alice", USER_PASSWORD, "Clé")
         .await;
-    // The setup itself spent some of the budget: start the count below from zero (no clock involved).
+    // The setup spent some of the budget, so reset it to count from zero.
     server.reset_budget(&alice.id);
 
     let token = server.pending_token(&alice.id).await;
@@ -1066,7 +1066,7 @@ async fn the_per_user_budget_covers_the_passkey_finish_and_a_refused_call_consum
 async fn starting_challenges_does_not_spend_the_per_user_budget_so_backup_codes_stay_usable(
     pool: PgPool,
 ) {
-    // A dismissed browser prompt and retries only start new challenges; a dozen of them must not lock the user out of every MFA path.
+    // A dismissed prompt and retries only start new challenges: a dozen of them mustn't lock the user out of every MFA path.
     let server = spawn_server(pool).await;
     server.new_user("alice").await;
     server.new_user("bob").await;
@@ -1134,7 +1134,7 @@ async fn backdate_pending_totp(server: &Server, user_id: &str, minutes: i32) {
 
 #[sqlx::test]
 async fn an_abandoned_account_side_enrolment_cannot_be_confirmed_by_a_session_alone(pool: PgPool) {
-    // A stolen session (no password) sending the right code for an abandoned enrolment must plant nothing and not replace the backup codes.
+    // A stolen session (no password) sending the right code for an abandoned enrolment plants nothing and keeps the backup codes.
     let server = spawn_server(pool).await;
     server.new_user("alice").await;
     let alice = server
@@ -1347,7 +1347,7 @@ async fn the_two_start_routes_share_a_per_ip_budget_of_30_per_client(pool: PgPoo
     )
     .await;
     assert_eq!(res.status(), 200);
-    // Prepending a fake address does not shake the budget off: the proxy appends the real one on the right.
+    // A fake prepended address doesn't shake the budget off, the proxy appends the real one on the right.
     assert_error(
         start_as(
             "9.9.9.9, 203.0.113.1",

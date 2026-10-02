@@ -6,8 +6,8 @@ use common::http::{create_user, get, login, post};
 use serde_json::json;
 use sqlx::PgPool;
 
-/// Regression: `/resolve` performed no authorization, so any logged-in user could enumerate repositories and groups by 200 vs 404.
-/// A stranger must get 404 for all three `ResolvedPath` variants.
+/// `/resolve` used to skip authorization, so any logged-in user could enumerate repositories and groups by 200 vs 404.
+/// A stranger has to get a 404 for all three `ResolvedPath` variants.
 #[sqlx::test]
 async fn resolve_endpoint_enforces_reader_access_for_every_resolved_path_variant(pool: PgPool) {
     let addr = common::spawn_app(pool).await.addr;
@@ -99,7 +99,7 @@ async fn resolve_endpoint_enforces_reader_access_for_every_resolved_path_variant
     );
     let stranger_group_repo_body: serde_json::Value = stranger_group_repo.json().await.unwrap();
 
-    // The body must not distinguish "denied" from "absent" either (`{"error":"repository"}` vs `{"error":"path"}`): compare against nonexistent paths of the same shape.
+    // The body can't tell "denied" from "absent" either (`{"error":"repository"}` vs `{"error":"path"}`), so compare against missing paths of the same shape.
 
     let nonexistent_personal =
         get(&client, addr, &stranger_jwt, "/resolve/owner/nonexistent").await;

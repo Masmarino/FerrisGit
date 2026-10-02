@@ -1,6 +1,6 @@
 @use '../../shared/layout/list-page';
 
-// Same spacing as the issue and release creation dialogs (`list-page.create-form`). The actions sit in Gabarit's modal footer.
+// Same spacing as the issue and release dialogs (list-page.create-form). The actions are in the modal footer.
 
 .create-repository {
   @include list-page.create-form;
@@ -135,7 +135,7 @@
   border-radius: 0 0 var(--site-border-radius-sm) var(--site-border-radius-sm);
 }
 
-// Bottom-aligned so a label wrapping onto two lines does not push its field below the other one.
+// Bottom-aligned, so a label wrapping to two lines doesn't push its field below the other.
 .create-repository__advanced-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));

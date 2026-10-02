@@ -1,5 +1,5 @@
-// Storybook only. The fake server behind the account security stories. The password is `mot-de-passe-correct` and the
-// authenticator code is `123456`. Calls answer after a short delay so the spinners show.
+// Storybook-only fake server behind the account security stories: password `mot-de-passe-correct`, authenticator code
+// `123456`. Calls answer after a short delay so the spinners show.
 import { HttpErrorResponse } from '@angular/common/http';
 import { MfaSettingsState, type MfaPort, type MfaStatus, type Passkey } from '@masmarino/gabarit';
 import { moduleMetadata } from '@storybook/angular-vite';
@@ -55,7 +55,7 @@ export function fakeMfaService(status: StoryMfaStatus): MfaPort {
   };
 }
 
-/** `appFlowActive` means the app card is mid-enrolment (the kit's shared `MfaSettingsState`), so the passkeys card holds back its "Ajouter" button. */
+/** `appFlowActive`: the app card is mid-enrolment (the kit's shared `MfaSettingsState`), so the passkeys card hides "Ajouter". */
 export const withMfa = (status: StoryMfaStatus, options: { appFlowActive?: boolean } = {}) =>
   moduleMetadata({
     providers: [

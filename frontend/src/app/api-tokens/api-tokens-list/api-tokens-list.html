@@ -1,5 +1,5 @@
 <gbt-card variant="outlined" icon="plus" heading="Nouveau jeton" description="Un jeton remplace votre mot de passe pour Git en HTTPS : cloner, récupérer et pousser. Il ne donne pas accès à l'API REST. Nommez-le d'après l'outil qui s'en sert.">
-  <!-- ngNoForm keeps this a plain form, so Enter submits. Its field is a standalone ngModel. -->
+  <!-- ngNoForm keeps this a plain form so Enter submits. Its field is a standalone ngModel. -->
   <form ngNoForm class="api-tokens-list__form" (submit)="$event.preventDefault(); create()">
     <gbt-input
       #nameField

@@ -57,7 +57,7 @@ mod tests {
         assert!(!hasher.verify("wrong password", &hash).unwrap());
     }
 
-    // Produced by argon2 0.5; passwords hashed before an upgrade must keep verifying.
+    // Hash from argon2 0.5: passwords hashed before an upgrade must keep verifying.
     const HASH_FROM_ARGON2_0_5: &str = "$argon2id$v=19$m=19456,t=2,p=1$c29tZXNhbHRzb21lc2FsdA$ISO7kkvFzh19GM8qB7patN3C3Y9HHsjlVTfEZ9T600Y";
 
     #[test]

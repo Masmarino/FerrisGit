@@ -1,6 +1,6 @@
 
-// Reading styles for rendered markdown (`fg-markdown-view`) inside a card body. Include under
-// `::ng-deep` from the hosting card, since the HTML is injected:
+// Reading styles for rendered markdown (`fg-markdown-view`) in a card body. Include them under `::ng-deep` from the
+// hosting card, since the HTML is injected:
 //   .readme-body ::ng-deep { @include prose.markdown; }
 @mixin markdown {
   .markdown-view {
@@ -71,8 +71,7 @@
     margin-top: 0.25rem;
   }
 
-  // GFM task lists: the checkbox is the marker, so the bullet goes and the box hangs in its place. The text
-  // stays aligned with ordinary items.
+  // GFM task lists: the checkbox replaces the bullet and hangs in its place, so the text lines up with ordinary items.
   li:has(> input[type='checkbox']),
   li:has(> p:first-child > input[type='checkbox']) {
     list-style: none;

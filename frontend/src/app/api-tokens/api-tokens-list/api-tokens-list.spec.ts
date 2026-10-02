@@ -133,7 +133,7 @@ describe('ApiTokensList', () => {
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toContain("Les jetons n'ont pas pu être chargés");
       expect(failed?.getAttribute('data-variant')).toBe('error');
-      // The error toast announces the failure and the inline block stays silent, so there is one live region, not two.
+      // The error toast announces the failure and the inline block stays silent: one live region, not two.
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
       expect(failed?.querySelector('button')?.textContent?.trim()).toBe('Réessayer');
@@ -284,7 +284,7 @@ describe('ApiTokensList', () => {
   });
 
   describe('focus', () => {
-    // A card takes the focus on its heading (an h2 with tabindex -1), so a screen reader reads the heading, then the card's content.
+    // A card takes focus on its heading (an h2 with tabindex -1), so a screen reader reads the heading, then the card's content.
 
     it('moves the focus to the reveal card, named by its heading, once a token is generated', async () => {
       const { fixture, el, tokensStub, typeName, button } = setup(TOKENS);

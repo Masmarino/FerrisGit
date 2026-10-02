@@ -6,11 +6,10 @@ use ferrisgit_domain::job::JobLogRetentionPort;
 use ferrisgit_domain::settings::SystemSettingsStorePort;
 use tokio::sync::Mutex;
 
-/// Jobs purged per UPDATE: keeps each statement short on a table whose `logs` column can be large.
+/// Jobs per UPDATE, to keep statements short when the logs column is big.
 const BATCH_SIZE: i64 = 500;
 
-/// Applies `system_settings.log_retention_days`: empties the logs of finished jobs older than that. Pipelines, jobs and
-/// statuses are kept.
+/// Empties the logs of finished jobs older than the retention setting. Pipelines, jobs and statuses stay.
 pub struct PurgeExpiredJobLogsUseCase {
     system_settings: Arc<dyn SystemSettingsStorePort>,
     retention: Arc<dyn JobLogRetentionPort>,
@@ -29,8 +28,7 @@ impl PurgeExpiredJobLogsUseCase {
         }
     }
 
-    /// Returns how many jobs had their log emptied. Does nothing without a retention, or while another sweep is
-    /// running.
+    /// Returns how many logs were emptied. A no-op without a retention or while another sweep is running.
     pub async fn execute(&self, now: DateTime<Utc>) -> Result<u64, DomainError> {
         let Some(days) = self.system_settings.get().await?.log_retention_days else {
             return Ok(0);
@@ -66,7 +64,6 @@ mod tests {
     use std::sync::Mutex as StdMutex;
     use uuid::Uuid;
 
-    /// Hands out `eligible` jobs in batches and records every call.
     struct FakeRetention {
         eligible: StdMutex<u64>,
         calls: StdMutex<Vec<(DateTime<Utc>, i64)>>,

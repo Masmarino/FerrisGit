@@ -43,7 +43,7 @@ describe('WorkspaceGrid', () => {
     TestBed.inject(HttpTestingController).verify();
   });
 
-  // jsdom has no clipboard: the copy tests stub it as an own property of `navigator`, restored exactly.
+  // jsdom has no clipboard, so the copy tests stub it on navigator and restore it exactly.
   let savedClipboard: PropertyDescriptor | undefined;
 
   beforeEach(() => {
@@ -76,7 +76,7 @@ describe('WorkspaceGrid', () => {
     fixture.detectChanges();
     expect(fixture.nativeElement.textContent).not.toContain('Rien ici');
     expect(fixture.nativeElement.querySelectorAll('gbt-skeleton-list .gbt-skeleton-list__row')).toHaveLength(5);
-    // One polite status, outside any aria-busy region (a busy ancestor can hold the announcement back).
+    // One polite status, outside any aria-busy region (those can hold back the announcement).
     expect(fixture.nativeElement.querySelector('gbt-skeleton-list [role="status"]')?.textContent?.trim()).toBe('Chargement…');
     expect(fixture.nativeElement.querySelector('[aria-busy="true"]')).toBeNull();
   });
@@ -91,7 +91,7 @@ describe('WorkspaceGrid', () => {
     const failed = el.querySelector('gbt-list-card gbt-alert .gbt-alert')!;
     expect(text(failed)).toContain("n'a pas pu être chargée");
     expect(failed.getAttribute('data-variant')).toBe('error');
-    // The parent's error toast announces it, so the alert is silent (one announcement, not two).
+    // The parent's toast announces it, so the alert stays silent.
     expect(failed.getAttribute('role')).toBeNull();
     expect(failed.getAttribute('aria-live')).toBeNull();
     expect(el.textContent).not.toContain('Rien ici');
@@ -130,7 +130,7 @@ describe('WorkspaceGrid', () => {
     fixture.detectChanges();
 
     const [groupRow, publicRow, privateRow] = rows(el);
-    // (The role is a badge too, and a group row has one: the visibility badge is the one carrying its own class.)
+    // A group row has a role badge too, so pick the visibility one by its own class.
     expect(groupRow.querySelector('.workspace-grid__visibility')).toBeNull();
     expect(text(publicRow.querySelector('.workspace-grid__visibility'))).toBe('Public');
     expect(text(privateRow.querySelector('.workspace-grid__visibility'))).toBe('Privé');
@@ -400,7 +400,7 @@ describe('WorkspaceGrid', () => {
     items.find((el) => el.textContent?.includes('Supprimer'))!.click();
     fixture.detectChanges();
 
-    // Skips `ConfirmDangerModal`'s typed confirmation, which has its own tests.
+    // The typed confirmation has its own tests, so skip it here.
     fixture.componentInstance['deleteRepoConfirmed']();
     http.expectOne('/api/repositories/by-id/r1').flush(null);
     expect(changedCount).toBe(1);
@@ -453,7 +453,7 @@ describe('WorkspaceGrid', () => {
     items.find((el) => el.textContent?.includes('Supprimer'))!.click();
     fixture.detectChanges();
 
-    // Skips `ConfirmDangerModal`'s typed confirmation, which has its own tests.
+    // The typed confirmation has its own tests, so skip it here.
     fixture.componentInstance['deleteGroupConfirmed']();
     http.expectOne('/api/groups/g1').flush(null);
     expect(changedCount).toBe(1);
@@ -473,7 +473,7 @@ describe('WorkspaceGrid', () => {
     fixture.componentInstance['deleteGroupConfirmed']();
     http.expectOne('/api/groups/g1').flush({ error: 'this group still has at least one repository — remove it first' }, { status: 409, statusText: 'Conflict' });
 
-    // `WorkspaceGrid` does not render `<gbt-toaster>` (only `AppShell` does): check `GbtToastService` directly.
+    // Only AppShell renders gbt-toaster, so check GbtToastService directly.
     const [toast] = TestBed.inject(GbtToastService).toasts();
     expect(toast.message).toContain('Videz-le avant de le supprimer');
     expect(toast.message).not.toContain('remove it first');
@@ -578,10 +578,10 @@ describe('WorkspaceGrid', () => {
     items.find((el) => el.textContent?.includes('Supprimer'))!.click();
     fixture.detectChanges();
 
-    // `cancelDelete()` has to run whether Cancel, Escape or the backdrop closed the modal, since its `(closed)` output does not tell them apart.
+    // cancelDelete() must run however the modal was closed (Cancel, Escape, backdrop): (closed) doesn't say which.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-    // `cancelDelete()` tears down the modal, whose `Modal.ngOnDestroy()` restores focus synchronously, then
-    // restores focus itself in a microtask so it wins. Flush that before asserting.
+    // cancelDelete() tears down the modal, whose ngOnDestroy restores focus synchronously, then restores
+    // it again in a microtask so that one wins. Flush it before asserting.
     fixture.detectChanges();
     await Promise.resolve();
 

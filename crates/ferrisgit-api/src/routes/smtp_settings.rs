@@ -12,7 +12,7 @@ use crate::auth_middleware::AdminUser;
 use crate::error::ApiError;
 use crate::state::AppState;
 
-// The password is stored encrypted and never echoed: the response only says whether one is set.
+// The password is stored encrypted and never sent back, only whether one is set.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct SmtpSettingsResponse {
@@ -54,7 +54,7 @@ impl SmtpSettingsResponse {
     }
 }
 
-// No `Debug` derive: it carries the plaintext password.
+// No Debug derive, it holds the plaintext password.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct SmtpSettingsRequest {
@@ -114,8 +114,8 @@ async fn put_smtp(
     Ok(Json(SmtpSettingsResponse::from_settings(saved)))
 }
 
-/// A delivery problem (bad credentials, unreachable server, nothing configured…) is the very thing this
-/// endpoint exists to reveal, so it comes back as `200 { sent: false, error }`. Only a bad recipient is a 400.
+/// A delivery problem (bad credentials, unreachable server, nothing configured) is what this endpoint is there to
+/// show, so it's a `200 { sent: false, error }`. Only a bad recipient is a 400.
 async fn test_smtp(
     AdminUser(_admin_id): AdminUser,
     State(state): State<AppState>,

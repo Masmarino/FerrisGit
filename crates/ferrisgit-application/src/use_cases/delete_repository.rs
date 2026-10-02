@@ -21,10 +21,8 @@ impl DeleteRepositoryUseCase {
         }
     }
 
-    /// `remove_git_storage` runs once the database row and its cascades are gone. It receives the repository as it was
-    /// (its `disk_path` locates the bare directory) and returns nothing. The caller logs a filesystem failure: an
-    /// orphaned directory is a harmless leftover, not worth leaving the repository half-deleted.
-    /// Release-asset cleanup is a real dependency (an async port) rather than a closure.
+    /// `remove_git_storage` runs once the row is gone and gets the repository as it was. It returns nothing: the caller
+    /// logs a failure, since a leftover directory is harmless and not worth a half-deleted repository.
     pub async fn execute(
         &self,
         repository_id: Uuid,

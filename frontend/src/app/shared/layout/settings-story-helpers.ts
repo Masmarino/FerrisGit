@@ -2,7 +2,7 @@
 import { componentWrapperDecorator } from '@storybook/angular-vite';
 import { expect, waitFor } from 'storybook/test';
 
-/** A settings section as the page lays it out: as wide as the main column beside the settings navigation (~920px). */
+/** A settings section as the page lays it out: the width of the main column beside the nav (~920px). */
 export const inSettingsColumn = componentWrapperDecorator(
   (story) =>
     `<div style="box-sizing: border-box; min-height: 100vh; padding: 1rem; background: var(--bg-panel);"><div style="max-width: 920px;">${story}</div></div>`,
@@ -21,13 +21,13 @@ export async function rendered<T extends Element = HTMLElement>(canvasElement: H
 }
 
 /**
- * Layout invariants jsdom cannot check: no horizontal overflow, cards stacked and as wide as the column,
- * every icon registered, and a 44px retry target on a phone.
+ * Layout checks jsdom can't do: no horizontal overflow, cards stacked and as wide as the column, every icon
+ * registered, a 44px retry target on a phone.
  */
 export async function expectSettingsLayout(canvasElement: HTMLElement): Promise<void> {
   const doc = canvasElement.ownerDocument.documentElement;
   if (doc.clientWidth === 0) {
-    return; // Storybook renders the story in a hidden frame (docs page): no layout to measure.
+    return; // hidden frame (docs page): nothing to measure
   }
   await expect(doc.scrollWidth, 'page scroll width').toBeLessThanOrEqual(doc.clientWidth);
 
@@ -48,7 +48,7 @@ export async function expectSettingsLayout(canvasElement: HTMLElement): Promise<
     const header = card.querySelector<HTMLElement>(':scope > .gbt-card__header')!;
     const inner = card.querySelector<HTMLElement>(':scope > .gbt-card')!;
     await expect(header.getBoundingClientRect().bottom, `"${name}" heading above its box`).toBeLessThanOrEqual(inner.getBoundingClientRect().top + 0.5);
-    // Nothing inside the card sticks out of it (a field, a row, a chip).
+    // Nothing sticks out of the card, be it a field, a row or a chip.
     for (const child of Array.from(card.querySelectorAll<HTMLElement>('.gbt-card__body *'))) {
       const childBox = child.getBoundingClientRect();
       if (childBox.width === 0 || getComputedStyle(child).position === 'fixed' || child.closest('.sr-only')) {
@@ -65,7 +65,7 @@ export async function expectSettingsLayout(canvasElement: HTMLElement): Promise<
   }
 }
 
-/** Rows: one truncated line per title, trailing actions on one right edge, icon-only actions 32px. */
+/** Rows: one truncated line per title, trailing actions on one right edge, 32px icon-only actions. */
 export async function expectRows(canvasElement: HTMLElement): Promise<void> {
   const doc = canvasElement.ownerDocument.documentElement;
   if (doc.clientWidth === 0) {

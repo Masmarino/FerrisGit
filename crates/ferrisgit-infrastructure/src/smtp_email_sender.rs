@@ -1,4 +1,4 @@
-//! Sends mail through whatever `SmtpSettings` are currently configured, read fresh from the port on every send.
+//! Sends mail with whatever `SmtpSettings` are configured, read fresh on every send.
 
 use std::sync::Arc;
 use std::time::Duration;
@@ -11,7 +11,7 @@ use lettre::message::{Attachment, Body, Mailbox, MultiPart, SinglePart};
 use lettre::transport::smtp::authentication::Credentials;
 use lettre::{Address, AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executor};
 
-/// E-mail-sized copy of the horizontal brand logo (440 px wide, twice the 220 px width the templates display it at).
+/// Logo at e-mail size: 440 px wide, twice the 220 px the templates show it at.
 const LOGO_BYTES: &[u8] = include_bytes!("../assets/email-logo.png");
 const LOGO_CONTENT_TYPE: &str = "image/png";
 const SMTP_TIMEOUT: Duration = Duration::from_secs(15);
@@ -26,12 +26,11 @@ impl SmtpEmailSender {
     }
 }
 
-/// Whether the HTML references the logo's CID, which decides if the inline attachment is added.
 fn html_references_logo(html_body: &str) -> bool {
     html_body.contains(&format!("cid:{LOGO_CID}"))
 }
 
-/// Builds the MIME message (multipart/alternative: plain text + HTML related to the inline logo).
+/// Plain text plus HTML in a multipart/alternative, with the inline logo attached to the HTML part.
 fn build_message(
     from_address: &str,
     from_name: &str,
@@ -45,8 +44,8 @@ fn build_message(
             "l'adresse d'expédition SMTP configurée n'est pas une adresse valide".to_string(),
         )
     })?;
-    // lettre adds `Date` but not `Message-ID`. Relays that don't add one (a bare in-cluster Postfix) pass the
-    // mail on without it, and Gmail and others reject or spam-flag such messages.
+    // lettre adds Date but not Message-ID. A bare relay (in-cluster Postfix) won't add one, and Gmail and
+    // others reject or spam-flag such mail.
     let message_id = format!("<{}@{}>", uuid::Uuid::new_v4(), from_address.domain());
     let from = Mailbox::new(Some(from_name.to_string()), from_address);
     let to: Mailbox = to.parse().map_err(|_| {
@@ -80,7 +79,7 @@ fn build_message(
         })
 }
 
-/// SMTP authentication is only attempted for a relay that has both a username and a password.
+/// Only authenticate when there is both a username and a password.
 fn credentials_for(settings: &SmtpSettings) -> Option<Credentials> {
     match &settings.password {
         Some(password) if !settings.username.is_empty() => Some(Credentials::new(
@@ -91,7 +90,7 @@ fn credentials_for(settings: &SmtpSettings) -> Option<Credentials> {
     }
 }
 
-/// The transport for the configured security mode; nothing connects until `send`.
+/// Builds the transport for the configured security mode; nothing connects until `send`.
 fn build_transport(
     settings: &SmtpSettings,
 ) -> Result<AsyncSmtpTransport<Tokio1Executor>, DomainError> {

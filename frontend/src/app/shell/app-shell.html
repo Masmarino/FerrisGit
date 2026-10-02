@@ -91,9 +91,8 @@
   </ng-container>
   <div class="app-shell__header" shell-header [class.app-shell__header--search-open]="mobileSearchOpen()">
     <gbt-breadcrumb ariaLabel="Fil d'Ariane" class="app-shell__breadcrumb">
-      <!-- Angular projects a control-flow block into a named `ng-content select` slot only when the block has exactly one
-           root element. So each projected item must be its own top-level block here, not nested in a shared `@if`/`@for`.
-           `ctx` is hoisted with `@let` so the blocks stay independent while sharing it. -->
+      <!-- A control-flow block only gets projected into a named slot when it has exactly one root element, so every item
+           is its own top-level block. `ctx` is hoisted with `@let` so they can still share it. -->
       @let ctx = repoContext.current();
       @for (ancestor of ctx?.ancestors ?? []; track ancestor.link.join('/')) {
         <li breadcrumb-ancestor><a class="gbt-breadcrumb__item" [routerLink]="ancestor.link">{{ ancestor.label }}</a></li>
@@ -109,8 +108,7 @@
     <ng-template #repoSwitcher let-ctx>
       <gbt-menu [label]="ctx.path[ctx.path.length - 1]" align="start" (opened)="onSwitcherOpen(ctx)">
         @if (switcher.loading()) {
-          <!-- The menu can't be empty while loading, because an empty popup opened by keyboard leaves nothing to move focus into.
-               A disabled item stays focusable, so the menu's focus-after-render lands on it. -->
+          <!-- Never leave the menu empty: opened by keyboard, it would have nothing to focus. A disabled item is still focusable. -->
           <a gbtMenuItem disabled>Chargement…</a>
         } @else if (switcher.groups().length === 0 && switcher.repositories().length === 0) {
           <a gbtMenuItem disabled>Aucun élément</a>

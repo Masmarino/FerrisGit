@@ -1,6 +1,6 @@
 @use '../../shared/layout/list-page';
 
-// Header and layout share the 1440px frame, so the h1 lines up with the nav's left edge.
+// Same 1440px frame for header and layout, so the h1 lines up with the nav.
 :host {
   @include list-page.page-host;
 }

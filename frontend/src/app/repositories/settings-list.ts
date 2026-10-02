@@ -2,10 +2,7 @@ import { inject, signal } from '@angular/core';
 import { GbtToastService } from '@masmarino/gabarit';
 import { Observable } from 'rxjs';
 
-/**
- * The list a settings section shows. The state is 'loading' until the first response; if a later
- * refresh fails the previous list stays on screen and only a toast reports it. Call in an injection context.
- */
+/** If a refresh fails after a first load, the old list stays and a toast reports it. Needs an injection context. */
 export function createSettingsList<T>(fetch: () => Observable<T[]>) {
   const toast = inject(GbtToastService);
   const items = signal<T[]>([]);

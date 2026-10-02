@@ -1,7 +1,7 @@
 @use '../../shared/layout/list-page';
 @use '../../shared/layout/card';
 
-// One card per release: a release reads by its notes, so each card keeps a few lines of them under its header.
+// One card per release: it reads by its notes, so each card keeps a few lines of them under its header.
 
 :host {
   @include list-page.page-host;
@@ -37,7 +37,7 @@ gbt-card {
   gap: 0.75rem;
 }
 
-// The tag chip keeps its size (the title takes the room): up to 40% of the header, then it truncates.
+// The tag chip keeps its size and the title takes the room: up to 40% of the header, then it truncates.
 .release-card__tag {
   flex: none;
   max-width: 40%;
@@ -113,7 +113,7 @@ gbt-card {
   white-space: nowrap;
 }
 
-// A flex item drops its leading space: the separator keeps both of its own.
+// A flex item drops its leading space, so the separator keeps both of its own.
 .release-card__sep {
   white-space: pre;
 }
@@ -124,8 +124,8 @@ gbt-card {
   margin-left: 0.125rem;
 }
 
-// Narrow card (phone, or a squeezed main column): tag and status on the first line, the title
-// under them with the full width (two lines at most instead of a truncated one).
+// Narrow card (phone, or a squeezed main column): tag and status on the first line, the title under them at full
+// width (two lines at most instead of a truncated one).
 @container release-card (max-width: 519px) {
   .release-card__header {
     display: grid;

@@ -60,13 +60,13 @@ const sameQuery = (a: PublicCatalogQuery, b: PublicCatalogQuery) => a.q === b.q 
 function stateOf(error: unknown): ExploreState {
   if (error instanceof HttpErrorResponse) {
     if (error.status === 429) return { kind: 'rateLimited' };
-    // The public API answers 404 everywhere once the instance closes its public pages.
+    // Once public pages are closed, the public API answers 404 on everything.
     if (error.status === 404) return { kind: 'closed' };
   }
   return { kind: 'error' };
 }
 
-/** The catalog of public repositories. The URL (`q`, `sort`, `page`) is the state, so a search can be shared or bookmarked. */
+/** The catalog of public repositories. The URL (`q`, `sort`, `page`) is the state, so searches can be shared or bookmarked. */
 @Component({
   selector: 'fg-explore-page',
   standalone: true,
@@ -91,7 +91,7 @@ export class ExplorePage implements OnInit {
 
   private query$ = this.route.queryParamMap.pipe(map(parseCatalogQuery), distinctUntilChanged(sameQuery));
   protected query = toSignal(this.query$, { requireSync: true });
-  /** Follows the URL, and the field's own typing in between. */
+  /** Follows the URL, and what's typed in between. */
   protected text = linkedSignal(() => this.query().q);
 
   private typed$ = new Subject<string>();

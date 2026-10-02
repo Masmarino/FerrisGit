@@ -32,8 +32,8 @@ impl FromRequestParts<AppState> for AuthUser {
         })?;
 
         let (user_id, token_epoch) = state.token_issuer.verify(token)?;
-        // A password change bumps the epoch, so an older unexpired JWT is rejected here: this is what revokes it.
-        // A deleted account's tokens die with it as a 401 ("signed out"), not the store's 404.
+        // A password change bumps the epoch, which is what kills older JWTs that haven't expired yet.
+        // A deleted account's tokens get a 401 ("signed out"), not the store's 404.
         let current_epoch = match state.users.get_token_epoch(user_id).await {
             Err(ferrisgit_domain::error::DomainError::NotFound(_)) => {
                 return Err(ApiError(

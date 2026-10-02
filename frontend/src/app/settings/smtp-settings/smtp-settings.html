@@ -29,7 +29,7 @@
   }
   @default {
     <gbt-card variant="outlined" icon="mail" heading="Serveur SMTP" description="Le serveur par lequel FerrisGit envoie ses e-mails (invitations, alertes de sécurité).">
-      <!-- ngNoForm keeps this a plain form, so Enter submits from any field. Its fields are standalone ngModels. -->
+      <!-- ngNoForm keeps this a plain form so Enter submits from any field. Its fields are standalone ngModels. -->
       <form ngNoForm class="smtp-settings__form" novalidate (submit)="$event.preventDefault(); save()">
         <div class="smtp-settings__group" role="group" aria-labelledby="smtp-group-connection">
           <h3 class="smtp-settings__group-title" id="smtp-group-connection">Connexion</h3>
@@ -100,7 +100,7 @@
         </div>
 
         <div class="smtp-settings__actions">
-          <!-- Always in the DOM, because a live region only announces changes if it already exists. -->
+          <!-- Always in the DOM: a live region only announces changes if it already exists. -->
           <p class="smtp-settings__summary" role="status" [attr.data-state]="dirty() ? 'dirty' : configured() ? 'saved' : null">
             @if (dirty()) {
               <gbt-icon name="circle-dot" aria-hidden="true" />Modifications non enregistrées
@@ -129,7 +129,7 @@
           />
         </div>
         <div class="smtp-settings__actions">
-          <!-- Gabarit gap: a persistent live region, because a `gbt-alert` inserted already filled is not reliably announced.
+          <!-- Gabarit gap: a persistent live region, since a `gbt-alert` inserted already filled isn't reliably announced.
                The banner says it with words and an icon, not colour alone. -->
           <div class="smtp-settings__test-status" role="status">
             @if (testResult(); as result) {

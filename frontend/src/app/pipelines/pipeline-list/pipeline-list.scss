@@ -26,13 +26,13 @@
   min-width: 0;
 }
 
-// Labels are kept for assistive technology only (`hideLabel`). The controls are 32px tall to line up with the segmented control.
+// Labels are for assistive technology only (`hideLabel`). The controls are 32px tall to line up with the segmented control.
 .pipeline-list__search {
   flex: 0 1 20rem;
   min-width: 0;
 }
 
-// Gabarit gives a select a 180px minimum; the header sets its own widths.
+// Gabarit gives a select a 180px minimum, but the header sets its own widths.
 .pipeline-list__order {
   flex: none;
   width: 12.5rem;

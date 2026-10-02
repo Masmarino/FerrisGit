@@ -39,7 +39,7 @@ import { StatusPresentation, statusPresentation } from '../../shared/layout/stat
 type SortKey = 'date' | 'title';
 type StateTab = MergeRequestSummary['status'];
 
-/** Client-side pagination: the API returns every merge request of the repository at once. */
+/** Paginated client-side: the API returns every merge request at once. */
 const MERGE_REQUESTS_PAGE_SIZE = 25;
 
 const SORT_OPTIONS: ListToolbarSortOption<SortKey>[] = [
@@ -113,7 +113,7 @@ export class MergeRequestList implements OnInit {
   protected selectedLabelIds = signal<string[]>([]);
   protected selectedMilestoneId = signal<string | null>(null);
   protected canWrite = this.permissions.canWrite;
-  /** The server merges only for the owner and Maintainers (`POST /merge-requests/{id}/merge`): a Contributor does not get the menu entry. */
+  /** The server only lets the owner and Maintainers merge, so a Contributor gets no menu entry. */
   protected canMerge = this.permissions.canMaintain;
 
   protected labelOptions = computed<SelectOption<string>[]>(() => this.labels().map((label) => ({ value: label.id, label: label.name, color: label.color })));
@@ -157,12 +157,12 @@ export class MergeRequestList implements OnInit {
   );
 
   protected readonly pageSize = MERGE_REQUESTS_PAGE_SIZE;
-  /** Back to page 1 whenever what the list shows changes (search, sort, tab, server filters). */
+  /** Back to page 1 when what the list shows changes (search, sort, tab, server filters). */
   protected page = linkedSignal<unknown, number>({
     source: () => [this.search(), this.sortValue(), this.direction(), this.tab(), this.selectedLabelIds(), this.selectedMilestoneId()],
     computation: () => 1,
   });
-  /** `page` clamped to the tab's page count: closing the only request of the last page shrinks the tab under `page` and may unmount the pager, leaving an empty page. */
+  /** `page` clamped to the tab's page count: closing the only request on the last page shrinks the tab and can unmount the pager, leaving an empty page. */
   protected currentPage = computed(() => Math.min(this.page(), Math.max(1, Math.ceil(this.tabList().length / MERGE_REQUESTS_PAGE_SIZE))));
   protected rows = computed<MergeRequestRow[]>(() => {
     const start = (this.currentPage() - 1) * MERGE_REQUESTS_PAGE_SIZE;
@@ -193,7 +193,7 @@ export class MergeRequestList implements OnInit {
   protected createOpen = signal(false);
   protected creating = signal(false);
   protected sourceBranch = signal('');
-  /** Follows the default branch once the branches arrive. The user's pick overrides it until the draft is reset. */
+  /** Follows the default branch once branches arrive, until the user picks one. */
   protected targetBranch = linkedSignal(() => this.defaultBranch());
   protected title = signal('');
   protected description = signal('');
@@ -206,8 +206,8 @@ export class MergeRequestList implements OnInit {
   );
 
   constructor() {
-    // Newest first: with tabs and pages, oldest-first would push new work to the last page. Set
-    // here, not in `createListToolbarState`, whose `asc` default the other lists keep.
+    // Newest first, otherwise new work lands on the last page. Set here because the other lists keep
+    // the toolbar's ascending default.
     this.direction.set('desc');
   }
 
@@ -231,8 +231,7 @@ export class MergeRequestList implements OnInit {
       },
       error: () => {
         this.loading.set(false);
-        // Already showing the failed card: a second failure gets a toast, since the alert itself
-        // does not re-announce (it was already there, unchanged).
+        // The failed card is already up and won't announce a second time, so use a toast.
         if (this.loadFailed()) {
           this.toast.show('Impossible de charger les demandes de fusion. Réessayez plus tard.', 'error');
         }
@@ -298,7 +297,7 @@ export class MergeRequestList implements OnInit {
           this.reload();
           this.toast.show('Demande de fusion créée.');
         },
-        // The dialog stays open with the draft, so nothing typed is lost.
+        // Dialog stays open, nothing typed is lost.
         error: () => {
           this.creating.set(false);
           this.toast.show('Impossible de créer la demande de fusion (branches identiques ou introuvables ?).', 'error');

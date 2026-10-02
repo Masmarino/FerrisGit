@@ -11,7 +11,7 @@ import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { daysAgo, inShellContentArea } from '../../shared/layout/page-story-helpers';
 import { MANY_REPOSITORIES, expectWorkspaceLayout, repository } from '../../repositories/workspace-grid/workspace-story-helpers';
 
-// `provideRouter` returns EnvironmentProviders, so it goes in `applicationConfig`, not `moduleMetadata`.
+// Environment providers only work in `applicationConfig`, not `moduleMetadata`.
 const withApp = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
 
 const CHILDREN: Group[] = [

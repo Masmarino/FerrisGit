@@ -61,7 +61,7 @@ export const SavedAndInvalid: Story = {
     const path = await rendered<HTMLInputElement>(canvasElement, '[data-field="pipelineFilePath"] input');
     await userEvent.clear(path);
     await userEvent.type(path, 'ci/pipeline.yml');
-    fireEvent.blur(path); // A `blur()` call does nothing while the preview frame is not focused.
+    fireEvent.blur(path); // blur() does nothing while the preview frame lacks focus.
     const approvals = canvasElement.querySelector<HTMLInputElement>('[data-field="requiredApprovals"] input')!;
     await userEvent.clear(approvals);
     await userEvent.type(approvals, 'deux');
@@ -76,13 +76,13 @@ export const SavedAndInvalid: Story = {
 };
 
 export const SaveFailed: Story = {
-  // Fails a moment later, like a real HTTP error, not synchronously inside the click.
+  // Fail a bit later, like a real HTTP error, not synchronously.
   decorators: [withService({ update: () => timer(200).pipe(switchMap(() => throwError(() => ({ status: 500 })))) })],
   play: async ({ canvasElement }) => {
     const path = await rendered<HTMLInputElement>(canvasElement, '[data-field="pipelineFilePath"] input');
     await userEvent.clear(path);
     await userEvent.type(path, 'ci/pipeline.yml');
-    fireEvent.blur(path); // A `blur()` call does nothing while the preview frame is not focused.
+    fireEvent.blur(path); // blur() does nothing while the preview frame lacks focus.
     await waitFor(() => expect(canvasElement.querySelector('[data-field="pipelineFilePath"] [role="status"]')?.textContent?.trim()).toBe('Non enregistré'));
     const ciSwitch = canvasElement.querySelector<HTMLInputElement>('[data-field="ciEnabled"] input[role="switch"]')!;
     await userEvent.click(ciSwitch);

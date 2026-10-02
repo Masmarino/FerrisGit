@@ -42,15 +42,15 @@ pub enum PipelineDefinitionError {
     InvalidCacheKey { job: String, key: String },
 }
 
-/// `a -> b -> a`: the cycle's jobs in `needs` order, closed on the first one.
+/// Renders a cycle as `a -> b -> a`.
 fn describe_cycle(jobs: &[String]) -> String {
     let mut path: Vec<&str> = jobs.iter().map(String::as_str).collect();
     path.extend(jobs.first().map(String::as_str));
     path.join(" -> ")
 }
 
-/// The first `needs` cycle found (self-references included), as the jobs on it in `needs` order. Jobs are visited by
-/// name, so the result is stable. Dependencies are known to exist when this runs.
+/// The first `needs` cycle found, self-references included, as the jobs on it in `needs` order. Jobs are visited by
+/// name so the result is stable. Dependencies are known to exist by then.
 fn find_needs_cycle(jobs: &BTreeMap<String, JobDefinition>) -> Option<Vec<String>> {
     #[derive(Clone, Copy, PartialEq)]
     enum Mark {
@@ -309,7 +309,7 @@ jobs:
 
     #[test]
     fn rejects_an_indirect_cycle_and_names_only_the_jobs_on_it() {
-        // `entry` leads into the cycle b -> c -> d -> b without being part of it.
+        // `entry` leads into the cycle b -> c -> d -> b but isn't part of it.
         let yaml = pipeline_of(
             &["build"],
             &[
@@ -360,8 +360,7 @@ jobs:
 
     #[test]
     fn rejects_when_dependency_job_has_an_undeclared_stage() {
-        // Job 'a' depends on job 'z' (later alphabetically), whose stage is not declared: the error must be
-        // attributed to 'z' rather than panicking.
+        // 'a' depends on 'z', whose stage isn't declared: the error should name 'z', not panic.
         let yaml = r#"
 stages: [build]
 jobs:
@@ -419,7 +418,7 @@ jobs:
 
     #[test]
     fn rejects_a_cache_key_with_characters_that_would_collide_after_pvc_name_sanitization() {
-        // These names sanitize to the same PVC name (`cache::pvc_name`) but mount at different paths: two caches would
+        // Both names sanitize to the same PVC name (`cache::pvc_name`) but mount at different paths, so the caches would
         // silently collide.
         let yaml = r#"
 stages: [build]

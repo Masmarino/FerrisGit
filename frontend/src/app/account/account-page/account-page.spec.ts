@@ -225,7 +225,7 @@ describe('AccountPage', () => {
     });
 
     it('has one primary button at most when a form is opened in each card: the second closes the first', async () => {
-      // jsdom has no WebAuthn, so give the page a browser that does, then put the real one back.
+      // jsdom has no WebAuthn: give the page a browser that does, then restore the real one.
       const restoreBrowser = stubPasskeyBrowser({ create: vi.fn(), get: vi.fn() });
       onTestFinished(restoreBrowser);
       const { el, settle, button } = await setup('/account?section=security');
@@ -368,7 +368,7 @@ describe('AccountPage', () => {
 
       const logout = button('Déconnexion')!;
       expect(logout.classList).not.toContain('gbt-button--primary');
-      expect(logout.classList).toContain('gbt-button--secondary'); // signing out isn't destructive, so it is a bordered neutral button rather than quiet text
+      expect(logout.classList).toContain('gbt-button--secondary'); // signing out isn't destructive: a bordered neutral button, not quiet text
       logout.click();
       await settle();
 

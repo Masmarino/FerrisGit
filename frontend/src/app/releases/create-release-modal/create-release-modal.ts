@@ -24,7 +24,7 @@ export class CreateReleaseModal implements OnInit {
 
   protected existingTags = signal<TagSummary[]>([]);
   protected branches = signal<BranchInfo[]>([]);
-  // Not `protected` because the spec calls it directly.
+  // Public so the spec can call it.
   tagChoice = signal<string>(NEW_TAG_SENTINEL);
   isNewTag = computed(() => this.tagChoice() === NEW_TAG_SENTINEL);
   newTagName = signal('');
@@ -36,8 +36,8 @@ export class CreateReleaseModal implements OnInit {
   /** A create (or delete-and-retry) request is in flight: the submit button shows it and a second submission is ignored. */
   protected creating = signal(false);
   error = signal('');
-  // Set only when creating a brand-new tag name fails with a 400 ("this tag exists already, at another commit"):
-  // an existing tag picked from the dropdown resubmits its own sha, so it cannot conflict.
+  // Set only when a brand-new tag name fails with a 400 ("this tag exists already, at another commit"). An existing tag
+  // picked from the dropdown resubmits its own sha, so it can't conflict.
   conflictedTagName = signal<string | null>(null);
 
   protected tagOptions = computed<SelectOption<string>[]>(() => [

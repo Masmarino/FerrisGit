@@ -12,9 +12,8 @@ impl FilesystemStorageHealthCheck {
     }
 }
 
-/// Returns `(total_bytes, free_bytes)` for the filesystem containing `path`, using a raw
-/// `statvfs(2)` syscall because Rust's std has no stable disk-space API. This blocks, so the
-/// caller (`check`, above) runs it inside `spawn_blocking`.
+/// `(total_bytes, free_bytes)` of the filesystem holding `path`. Raw statvfs because std has no stable
+/// API for it; it blocks, so `check` runs it in spawn_blocking.
 fn statvfs(path: &std::path::Path) -> std::io::Result<(u64, u64)> {
     let c_path = std::ffi::CString::new(path.as_os_str().as_encoded_bytes())
         .map_err(std::io::Error::other)?;

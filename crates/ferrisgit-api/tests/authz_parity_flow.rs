@@ -6,8 +6,8 @@ use common::http::{create_user, delete, get, get_json, login, post, post_json, p
 use serde_json::json;
 use sqlx::PgPool;
 
-/// `require_role_by_id` (JSON API) and `AuthenticateGitRequestUseCase::effective_role` (git smart-HTTP) are two copies of one policy:
-/// for the same hierarchy and grants, a by-id read and a git clone must give the same allow/deny outcome.
+/// The JSON API (`require_role_by_id`) and git smart-HTTP both rest on `effective_repository_role`. For the same
+/// hierarchy and grants, a by-id read and a git clone must give the same allow/deny answer.
 #[sqlx::test]
 async fn require_role_by_id_and_git_effective_role_agree_on_every_scenario(pool: PgPool) {
     let addr = common::spawn_app(pool).await.addr;
@@ -198,7 +198,7 @@ async fn require_role_by_id_and_git_effective_role_agree_on_every_scenario(pool:
     )
     .await;
 
-    // `owner` holds two direct memberships (root and `eng`, both auto-added on group creation). Both must go for "no group role" to hold.
+    // owner has two direct memberships (root and eng, added when the groups were created). Both have to go for "no group role".
     let remove_owner_from_root_status = delete(
         &client,
         addr,
@@ -230,7 +230,7 @@ async fn require_role_by_id_and_git_effective_role_agree_on_every_scenario(pool:
     )
     .await;
 
-    // A revoked role must be denied on the very next request (no cached allow). `colead` performs the removal since `owner` has no permission left.
+    // A revoked role is denied on the very next request, nothing is cached. colead does the removal since owner has nothing left.
     let remove_reader_status = delete(
         &client,
         addr,
@@ -253,7 +253,7 @@ async fn require_role_by_id_and_git_effective_role_agree_on_every_scenario(pool:
     )
     .await;
 
-    // Public visibility: a stranger may read a public repository through both the API and git.
+    // A stranger can read a public repository through both the API and git.
     let create_public_repo_res = post(
         &client,
         addr,
@@ -284,7 +284,7 @@ async fn require_role_by_id_and_git_effective_role_agree_on_every_scenario(pool:
     )
     .await;
 
-    // The public bypass is read-only: writes stay denied on both sides.
+    // The public bypass is read-only, writes stay denied on both sides.
     let write_info_refs_status = client
         .get(format!(
             "http://{addr}/owner/open-project.git/info/refs?service=git-receive-pack"
@@ -315,8 +315,8 @@ async fn require_role_by_id_and_git_effective_role_agree_on_every_scenario(pool:
         "a stranger must not gain WRITE access to a public repo's settings via the web API (require_role_by_id masks denial as NotFound, same as every other access check in this codebase)"
     );
 
-    // Opening an issue is a contribution, not a read: a stranger is a Reader of a public repo and gets the same masked
-    // NotFound as for its settings (`issue_permissions_flow.rs` covers every issue write route).
+    // Opening an issue is a contribution, not a read: a stranger is only a Reader of a public repo and gets the same
+    // NotFound as for its settings (issue_permissions_flow covers every issue write route).
     let create_issue_status = post(
         &client,
         addr,

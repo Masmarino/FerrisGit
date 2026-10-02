@@ -1,9 +1,8 @@
-// Spec-only: the setup every repository settings section shares.
+// Spec-only setup shared by the settings sections.
 import { Provider, Type } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { GbtToastService } from '@masmarino/gabarit';
 
-/** Renders a settings section for `repo-1` with the given service stubs and a toast stub. */
 export function createSettingsSection<T>(component: Type<T>, providers: Provider[]) {
   const toastStub = { show: vi.fn() };
   TestBed.configureTestingModule({ providers: [...providers, { provide: GbtToastService, useValue: toastStub }] });

@@ -42,7 +42,7 @@ describe('ResetPasswordPage', () => {
     });
     const http = TestBed.inject(HttpTestingController);
     const router = TestBed.inject(Router);
-    // The page wipes the token from the URL. The spy records the call instead of running it against the empty test router.
+    // The page wipes the token from the URL; spy on it rather than run it against the empty test router.
     const navigate = vi.spyOn(router, 'navigateByUrl').mockResolvedValue(true);
     const fixture = TestBed.createComponent(ResetPasswordPage);
     fixture.detectChanges();

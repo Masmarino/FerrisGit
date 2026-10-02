@@ -18,6 +18,7 @@ use uuid::Uuid;
 use crate::auth_middleware::AuthUser;
 use crate::authz::{
     effective_role_in_group_chain, require_group_chain_role, require_role, require_role_by_id,
+    role_label_or_reader,
 };
 use crate::error::ApiError;
 use crate::routes::user_ref::require_user;
@@ -47,8 +48,8 @@ struct CreateRepositoryRequest {
     group_path: Option<String>,
 }
 
-/// Both fields are optional: only the ones present change. The name and owner are not editable (they are part of the
-/// clone URL).
+/// Both fields are optional and only the ones sent change. Name and owner can't be edited, they're part of the
+/// clone URL.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct UpdateRepositoryRequest {
@@ -71,12 +72,11 @@ pub(crate) struct RepositoryResponse {
     name: String,
     description: String,
     owner: String,
-    /// The caller's role; `null` for an anonymous visitor of a public repository.
+    /// The caller's role, `null` for an anonymous visitor of a public repository.
     role: Option<String>,
     visibility: String,
     created_at: DateTime<Utc>,
-    /// Group repositories cannot be reached through `{owner}/{name}` links, so listings must link through
-    /// this field.
+    /// Group repositories have no `{owner}/{name}` link, so listings have to link through this.
     path: Vec<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     star_count: Option<i64>,
@@ -87,8 +87,8 @@ pub(crate) struct RepositoryResponse {
 }
 
 impl RepositoryResponse {
-    /// A listing entry: the star and size fields stay out of the JSON. For the repositories of a group, resolve the
-    /// caller's `role` once per group, not per repository.
+    /// A listing entry: no star or size fields in the JSON. For a group's repositories, resolve the caller's `role`
+    /// once per group rather than per repository.
     pub(crate) fn new(
         repo: &Repository,
         owner: String,
@@ -120,7 +120,7 @@ impl RepositoryResponse {
     }
 }
 
-/// `None` when the size cannot be read: a repository page is not worth failing over it.
+/// `None` when the size can't be read, a repository page isn't worth failing over it.
 async fn directory_size(state: &AppState, repo: &Repository) -> Option<u64> {
     let git_backend = state.git_backend.clone();
     let disk_path = repo.disk_path.clone();
@@ -130,7 +130,7 @@ async fn directory_size(state: &AppState, repo: &Repository) -> Option<u64> {
         .and_then(|r| r.ok())
 }
 
-/// Callers that already hold the group's `ancestor_chain` should build the path from it instead.
+/// If you already have the group's `ancestor_chain`, build the path from it instead.
 pub(crate) async fn repository_path(
     state: &AppState,
     repo: &Repository,
@@ -251,7 +251,7 @@ async fn list(
         ));
     }
 
-    // Also list repositories reached only through group membership, or group-inherited access would list nothing.
+    // Include repositories reached only through group membership, otherwise inherited access would list nothing.
     let mut owner_usernames: std::collections::HashMap<Uuid, String> =
         std::collections::HashMap::new();
     let member_group_ids = state.groups.list_member_group_ids(user_id).await?;
@@ -260,13 +260,12 @@ async fn list(
         if repos.is_empty() {
             continue;
         }
-        // Every repository of a group shares the ancestor chain and caller role, so resolve them once per group.
+        // A group's repositories share the chain and the caller's role, so resolve them once per group.
         let chain = state.groups.ancestor_chain(group_id).await?;
         let group_path: Vec<String> = chain.iter().map(|g| g.name.clone()).collect();
-        // Always `Some` in practice. The fallback only avoids a panic.
-        let role = effective_role_in_group_chain(state.group_membership.as_ref(), &chain, user_id)
-            .await?
-            .map_or_else(|| "reader".to_string(), |r| r.as_str().to_string());
+        let role = role_label_or_reader(
+            effective_role_in_group_chain(state.group_membership.as_ref(), &chain, user_id).await?,
+        );
         for repo in repos {
             let owner_username = if let Some(name) = owner_usernames.get(&repo.owner_id) {
                 name.clone()
@@ -286,8 +285,8 @@ async fn list(
         }
     }
 
-    // The same repository can be reached both as a collaborator and through a group. Dedup by id and keep the
-    // first one, since the collaborator branch has the more precise role.
+    // A repository can show up both as collaborator and through a group. Keep the first, the collaborator one,
+    // since its role is more precise.
     let mut seen_ids = std::collections::HashSet::new();
     responses.retain(|r| seen_ids.insert(r.id));
 
@@ -313,11 +312,12 @@ async fn get_one(
     let role = if repo.owner_id == user_id {
         "owner".to_string()
     } else {
-        state
-            .repository_collaborators
-            .get_role(repo.id, user_id)
-            .await?
-            .map_or_else(|| "reader".to_string(), |r| r.as_str().to_string())
+        role_label_or_reader(
+            state
+                .repository_collaborators
+                .get_role(repo.id, user_id)
+                .await?,
+        )
     };
     let path = vec![owner.clone(), repo.name.clone()];
 
@@ -340,7 +340,7 @@ async fn get_by_id(
     Ok(Json(repository_summary(&state, repo, Some(user_id)).await?))
 }
 
-/// `viewer` is `None` for an anonymous visitor of a public repository, who has no role and has starred nothing.
+/// `viewer` is `None` for an anonymous visitor of a public repository: no role, no stars.
 pub(crate) async fn repository_summary(
     state: &AppState,
     repo: Repository,
@@ -352,13 +352,12 @@ pub(crate) async fn repository_summary(
             let role = match viewer {
                 None => None,
                 Some(user_id) if repo.owner_id == user_id => Some("owner".to_string()),
-                Some(user_id) => Some(
+                Some(user_id) => Some(role_label_or_reader(
                     state
                         .repository_collaborators
                         .get_role(repo.id, user_id)
-                        .await?
-                        .map_or_else(|| "reader".to_string(), |r| r.as_str().to_string()),
-                ),
+                        .await?,
+                )),
             };
             (role, vec![owner.clone(), repo.name.clone()])
         }
@@ -380,7 +379,7 @@ pub(crate) async fn repository_summary(
                     let best = match (group_role, direct_role) {
                         (Some(a), Some(b)) => a.max(b),
                         (Some(a), None) | (None, Some(a)) => a,
-                        // Public repositories bypass the role check, so (None, None) is expected and means Reader.
+                        // Public repositories skip the role check, so no role at all just means Reader.
                         (None, None) => CollaboratorRole::Reader,
                     };
                     Some(best.as_str().to_string())
@@ -438,8 +437,8 @@ async fn unstar_by_id(
     }))
 }
 
-/// Same guard as the other repository settings. A repository made private leaves the public catalog and anonymous
-/// pages at once: they read the stored visibility on every request.
+/// Same guard as the other repository settings. Making a repository private drops it from the public catalog and
+/// anonymous pages immediately, they read the stored visibility on every request.
 async fn update_by_id(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -482,8 +481,7 @@ async fn delete_by_id(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// A filesystem failure is logged, never returned: the deletion already happened. Also used by the admin
-/// deletion of a user.
+/// A filesystem failure is only logged, the deletion already happened. Also used when an admin deletes a user.
 pub(crate) fn remove_git_storage(git_backend: &Arc<GitBackend>, repo: &Repository) {
     let git_backend = git_backend.clone();
     let disk_path = repo.disk_path.clone();
@@ -499,8 +497,8 @@ pub(crate) fn remove_git_storage(git_backend: &Arc<GitBackend>, repo: &Repositor
     });
 }
 
-/// Runs a short blocking filesystem call. `block_in_place` panics on a current-thread runtime, which
-/// `#[sqlx::test]` uses, so the call runs inline there.
+/// Runs a short blocking filesystem call. `block_in_place` panics on a current-thread runtime, which is what
+/// `#[sqlx::test]` uses, so there it runs inline.
 fn run_blocking<T>(work: impl FnOnce() -> T) -> T {
     if tokio::runtime::Handle::current().runtime_flavor()
         == tokio::runtime::RuntimeFlavor::MultiThread

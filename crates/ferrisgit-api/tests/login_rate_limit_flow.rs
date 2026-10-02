@@ -5,7 +5,7 @@ use common::http::post_anon;
 use serde_json::json;
 use sqlx::PgPool;
 
-/// Regression: login had no rate limit. The fixed-window limiter must trip after repeated attempts from one connection.
+/// Login used to have no rate limit: the fixed-window limiter has to trip after repeated attempts from one connection.
 #[sqlx::test]
 async fn repeated_login_attempts_from_the_same_connection_are_eventually_rate_limited(
     pool: PgPool,
@@ -46,7 +46,7 @@ async fn repeated_login_attempts_from_the_same_connection_are_eventually_rate_li
         "attempts past the window's budget must be rejected with 429, got only: {saw_unauthorized}"
     );
 
-    // A correct password does not bypass the limiter: it is a connection-level gate, not a failed-attempt counter.
+    // A correct password doesn't get past the limiter, it counts connections, not failures.
     let still_limited = post_anon(
         &client,
         addr,

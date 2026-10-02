@@ -6,7 +6,7 @@ use ferrisgit_domain::public_pages::{
 };
 use sqlx::PgPool;
 
-/// Like the registration switch, these columns of the `system_settings` singleton use their own runtime queries so
+/// Like the registration switch: own runtime queries on the `system_settings` singleton, so
 /// `PostgresSystemSettingsStore` and its compile-time checked queries stay untouched.
 pub struct PostgresPublicPagesSettingsStore {
     pool: PgPool,

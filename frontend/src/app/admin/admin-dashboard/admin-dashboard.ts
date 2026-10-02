@@ -24,7 +24,7 @@ import { PageTitleService } from '../../shell/page-title.service';
 
 const BYTE_UNITS = ['Ko', 'Mo', 'Go', 'To'];
 
-/** Gabarit's `formatBytes` returns only the joined string, not the raw divisor a chart series needs, so the y-axis unit is computed here. */
+/** Gabarit's formatBytes only returns the joined string, not the divisor a chart series needs, so the y-axis unit is computed here. */
 function byteUnit(bytes: number): { divisor: number; label: string } {
   let divisor = 1;
   let label = 'o';
@@ -55,7 +55,7 @@ interface DashboardTile {
 
 type LoadState = 'loading' | 'loaded' | 'failed';
 
-/** The server records a snapshot every hour. A chart needs two to draw a line, so with fewer it says "not enough readings yet". */
+/** The server snapshots every hour and a line needs two points, so with fewer the chart says "not enough readings yet". */
 @Component({
   selector: 'fg-admin-dashboard',
   standalone: true,
@@ -67,12 +67,12 @@ export class AdminDashboard implements OnInit {
   private metrics = inject(AdminMetricsService);
   private pageTitle = inject(PageTitleService);
   private toast = inject(GbtToastService);
-  // Gabarit's chart components take their own `locale` input rather than reading LOCALE_ID.
+  // Gabarit's charts take their own `locale` input, they don't read LOCALE_ID.
   protected readonly locale = 'fr-FR';
 
   protected stats = signal<AdminStats | null>(null);
   protected statsState = signal<LoadState>('loading');
-  /** Null until the first history response arrives. The charts show skeletons only then, not when the period changes. */
+  /** Null until the first history response. Skeletons show only then, not on a period change. */
   protected history = signal<MetricsSnapshot[] | null>(null);
   protected historyState = signal<LoadState>('loading');
   protected historyDays = signal(30);
@@ -148,7 +148,7 @@ export class AdminDashboard implements OnInit {
   }
 
   protected loadHistory(): void {
-    // Only the latest period requested counts. A slower response for an earlier one is dropped.
+    // Only the latest period counts: a slower response for an earlier one is dropped.
     this.historyRequest?.unsubscribe();
     this.historyState.set('loading');
     this.historyRequest = this.metrics.getHistory(this.historyDays()).subscribe({

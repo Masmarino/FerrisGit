@@ -139,7 +139,7 @@ mod tests {
         repo.delete(Uuid::new_v4()).await.unwrap();
     }
 
-    /// A job claimed by a deleted runner must survive (`jobs.runner_id ... ON DELETE SET NULL`).
+    /// A job claimed by a deleted runner must survive (`jobs.runner_id` is ON DELETE SET NULL).
     #[sqlx::test(migrations = "../../migrations")]
     async fn deleting_a_runner_nulls_the_runner_id_of_its_jobs_instead_of_deleting_them(
         pool: PgPool,
@@ -210,8 +210,8 @@ mod tests {
         assert_eq!(claimed.status, ferrisgit_domain::job::JobStatus::Running);
         assert_eq!(claimed.runner_id, Some(runner.id));
 
-        // What the delete *use case* does first: release the claim, so the job
-        // is claimable again rather than stranded `running` with a null runner.
+        // What the delete use case does first: release the claim, so the job is claimable again instead of
+        // stranded running with a null runner.
         assert_eq!(jobs.release_jobs_claimed_by(runner.id).await.unwrap(), 1);
         repo.delete(runner.id).await.unwrap();
 
@@ -239,9 +239,8 @@ mod tests {
         assert_eq!(reclaimed.id, claimed.id);
     }
 
-    /// Order matters: releasing after the delete wouldn't fail, but by then the
-    /// FK has nulled `runner_id` and `release_jobs_claimed_by` matches nothing.
-    /// That's why the use case releases first.
+    /// Order matters: after the delete the FK has already nulled `runner_id`, so `release_jobs_claimed_by` would
+    /// match nothing. That's why the use case releases first.
     #[sqlx::test(migrations = "../../migrations")]
     async fn release_jobs_claimed_by_only_touches_running_jobs_of_that_runner(pool: PgPool) {
         let jobs = crate::postgres::job_store::PostgresJobStore::new(pool.clone());

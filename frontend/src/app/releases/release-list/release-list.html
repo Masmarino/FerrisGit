@@ -73,7 +73,7 @@
                       par Utilisateur supprimé
                     }
                   </span>
-                  <!-- The separator belongs to the segment after it, so a wrapped line does not end on a dangling "·". -->
+                  <!-- The separator belongs to the segment after it, so a wrapped line never ends on a dangling "·". -->
                   @if (card.assets; as assets) {
                     <span class="release-card__assets"><span class="release-card__sep" aria-hidden="true"> · </span>{{ assets }}</span>
                   }
@@ -116,7 +116,7 @@
   }
 </gbt-page-layout>
 
-<!-- Built on each opening and destroyed on close: a closed dialog never keeps a draft. -->
+<!-- Rebuilt on every opening so a closed dialog never keeps a draft. -->
 @if (createModalOpen()) {
   <fg-create-release-modal [repositoryId]="repositoryId()" (close)="createModalOpen.set(false)" (created)="onCreated()" />
 }

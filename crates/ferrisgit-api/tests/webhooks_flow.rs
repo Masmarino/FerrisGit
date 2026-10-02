@@ -79,8 +79,8 @@ async fn only_a_maintainer_can_manage_webhooks_and_the_secret_never_leaks(pool: 
     );
 }
 
-/// Regression (cross-repository IDOR): `update` and `deliveries` must check that the webhook belongs to the path's repository, not only authorize on it.
-/// The admin owns both repositories, so any 404 can only come from the ownership check.
+/// Cross-repository IDOR: `update` and `deliveries` have to check that the webhook belongs to the repository in the path,
+/// not just authorize on it. The admin owns both repositories, so a 404 can only come from the ownership check.
 #[sqlx::test]
 async fn a_maintainer_of_one_repository_cannot_touch_a_webhook_that_belongs_to_another(
     pool: PgPool,
@@ -101,7 +101,7 @@ async fn a_maintainer_of_one_repository_cannot_touch_a_webhook_that_belongs_to_a
     .await;
     let repo_a_id = repo_a["id"].as_str().unwrap();
 
-    // Repository B, owned by the same admin but a different repository, holds the webhook under attack.
+    // Repository B, also the admin's, holds the webhook being attacked.
     let repo_b: serde_json::Value = post_json(
         &client,
         addr,
@@ -115,7 +115,7 @@ async fn a_maintainer_of_one_repository_cannot_touch_a_webhook_that_belongs_to_a
     let webhook_on_b: serde_json::Value = post_json(&client, addr, &owner_jwt, &format!("/repositories/{repo_b_id}/webhooks"), &json!({ "url": "https://example.com/repo-b-hook", "secret": "b-secret", "events": ["issue_closed"] })).await;
     let webhook_b_id = webhook_on_b["id"].as_str().unwrap();
 
-    // The URL must be a real, resolvable, non-private hostname: the SSRF guard runs before the ownership check and would otherwise mask the 404 with a 400.
+    // Use a real, resolvable, non-private hostname: the SSRF guard runs before the ownership check and would otherwise turn the 404 into a 400.
     let cross_repo_update = patch(
         &client,
         addr,
@@ -176,7 +176,7 @@ async fn a_maintainer_of_one_repository_cannot_touch_a_webhook_that_belongs_to_a
     );
 }
 
-/// Regression (blind SSRF): a webhook pointed at an internal address such as loopback must be rejected.
+/// Blind SSRF: a webhook pointing at an internal address such as loopback is rejected.
 #[sqlx::test]
 async fn creating_a_webhook_pointed_at_loopback_is_rejected(pool: PgPool) {
     let addr = common::spawn_app(pool).await.addr;
@@ -223,7 +223,7 @@ async fn creating_a_webhook_pointed_at_loopback_is_rejected(pool: PgPool) {
     );
 }
 
-/// Regression: the number of webhooks per repository is capped, and the 21st is rejected.
+/// Webhooks per repository are capped, the 21st is rejected.
 #[sqlx::test]
 async fn the_21st_webhook_on_one_repository_is_rejected(pool: PgPool) {
     let addr = common::spawn_app(pool).await.addr;

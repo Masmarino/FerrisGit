@@ -58,8 +58,7 @@ impl SetGroupMemberRoleUseCase {
             return Ok(());
         }
 
-        // Only a demotion away from Maintainer needs the guard. A promotion or a same-level change never reduces who
-        // can manage the hierarchy.
+        // Only demoting a maintainer needs the guard, nothing else can reduce who manages the hierarchy.
         if previous_role == Some(CollaboratorRole::Maintainer)
             && role != CollaboratorRole::Maintainer
             && would_leave_chain_without_a_maintainer(
@@ -287,8 +286,7 @@ mod tests {
         );
     }
 
-    /// `infra` has no direct Maintainer once alice is demoted but its ancestor `acme` has one, so the demotion
-    /// succeeds.
+    /// infra loses its last direct maintainer but acme still has one.
     #[tokio::test]
     async fn demoting_a_subgroups_last_direct_maintainer_succeeds_when_an_ancestor_still_has_one() {
         let groups = Arc::new(FakeGroups::empty());
@@ -312,7 +310,7 @@ mod tests {
         assert!(groups.has_member(leaf.id, target.id, CollaboratorRole::Reader));
     }
 
-    /// Neither `infra` nor `acme` has another Maintainer, so the guard has to walk the whole chain.
+    /// Nobody left in infra or acme, so the guard has to walk the whole chain.
     #[tokio::test]
     async fn demoting_a_subgroups_last_maintainer_is_rejected_when_no_ancestor_has_one_either() {
         let groups = Arc::new(FakeGroups::empty());

@@ -312,7 +312,7 @@ describe('MarkdownView', () => {
     });
   });
 
-  // `<base href="/">` would resolve `[x](#installation)` against the site root and load the home page.
+  // With `<base href="/">`, `[x](#installation)` would resolve against the site root and load the home page.
   describe('in-content anchor links', () => {
     let attached: HTMLElement | null = null;
     let savedMatchMedia: PropertyDescriptor | undefined;
@@ -386,8 +386,8 @@ describe('MarkdownView', () => {
       expect(spies.get('user-content-prérequis')).toHaveBeenCalledTimes(1);
     });
 
-    // `dispatchEvent` swallows a listener's error and Angular hands it to the ErrorHandler, so the test
-    // watches the ErrorHandler and the resulting scroll rather than `not.toThrow()`.
+    // dispatchEvent swallows a listener's error and Angular hands it to the ErrorHandler, so watch that and the scroll
+    // instead of `not.toThrow()`.
     it('looks a malformed fragment up as written: no error, stays on the page, scrolls to the matching anchor', () => {
       const errorHandler = TestBed.inject(ErrorHandler);
       const handleError = vi.spyOn(errorHandler, 'handleError');
@@ -477,7 +477,7 @@ describe('MarkdownView routed links (opt-in)', () => {
     fixture.componentRef.setInput('routedLinkPrefix', prefix);
     fixture.detectChanges();
     const el = fixture.nativeElement as HTMLElement;
-    // Records whether the view took the click, then stops jsdom from following the link.
+    // Record whether the view took the click, then keep jsdom from following the link.
     const click = (href: string, init: MouseEventInit = {}) => {
       let prevented = false;
       const record = (event: Event) => {

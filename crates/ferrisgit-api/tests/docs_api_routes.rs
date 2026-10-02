@@ -1,6 +1,5 @@
-//! The REST reference in `docs/api/` and the router must list the same paths: a route added without documentation, or a
-//! documented route that no longer exists, fails here. The check is on paths; the methods of each path are written
-//! in the docs by hand.
+//! The REST reference in `docs/api/` and the router must list the same paths: an undocumented route, or a documented
+//! one that's gone, fails here. Only paths are checked, the methods are written in the docs by hand.
 
 use std::collections::BTreeSet;
 use std::fs;
@@ -10,12 +9,12 @@ fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// Everything after the last `#[cfg(test)]` is test code, which may build throwaway routers.
+/// Anything after the last `#[cfg(test)]` is test code, which may build throwaway routers.
 fn production_code(source: &str) -> &str {
     source.split("#[cfg(test)]").next().unwrap_or(source)
 }
 
-/// The path literal of every `.route("…", …)` call, whether or not the call is spread over several lines.
+/// The path of every `.route("…", …)` call, on one line or several.
 fn route_paths(source: &str) -> Vec<String> {
     let mut paths = Vec::new();
     let mut rest = production_code(source);

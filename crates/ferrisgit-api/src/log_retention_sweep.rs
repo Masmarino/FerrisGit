@@ -5,12 +5,11 @@ use ferrisgit_application::use_cases::purge_expired_job_logs::PurgeExpiredJobLog
 use tokio::sync::watch;
 use tokio::task::JoinHandle;
 
-/// How often the retention is applied.
+/// How often the retention runs.
 pub const SWEEP_EVERY: Duration = Duration::from_secs(24 * 60 * 60);
 
-/// Applies the log retention at once, then every `every`. A single sequential loop, so there is one sweep at a time.
-/// Ends when `shutdown` becomes `true`, even in the middle of a sweep: the purge is one atomic statement per batch, so an
-/// interrupted sweep leaves nothing half done. A failed sweep is logged and the next tick tries again.
+/// Sweeps at once, then every `every`, one sweep at a time. Stops when `shutdown` turns true, even mid-sweep: each
+/// batch is one atomic statement, so nothing is left half done. A failed sweep is logged and retried on the next tick.
 pub fn spawn(
     purge_expired_job_logs: Arc<PurgeExpiredJobLogsUseCase>,
     every: Duration,
@@ -74,7 +73,7 @@ mod tests {
         }
     }
 
-    /// Counts the sweeps, fails the first `failures` of them, and can hold a sweep open.
+    /// Counts sweeps, fails the first `failures` of them, and can keep one open.
     struct CountingRetention {
         sweeps: AtomicUsize,
         failures: usize,
@@ -209,8 +208,7 @@ mod tests {
 
     #[tokio::test]
     async fn it_never_runs_two_sweeps_at_the_same_time() {
-        // The loop awaits each sweep before looking at the next tick, so a slow sweep delays the next one (a missed
-        // tick is skipped, not queued).
+        // The loop awaits each sweep before the next tick, so a slow one delays the next (missed ticks are skipped).
         let retention = CountingRetention::new(0);
         let (release, held) = tokio::sync::oneshot::channel();
         *retention.hold.lock().unwrap() = Some(held);

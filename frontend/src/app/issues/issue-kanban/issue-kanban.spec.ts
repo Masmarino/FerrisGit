@@ -215,7 +215,7 @@ describe('IssueKanban', () => {
       expect(TestBed.inject(GbtToastService).toasts().at(-1)).toMatchObject({ message: 'Impossible de charger les tickets.', variant: 'error' });
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toBe("Les tickets n'ont pas pu être chargés.");
-      // The toast announces it, so the inline message stays silent (one live region, not two).
+      // The toast announces it, so the inline message stays silent: one live region, not two.
       expect(failed?.getAttribute('data-variant')).toBe('error');
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
@@ -410,7 +410,7 @@ describe('IssueKanban', () => {
       expect(TestBed.inject(GbtToastService).toasts().at(-1)).toMatchObject({ message: 'Impossible de charger les tickets.', variant: 'error' });
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toBe("Les tickets n'ont pas pu être chargés.");
-      // The toast announces it, so the inline message stays silent (one live region, not two).
+      // The toast announces it, so the inline message stays silent: one live region, not two.
       expect(failed?.getAttribute('data-variant')).toBe('error');
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
@@ -510,8 +510,8 @@ describe('IssueKanban', () => {
       expect(cards(el)[0].classList).not.toContain('issue-kanban__card--draggable');
     });
 
-    // On a touch screen a swipe that starts on a card must scroll the board (or the page), not pick
-    // the card up: a drag starts only after a 250ms press. The mouse keeps its immediate drag.
+    // A swipe that starts on a card must scroll the board (or the page), not pick it up: touch drags start after a
+    // 250ms press. The mouse still drags immediately.
     const dragsOf = (fixture: ReturnType<typeof setup>['fixture']) => fixture.debugElement.queryAll(By.directive(CdkDrag)).map((debug) => debug.injector.get(CdkDrag));
 
     it('starts a touch drag only after a long press, and a mouse drag at once', () => {

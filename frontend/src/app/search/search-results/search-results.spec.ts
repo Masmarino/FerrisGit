@@ -14,7 +14,7 @@ function response(overrides: Partial<SearchResponse> = {}): SearchResponse {
 }
 
 const ALICE_WIDGET: SearchRepositoryRef = { id: 'r1', name: 'widget', path: ['alice', 'widget'] };
-// A group repository: its path has three segments, and every link must keep all of them.
+// A group repository: three path segments, and every link has to keep all of them.
 const GROUP_RUNNER: SearchRepositoryRef = { id: 'r2', name: 'runner', path: ['plateforme', 'infra', 'runner'] };
 
 const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
@@ -196,7 +196,7 @@ describe('SearchResults', () => {
     const icons = fixture.debugElement.queryAll(By.css('.search-results__section')).map((de) => (de.query(By.directive(Icon))?.componentInstance as Icon | undefined)?.name());
     expect(icons).toEqual(['folder-git-2', 'circle-dot', 'git-pull-request', 'user']);
     expect(Array.from(el(fixture).querySelectorAll('.search-results__section-header .search-results__count'), (c) => text(c))).toEqual(['2', '2', '2', '1']);
-    // The count sits outside the heading: the section is named "Dépôts", not "Dépôts 2".
+    // The count sits outside the heading, so the section is named "Dépôts", not "Dépôts 2".
     for (const s of Array.from(el(fixture).querySelectorAll('.search-results__section'))) {
       expect(s.getAttribute('aria-labelledby')).toBe(s.querySelector('h2')?.id);
       const host = s.querySelector('gbt-card')!;
@@ -251,7 +251,7 @@ describe('SearchResults', () => {
     expect(kinds).toEqual(['Bug', 'Fonctionnalité']);
 
     const time = issues.querySelector('.search-results__opened time');
-    // "avant-hier" is Gabarit's own wording for a gap of exactly 2 days.
+    // "avant-hier" is Gabarit's wording for exactly 2 days ago.
     expect(text(issues.querySelector('.search-results__opened'))).toBe('ouvert avant-hier');
     expect(time?.getAttribute('datetime')).toBe(FULL.issues[0].createdAt);
     expect(time?.getAttribute('title')).toMatch(/^\d{2}\/\d{2}\/\d{4}/);
@@ -309,7 +309,7 @@ describe('SearchResults', () => {
     expect(loading?.querySelectorAll('gbt-skeleton').length).toBeGreaterThan(0);
     expect(loading?.querySelector('gbt-card[aria-hidden="true"] > .gbt-card__header gbt-skeleton')).toBeTruthy();
     expect(loading?.querySelector('gbt-card[aria-hidden="true"] > .gbt-card')?.getAttribute('data-variant')).toBe('outlined');
-    // Its rows are silent: the page's own status region is the one announcement.
+    // Its rows are silent: the page's status region is the only announcement.
     expect(loading?.querySelectorAll('gbt-card gbt-skeleton-list .gbt-skeleton-list__row').length).toBe(4);
     expect(text(loading?.querySelector('gbt-skeleton-list [role="status"]'))).toBe('');
     expect(el(fixture).querySelector('.search-results__tabs')).toBeNull();

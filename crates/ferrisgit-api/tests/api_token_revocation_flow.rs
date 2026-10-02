@@ -12,7 +12,7 @@ async fn revoking_a_token_stops_it_from_authenticating_a_subsequent_git_request(
     let client = reqwest::Client::new();
     let jwt = login(&client, addr, "admin", "adminpassword123").await;
 
-    // Private repo: a public repo's Read bypass would let git succeed without credentials, defeating the test.
+    // Private repo: a public one would let git read without credentials and defeat the test.
     let repo_res: serde_json::Value = post_json(
         &client,
         addr,
@@ -43,7 +43,7 @@ async fn revoking_a_token_stops_it_from_authenticating_a_subsequent_git_request(
     );
 
     let revoke = delete(&client, addr, &jwt, &format!("/tokens/{token_id}")).await;
-    // This handler returns a bare `Result<(), ApiError>`, which axum renders as 200, not 204.
+    // This handler returns a bare Result<(), ApiError>, which axum renders as 200, not 204.
     assert_eq!(revoke.status(), 200);
 
     let after = client
@@ -100,7 +100,7 @@ async fn a_user_cannot_revoke_another_users_token(pool: PgPool) {
         &format!("/tokens/{alice_token_id}"),
     )
     .await;
-    // `revoke` scopes its DELETE to `id AND user_id`, so another user's token looks identical to a missing one.
+    // revoke scopes its DELETE to id and user_id, so someone else's token looks like a missing one.
     assert_eq!(
         cross_user_revoke.status(),
         404,

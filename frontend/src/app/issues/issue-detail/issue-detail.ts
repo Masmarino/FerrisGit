@@ -152,7 +152,7 @@ export class IssueDetail implements OnInit {
 
   protected canAssignToMe = computed(() => this.canWrite() && this.me.id() !== '' && this.issue()?.assignee?.id !== this.me.id());
 
-  // A stable reference: binding `labels.map(...)` in the template built a new array on every pass, so NgModel
+  // Stable reference: binding `labels.map(...)` in the template built a new array on every pass, so NgModel
   // re-applied the value and re-triggered detection forever.
   protected labelIds = computed(() => this.issue()?.labels.map((label) => label.id) ?? []);
   protected labelOptions = computed(() => labelSelectOptions(this.labels()));
@@ -246,7 +246,7 @@ export class IssueDetail implements OnInit {
     });
   }
 
-  // The draft is kept until the POST succeeds, so a failed request does not lose what was typed.
+  // The draft is kept until the POST succeeds, so a failed request doesn't lose what was typed.
   addComment(): void {
     const body = this.draft().trim();
     if (!body || this.posting()) {

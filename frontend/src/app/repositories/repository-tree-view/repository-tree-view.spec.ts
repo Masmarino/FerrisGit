@@ -13,7 +13,7 @@ const absoluteDateTime = (iso: string) => formatDateTime(iso, 'fr', ABSOLUTE_OPT
 
 const REPO = repositoryFixture({
   visibility: 'public',
-  createdAt: '2026-01-01T12:00:00Z', // midday: the same calendar day in any test machine's time zone
+  createdAt: '2026-01-01T12:00:00Z', // midday, same calendar day in any time zone
   starCount: 3,
   isStarred: false,
   sizeBytes: 2048,
@@ -39,13 +39,13 @@ describe('RepositoryTreeView', () => {
     vi.useRealTimers();
   });
 
-  // Catch-all for requests a test ignores: `getLanguages` resolves to `{ languages: [...] }`, every other swept endpoint to a bare array.
+  // Catch-all for requests a test ignores. getLanguages answers `{ languages: [...] }`, every other endpoint a bare array.
   function sweep(http: HttpTestingController) {
     http.match(() => true).forEach((req) => req.flush(req.request.url.includes('/languages/') ? { languages: [] } : []));
   }
 
-  // Flushes every request still open. Run it after the `detectChanges()` that follows the `getById` flush,
-  // because only then has `RepositoryHeader` rendered its `BranchSwitcher`, whose requests it must catch.
+  // Flushes every open request. Call it after the detectChanges() that follows the getById flush: only
+  // then has RepositoryHeader rendered its BranchSwitcher, whose requests it must catch.
   function flushRepo(http: HttpTestingController, fixture: ComponentFixture<RepositoryTreeView>, repo: Repository = REPO) {
     http.expectOne('/api/repositories/by-id/repo-1').flush(repo);
     fixture.detectChanges();
@@ -108,7 +108,7 @@ describe('RepositoryTreeView', () => {
   it('fetches and renders the README only when at the repository root, in a README.md card', () => {
     const { fixture, http } = setup();
     fixture.detectChanges();
-    // Flush `getById` directly, without the catch-all that would empty-flush the `readme` request asserted below.
+    // Flush getById directly: the catch-all would empty-flush the readme request asserted below.
     http.expectOne('/api/repositories/by-id/repo-1').flush(REPO);
     http.expectOne('/api/repositories/by-id/repo-1/tree/main').flush([]);
     http.expectOne('/api/repositories/by-id/repo-1/readme/main').flush({ content: '# Hello' });
@@ -437,7 +437,7 @@ describe('RepositoryTreeView', () => {
   });
 
   describe('opened on its #cloner fragment', () => {
-    // jsdom has no `scrollIntoView`, so this spies on the prototype and attaches the fixture to the document (focus needs it). Both are undone even if the test fails.
+    // jsdom has no scrollIntoView, so spy on the prototype and attach the fixture to the document (focus needs that). Both are undone even if the test fails.
     const originalScrollIntoView = Object.getOwnPropertyDescriptor(Element.prototype, 'scrollIntoView');
     let attached: HTMLElement | null = null;
 
@@ -543,7 +543,7 @@ describe('RepositoryTreeView', () => {
     fixture.detectChanges();
 
     expect(showSpy).toHaveBeenCalledWith('Impossible de charger ce dépôt. Réessayez plus tard.', 'error');
-    // The toast announces it, so the message in the page stays silent (one live region, not two).
+    // The toast announces it, so the message in the page stays silent.
     const failed = (fixture.nativeElement as HTMLElement).querySelector('gbt-alert .gbt-alert');
     expect(failed?.textContent?.trim()).toBe("Les fichiers n'ont pas pu être chargés.");
     expect(failed?.getAttribute('data-variant')).toBe('error');

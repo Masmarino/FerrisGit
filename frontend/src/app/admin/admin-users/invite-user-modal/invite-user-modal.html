@@ -1,7 +1,7 @@
-<!-- The form wraps the whole dialog because the submit button lives in the footer slot, outside the body. -->
+<!-- The form wraps the whole dialog because the submit button is in the footer slot, outside the body. -->
 <form novalidate (submit)="$event.preventDefault(); submit()">
-  <!-- While the request runs, `busy` stops Escape, the backdrop and the close button from closing the dialog. That
-       way the outcome (and the one-time activation link, when the mail fails) is never lost with it. -->
+  <!-- While busy, Escape, the backdrop and the close button can't close the dialog, so the outcome (and the one-time
+       activation link, if the mail fails) isn't lost with it. -->
   <gbt-modal [isOpen]="true" heading="Inviter un utilisateur" closeLabel="Fermer" [busy]="sending()" busyLabel="Envoi en cours" (closed)="close.emit()">
     @if (result(); as r) {
       <div #resultRegion class="invite-user__result" tabindex="-1">
@@ -34,7 +34,7 @@
       </div>
     }
 
-    <!-- Footer: one block per step, each with a single root element so Angular can project it into the slot. -->
+    <!-- One block per step, each with a single root element so Angular can project it into the slot. -->
     @if (result()) {
       <div modal-footer class="invite-user__actions">
         <gbt-button text="Terminé" (clicked)="close.emit()" />

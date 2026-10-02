@@ -67,8 +67,8 @@ pub struct FileDiff {
     pub hunks: Vec<Hunk>,
 }
 
-/// Content of a diff line by file path, line number (as on `side`) and side. Validates a new comment's anchor and
-/// decides whether an existing one is outdated (`MergeRequestComment::anchor_content`).
+/// Content of a diff line by path, line number and side. Used to validate a new comment's anchor and to tell whether an
+/// existing one is outdated.
 pub fn find_line<'a>(
     diffs: &'a [FileDiff],
     file_path: &str,
@@ -90,8 +90,7 @@ pub fn find_line<'a>(
     None
 }
 
-/// Like `find_line` for an inclusive range: every line in `start_line..=end_line` must exist on that side without gaps.
-/// A gap (for example across a hunk boundary) returns `None`.
+/// Same for an inclusive range. Any gap, say across a hunk boundary, gives `None`.
 pub fn find_lines(
     diffs: &[FileDiff],
     file_path: &str,
@@ -106,9 +105,7 @@ pub fn find_lines(
     Some(content)
 }
 
-/// Picks the single-line or the range lookup. Comparing the result with a comment's `anchor_content` decides
-/// "outdated". `None` means the anchor no longer exists in the diff (file gone or a line removed), which is as outdated
-/// as changed content.
+/// `None` means the anchor is gone from the diff (file or line removed), which counts as outdated like changed content.
 pub fn resolve_anchor_content(
     diffs: &[FileDiff],
     file_path: &str,
@@ -122,7 +119,7 @@ pub fn resolve_anchor_content(
     }
 }
 
-/// Diffs merge-base(`source_branch`, `target_branch`) to `source_branch`'s tip. Nothing is cached.
+/// Diffs the merge base of the two branches against the source tip. Nothing is cached.
 #[async_trait]
 pub trait DiffReaderPort: Send + Sync {
     async fn diff_branches(

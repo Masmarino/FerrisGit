@@ -28,7 +28,7 @@ impl PipelineFileReaderPort for GixPipelineFileReader {
         let full_path = self.storage_root.join(repository_disk_path);
         let revision = revision.to_string();
         let path = path.to_string();
-        // Keep blocking work off the async executor: git subprocess calls once deadlocked a `#[sqlx::test]` executor.
+        // Git work stays off the async executor: it once deadlocked a #[sqlx::test] runtime.
         blocking(move || GixRepositoryReader.read_file_at_revision(&full_path, &revision, &path))
             .await
     }

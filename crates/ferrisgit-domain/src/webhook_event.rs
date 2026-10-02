@@ -1,11 +1,11 @@
 use serde::Serialize;
 use uuid::Uuid;
 
-/// One variant per event that triggers an in-app notification. It is a separate enum from `NotificationKind`, so a
-/// payload change never affects notifications. `kind()` returns the same strings as `NotificationKind::as_str()`, which
-/// a webhook's stored `events` are matched against.
-// Each serde rename equals `kind()` so the payload's `"event"` matches the subscription string (`"issue_closed"`)
-// rather than serde's default variant name. `every_variant_serializes_its_tag_as_its_own_kind` catches drift.
+/// One variant per event that fires an in-app notification. A separate enum from `NotificationKind` so payload changes
+/// never touch notifications. `kind()` returns the same strings as `NotificationKind::as_str()`, which a webhook's
+/// stored `events` are matched against.
+// Each serde rename equals `kind()` so the payload's `"event"` matches the subscription string. The test
+// `every_variant_serializes_its_tag_as_its_own_kind` catches any drift.
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(tag = "event", rename_all_fields = "camelCase")]
 pub enum WebhookEvent {
@@ -123,8 +123,8 @@ impl WebhookEvent {
         }
     }
 
-    /// Every kind string a webhook may subscribe to, checked at create/update time. Kept next to `kind()`;
-    /// `every_variant_serializes_its_tag_as_its_own_kind` covers the payload side.
+    /// Every kind a webhook can subscribe to, checked on create and update. Keep it next to `kind()`; the same test covers
+    /// the payload side.
     pub const ALL_KINDS: &'static [&'static str] = &[
         "merge_request_approved",
         "merge_request_changes_requested",

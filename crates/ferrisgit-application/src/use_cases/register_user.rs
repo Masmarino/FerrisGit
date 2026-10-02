@@ -9,8 +9,7 @@ use crate::account_rules::{
     ensure_account_available, hash_blocking, normalize_email, normalize_username, validate_password,
 };
 
-/// Free self-registration, available only while an admin has switched it on. Creates a plain (non-admin) account. The
-/// caller (the API layer) sends the new user through MFA enrolment at their first login.
+/// Self-registration, only while an admin has it switched on. Always a plain non-admin account.
 pub struct RegisterUserUseCase {
     users: Arc<dyn UserRepositoryPort>,
     hasher: Arc<dyn PasswordHasherPort>,
@@ -39,7 +38,7 @@ impl RegisterUserUseCase {
         email: String,
         password: String,
     ) -> Result<User, DomainError> {
-        // First, so that a disabled instance answers the same whatever is submitted (no probing for usernames).
+        // First, so a disabled instance answers the same whatever is submitted and nobody can probe usernames.
         if !self.registration.is_enabled().await? {
             return Err(DomainError::Validation(
                 "registration is disabled".to_string(),
@@ -208,8 +207,7 @@ mod tests {
     async fn the_disabled_check_comes_before_any_other_validation() {
         let f = fixture(false, vec![existing("alice", "a@example.com")], vec![]);
 
-        // Would be a Conflict (and a Validation for the password) if the rules ran first: a disabled instance must
-        // not reveal which usernames exist.
+        // With the other rules first this would be a conflict, and a disabled instance would leak usernames.
         let result = register(&f, "alice", "a@example.com", "x").await;
 
         assert!(

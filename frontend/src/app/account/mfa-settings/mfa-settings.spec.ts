@@ -8,7 +8,7 @@ import { MfaSettings } from './mfa-settings';
 import { AuthService } from '../../auth/auth.service';
 import { provideFerrisgitAuth } from '../../auth/auth-kit';
 
-// The QR code comes from FerrisGit's renderer, which lazily imports `qrcode`. jsdom has no canvas.
+// The QR code comes through our renderer, which lazily imports `qrcode`; jsdom has no canvas.
 const toDataURL = vi.hoisted(() => vi.fn());
 vi.mock('qrcode', () => ({ toDataURL }));
 

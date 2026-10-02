@@ -18,7 +18,7 @@ export interface Issue {
   milestoneId: string | null;
   labels: Label[];
   author: UserRef | null;
-  /** `null` when unassigned, or when the assignee no longer resolves. */
+  /** Null when unassigned, or when the assignee no longer resolves. */
   assignee: UserRef | null;
   commentCount: number;
 }
@@ -31,7 +31,7 @@ export interface IssueComment {
   createdAt: string;
 }
 
-/** Closed means the API's `done` status. The backend always sets `closedAt` with it and clears it on reopen. */
+/** Closed is the API's `done` status. The backend always sets `closedAt` with it and clears it on reopen. */
 export function isClosed(issue: Pick<Issue, 'status' | 'closedAt'>): boolean {
   return issue.status === 'done' || issue.closedAt !== null;
 }

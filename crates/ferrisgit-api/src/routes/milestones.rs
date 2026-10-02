@@ -140,7 +140,7 @@ async fn require_manage_access(
     } else if let Some(group_id) = milestone.group_id {
         require_group_role_by_id(state, user_id, group_id, CollaboratorRole::Contributor).await?;
     } else {
-        // Unreachable while the `milestones_scope_xor` CHECK holds, but must never fall through with no permission check.
+        // Can't happen while the milestones_scope_xor CHECK holds, but never fall through without a permission check.
         return Err(ferrisgit_domain::error::DomainError::NotFound("milestone".to_string()).into());
     }
     Ok(milestone)

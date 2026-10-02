@@ -13,8 +13,7 @@ import { AuthService } from '../auth/auth.service';
 import { BreadcrumbSwitcherService } from './breadcrumb-switcher.service';
 import { GbtToastService } from '@masmarino/gabarit';
 
-// Catch-all route target so `navigateByUrl` resolves to a NavigationEnd (routerLinkActive only
-// updates once navigation succeeds against a matching route).
+// Catch-all target so navigateByUrl ends in a NavigationEnd; routerLinkActive only updates after a successful navigation.
 @Component({ selector: 'fg-test-empty', template: '', standalone: true })
 class EmptyTestComponent {}
 
@@ -350,14 +349,13 @@ describe('AppShell', () => {
       await settle(fixture);
       expect(field(fixture).getAttribute('aria-expanded')).toBe('true');
 
-      // One dispatch: Gabarit's host listener blurs the field and hides the results first, then the shell's
-      // document-level handler returns the focus.
+      // A single dispatch: Gabarit's listener blurs the field and hides the results first, then the shell's document
+      // handler returns the focus.
       field(fixture).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
       await settle(fixture);
 
       expect(fixture.nativeElement.querySelector('.app-shell__header--search-open')).toBeNull();
-      // Gabarit gap: `gbt-search-bar` returns focus to its toggle only from its own close button, not when
-      // `expanded` is set from outside. The shell patches this locally.
+      // Gabarit gap: `gbt-search-bar` only refocuses its toggle from its own close button; the shell patches that.
       expect(document.activeElement).toBe(toggle(fixture));
     });
 
@@ -471,7 +469,7 @@ describe('AppShell', () => {
     it('debounces input and calls /api/search once after 250ms of no typing', () => {
       const { component } = setup();
       const httpMock = TestBed.inject(HttpTestingController);
-      // AppShell's ngOnInit and the notification bell fire these on load; drain them so `verify()` reflects only search traffic.
+      // The shell and the bell fire these on load; drain them so verify() only sees search traffic.
       httpMock.expectOne('/api/auth/me').flush({ username: '', email: '', isAdmin: false });
       httpMock.expectOne('/api/settings/public').flush({ executionEngine: 'docker-runners' });
       httpMock.expectOne('/api/notifications/unread-count').flush({ count: 0 });
@@ -711,8 +709,8 @@ describe('AppShell', () => {
   });
 
   describe('breadcrumb', () => {
-    // Angular projects a control-flow block into a named `ng-content select` slot only when the block has exactly
-    // one root element. Check that each projected item is a flat sibling in the <ol>.
+    // A control-flow block is only projected into a named slot with a single root element, so each item must be a flat
+    // sibling in the <ol>.
     it('shows only the page title when no repository context is active', () => {
       const { fixture } = setup();
       TestBed.inject(PageTitleService).set('Groupes');
@@ -779,7 +777,7 @@ describe('AppShell', () => {
   });
 
   describe('repository switcher menu', () => {
-    // The switcher's data comes from the singleton service; tests hand it over directly.
+    // The data lives in a singleton service, so the tests set it directly.
     function openSwitcher() {
       const { fixture } = setup();
       const switcher = TestBed.inject(BreadcrumbSwitcherService);
@@ -851,7 +849,7 @@ describe('AppShell', () => {
   });
 
   describe('admin nav group', () => {
-    // The sub links stay in the DOM, `hidden` (out of the tab order and the accessibility tree) while the group is folded.
+    // Folded, the sub links stay in the DOM but `hidden`, so out of the tab order and the accessibility tree.
     const panelHidden = (fixture: Fixture): boolean => (fixture.nativeElement.querySelector('.gbt-app-shell-nav-group__panel') as HTMLElement).hasAttribute('hidden');
 
     it('omits the Admin entry entirely for a non-admin', () => {
@@ -954,8 +952,8 @@ describe('AppShell', () => {
     });
 
     it('auto-expands the Admin group on load when the current URL is one of its children (e.g. reloading on /admin/health)', async () => {
-      // Navigate before the component is created, to reproduce a reload or a deep link. The
-      // router already knows the URL by the time AppShell's constructor first reads it.
+      // Navigate before creating the component, like a reload or a deep link: the router already knows the URL when the
+      // constructor first reads it.
       TestBed.configureTestingModule({
         providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([{ path: '**', component: EmptyTestComponent }])],
       });
@@ -1005,7 +1003,7 @@ describe('AppShell', () => {
       expect(panelHidden(fixture)).toBe(false);
     });
 
-    // A manual toggle is a permanent override, never revisited after navigation.
+    // A manual toggle sticks, whatever navigation does afterwards.
     it('keeps a manual override in effect even after navigating away and back to the group', async () => {
       TestBed.configureTestingModule({
         providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([{ path: '**', component: EmptyTestComponent }])],

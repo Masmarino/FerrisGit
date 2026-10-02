@@ -80,7 +80,7 @@ function fakeSettingsService(initial: SystemSettings, options: { refuse?: boolea
           current = {
             ...current,
             ...(rest as Partial<SystemSettings>),
-            // The token is stored hashed: only whether one exists comes back.
+            // The token is stored hashed, only whether one exists comes back.
             ...(runnerRegistrationToken === undefined ? {} : { runnerRegistrationTokenConfigured: runnerRegistrationToken !== null }),
           };
           return of(current);

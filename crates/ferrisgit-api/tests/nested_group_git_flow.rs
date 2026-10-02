@@ -47,7 +47,7 @@ async fn nested_group_member_can_clone_and_push_while_creator_loses_access_after
     let acme_body: serde_json::Value = acme_res.json().await.unwrap();
     let acme_id = acme_body["id"].as_str().unwrap();
 
-    // `CreateGroupUseCase` auto-adds the caller as a direct Maintainer of every group it creates, so `creator` holds two memberships that must both be removed later.
+    // Creating a group makes the caller a direct Maintainer of it, so `creator` has two memberships to remove later.
 
     let backend_res = post(
         &client,
@@ -72,7 +72,7 @@ async fn nested_group_member_can_clone_and_push_while_creator_loses_access_after
     .status();
     assert_eq!(add_member_status, 200);
 
-    // `colead` is a second Maintainer only so that removing `creator`'s roles is permitted (the last Maintainer of a hierarchy cannot be removed).
+    // `colead` is there so removing creator's roles is allowed: the last Maintainer of a hierarchy can't be removed.
     let add_colead_status = post(
         &client,
         addr,
@@ -129,7 +129,7 @@ async fn nested_group_member_can_clone_and_push_while_creator_loses_access_after
     )
     .await;
 
-    // A contributor with only a subgroup-level grant can push to a repository two levels deep.
+    // A Contributor on the subgroup alone can push to a repository two levels deep.
     git(&["push", "origin", "HEAD:main"], &member_repo_path).await;
 
     let resolve_res: serde_json::Value = get_json(
@@ -141,7 +141,7 @@ async fn nested_group_member_can_clone_and_push_while_creator_loses_access_after
     .await;
     let repository_id = resolve_res["repositoryId"].as_str().unwrap().to_string();
 
-    // `creator` keeps `owner_id` but has no group role: the clone must be rejected (no permanent owner bypass).
+    // creator keeps owner_id but has no group role, so the clone is refused: there is no owner bypass.
 
     let remove_creator_from_acme_status = delete(
         &client,
@@ -212,7 +212,7 @@ async fn nested_group_member_can_clone_and_push_while_creator_loses_access_after
         "expected an authentication-failure indication in git's stderr, got: {creator_clone_stderr}"
     );
 
-    // The git smart-HTTP endpoint itself must answer the standard git 401 challenge, not only the git CLI.
+    // Check the endpoint's own 401 challenge, not just what the git CLI makes of it.
     let creator_info_refs_res = client
         .get(format!(
             "http://{addr}/acme/backend/terraform-modules.git/info/refs?service=git-upload-pack"
@@ -233,7 +233,7 @@ async fn nested_group_member_can_clone_and_push_while_creator_loses_access_after
         "a 401 to a git client must carry the WWW-Authenticate challenge header"
     );
 
-    // A sub-page URL without `.git` must fall through to the SPA, not be routed into `git_smart_http`.
+    // No `.git` in the URL means the SPA, not git.
 
     let spa_res = client
         .get(format!("http://{addr}/acme/backend/terraform-modules"))

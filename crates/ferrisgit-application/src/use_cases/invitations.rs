@@ -13,12 +13,11 @@ use crate::account_rules::{
 };
 use crate::token_hash::hash_token;
 
-/// One error for unknown, expired, used or malformed tokens: telling them apart would only help someone probing
-/// links.
+/// Same error for unknown, expired, used or malformed tokens, so nobody can probe links.
 const INVALID_INVITATION: &str = "invalid or expired invitation";
 
-/// A freshly invited (or re-invited) user and the plaintext activation token. The token exists only to build the
-/// activation URL: it is not stored (only its hash is) and is redacted from `Debug`.
+/// A freshly (re-)invited user with the plaintext activation token. The token is only there to build the URL: it's
+/// never stored (just its hash) and `Debug` hides it.
 #[derive(Clone)]
 pub struct InvitedUser {
     pub user: User,
@@ -34,7 +33,7 @@ impl std::fmt::Debug for InvitedUser {
     }
 }
 
-/// Stores a new activation token for the user (replacing any previous one) and returns its plaintext.
+/// Stores a new activation token, replacing any previous one, and returns the plaintext.
 async fn issue_invitation(
     invitations: &Arc<dyn UserInvitationPort>,
     user_id: Uuid,
@@ -50,8 +49,8 @@ async fn issue_invitation(
     Ok(token)
 }
 
-/// An admin creates an account for someone else. The account has an unusable password (a hash of a random secret
-/// nobody knows) until the invitee activates it through the link.
+/// An admin creates an account for someone else. Its password is unusable (hash of a random, discarded secret) until
+/// the invitee activates it.
 pub struct InviteUserUseCase {
     users: Arc<dyn UserRepositoryPort>,
     hasher: Arc<dyn PasswordHasherPort>,
@@ -83,7 +82,7 @@ impl InviteUserUseCase {
         let username = normalize_username(&username)?;
         let email = normalize_email(&email)?;
         ensure_account_available(&self.users, &self.groups, &username, &email).await?;
-        // A hash of a secret that is generated here and thrown away: nothing verifies against it until activation.
+        // Hash of a secret that's thrown away, so nothing can log in before activation.
         let password_hash = hash_blocking(&self.hasher, generate_invitation_token()).await?;
         let user = self
             .users
@@ -99,7 +98,7 @@ impl InviteUserUseCase {
     }
 }
 
-/// Issues a new activation link for a user who has not activated yet; the previous link stops working.
+/// New activation link for a user who hasn't activated yet; the previous one stops working.
 pub struct ResendInvitationUseCase {
     users: Arc<dyn UserRepositoryPort>,
     invitations: Arc<dyn UserInvitationPort>,
@@ -119,9 +118,8 @@ impl ResendInvitationUseCase {
             .find_by_id(user_id)
             .await?
             .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
-        // An invitation row (expired or not) is what marks the account as not yet activated. The write only happens if
-        // that row still exists (`renew`, never an upsert). If an activation consumed it between the lookup and this
-        // write, the now active account must not get a new invitation.
+        // A pending invitation row, expired or not, is what marks an account as not activated. `renew` only writes
+        // if that row still exists, so an activation that landed after the lookup doesn't get a new invitation.
         let token = generate_invitation_token();
         let expires_at = Utc::now() + Duration::hours(INVITATION_TTL_HOURS);
         if !self
@@ -137,8 +135,8 @@ impl ResendInvitationUseCase {
     }
 }
 
-/// The invitee follows the link and chooses a password. No session is issued: they log in afterwards and are sent
-/// through MFA enrolment like everybody else.
+/// The invitee follows the link and picks a password. No session is issued: they log in afterwards and go through MFA
+/// enrolment like everyone else.
 pub struct ActivateAccountUseCase {
     users: Arc<dyn UserRepositoryPort>,
     hasher: Arc<dyn PasswordHasherPort>,
@@ -159,8 +157,8 @@ impl ActivateAccountUseCase {
     }
 
     pub async fn execute(&self, token: &str, password: &str) -> Result<Uuid, DomainError> {
-        // Hash before consuming: a rejected password or hasher failure must not burn the invitation. Garbage is
-        // refused before anything expensive with the generic error.
+        // Hash before consuming, so a bad password or a hasher failure doesn't burn the invitation. Malformed tokens
+        // are refused up front, before any hashing.
         if !is_invitation_token_shaped(token) {
             return Err(DomainError::Validation(INVALID_INVITATION.to_string()));
         }
@@ -177,8 +175,8 @@ impl ActivateAccountUseCase {
             .update_password_hash(invitation.user_id, password_hash)
             .await
         {
-            // Best-effort compensation: do not strand the account (no link, and Resend would call it "already
-            // active"). The same link stays usable with its original expiry so the user can simply retry.
+            // Put the link back so the user can retry. Otherwise the account has no link, and resending would call
+            // it "already active".
             let _ = self
                 .invitations
                 .replace(invitation.user_id, &token_hash, invitation.expires_at)
@@ -477,8 +475,7 @@ mod tests {
         assert!(f.invitations.snapshot().is_empty());
     }
 
-    /// Wraps the fake and lets an activation win the race: right before the resend's write, the invitation is consumed
-    /// (the user activated between the resend's lookup and its write).
+    /// Consumes the invitation right before the resend's write, as if the user activated between lookup and write.
     struct ActivationWinsTheRace(Arc<FakeInvitations>);
 
     #[async_trait::async_trait]

@@ -23,7 +23,7 @@
           </p>
         }
 
-        <!-- A single root element, because content projected from inside an @if needs one. -->
+        <!-- Single root element: content projected from inside an @if needs one. -->
         @if (actions(); as a) {
           <div header-actions class="admin-user-detail__actions">
             @if (busy(); as busyLabel) {

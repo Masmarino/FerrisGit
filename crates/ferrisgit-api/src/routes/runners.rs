@@ -14,7 +14,7 @@ use crate::auth_middleware::AdminUser;
 use crate::error::ApiError;
 use crate::state::AppState;
 
-/// Constant-time so a caller-supplied token hash cannot leak how many leading bytes matched.
+/// Constant time, so comparing a caller-supplied hash can't leak how many leading bytes matched.
 fn constant_time_eq(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());
     if a.len() != b.len() {
@@ -117,7 +117,7 @@ async fn self_register(
     }))
 }
 
-/// The only way to invalidate a runner token: they never expire and grant instance-wide read access.
+/// The only way to invalidate a runner token: they never expire and read across the whole instance.
 async fn revoke(
     AdminUser(_admin_id): AdminUser,
     State(state): State<AppState>,

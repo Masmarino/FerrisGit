@@ -20,8 +20,8 @@ type Field = 'description' | 'visibility';
 type SaveState = 'saving' | 'saved' | 'error';
 
 /**
- * The description saves on blur. The visibility asks first, because it changes who can read the repository: the
- * segmented control moves right away, and goes back to the saved value if the change is cancelled or refused.
+ * The description saves on blur. Visibility asks for confirmation since it changes who can read the repo:
+ * the control moves right away and snaps back if the change is cancelled or refused.
  */
 @Component({
   selector: 'fg-repository-general-settings',
@@ -69,7 +69,7 @@ export class RepositoryGeneralSettings implements OnInit {
     });
   }
 
-  /** Called on blur, not on every keystroke (see `Textarea.committed`). */
+  /** Called on blur, not on every keystroke. */
   updateDescription(value: string): void {
     const description = value.trim();
     if (description === this.repository()?.description) {

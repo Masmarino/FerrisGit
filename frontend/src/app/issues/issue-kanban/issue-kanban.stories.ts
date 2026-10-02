@@ -104,7 +104,7 @@ function fakeIssuesService(issues: Issue[], overrides: Partial<Record<keyof Issu
 function withData(options: { issues?: Issue[]; role?: 'owner' | 'reader'; labels?: Label[]; milestones?: Milestone[]; issuesService?: unknown } = {}) {
   return moduleMetadata({
     providers: [
-      // A fresh copy per story, so a drag in one story does not leak into the next.
+      // A fresh copy per story, so a drag in one doesn't leak into the next.
       { provide: IssuesService, useValue: options.issuesService ?? fakeIssuesService((options.issues ?? MIXED).map((item) => ({ ...item }))) },
       { provide: LabelsService, useValue: { listForRepository: () => of(options.labels ?? LABELS) } },
       { provide: MilestonesService, useValue: { listForRepository: () => of(options.milestones ?? MILESTONES) } },
@@ -116,7 +116,7 @@ function withData(options: { issues?: Issue[]; role?: 'owner' | 'reader'; labels
 
 const rect = (el: Element) => el.getBoundingClientRect();
 
-/** Layout checks jsdom cannot make: only the board scrolls sideways, four level lanes of at least 260px, cards, titles and menus inside their boxes. */
+/** Layout checks jsdom can't make: only the board scrolls sideways, four level lanes of at least 260px, cards, titles and menus inside their boxes. */
 function assertBoardLayout(canvas: HTMLElement): void {
   const board = canvas.querySelector('.issue-kanban__board');
   const lanes = Array.from(canvas.querySelectorAll('.issue-kanban__lane'));
@@ -175,7 +175,7 @@ export const Populated: Story = {
   },
 };
 
-/** Phone width: the search field must take a full line below 560px via `@container gbt-page-layout (max-width: 560px)`. If the container is renamed, the field stays at its 22rem maximum and the check fails. */
+/** Phone width: the search field has to take a full line below 560px via `@container gbt-page-layout (max-width: 560px)`. Rename the container and it stays at its 22rem maximum, failing this check. */
 export const PhoneWidth: Story = {
   decorators: [withData({ issues: MIXED.filter((item) => item.number !== 9) }), atPhoneWidth],
   play: async (context) => {
@@ -251,8 +251,8 @@ export const MoveMenuOpen: Story = {
 };
 
 /**
- * Drags `card` over `target` with real mouse events, as the CDK listens to them (a pressed button and
- * a click count, or it takes them for a screen reader's fake events), and releases it unless told not to.
+ * Drags `card` over `target` with real mouse events, the way the CDK listens (a pressed button and a click count,
+ * or it takes them for a screen reader's fake events). Releases unless told not to.
  */
 async function dragCard(card: HTMLElement, target: HTMLElement, options: { release: boolean }): Promise<void> {
   const doc = card.ownerDocument;

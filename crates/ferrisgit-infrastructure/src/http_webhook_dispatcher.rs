@@ -24,15 +24,15 @@ fn signature(secret: &str, body: &[u8]) -> String {
     hex::encode(mac.finalize().into_bytes())
 }
 
-/// Resolver that rejects disallowed addresses at connection time. `validate_webhook_url` only runs at
-/// create/update, which leaves a DNS-rebinding gap. Here, resolving and checking are one atomic step.
+/// Rejects disallowed addresses at connection time. `validate_webhook_url` only runs on create/update,
+/// which leaves a DNS-rebinding gap: here resolving and checking happen together.
 struct SafeWebhookResolver;
 
 impl Resolve for SafeWebhookResolver {
     fn resolve(&self, name: Name) -> Resolving {
         Box::pin(async move {
             let host = name.as_str().to_string();
-            // Port 0 per `Resolve`'s contract; reqwest substitutes the URL's real port.
+            // Port 0 per the `Resolve` contract, reqwest fills in the real one.
             let addrs: Vec<SocketAddr> =
                 tokio::net::lookup_host((host.as_str(), 0)).await?.collect();
             if addrs.is_empty() {
@@ -53,8 +53,8 @@ impl Resolve for SafeWebhookResolver {
     }
 }
 
-/// Caps concurrent deliveries per dispatcher, so one event can't fire an unbounded number of
-/// outbound calls or tasks (amplification). `dispatch` itself still returns immediately.
+/// Caps concurrent deliveries so one event can't spawn an unbounded number of outbound calls.
+/// `dispatch` itself still returns immediately.
 const MAX_CONCURRENT_DELIVERIES: usize = 10;
 
 pub struct HttpWebhookDispatcher {
@@ -67,11 +67,11 @@ impl HttpWebhookDispatcher {
     pub fn new(webhooks: Arc<dyn WebhookStorePort>) -> Self {
         let client = reqwest::Client::builder()
             .timeout(Duration::from_secs(5))
-            // Redirects are off so a receiver can't bounce the signed request to a host other than the
-            // validated one (SSRF). reqwest keeps `X-FerrisGit-Signature-256` on cross-host hops.
+            // No redirects, so a receiver can't bounce the signed request to a host we never validated (SSRF).
+            // reqwest would forward `X-FerrisGit-Signature-256` across hosts.
             .redirect(reqwest::redirect::Policy::none())
             .dns_resolver(Arc::new(SafeWebhookResolver))
-            // A configured proxy would resolve DNS itself and bypass `SafeWebhookResolver`.
+            // A proxy would do its own DNS and skip `SafeWebhookResolver`.
             .no_proxy()
             .build()
             .expect("reqwest client with a fixed timeout and no-redirect policy always builds");
@@ -104,8 +104,8 @@ impl WebhookDispatcherPort for HttpWebhookDispatcher {
     }
 }
 
-/// `reqwest::Error`'s `Display` leaves out the underlying cause (a `SafeWebhookResolver` rejection sits
-/// several `source()` hops down), so the deepest message is appended to make the delivery record useful.
+/// reqwest's Display drops the underlying cause (a resolver rejection sits several `source()` hops down),
+/// so append the whole chain to make delivery records useful.
 fn describe_send_error(err: &reqwest::Error) -> String {
     let mut message = err.to_string();
     let mut source = std::error::Error::source(err);
@@ -117,7 +117,6 @@ fn describe_send_error(err: &reqwest::Error) -> String {
     message
 }
 
-/// Records a delivery that never reached the receiver.
 async fn record_failure(
     store: &dyn WebhookStorePort,
     webhook: &Webhook,
@@ -136,8 +135,8 @@ async fn record_failure(
         .ok();
 }
 
-/// Signs, sends and logs one delivery attempt. Never returns an error: it runs on a spawned task after
-/// `dispatch` returned, so every failure ends in `record_delivery`.
+/// Never returns an error: it runs on a spawned task after `dispatch` returned, so every failure
+/// ends up in `record_delivery`.
 async fn deliver(
     client: &reqwest::Client,
     store: &dyn WebhookStorePort,
@@ -323,15 +322,15 @@ mod tests {
         }
     }
 
-    /// Regression: the disallow-list must run at connection time, not just at create/update. Targets
-    /// `localhost` rather than `127.0.0.1` because reqwest skips its resolver for literal IPs.
+    /// The disallow-list has to run at connection time, not only on create/update. Targets `localhost`
+    /// because reqwest skips its resolver for literal IPs.
     #[tokio::test]
     async fn a_delivery_to_a_disallowed_address_is_blocked_even_though_it_would_otherwise_succeed()
     {
         let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
         let addr = listener.local_addr().unwrap();
         tokio::spawn(async move {
-            // A real listener, so a missing resolver check would produce a successful delivery.
+            // A real listener, so a missing resolver check would give a successful delivery.
             if let Ok((mut socket, _)) = listener.accept().await {
                 use tokio::io::AsyncWriteExt;
                 let _ = socket
@@ -553,7 +552,7 @@ mod tests {
         );
     }
 
-    // Produced by hmac 0.12: receivers already verify this signature, so it must not change.
+    // Value from hmac 0.12: receivers already verify against it, so it can't change.
     #[test]
     fn the_signature_matches_the_one_the_previous_hmac_version_produced() {
         assert_eq!(

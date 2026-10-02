@@ -8,8 +8,8 @@ use jsonwebtoken::{DecodingKey, EncodingKey, Header, Validation, decode, encode}
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// Fixed `iss`/`aud`. On their own they don't scope audiences, but a token minted elsewhere with the
-/// same HS256 secret is rejected unless it carries these claims too.
+/// Fixed iss/aud. They don't scope audiences, but a token minted elsewhere with the same secret
+/// is rejected unless it carries them too.
 const ISSUER: &str = "ferrisgit";
 const AUDIENCE: &str = "ferrisgit-api";
 
@@ -39,7 +39,7 @@ impl JwtTokenIssuer {
 
 impl TokenIssuerPort for JwtTokenIssuer {
     fn issue(&self, user_id: Uuid, token_epoch: i32) -> Result<String, DomainError> {
-        // Recover from poison: nothing run under this lock can panic, so poison only means another panic already happened.
+        // Nothing under this lock can panic, so poison only means another panic already happened: recover.
         let ttl = *self
             .ttl
             .read()

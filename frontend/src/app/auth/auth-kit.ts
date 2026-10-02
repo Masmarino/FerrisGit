@@ -6,9 +6,8 @@ import { FR_AUTH_LABELS } from './auth-labels.fr';
 import { renderTotpQr } from './totp-qr-renderer';
 
 /**
- * Connects Gabarit's auth kit to FerrisGit once for the whole app (`app.config.ts`). Its ports are FerrisGit's own
- * services, its QR codes are drawn locally and its strings are French. These are plain `Provider`s, not environment
- * providers, so a spec or story can list them next to fakes of `AuthService` / `MfaService`.
+ * Wires Gabarit's auth kit to our services, a local QR renderer and the French strings. Plain providers rather than
+ * environment providers, so a spec or story can list them next to fakes of the two services.
  */
 export function provideFerrisgitAuth(): Provider[] {
   return [

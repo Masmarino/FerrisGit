@@ -29,14 +29,14 @@ impl ChangePasswordUseCase {
             .await?
             .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
         if !self.hasher.verify(current_password, &user.password_hash)? {
-            // Validation, not Unauthorized: a 401 would trip the client's auto-logout over a mistyped form value.
+            // Validation, not Unauthorized: a 401 would log the client out over a mistyped field.
             return Err(DomainError::Validation(
                 "current password is incorrect".to_string(),
             ));
         }
         let new_hash = self.hasher.hash(new_password)?;
         self.users.update_password_hash(user_id, new_hash).await?;
-        // Revokes every JWT issued before this change; a leaked token would otherwise stay valid until expiry.
+        // Invalidates every JWT issued so far, or a leaked one would live until it expires.
         self.users.bump_token_epoch(user_id).await
     }
 }
@@ -50,7 +50,6 @@ mod tests {
 
     const OLD_PASSWORD_HASH: &str = "hashed:old-password";
 
-    /// A user whose current password is `old-password`.
     fn fixture() -> (ChangePasswordUseCase, Arc<FakeUsers>, User) {
         let seed = User {
             password_hash: OLD_PASSWORD_HASH.to_string(),

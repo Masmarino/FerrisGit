@@ -75,7 +75,7 @@ use ferrisgit_domain::webhook_event::WebhookEvent;
 use ferrisgit_domain::wiki::{NewWiki, Wiki, WikiStorePort};
 use ferrisgit_domain::wiki_page::{WikiRevision, WikiWriterPort};
 
-/// The first row matching `matches`, cloned out from under the lock.
+/// First matching row, cloned out of the lock.
 fn find_in<T: Clone>(rows: &Mutex<Vec<T>>, matches: impl Fn(&T) -> bool) -> Option<T> {
     rows.lock()
         .unwrap()
@@ -84,7 +84,7 @@ fn find_in<T: Clone>(rows: &Mutex<Vec<T>>, matches: impl Fn(&T) -> bool) -> Opti
         .cloned()
 }
 
-/// Every row matching `keep`, in insertion order.
+/// All matching rows, in insertion order.
 fn filter_in<T: Clone>(rows: &Mutex<Vec<T>>, keep: impl Fn(&T) -> bool) -> Vec<T> {
     rows.lock()
         .unwrap()
@@ -94,15 +94,14 @@ fn filter_in<T: Clone>(rows: &Mutex<Vec<T>>, keep: impl Fn(&T) -> bool) -> Vec<T
         .collect()
 }
 
-/// Applies `change` to the first row matching `matches`. A no-op when none does, like an SQL `UPDATE` that matches zero
-/// rows.
+/// Updates the first matching row and does nothing if none matches, like an `UPDATE` hitting zero rows.
 fn update_in<T>(rows: &Mutex<Vec<T>>, matches: impl Fn(&T) -> bool, change: impl FnOnce(&mut T)) {
     if let Some(row) = rows.lock().unwrap().iter_mut().find(|row| matches(row)) {
         change(row);
     }
 }
 
-/// A SQL `LIMIT` as a row count: a negative limit selects nothing.
+/// A SQL `LIMIT` as a count: negative selects nothing.
 fn row_limit(limit: i64) -> usize {
     limit.max(0) as usize
 }
@@ -111,7 +110,7 @@ pub struct FakeUsers {
     users: Mutex<Vec<User>>,
     token_epochs: Mutex<HashMap<Uuid, i32>>,
     fail_next_password_update: Mutex<bool>,
-    /// Pending invitations and password resets do not count as admins: such an admin cannot sign in.
+    /// An admin with a pending invitation or reset doesn't count, they can't sign in.
     invitations: Option<Arc<FakeInvitations>>,
     password_resets: Option<Arc<FakePasswordResets>>,
     repositories: Option<Arc<FakeRepositories>>,
@@ -144,7 +143,7 @@ impl FakeUsers {
         self
     }
 
-    /// Admins who can actually sign in: the flag set, and neither an invitation nor a password reset pending.
+    /// Admins who can sign in: flag set, no invitation or reset pending.
     fn active_admin_ids(&self, users: &[User]) -> Vec<Uuid> {
         let mut pending: Vec<Uuid> = self
             .invitations
@@ -257,7 +256,7 @@ impl UserRepositoryPort for FakeUsers {
         Ok(self.active_admin_ids(&self.users.lock().unwrap()).len() as i64)
     }
 
-    /// Enforces the last-admin floor atomically under the one mutex, like the real adapter's row locks.
+    /// The last-admin floor is enforced under the one mutex, as the real adapter does with row locks.
     async fn set_admin(&self, user_id: Uuid, is_admin: bool) -> Result<(), DomainError> {
         let mut users = self.users.lock().unwrap();
         if !is_admin && self.active_admin_ids(&users) == [user_id] {
@@ -273,8 +272,8 @@ impl UserRepositoryPort for FakeUsers {
         Ok(())
     }
 
-    /// Refuses `heir_id == user_id`, `NotFound` and the last-admin floor before changing anything. The group
-    /// Maintainer rule of the real adapter is only covered against Postgres: this fake knows no groups.
+    /// Checks `heir_id == user_id`, `NotFound` and the last-admin floor before changing anything. The group Maintainer
+    /// rule is only tested against Postgres, this fake knows no groups.
     async fn delete(&self, user_id: Uuid, heir_id: Uuid) -> Result<Vec<Repository>, DomainError> {
         if heir_id == user_id {
             return Err(DomainError::Validation(
@@ -299,7 +298,7 @@ impl UserRepositoryPort for FakeUsers {
         Ok(deleted)
     }
 
-    /// Substring match rather than full-text search: no negation or ranking.
+    /// Substring match, not full-text: no negation or ranking.
     async fn search(&self, query: &str, limit: i64) -> Result<Vec<User>, DomainError> {
         let query = query.to_lowercase();
         Ok(self
@@ -313,8 +312,8 @@ impl UserRepositoryPort for FakeUsers {
             .collect())
     }
 
-    /// Rust's `to_lowercase` folds full Unicode, unlike Postgres `lower()`: DB tests of the real adapter must
-    /// stick to ASCII case pairs.
+    /// `to_lowercase` folds all of Unicode, unlike Postgres `lower()`, so DB tests of the real adapter should stick to
+    /// ASCII case pairs.
     async fn find_by_username_ignore_case(
         &self,
         username: &str,
@@ -381,7 +380,7 @@ impl FakeRepositories {
         self.deleted.lock().unwrap().clone()
     }
 
-    /// Removes and returns `owner_id`'s personal repositories; hands its group repositories to `heir_id`.
+    /// Returns and removes the owner's personal repos, and hands their group repos to `heir_id`.
     fn remove_owned_by(&self, owner_id: Uuid, heir_id: Uuid) -> Vec<Repository> {
         let mut repos = self.repos.lock().unwrap();
         let (removed, mut kept): (Vec<Repository>, Vec<Repository>) = repos
@@ -401,8 +400,8 @@ impl FakeRepositories {
 
 #[async_trait]
 impl RepositoryStorePort for FakeRepositories {
-    /// Mirrors `PostgresRepositoryStore::create`'s uniqueness scope: `(owner_id, name)` among
-    /// personal (`group_id: None`) repositories, or `(group_id, name)` among a group's.
+    /// Same uniqueness scope as `PostgresRepositoryStore::create`: name per owner among personal repos, per group among a
+    /// group's.
     async fn create(
         &self,
         new_repo: NewRepository,
@@ -500,7 +499,7 @@ impl RepositoryStorePort for FakeRepositories {
             .collect())
     }
 
-    /// Substring match rather than full-text search: no negation or ranking.
+    /// Substring match, not full-text: no negation or ranking.
     async fn search(
         &self,
         ids: &[Uuid],
@@ -529,8 +528,8 @@ pub struct FakeGroups {
     members: Mutex<Vec<(Uuid, Uuid, CollaboratorRole)>>,
     deleted: Mutex<Vec<Uuid>>,
     set_member_role_calls: Mutex<Vec<(Uuid, Uuid, CollaboratorRole)>>,
-    /// Overrides `delete_if_empty`'s result, to simulate the group stopping being empty between the use case's
-    /// checks and the atomic delete.
+    /// Forces the result of `delete_if_empty`, to simulate the group filling up between the use case's checks and the
+    /// atomic delete.
     delete_if_empty_override: Mutex<Option<bool>>,
 }
 
@@ -580,7 +579,7 @@ impl FakeGroups {
         *self.delete_if_empty_override.lock().unwrap() = Some(result);
     }
 
-    /// Root-first, including `group_id` itself.
+    /// Root first, `group_id` included.
     fn chain_within(groups: &[Group], group_id: Uuid) -> Vec<Group> {
         let mut chain = vec![];
         let mut current = groups.iter().find(|g| g.id == group_id).cloned();
@@ -646,8 +645,8 @@ impl GroupStorePort for FakeGroups {
         Ok(Self::chain_within(&self.groups.lock().unwrap(), group_id))
     }
 
-    /// Groups where `user_id` is a direct Maintainer plus all their descendants, deduplicated by id. `path` joins
-    /// each group's root-first ancestor names with `/`, like the real store.
+    /// Groups where the user is a direct Maintainer plus all descendants, deduplicated. `path` joins the root-first ancestor
+    /// names with `/`, like the real store.
     async fn list_writable_groups(&self, user_id: Uuid) -> Result<Vec<GroupWithPath>, DomainError> {
         let groups = self.groups.lock().unwrap().clone();
         let maintainer_root_ids: Vec<Uuid> = self
@@ -683,8 +682,7 @@ impl GroupStorePort for FakeGroups {
         Ok(result)
     }
 
-    /// Groups where `user_id` holds any direct role plus all their descendants: permission inherits downward
-    /// regardless of role.
+    /// Groups with any direct role plus all descendants, since permissions inherit downward whatever the role.
     async fn list_member_group_ids(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError> {
         let groups = self.groups.lock().unwrap().clone();
         let direct_ids: Vec<Uuid> = self
@@ -716,8 +714,8 @@ impl GroupStorePort for FakeGroups {
         Ok(())
     }
 
-    /// Checks child groups only. The repository half of "empty" is covered by `RepositoryStorePort` fakes rejecting
-    /// first. `force_delete_if_empty` simulates the race.
+    /// Only checks child groups. The repository half of "empty" is covered by the repository fakes rejecting first, and
+    /// `force_delete_if_empty` simulates the race.
     async fn delete_if_empty(&self, id: Uuid) -> Result<bool, DomainError> {
         if let Some(forced) = *self.delete_if_empty_override.lock().unwrap() {
             if forced {
@@ -838,8 +836,7 @@ impl FakeIssues {
         self.issues.lock().unwrap().clone()
     }
 
-    /// Records calls so tests can assert on the scoping a use case passed down: correct filtering here would
-    /// return the same rows for a wrongly-scoped call.
+    /// Records calls, because correct filtering here would return the same rows for a wrongly scoped call.
     pub fn list_assigned_to_calls(&self) -> Vec<(Uuid, Vec<Uuid>)> {
         self.list_assigned_to_calls.lock().unwrap().clone()
     }
@@ -893,8 +890,8 @@ impl IssueStorePort for FakeIssues {
         Ok(issues)
     }
 
-    /// Filters by `milestone_id` only: this fake has no issue-label association, so a non-empty `label_ids`
-    /// narrows to nothing.
+    /// Filters by `milestone_id` only. There's no issue-label association here, so a non-empty `label_ids` narrows to
+    /// nothing.
     async fn list_for_repository_filtered(
         &self,
         repository_id: Uuid,
@@ -912,7 +909,7 @@ impl IssueStorePort for FakeIssues {
         Ok(issues)
     }
 
-    /// A silent no-op for an unknown `id`, like an SQL `UPDATE` matching zero rows.
+    /// Silent no-op for an unknown `id`, like an `UPDATE` matching zero rows.
     async fn update_fields(
         &self,
         id: Uuid,
@@ -990,7 +987,7 @@ impl IssueStorePort for FakeIssues {
         Ok(())
     }
 
-    /// Substring match rather than full-text search.
+    /// Substring match, not full-text.
     async fn search(
         &self,
         repository_ids: &[Uuid],
@@ -1136,7 +1133,7 @@ impl NotificationStorePort for FakeNotifications {
             .count() as i64)
     }
 
-    /// Idempotent and recipient-scoped: no match (wrong recipient, unknown id, already read) is still a success.
+    /// Succeeds even when nothing matches: wrong recipient, unknown id or already read.
     async fn mark_read(
         &self,
         notification_id: Uuid,
@@ -1208,7 +1205,7 @@ impl FakeMergeRequests {
         Self::new(vec![])
     }
 
-    /// Seeds review rows directly, bypassing `upsert_review`'s overwrite semantics and timestamps.
+    /// Seeds review rows directly, skipping `upsert_review`'s overwrite rules and timestamps.
     pub fn with_reviews(self, reviews: Vec<MergeRequestReview>) -> Self {
         *self.reviews.lock().unwrap() = reviews;
         self
@@ -1235,7 +1232,7 @@ impl FakeMergeRequests {
         self.reviews.lock().unwrap().clone()
     }
 
-    /// Records calls so tests can assert on the scoping a use case passed down.
+    /// Records calls to check the scoping a use case passed down.
     pub fn list_awaiting_review_by_calls(&self) -> Vec<(Uuid, Vec<Uuid>)> {
         self.list_awaiting_review_by_calls.lock().unwrap().clone()
     }
@@ -1266,8 +1263,8 @@ impl MergeRequestStorePort for FakeMergeRequests {
         Ok(find_in(&self.merge_requests, |m| m.id == id))
     }
 
-    /// Filters by `milestone_id` only: this fake has no merge-request-label association, so a non-empty
-    /// `label_ids` narrows to nothing.
+    /// Filters by `milestone_id` only. There's no merge-request-label association here, so a non-empty `label_ids` narrows
+    /// to nothing.
     async fn list_for_repository_filtered(
         &self,
         repository_id: Uuid,
@@ -1311,7 +1308,7 @@ impl MergeRequestStorePort for FakeMergeRequests {
         Ok(())
     }
 
-    /// `Conflict` unless the merge request exists and is `Open`, like the real store's `AND status = 'open'`.
+    /// `Conflict` unless the merge request exists and is open, like the real `AND status = 'open'`.
     async fn mark_merged(&self, id: Uuid, merge_commit_sha: &str) -> Result<(), DomainError> {
         let mut merge_requests = self.merge_requests.lock().unwrap();
         match merge_requests
@@ -1347,7 +1344,7 @@ impl MergeRequestStorePort for FakeMergeRequests {
         }
     }
 
-    /// Substring match rather than full-text search.
+    /// Substring match, not full-text.
     async fn search(
         &self,
         repository_ids: &[Uuid],
@@ -1386,8 +1383,7 @@ impl MergeRequestStorePort for FakeMergeRequests {
         Ok(mrs)
     }
 
-    /// Any existing review from `user_id` excludes the merge request, whatever its `source_sha`: staleness only
-    /// matters at merge time.
+    /// Any review by the user excludes the merge request whatever its `source_sha`: staleness only matters at merge time.
     async fn list_awaiting_review_by(
         &self,
         user_id: Uuid,
@@ -1497,8 +1493,8 @@ impl MergeRequestCommentPort for FakeMergeRequests {
 
 #[async_trait]
 impl MergeRequestReviewPort for FakeMergeRequests {
-    /// `username` is always `"someone"`: this fake has no `UserRepositoryPort`. Seed reviews through
-    /// `with_reviews` for a specific one.
+    /// `username` is always "someone" since there's no `UserRepositoryPort` here. Seed reviews with `with_reviews` for a
+    /// specific one.
     async fn upsert_review(
         &self,
         merge_request_id: Uuid,
@@ -1696,7 +1692,7 @@ impl LabelStorePort for FakeLabels {
     }
 }
 
-/// Replaces everything linked to `owner_id`. A repeated label id yields one link (the join table's primary key).
+/// Replaces everything linked to `owner_id`. A repeated label id gives one link, like the join table's primary key.
 fn set_links(links: &Mutex<Vec<(Uuid, Uuid)>>, owner_id: Uuid, label_ids: &[Uuid]) {
     let mut links = links.lock().unwrap();
     links.retain(|(owner, _)| *owner != owner_id);
@@ -1922,7 +1918,7 @@ impl FakeStorage {
         }
     }
 
-    /// Makes `delete`/`delete_all_for_repository` fail with an `Infrastructure` error.
+    /// Makes `delete` and `delete_all_for_repository` fail with an `Infrastructure` error.
     pub fn failing() -> Self {
         Self {
             fail_deletes: true,
@@ -2102,8 +2098,7 @@ impl JobStorePort for FakeJobs {
         Ok(jobs)
     }
 
-    /// Claims the earliest-created `Pending` job whose `tags` are a subset of `runner_tags` and that
-    /// `runnable_jobs` releases within its own pipeline.
+    /// Claims the earliest pending job whose tags fit the runner and that `runnable_jobs` releases in its pipeline.
     async fn claim_next(
         &self,
         runner_id: Uuid,
@@ -2152,8 +2147,7 @@ impl JobStorePort for FakeJobs {
         Ok(())
     }
 
-    /// Terminal statuses are final: a job already in one is left untouched and this returns `false`, like an
-    /// unknown `id`.
+    /// Terminal statuses are final: a job already in one is left alone and this returns `false`, as for an unknown id.
     async fn update_status(&self, id: Uuid, status: JobStatus) -> Result<bool, DomainError> {
         let mut jobs = self.jobs.lock().unwrap();
         let Some(job) = jobs.iter_mut().find(|j| j.id == id) else {
@@ -2339,7 +2333,7 @@ impl RepositoryCollaboratorStorePort for FakeCollaborators {
         Ok(())
     }
 
-    /// A no-op, not an error, when the pair doesn't exist.
+    /// Doesn't fail if the pair doesn't exist.
     async fn remove(&self, repository_id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
         self.rows
             .lock()
@@ -2397,8 +2391,7 @@ impl RepositoryCollaboratorStorePort for FakeCollaborators {
     }
 }
 
-/// Stores webhook secrets in plaintext. There is no encryption here: it only shows that the right secret was passed
-/// through.
+/// Keeps webhook secrets in plaintext, only to show the right secret was passed through.
 pub struct FakeWebhookStore {
     webhooks: Mutex<Vec<Webhook>>,
     secrets: Mutex<HashMap<Uuid, String>>,
@@ -2631,7 +2624,7 @@ impl WikiStorePort for FakeWikis {
         Ok(find_in(&self.wikis, |w| w.repository_id == repository_id))
     }
 
-    /// An existing row wins unchanged: `new_wiki.disk_path` is only used the first time, like `ON CONFLICT`.
+    /// An existing row wins: `new_wiki.disk_path` only counts the first time, like `ON CONFLICT`.
     async fn find_or_create(&self, new_wiki: NewWiki) -> Result<Wiki, DomainError> {
         let mut wikis = self.wikis.lock().unwrap();
         if let Some(existing) = wikis
@@ -2651,8 +2644,8 @@ impl WikiStorePort for FakeWikis {
     }
 }
 
-/// Tracks a head sha and page contents per `wiki_disk_path` and enforces the same compare-and-swap as
-/// `GitWikiWriter`: `base_sha` must equal the current head (`None` only for the first commit), else `Conflict`.
+/// Tracks a head sha and the pages per `wiki_disk_path`, with the same compare-and-swap as `GitWikiWriter`: `base_sha`
+/// must equal the head (`None` only for the first commit), else `Conflict`.
 #[derive(Default)]
 pub struct FakeWikiWriter {
     ensure_calls: Mutex<Vec<String>>,
@@ -2688,7 +2681,7 @@ impl FakeWikiWriter {
             .cloned()
     }
 
-    /// A unique 40-hex-char sha per write, so different writes never collide on the same `base_sha`.
+    /// A unique 40-hex sha per write, so writes never collide on a `base_sha`.
     fn fresh_sha(&self) -> String {
         let mut next = self.next_sha.lock().unwrap();
         *next += 1;
@@ -2706,8 +2699,8 @@ impl WikiWriterPort for FakeWikiWriter {
         Ok(())
     }
 
-    /// Compare-and-swap against the in-memory head, like `GitWikiWriter::save_page`'s `update-ref` check:
-    /// `Conflict` unless `base_sha` equals the current head (`None` for a wiki with no commits).
+    /// Compare-and-swap on the in-memory head like `GitWikiWriter::save_page`: `Conflict` unless `base_sha` is the current
+    /// head (`None` for a wiki with no commits).
     async fn save_page(
         &self,
         wiki_disk_path: &str,
@@ -2838,7 +2831,7 @@ impl PipelineEventPublisherPort for FakeEvents {
     }
 }
 
-/// `update_status` is an unconditional set: terminal-status guards live in the use cases.
+/// `update_status` sets unconditionally, the terminal-status guards live in the use cases.
 pub struct FakePipelines {
     pipelines: Mutex<Vec<Pipeline>>,
 }
@@ -2949,7 +2942,7 @@ impl PipelineStorePort for FakePipelines {
     }
 }
 
-/// Records `submit` and `cancel` in separate lists so an assertion on one cannot be satisfied by a call to the other.
+/// Records `submit` and `cancel` in separate lists so asserting on one can't be satisfied by a call to the other.
 #[derive(Default)]
 pub struct FakeExecution {
     submitted: Mutex<Vec<Uuid>>,
@@ -2983,8 +2976,8 @@ impl JobExecutionPort for FakeExecution {
     }
 }
 
-/// Holds one `RepositorySettings` and one CI-variable set; returned rows carry the `repository_id` that was asked
-/// about, not the one the fake was built with.
+/// Holds one `RepositorySettings` and one CI variable set. Rows come back with the `repository_id` that was asked for,
+/// not the one the fake was built with.
 pub struct FakeRepositorySettings {
     settings: Mutex<RepositorySettings>,
     ci_variables: Mutex<Vec<(CiVariable, String)>>,
@@ -3116,8 +3109,7 @@ impl PipelineFileReaderPort for FakeFileReader {
     }
 }
 
-/// `update` applies every field, keeping the `None`/`Some(None)`/`Some(Some(v))` distinction of the doubly-optional
-/// ones.
+/// `update` applies every field and keeps the `None` / `Some(None)` / `Some(Some(v))` distinction of the nested options.
 pub struct FakeSystemSettings(Mutex<SystemSettings>);
 
 impl FakeSystemSettings {
@@ -3177,7 +3169,7 @@ impl SystemSettingsStorePort for FakeSystemSettings {
     }
 }
 
-/// `delete` is not an error for an unknown id, like the real adapter.
+/// Deleting an unknown id isn't an error, like the real adapter.
 pub struct FakeRunners {
     runners: Mutex<Vec<Runner>>,
     deleted: Mutex<Vec<Uuid>>,
@@ -3334,8 +3326,7 @@ impl PasswordHasherPort for FakeHasher {
     }
 }
 
-/// `FakeHasher` that also records the thread every `hash` ran on, to check that the expensive hashing runs off the
-/// async runtime's threads.
+/// A `FakeHasher` that records the thread each `hash` ran on, to check hashing stays off the async runtime's threads.
 #[derive(Default)]
 pub struct ThreadRecordingHasher {
     threads: Mutex<Vec<std::thread::ThreadId>>,
@@ -3391,8 +3382,8 @@ impl MetricsSnapshotRepositoryPort for FakeMetricsSnapshots {
     }
 }
 
-/// Maps each `disk_path` to a size. A path with no entry reports `0`, like the real `GitBackend::directory_size` does
-/// for an empty bare repo directory.
+/// Maps each `disk_path` to a size. A path with no entry reports 0, like `GitBackend::directory_size` on an empty bare
+/// repo.
 pub struct FakeDirectorySize(HashMap<String, u64>);
 
 impl FakeDirectorySize {
@@ -3437,8 +3428,8 @@ impl StorageHealthCheckPort for FakeStorageHealthCheck {
     }
 }
 
-/// In-memory `MergeRequestEventPort`. `failing()` builds one whose every method returns
-/// `DomainError::Infrastructure`, for asserting that best-effort callers swallow the error.
+/// In-memory `MergeRequestEventPort`. `failing()` returns one that fails every method with `Infrastructure`, to check
+/// that best-effort callers swallow the error.
 #[derive(Default)]
 pub struct FakeMergeRequestEvents {
     events: Mutex<Vec<MergeRequestEvent>>,
@@ -3517,8 +3508,8 @@ impl MergeRequestEventPort for FakeMergeRequestEvents {
     }
 }
 
-/// In-memory `TotpCredentialPort`. `set_last_used_step` is a real compare-and-swap under the mutex,
-/// like the SQL `UPDATE ... WHERE last_used_step IS NULL OR last_used_step < $step` it stands for.
+/// In-memory `TotpCredentialPort`. `set_last_used_step` is a real compare-and-swap under the mutex, like the SQL
+/// `UPDATE ... WHERE last_used_step IS NULL OR last_used_step < $step`.
 #[derive(Default)]
 pub struct FakeTotp {
     credentials: Mutex<HashMap<Uuid, TotpCredential>>,
@@ -3540,7 +3531,7 @@ impl TotpCredentialPort for FakeTotp {
         Ok(self.credential_of(user_id))
     }
 
-    /// Like the SQL `ON CONFLICT ... DO UPDATE ... WHERE confirmed = false`: never overwrites a confirmed row.
+    /// Like `ON CONFLICT ... DO UPDATE ... WHERE confirmed = false`: never overwrites a confirmed row.
     async fn upsert(&self, credential: &TotpCredential) -> Result<bool, DomainError> {
         let mut credentials = self.credentials.lock().unwrap();
         if credentials
@@ -3594,9 +3585,9 @@ impl TotpCredentialPort for FakeTotp {
     }
 }
 
-/// In-memory `WebauthnCredentialPort` with the semantics of the real store. `credential_id` is unique across all users
-/// (`insert` refuses a duplicate without touching the existing row), `delete` is scoped to the owner,
-/// `update_after_authentication` stamps `last_used_at`, and `list_for_user` is ordered by (`created_at`, `id`).
+/// In-memory `WebauthnCredentialPort`, same rules as the real store: `credential_id` is unique across users and a
+/// duplicate `insert` leaves the existing row alone, `delete` is scoped to the owner, `update_after_authentication`
+/// stamps `last_used_at`, and `list_for_user` orders by `created_at` then `id`.
 #[derive(Default)]
 pub struct FakePasskeys {
     rows: Mutex<Vec<StoredPasskey>>,
@@ -3613,7 +3604,7 @@ impl FakePasskeys {
         rows
     }
 
-    /// A stored passkey that is not backed by a real authenticator, for tests that only need "the user has one".
+    /// A stored passkey with no real authenticator behind it, for tests that just need "the user has one".
     pub fn seed(&self, user_id: Uuid, name: &str) -> StoredPasskey {
         let passkey = StoredPasskey {
             id: Uuid::new_v4(),
@@ -3692,12 +3683,12 @@ impl WebauthnCredentialPort for FakePasskeys {
     }
 }
 
-/// One expiring token row per user, the storage both token fakes below share: `(user, token hash, expiry)`.
+/// One expiring token row per user, shared by both token fakes below: `(user, token hash, expiry)`.
 #[derive(Default)]
 struct TokenRows(Mutex<Vec<(Uuid, String, DateTime<Utc>)>>);
 
 impl TokenRows {
-    /// Replaces the user's row, whatever its expiry.
+    /// Replaces the user's row whatever its expiry.
     fn insert(&self, user_id: Uuid, token_hash: &str, expires_at: DateTime<Utc>) {
         let mut rows = self.0.lock().unwrap();
         rows.retain(|(id, _, _)| *id != user_id);
@@ -3717,7 +3708,7 @@ impl TokenRows {
             .map(|(_, hash, expires_at)| (hash, expires_at))
     }
 
-    /// Deletes and returns the row of an unexpired token. An expired row stays where it is and is never consumed.
+    /// Deletes and returns the row of an unexpired token. An expired row stays and is never consumed.
     fn consume(&self, token_hash: &str) -> Option<(Uuid, DateTime<Utc>)> {
         let mut rows = self.0.lock().unwrap();
         let position = rows
@@ -3728,8 +3719,8 @@ impl TokenRows {
     }
 }
 
-/// In-memory `UserInvitationPort` with the semantics of the real store: one row per user, and `consume` atomically
-/// deletes a row only if it has not expired.
+/// In-memory `UserInvitationPort`, like the real store: one row per user, and `consume` deletes atomically and only if
+/// not expired.
 #[derive(Default)]
 pub struct FakeInvitations {
     rows: TokenRows,
@@ -3740,12 +3731,12 @@ impl FakeInvitations {
         Self::default()
     }
 
-    /// Seeds a row as is (for example already expired).
+    /// Seeds a row as is, for example already expired.
     pub fn insert(&self, user_id: Uuid, token_hash: &str, expires_at: DateTime<Utc>) {
         self.rows.insert(user_id, token_hash, expires_at);
     }
 
-    /// Drops the user's row (what an activation consuming it does), for tests simulating that race.
+    /// Drops the user's row, as an activation would, to simulate that race.
     pub fn remove(&self, user_id: Uuid) {
         self.rows.remove(user_id);
     }
@@ -3803,8 +3794,8 @@ impl UserInvitationPort for FakeInvitations {
     }
 }
 
-/// In-memory `PasswordResetPort` with the semantics of the real store, like `FakeInvitations`: one row per user, and
-/// `consume` atomically deletes a row only if it has not expired.
+/// In-memory `PasswordResetPort`, like `FakeInvitations`: one row per user, and `consume` deletes atomically and only if
+/// not expired.
 #[derive(Default)]
 pub struct FakePasswordResets {
     rows: TokenRows,
@@ -3815,7 +3806,7 @@ impl FakePasswordResets {
         Self::default()
     }
 
-    /// Seeds a row as is (for example already expired).
+    /// Seeds a row as is, for example already expired.
     pub fn insert(&self, user_id: Uuid, token_hash: &str, expires_at: DateTime<Utc>) {
         self.rows.insert(user_id, token_hash, expires_at);
     }
@@ -3851,12 +3842,12 @@ impl PasswordResetPort for FakePasswordResets {
             }))
     }
 
-    /// Any row, expired or not, like the SQL `EXISTS`.
+    /// Any row counts, expired or not, like the SQL `EXISTS`.
     async fn is_pending(&self, user_id: Uuid) -> Result<bool, DomainError> {
         Ok(self.row_of(user_id).is_some())
     }
 
-    /// Like the SQL `INSERT ... ON CONFLICT DO NOTHING`: never overwrites a row the user already has.
+    /// Like `INSERT ... ON CONFLICT DO NOTHING`: never overwrites a row the user already has.
     async fn restore(
         &self,
         user_id: Uuid,
@@ -3924,8 +3915,8 @@ impl PublicPagesSettingsPort for FakePublicPagesSettings {
     }
 }
 
-/// In-memory `BackupCodePort` over salted hashes, like the real adapter: `try_consume` verifies the
-/// plaintext against every still-unused hash of the user and marks the match used, atomically.
+/// In-memory `BackupCodePort` over salted hashes like the real adapter: `try_consume` checks the plaintext against
+/// every unused hash of the user and marks the match used, atomically.
 #[derive(Default)]
 pub struct FakeBackupCodes {
     by_user: Mutex<HashMap<Uuid, Vec<(String, bool)>>>,

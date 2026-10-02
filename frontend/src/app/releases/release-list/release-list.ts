@@ -104,7 +104,7 @@ export class ReleaseList implements OnInit {
   protected loading = signal(true);
   protected loadFailed = signal(false);
   protected role = computed(() => this.repositoryContext.current()?.role ?? null);
-  // Not `protected` because the spec calls it directly.
+  // Public so the spec can call it.
   canManage = computed(() => this.role() === 'owner' || this.role() === 'maintainer');
   protected createModalOpen = signal(false);
 
@@ -114,7 +114,7 @@ export class ReleaseList implements OnInit {
   protected direction = this.searchSort.direction;
   protected readonly sortOptions = this.searchSort.sortOptions as SelectOption<SortKey>[];
   protected readonly directionOptions = DIRECTION_OPTIONS;
-  // By the date each card shows: the publication once published, the creation for a draft.
+  // By the date each card shows: publication once published, creation for a draft.
   protected filteredItems = this.searchSort.filtered(() => this.items(), {
     text: (release) => [release.title, release.tagName],
     sortBy: { title: (release) => release.title, date: (release) => release.publishedAt ?? release.createdAt },
@@ -126,7 +126,7 @@ export class ReleaseList implements OnInit {
     source: () => [this.search(), this.sortValue(), this.direction()],
     computation: () => 1,
   });
-  /** The page actually shown: `page` clamped to the page count (a refresh can shrink the list under it). */
+  /** The page actually shown: `page` clamped to the page count, since a refresh can shrink the list under it. */
   protected currentPage = computed(() => Math.min(this.page(), Math.max(1, Math.ceil(this.filteredItems().length / RELEASES_PAGE_SIZE))));
   protected cards = computed<ReleaseCard[]>(() => {
     const start = (this.currentPage() - 1) * RELEASES_PAGE_SIZE;
@@ -148,7 +148,7 @@ export class ReleaseList implements OnInit {
   protected readonly skeletonCards = ['58%', '44%', '66%'];
 
   constructor() {
-    // Newest first: the release a visitor looks for is almost always the latest one.
+    // Newest first: the release a visitor looks for is almost always the latest.
     this.direction.set('desc');
   }
 

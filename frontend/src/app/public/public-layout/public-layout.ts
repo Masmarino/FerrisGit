@@ -13,7 +13,7 @@ import { PUBLIC_CATALOG_MAX_QUERY_LENGTH as MAX_QUERY_LENGTH } from '../public-r
 const APP_NAME = 'FerrisGit';
 const REPOSITORY_URL = 'https://github.com/Masmarino/FerrisGit';
 
-/** The frame of the public pages: a header (logo, quick search, documentation, sign-in) above a centred content column. No sidebar. */
+/** The public pages' frame: a header (logo, quick search, docs, sign-in) above a centred column, no sidebar. */
 @Component({
   selector: 'fg-public-layout',
   standalone: true,
@@ -25,7 +25,7 @@ const REPOSITORY_URL = 'https://github.com/Masmarino/FerrisGit';
 export class PublicLayout implements OnDestroy {
   private router = inject(Router);
   private url = currentUrl();
-  /** The routes that fill the page, like the documentation, say so in their data: `{ width: 'full' }`. Otherwise the content is a centred column. */
+  /** Routes that fill the page, like the docs, say so in their data (`{ width: 'full' }`); the rest get a centred column. */
   protected readonly fullWidth = inject(ActivatedRoute).snapshot.data['width'] === 'full';
   private title = inject(Title);
   private pageTitle = inject(PageTitleService);

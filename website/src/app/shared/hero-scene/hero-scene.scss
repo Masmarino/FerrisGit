@@ -1,0 +1,431 @@
+@use '../../../breakpoints' as bp;
+@use '../../../mixins' as m;
+
+// The scene keeps one height whatever the step: the two pages are stacked and every row of the request is laid out
+// from the start, so rows only fade in and the window never grows under the pointer.
+
+:host {
+  display: block;
+}
+
+.scene {
+  position: relative;
+  font-size: var(--t-14);
+  line-height: 1.45;
+}
+
+.scene__page {
+  padding: 1rem 1.125rem 1.125rem;
+  transition: opacity var(--dur-3) var(--ease);
+}
+
+.scene__page--pipeline {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+:host(.is-live.is-pipeline) {
+  .scene__page--mr {
+    opacity: 0;
+  }
+
+  .scene__page--pipeline {
+    opacity: 1;
+  }
+}
+
+.scene__head {
+  padding-bottom: 0.875rem;
+  border-bottom: 1px solid var(--line);
+
+  p {
+    margin: 0;
+  }
+}
+
+.scene__title {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  align-items: center;
+}
+
+.scene__no {
+  color: var(--text-3);
+  font: 500 var(--t-14) var(--mono);
+}
+
+.scene__name {
+  font-size: var(--t-17);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+
+  .mono {
+    font-weight: 500;
+  }
+}
+
+.scene__badge {
+  display: inline-flex;
+  align-items: center;
+  height: 1.375rem;
+  padding-inline: 0.5rem;
+  margin-inline-start: auto;
+  color: var(--patina);
+  font-size: var(--t-13);
+  font-weight: 600;
+  background: var(--patina-soft);
+  border-radius: var(--r-pill);
+  transition:
+    color var(--dur-2) var(--ease),
+    background-color var(--dur-2) var(--ease);
+
+  &.is-merged,
+  &.is-running {
+    color: var(--indigo);
+    background: var(--indigo-soft);
+  }
+}
+
+.scene__branches {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  margin-top: 0.375rem;
+  color: var(--text-2);
+  font-size: var(--t-13);
+
+  svg {
+    @include m.stroke-icon(1.5);
+  }
+
+  .mono {
+    color: var(--text);
+    font-size: 0.8125rem;
+  }
+}
+
+.scene__by {
+  margin-inline-start: auto;
+}
+
+.scene__timeline {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.875rem 0 0;
+  margin: 0;
+  list-style: none;
+}
+
+.scene__item {
+  min-width: 0;
+  transition:
+    opacity var(--dur-3) var(--ease-out),
+    transform var(--dur-3) var(--ease-out);
+
+  p {
+    margin: 0;
+  }
+}
+
+:host(.is-live) .scene__item:not(.is-on) {
+  opacity: 0;
+  transform: translate3d(0, 6px, 0);
+}
+
+:host(.is-restarting) .scene {
+  transition: opacity var(--dur-3) var(--ease);
+  opacity: 0;
+}
+
+.scene__term {
+  padding: 0.625rem 0.75rem;
+  color: var(--text-2);
+  font: 400 0.8125rem / 1.5 var(--mono);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+
+  p {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+}
+
+.scene__cmd {
+  color: var(--text);
+}
+
+.scene__prompt {
+  color: var(--brand-text);
+}
+
+.scene__out {
+  transition: opacity var(--dur-3) var(--ease-out);
+}
+
+:host(.is-live) .scene__out:not(.is-on) {
+  opacity: 0;
+}
+
+.scene__card {
+  padding: 0.625rem 0.75rem 0.75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+}
+
+.scene__card-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.75rem;
+  align-items: baseline;
+  justify-content: space-between;
+  margin-bottom: 0.5rem !important;
+  color: var(--text-2);
+  font-size: var(--t-13);
+
+  b {
+    color: var(--text);
+    font-weight: 600;
+  }
+
+  .mono {
+    font-size: 0.75rem;
+  }
+}
+
+.scene__path {
+  color: var(--text);
+}
+
+// Diff lines in the product's colours. Once the suggestion is applied, the removed line is struck through.
+.scene__diff {
+  overflow: hidden;
+  font: 400 0.75rem / 1.6 var(--mono);
+  border: 1px solid var(--line);
+  border-radius: var(--r-chip);
+}
+
+.scene__line {
+  display: flex;
+  gap: 0.75rem;
+  padding-inline-end: 0.5rem;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.scene__ln {
+  flex: none;
+  width: 2.25rem;
+  color: var(--text-3);
+  text-align: right;
+  user-select: none;
+}
+
+.scene__line--del {
+  background: var(--del-soft);
+}
+
+.scene__line--add {
+  background: var(--patina-soft);
+}
+
+.is-applied .scene__line--del {
+  color: var(--text-3);
+  text-decoration: line-through;
+  background: none;
+}
+
+.scene__suggestion {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.5rem;
+  color: var(--text-2);
+  font-size: var(--t-13);
+}
+
+.scene__button,
+.scene__applied {
+  display: inline-flex;
+  gap: 0.375rem;
+  align-items: center;
+  height: 1.75rem;
+  padding-inline: 0.625rem;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  border-radius: var(--r-chip);
+}
+
+.scene__button {
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+}
+
+.scene__applied {
+  color: var(--patina);
+  background: var(--patina-soft);
+  animation: scene-pop var(--dur-3) var(--ease-out) both;
+
+  svg {
+    @include m.stroke-icon;
+  }
+}
+
+@keyframes scene-pop {
+  from {
+    transform: scale(0.92);
+  }
+}
+
+.scene__event {
+  display: flex;
+  gap: 0.625rem;
+  align-items: center;
+  padding-inline: 0.125rem;
+  color: var(--text-2);
+
+  b {
+    color: var(--text);
+    font-weight: 600;
+  }
+}
+
+.scene__dot {
+  display: inline-grid;
+  flex: none;
+  width: 1.5rem;
+  height: 1.5rem;
+  place-items: center;
+  border-radius: 50%;
+
+  svg {
+    @include m.stroke-icon;
+  }
+}
+
+.scene__dot--ok {
+  color: var(--patina);
+  background: var(--patina-soft);
+}
+
+.scene__dot--merge {
+  color: var(--indigo);
+  background: var(--indigo-soft);
+}
+
+// Pipeline page: stage columns joined by lines, as in the product.
+.scene__stages {
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 1.5rem 0 1rem;
+}
+
+.scene__stage {
+  display: grid;
+  gap: 0.75rem;
+  min-width: 0;
+}
+
+.scene__stage--test {
+  padding-top: 2.125rem;
+}
+
+.scene__stage-name {
+  color: var(--text-3);
+  font: 500 0.75rem / 1.25rem var(--mono);
+}
+
+.scene__job {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  height: 2.25rem;
+  padding-inline: 0.75rem;
+  color: var(--text);
+  font: 500 0.8125rem var(--mono);
+  background: var(--surface-2);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-chip);
+  transition: border-color var(--dur-2) var(--ease);
+
+  gbt-job-status {
+    font-size: 1rem;
+  }
+
+  @include m.job-state-borders;
+}
+
+.scene__links {
+  flex: none;
+  margin-top: 1.25rem;
+  overflow: visible;
+
+  path {
+    fill: none;
+    stroke: var(--line-strong);
+    stroke-width: 1.5;
+  }
+}
+
+.scene__log {
+  padding: 0.625rem 0.75rem;
+  color: var(--text-2);
+  font: 400 0.8125rem / 1.5 var(--mono);
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+
+  p {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  p:first-child {
+    color: var(--text);
+  }
+}
+
+.scene__log-line {
+  transition: opacity var(--dur-3) var(--ease-out);
+
+  &:not(.is-on) {
+    opacity: 0;
+  }
+}
+
+.scene__log-ok {
+  color: var(--patina);
+}
+
+:host(.is-offscreen) {
+  *,
+  *::before,
+  *::after {
+    animation-play-state: paused !important;
+  }
+}
+
+@media (max-width: bp.$xs) {
+  .scene__page {
+    padding: 0.75rem 0.75rem 0.875rem;
+  }
+
+  .scene__links {
+    width: 24px;
+  }
+
+  .scene__by {
+    display: none;
+  }
+}

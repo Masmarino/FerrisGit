@@ -1,0 +1,74 @@
+<div class="sim">
+  <app-code-block
+    class="sim__code"
+    language="yaml"
+    label=".ferrisgit-ci.yml"
+    [region]="'ci.codeLabel' | transloco"
+    [code]="code"
+    [markedLines]="markedLines()"
+  />
+
+  <div class="sim__graph">
+    <div class="sim__head">
+      <p class="sim__status" [attr.data-state]="state().pipeline">
+        <gbt-job-status [status]="pipelineStatus()" />
+        {{ 'ci.pipeline.' + state().pipeline | transloco }}
+      </p>
+      <button
+        type="button"
+        class="sim__replay"
+        [attr.aria-label]="'ci.replay' | transloco"
+        (click)="play()"
+      >
+        <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+          <path d="M3 12a9 9 0 1 0 3-6.7" />
+          <path d="M3 4v5h5" />
+        </svg>
+        <span>{{ 'ci.replay' | transloco }}</span>
+      </button>
+    </div>
+
+    <div class="sim__stages" [attr.aria-label]="'ci.graphLabel' | transloco" role="group">
+      <div class="sim__stage">
+        <p class="sim__stage-name">lint</p>
+        @for (job of jobs().lint; track job.name) {
+          <div class="sim__job" [attr.data-state]="job.state">
+            <gbt-job-status [status]="glyph(job.state)" />
+            <span class="sim__job-name">{{ job.name }}</span>
+            <span class="sim__job-state">{{ 'ci.job.' + job.state | transloco }}</span>
+          </div>
+        }
+      </div>
+      <svg class="sim__links" viewBox="0 0 48 120" width="48" height="120" aria-hidden="true">
+        <path d="M0 24C24 24 24 60 48 60" />
+        <path d="M0 96C24 96 24 60 48 60" />
+      </svg>
+      <div class="sim__stage sim__stage--test">
+        <p class="sim__stage-name">test</p>
+        @for (job of jobs().test; track job.name) {
+          <div class="sim__job" [attr.data-state]="job.state">
+            <gbt-job-status [status]="glyph(job.state)" />
+            <span class="sim__job-name">{{ job.name }}</span>
+            <span class="sim__job-state">{{ 'ci.job.' + job.state | transloco }}</span>
+          </div>
+        }
+      </div>
+    </div>
+
+    <div class="sim__controls">
+      <button
+        type="button"
+        class="sim__switch"
+        role="switch"
+        [attr.aria-checked]="failing()"
+        (click)="toggle()"
+      >
+        <span class="sim__track" aria-hidden="true"><span class="sim__thumb"></span></span>
+        <span>{{ 'ci.failSwitch' | transloco }}</span>
+      </button>
+      <p class="sim__note" aria-live="polite">
+        {{ (failing() ? 'ci.noteFailing' : 'ci.notePassing') | transloco }}
+      </p>
+    </div>
+  </div>
+</div>

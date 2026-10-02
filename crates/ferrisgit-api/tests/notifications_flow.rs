@@ -1,6 +1,7 @@
 mod common;
 
 use common::git::git;
+use common::poll_until;
 
 use common::http::{create_user, get_json, login, post, post_empty, post_json};
 
@@ -9,31 +10,13 @@ use sqlx::PgPool;
 use std::process::Command;
 use std::time::Duration;
 
-/// Kills the child process on drop, including on a panicking unwind, so a failed assertion never orphans the runner.
+/// Kills the child on drop, panics included, so a failed assertion doesn't orphan the runner.
 struct KillOnDrop(std::process::Child);
 
 impl Drop for KillOnDrop {
     fn drop(&mut self) {
         let _ = self.0.kill();
         let _ = self.0.wait();
-    }
-}
-
-async fn poll_until<F, Fut>(mut check: F, timeout: Duration, description: &str) -> serde_json::Value
-where
-    F: FnMut() -> Fut,
-    Fut: std::future::Future<Output = Option<serde_json::Value>>,
-{
-    let deadline = tokio::time::Instant::now() + timeout;
-    loop {
-        if let Some(value) = check().await {
-            return value;
-        }
-        assert!(
-            tokio::time::Instant::now() < deadline,
-            "timed out waiting for: {description}"
-        );
-        tokio::time::sleep(Duration::from_millis(500)).await;
     }
 }
 
@@ -454,7 +437,7 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
     assert_eq!(jobs.len(), 1);
     assert_eq!(jobs[0]["status"], "failed");
 
-    // Polled: the pipeline row turns `failed` before the notification is written, so a concurrent read can see `failed` without the notification yet.
+    // Polled: the pipeline row turns failed before the notification is written, so a read can see one without the other.
     let notifications_after_pipeline_failure = poll_until(
         || {
             let client = client.clone();

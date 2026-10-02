@@ -108,7 +108,7 @@ export class AppShell implements OnInit {
 
   readonly searchResultLabel = (item: QuickSearchResult): string => item.label;
 
-  /** Said politely when the results open (Gabarit's own default is English). */
+  /** Announced when the results open (Gabarit's default is English). */
   readonly resultsAnnouncement = (count: number): string => `${count} résultat${count > 1 ? 's' : ''}`;
 
   constructor() {
@@ -147,10 +147,10 @@ export class AppShell implements OnInit {
     return items;
   });
 
-  // Updates on every completed navigation so `isMenuOpen`'s auto-expand default follows the route.
+  // Follows every completed navigation, so groups auto-expand with the route.
   private url = currentUrl();
 
-  // Per-group override: a manual toggle is never revisited automatically. Absent means follow the route (see isMenuOpen).
+  // A manual toggle wins for good; a group without an entry follows the route.
   private readonly menuManualOverrides = signal<Record<string, boolean>>({});
 
   protected isMenuOpen(item: NavItem): boolean {
@@ -174,7 +174,7 @@ export class AppShell implements OnInit {
   }
 
   protected groupLink(ctx: RepositoryContext, group: { name: string }): string[] {
-    // Only called for a group's own switcher, where `ctx.ancestors` always has at least one entry.
+    // Only used by a group's own switcher, so ancestors is never empty.
     return [...ctx.ancestors[ctx.ancestors.length - 1].link, group.name];
   }
 
@@ -211,8 +211,8 @@ export class AppShell implements OnInit {
       return;
     }
     this.mobileSearchOpen.set(false);
-    // Gabarit gap: `gbt-search-bar` returns focus to its toggle only from its own close button, not when `expanded` is
-    // set from outside (as here). `.gbt-sb-toggle` is its internal class. Remove this once `blurSearch` keeps focus in the bar.
+    // Gabarit gap: `gbt-search-bar` only refocuses its toggle from its own close button, not when `expanded` is set from
+    // outside. `.gbt-sb-toggle` is its internal class. Remove once `blurSearch` keeps focus in the bar.
     afterNextRender(
       () => (this.searchBar()?.nativeElement as HTMLElement | undefined)?.querySelector<HTMLElement>('.gbt-sb-toggle')?.focus(),
       { injector: this.injector },

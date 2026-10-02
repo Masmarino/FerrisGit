@@ -3,7 +3,7 @@ import { Alert, CopyField } from '@masmarino/gabarit';
 
 export type MailedLinkKind = 'invitation' | 'password-reset';
 
-/** What the alert needs after the server could not mail a link: the link itself, when it sent one, and why the mail failed. */
+/** What the alert needs when the mail failed: the link, if one was issued, and why it failed. */
 export interface MailFailure {
   kind: MailedLinkKind;
   username: string;
@@ -33,7 +33,7 @@ const WORDING: Record<MailedLinkKind, Wording> = {
   },
 };
 
-/** The link is the only way to reach the user and is shown to the administrator this once. */
+/** The link is the only way to reach the user, and the administrator sees it this once. */
 @Component({
   selector: 'fg-link-mail-failed',
   standalone: true,
@@ -44,7 +44,7 @@ const WORDING: Record<MailedLinkKind, Wording> = {
 export class LinkMailFailed {
   username = input.required<string>();
   kind = input<MailedLinkKind>('invitation');
-  /** Missing only if the server sent no link. The alert then points to the row action that issues one. */
+  /** Missing only if the server sent no link; the alert then points to the row action that issues one. */
   url = input<string | undefined>(undefined);
   emailError = input<string | undefined>(undefined);
   dismissible = input(false, { transform: booleanAttribute });
@@ -55,7 +55,7 @@ export class LinkMailFailed {
 
   private region = viewChild<ElementRef<HTMLElement>>('region');
 
-  /** The alert appears far from the row that caused it, so the page moves focus to it. */
+  /** The alert shows up far from its row, so the page moves focus to it. */
   focus(): void {
     this.region()?.nativeElement.focus();
   }

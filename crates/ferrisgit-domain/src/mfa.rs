@@ -4,14 +4,14 @@ use uuid::Uuid;
 
 use crate::error::DomainError;
 
-/// `confirmed = false` means enrolled but not yet verified: only a confirmed credential is consulted at login.
+/// Only a confirmed credential counts at login. Unconfirmed means enrolled but not verified yet.
 #[derive(Clone, PartialEq, Eq)]
 pub struct TotpCredential {
     pub user_id: Uuid,
-    /// Plaintext base32 at this layer; encryption at rest is the persistence adapter's job.
+    /// Plaintext base32 here, the adapter encrypts at rest.
     pub secret: String,
     pub confirmed: bool,
-    /// Anti-replay: a code is only accepted when its step is strictly greater than this.
+    /// Anti-replay: a code is only accepted for a step strictly greater than this.
     pub last_used_step: Option<i64>,
     pub created_at: DateTime<Utc>,
 }
@@ -31,49 +31,45 @@ impl std::fmt::Debug for TotpCredential {
 #[async_trait]
 pub trait TotpCredentialPort: Send + Sync {
     async fn get(&self, user_id: Uuid) -> Result<Option<TotpCredential>, DomainError>;
-    /// Inserts or replaces the user's credential as given, `confirmed` and `last_used_step` included, but never
-    /// overwrites one that is already `confirmed`. Returns `false` when it did not write.
+    /// Inserts or replaces the credential as given, but never overwrites a confirmed one. Returns `false` if nothing was
+    /// written.
     async fn upsert(&self, credential: &TotpCredential) -> Result<bool, DomainError>;
-    /// Atomic compare-and-swap: advances `last_used_step` only when `step` is strictly greater than the
-    /// stored one (or none is stored). `false` means a concurrent call already claimed that step.
+    /// Atomic compare-and-swap: only advances when `step` is greater than the stored one. `false` means a concurrent call
+    /// already took that step.
     async fn set_last_used_step(&self, user_id: Uuid, step: i64) -> Result<bool, DomainError>;
-    /// Marks the credential confirmed only if it is still unconfirmed and its `last_used_step` equals `expected_step`,
-    /// so it can only confirm the credential whose code was just verified. `false` means it was replaced, reset or
-    /// already confirmed.
+    /// Confirms only an unconfirmed credential whose `last_used_step` is `expected_step`, i.e. the one whose code was just
+    /// verified. `false` means it was replaced, reset or already confirmed.
     async fn confirm(&self, user_id: Uuid, expected_step: i64) -> Result<bool, DomainError>;
     async fn delete(&self, user_id: Uuid) -> Result<(), DomainError>;
-    /// Which of these users have a confirmed credential. Never decrypts a secret: it is a plain existence check,
-    /// safe to run over a whole user list.
+    /// Which users have a confirmed credential. Never decrypts a secret, so it's cheap over a whole list.
     async fn confirmed_user_ids(&self, user_ids: &[Uuid]) -> Result<Vec<Uuid>, DomainError>;
 }
 
 #[async_trait]
 pub trait BackupCodePort: Send + Sync {
-    /// Replaces the whole set, invalidating every prior code. Each entry is an opaque, individually
-    /// salted hash (`<salt-hex>:<digest-hex>`), never directly comparable to a plaintext.
+    /// Replaces the whole set, which invalidates every earlier code. Each entry is a salted hash (`<salt-hex>:<digest-hex>`).
     async fn replace_all(&self, user_id: Uuid, code_hashes: &[String]) -> Result<(), DomainError>;
-    /// Takes the plaintext candidate: each stored hash carries its own salt, so implementations fetch the
-    /// user's unused hashes and verify the plaintext against each. Atomic: `true` only if a matching,
-    /// still-unused code existed and was consumed, so two concurrent attempts cannot both succeed.
+    /// Takes the plaintext: every stored hash has its own salt, so implementations check it against the user's unused
+    /// hashes. Atomic, so two concurrent attempts can't both succeed with the same code.
     async fn try_consume(&self, user_id: Uuid, plaintext_code: &str) -> Result<bool, DomainError>;
     async fn count_unused(&self, user_id: Uuid) -> Result<i64, DomainError>;
     async fn delete_all(&self, user_id: Uuid) -> Result<(), DomainError>;
 }
 
-/// What a verified `mfa-pending` token carries.
+/// The claims of a verified `mfa-pending` token.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingToken {
     pub user_id: Uuid,
-    /// The user's token epoch at issuance; the caller rejects the token when it differs from the current one.
+    /// The user's token epoch when issued. The caller rejects the token if it no longer matches.
     pub epoch: i32,
     pub jti: Uuid,
 }
 
-/// Short-lived, single-purpose token proving the password step of a login; it authorises the MFA endpoints only.
+/// Short-lived token proving the password step of a login. It only opens the MFA endpoints.
 pub trait MfaPendingTokenPort: Send + Sync {
-    /// Fixed 5-minute lifetime.
+    /// Valid for 5 minutes.
     fn issue(&self, user_id: Uuid, epoch: i32) -> Result<String, DomainError>;
-    /// `Unauthorized` on any failure (bad signature, expired, wrong token type).
+    /// `Unauthorized` on any failure: bad signature, expired, wrong token type.
     fn verify(&self, token: &str) -> Result<PendingToken, DomainError>;
 }
 

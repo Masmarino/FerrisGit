@@ -35,7 +35,7 @@ export const Populated: Story = {
   },
 };
 
-/** Phone width: the pages nav must fold above the list via `@container gbt-page-layout (max-width: 768px)`. If the container is renamed, the nav stays open and the check fails. */
+/** Phone width: the pages nav has to fold above the list via `@container gbt-page-layout (max-width: 768px)`. Rename the container and the nav stays open, failing this check. */
 export const PhoneWidth: Story = {
   decorators: [withData(), atPhoneWidth],
   play: async ({ canvasElement }) => {

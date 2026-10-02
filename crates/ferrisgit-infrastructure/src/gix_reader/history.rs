@@ -3,10 +3,10 @@ use std::path::Path;
 
 use super::{
     CommitInfo, ContributorInfo, GitReadError, GixRepositoryReader, commit_by_sha, commit_info,
-    newest_first_walk, open,
+    newest_first_walk, open, walked_commit,
 };
 
-/// How many commits `list_contributors` walks. Older contributors are not counted (no full-history fallback).
+/// Commits `list_contributors` walks. Older contributors aren't counted, there is no full-history fallback.
 const CONTRIBUTOR_SEARCH_WINDOW: usize = 1000;
 
 const MAX_CONTRIBUTORS: usize = 20;
@@ -20,11 +20,9 @@ impl GixRepositoryReader {
         self.list_commits_at(disk_path, "HEAD", limit)
     }
 
-    /// Newest-first history reachable from `revision` (branch, tag, SHA or `HEAD`,
-    /// resolved like `git rev-parse`, with annotated tags peeled to their commit).
-    /// `HEAD` on a repository with no commits yet gives an empty list. Any other
-    /// revision that doesn't resolve to a commit is a `GitReadError`, so callers can
-    /// tell "no history" from "no such ref".
+    /// `revision` is resolved like `git rev-parse` (branch, tag, SHA, HEAD) and annotated tags are peeled.
+    /// HEAD on a repo with no commits gives an empty list, any other revision that doesn't resolve to a commit
+    /// is an error, so callers can tell "no history" from "no such ref".
     pub fn list_commits_at(
         &self,
         disk_path: &Path,
@@ -43,13 +41,7 @@ impl GixRepositoryReader {
 
         newest_first_walk(&repo, head_id)?
             .take(limit)
-            .map(|info| {
-                let commit = info
-                    .map_err(GitReadError::other)?
-                    .object()
-                    .map_err(GitReadError::other)?;
-                commit_info(&commit)
-            })
+            .map(|info| commit_info(&walked_commit(info)?))
             .collect()
     }
 
@@ -61,7 +53,7 @@ impl GixRepositoryReader {
         self.list_contributors_with_window(disk_path, revision, CONTRIBUTOR_SEARCH_WINDOW)
     }
 
-    /// `list_contributors` with an explicit window, so tests can use a small one.
+    /// With an explicit window, so tests can use a small one.
     pub fn list_contributors_with_window(
         &self,
         disk_path: &Path,
@@ -75,10 +67,7 @@ impl GixRepositoryReader {
 
         let mut tallies: HashMap<(String, String), u32> = HashMap::new();
         for info in newest_first_walk(&repo, start.id)?.take(window) {
-            let commit = info
-                .map_err(GitReadError::other)?
-                .object()
-                .map_err(GitReadError::other)?;
+            let commit = walked_commit(info)?;
             let decoded = commit.decode().map_err(GitReadError::other)?;
             let author = decoded.author().map_err(GitReadError::other)?;
             *tallies
@@ -103,9 +92,8 @@ impl GixRepositoryReader {
         Ok(Some(contributors))
     }
 
-    /// Like `resolve_revision`, but only yields a commit: annotated tags are peeled
-    /// to their commit, and a revision that resolves to a blob or tree (a blob SHA,
-    /// `HEAD^{tree}`, `main:README.md`) is `Ok(None)`, same as an unknown one.
+    /// Like `resolve_revision` but commits only: annotated tags are peeled, and a blob or tree (a blob SHA,
+    /// `HEAD^{tree}`, `main:README.md`) is `Ok(None)` just like an unknown revision.
     pub fn resolve_commit(
         &self,
         disk_path: &Path,
@@ -115,8 +103,8 @@ impl GixRepositoryReader {
         Ok(resolve_commit_in(&repo, revision))
     }
 
-    /// Resolves a SHA, short SHA, branch, tag or `HEAD` to a commit id. `Ok(None)` covers both an
-    /// unresolvable spec and a repository without commits.
+    /// Resolves a SHA, short SHA, branch, tag or HEAD to an object id, without peeling. `Ok(None)` if it
+    /// doesn't resolve or the repo has no commits.
     pub fn resolve_revision(
         &self,
         disk_path: &Path,

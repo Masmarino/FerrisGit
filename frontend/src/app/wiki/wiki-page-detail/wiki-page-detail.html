@@ -23,8 +23,8 @@
         </gbt-card>
       } @else {
         <gbt-card class="wiki-page-detail__card" variant="outlined" [flush]="true">
-          <!-- Gabarit gap: its own heading rather than `heading`, because the card of an opened version below carries a `[card-header]` too and the
-                    outer card would take that one. Keep this h2 as the first `[card-header]` in the card. -->
+          <!-- Gabarit gap: its own heading rather than `heading`, because the card of an opened version below has a `[card-header]` too and the
+               outer card would take that one. Keep this h2 as the first `[card-header]` in the card. -->
           <h2 card-header class="wiki-page-detail__card-heading">Révisions</h2>
           @if (historyRows().length === 0) {
             <p class="wiki-history__empty">Aucun historique.</p>
@@ -45,7 +45,7 @@
                         }
                       </p>
                     </div>
-                    <!-- One button whose label follows the state: focus stays on it. -->
+                    <!-- One button whose label follows the state, so focus stays on it. -->
                     <gbt-button
                       class="wiki-history__toggle"
                       variant="secondary"

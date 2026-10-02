@@ -68,8 +68,7 @@ mod tests {
     use ferrisgit_domain::pipeline_events::PipelineEvent;
     use ferrisgit_domain::settings::SystemSettings;
 
-    /// A claimable job: `Pending` with no runner, as the real store's `claim_next` expects. The shared `FakeJobs`
-    /// really filters on status.
+    /// Pending with no runner, which is what the real `claim_next` wants. `FakeJobs` filters on status too.
     fn fake_job() -> Job {
         job(Uuid::new_v4(), JobStatus::Pending)
     }
@@ -244,8 +243,7 @@ mod tests {
 
     #[tokio::test]
     async fn at_the_concurrency_ceiling_claiming_returns_none_without_touching_the_job_store() {
-        // The seeded job is claimable, so the test fails if the ceiling check didn't short-circuit before
-        // `claim_next`.
+        // The seeded job is claimable, so this fails if the ceiling check doesn't stop before `claim_next`.
         let use_case = use_case(
             Arc::new(FakeJobs::new(vec![fake_job()])),
             Arc::new(FakePipelines::empty()),

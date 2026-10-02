@@ -17,12 +17,12 @@ impl DockerRunnerExecutor {
 #[async_trait]
 impl JobExecutionPort for DockerRunnerExecutor {
     async fn submit(&self, _job: &Job) -> Result<(), DomainError> {
-        // No-op: the job already sits `pending` and runners pull it via `JobStorePort::claim_next`.
+        // Nothing to do: the job is already pending and runners pull it with claim_next.
         Ok(())
     }
 
     async fn cancel(&self, job: &Job) -> Result<(), DomainError> {
-        // The store leaves an already-terminal job alone. Having nothing to cancel is not an error.
+        // The store skips already-terminal jobs, so there being nothing to cancel is fine.
         self.jobs
             .update_status(job.id, JobStatus::Canceled)
             .await

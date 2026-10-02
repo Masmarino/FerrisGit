@@ -16,16 +16,16 @@ export const STATUS_LABELS: Record<JobSummary['status'], string> = {
 };
 
 /**
- * Gabarit's job glyphs stop at the five statuses of a run: a skipped job wears the grey cross of a canceled one, and its
- * label ("Ignoré") tells them apart.
+ * Gabarit's job glyphs stop at the five statuses of a run, so a skipped job wears the grey cross of a canceled one and
+ * its label ("Ignoré") tells them apart.
  */
 export function jobGlyphStatus(status: JobSummary['status']): JobStatusValue {
   return status === 'skipped' ? 'canceled' : status;
 }
 
 /**
- * The job graph reads its screen-reader label from the status itself, so it gets the real one (its glyph then falls back
- * to Gabarit's neutral ring): "Annulé" would be wrong for a job nobody cancelled.
+ * The job graph reads its screen-reader label from the status itself, so it gets the real one (the glyph then falls
+ * back to Gabarit's neutral ring). "Annulé" would be wrong for a job nobody canceled.
  */
 export function jobGraphStatus(status: JobSummary['status']): JobGraphStatus {
   return status as JobGraphStatus;
@@ -50,7 +50,7 @@ export function stageSteps(groups: StageGroup[]): StepperStep[] {
   return groups.map((group) => ({ label: group.name, hasError: group.jobs.some((job) => job.status === 'failed') }));
 }
 
-/** The position of the stage called `name`, or `null` when there is none (or no name). */
+/** Position of the stage called `name`, or null when there is none (or no name). */
 export function stageIndexOf(groups: StageGroup[], name: string | null): number | null {
   const index = groups.findIndex((group) => group.name === name);
   return index === -1 ? null : index;
@@ -60,7 +60,7 @@ export function isTerminal(status: PipelineSummary['status']): boolean {
   return status === 'success' || status === 'failed' || status === 'canceled';
 }
 
-/** The route of a pipeline's page, or of one of its sub-pages (`'jobs', jobId`). */
+/** Route of a pipeline's page, or of one of its sub-pages (`'jobs', jobId`). */
 export function pipelineLink(path: string[], pipelineId: string, ...rest: string[]): string[] {
   return ['/repositories', ...path, '-', 'pipelines', pipelineId, ...rest];
 }
@@ -90,7 +90,7 @@ export function durationLabel(startedAt: string | null, finishedAt: string | nul
   return formatDuration(end - Date.parse(startedAt));
 }
 
-/** A skipped job never ran, so it has no duration to show: it says why instead. */
+/** A skipped job never ran, so it has no duration to show and says why instead. */
 export function jobDurationLabel(job: Pick<JobSummary, 'status' | 'startedAt' | 'finishedAt'>, now: number): string {
   return job.status === 'skipped' ? 'ignoré' : durationLabel(job.startedAt, job.finishedAt, now);
 }

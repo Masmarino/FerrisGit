@@ -33,11 +33,9 @@ pub fn build_docker_run_args(
     args
 }
 
-/// Removes `.git` from a freshly cloned workdir.
-///
-/// The clone URL carries the runner's token as userinfo and `git clone` persists it in `.git/config`. The workdir is
-/// bind-mounted into the job container, so a `script:` step could read that token, which grants read access to every
-/// repository and the ability to claim jobs. Steps only need the working tree, so dropping `.git` costs nothing.
+/// Removes `.git` from a fresh clone. The clone URL holds the runner token and `git clone` writes it to `.git/config`.
+/// The workdir is bind-mounted into the job container, so a script step could read it and get read access to every repo
+/// plus the ability to claim jobs. Steps only need the working tree.
 pub fn strip_git_metadata(workdir: &Path) -> std::io::Result<()> {
     let git_dir = workdir.join(".git");
     match std::fs::remove_dir_all(&git_dir) {
@@ -47,10 +45,8 @@ pub fn strip_git_metadata(workdir: &Path) -> std::io::Result<()> {
     }
 }
 
-/// Replaces every occurrence of any of `secrets` in `line` with `***`.
-///
-/// This covers the clone URL's token (a failing `git clone` echoes it to stderr) and the `masked` CI variable values a
-/// step may print. Otherwise both would reach the job's log stream.
+/// Replaces every occurrence of the secrets in `line` with `***`. Covers the clone token, which a failing `git clone`
+/// echoes to stderr, and the masked CI variables a step may print.
 fn redact_secrets(line: &str, secrets: &[&str]) -> String {
     let mut redacted = line.to_string();
     for secret in secrets {
@@ -61,7 +57,7 @@ fn redact_secrets(line: &str, secrets: &[&str]) -> String {
     redacted
 }
 
-/// Sends each line of `output` to the job's log endpoint as it is produced, secrets redacted.
+/// Sends each line of `output` to the job's log endpoint as it comes, secrets redacted.
 async fn forward_lines(
     output: impl AsyncRead + Unpin,
     client: &RunnerClient,
@@ -75,7 +71,7 @@ async fn forward_lines(
     }
 }
 
-/// Streams each line of combined stdout+stderr to the job's log endpoint as produced, not buffered until exit.
+/// Streams combined stdout and stderr line by line to the job's log endpoint instead of buffering until exit.
 async fn run_streamed(
     client: &RunnerClient,
     job_id: Uuid,
@@ -150,7 +146,7 @@ async fn run_in_workdir(
         }
     }
 
-    // Must run before the workdir is bind-mounted: `.git/config` holds the runner token.
+    // Has to happen before the bind mount, `.git/config` holds the runner token.
     if let Err(err) = strip_git_metadata(workdir) {
         let _ = client
             .append_logs(
@@ -215,7 +211,7 @@ mod tests {
         assert_eq!(args.last().unwrap(), "echo hi");
     }
 
-    /// Real `git` subprocesses against a real temp repository.
+    /// Runs real `git` against a real temp repository.
     fn git(cwd: &Path, args: &[&str]) {
         let status = std::process::Command::new("git")
             .args(args)
@@ -266,8 +262,8 @@ mod tests {
         );
         git(&seed, &["push", "-q", "origin", "HEAD:refs/heads/main"]);
 
-        // Credentials in the userinfo, as `build_clone_url` produces: `file://user:token@/path` is not a valid
-        // remote, so clone a plain path and rewrite the persisted remote URL.
+        // `file://user:token@/path` isn't a valid remote, so clone a plain path and rewrite the remote URL to the credentialed
+        // one `build_clone_url` would produce.
         let workdir = tmp.path().join("workdir");
         std::fs::create_dir_all(&workdir).unwrap();
         git(

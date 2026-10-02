@@ -1,6 +1,6 @@
 import { formatDateTime, formatRelativeTime } from '@masmarino/gabarit';
 
-/** A date as the admin lists show it: "il y a 3 j" up to a month, then "le 12/08/2026", with the exact time as the tooltip. */
+/** "il y a 3 j" up to a month, then "le 12/08/2026"; the exact time goes in the tooltip. */
 export interface RowDate {
   iso: string;
   label: string;

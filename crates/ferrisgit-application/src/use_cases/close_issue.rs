@@ -122,7 +122,7 @@ mod tests {
         webhooks: Arc<FakeWebhooks>,
     }
 
-    /// `issue` lives in a repository owned by `owner`; `users` must hold everybody the test acts as.
+    /// `issue` lives in `owner`'s repo; `users` must include everybody the test acts as.
     fn fixture(owner: &User, users: Vec<User>, issue: impl FnOnce(Uuid) -> Issue) -> Fixture {
         let repo = repository(owner.id);
         let issue = issue(repo.id);
@@ -213,7 +213,7 @@ mod tests {
             closed_at: Some(chrono::Utc::now()),
             ..issue(Uuid::new_v4(), Uuid::new_v4())
         };
-        // `ReopenIssueUseCase` has no `notifications` field: the type system proves reopening never notifies.
+        // The reopen use case has no notifications dependency, so it can't notify.
         let use_case = ReopenIssueUseCase::new(Arc::new(FakeIssues::new(vec![closed.clone()])));
 
         let result = use_case.execute(closed.id).await.unwrap();

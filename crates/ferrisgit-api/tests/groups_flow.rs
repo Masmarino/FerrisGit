@@ -126,7 +126,7 @@ async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_
         "a caller with no access anywhere in the group chain must see 404, not 401 — no existence leak"
     );
 
-    // Regression: the group listing hardcoded role "member". The reported role must be the caller's resolved one.
+    // The group listing used to hardcode the role "member", it has to report the caller's resolved one.
 
     let alice_list_res = get(&client, addr, &alice_jwt, "/repositories").await;
     assert_eq!(alice_list_res.status(), 200);
@@ -211,7 +211,7 @@ async fn nested_group_repository_access_inherits_across_two_levels_and_enforces_
     );
 }
 
-/// Regression: group listings hardcoded role "member" instead of each caller's resolved role.
+/// Group listings used to hardcode the role "member" instead of the caller's resolved role.
 #[sqlx::test]
 async fn a_group_maintainer_and_a_group_reader_see_their_real_resolved_role_on_the_same_group_repository_listing(
     pool: PgPool,

@@ -3,8 +3,7 @@ use uuid::Uuid;
 
 use crate::error::DomainError;
 
-/// A star is a preference marker with no access implications (unlike `RepositoryCollaboratorStorePort`).
-/// `add`/`remove` are idempotent.
+/// A star is only a bookmark and grants no access, unlike a collaborator. `add` and `remove` are idempotent.
 #[async_trait]
 pub trait RepositoryStarStorePort: Send + Sync {
     async fn add(&self, repository_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
@@ -12,7 +11,7 @@ pub trait RepositoryStarStorePort: Send + Sync {
     async fn count_for_repository(&self, repository_id: Uuid) -> Result<i64, DomainError>;
     async fn is_starred(&self, repository_id: Uuid, user_id: Uuid) -> Result<bool, DomainError>;
 
-    /// Backs the `starred=true` filter with one query instead of an `is_starred` call per repository.
+    /// One query for the `starred=true` filter instead of `is_starred` per repository.
     async fn list_starred_for_user(&self, user_id: Uuid) -> Result<Vec<Uuid>, DomainError>;
 }
 

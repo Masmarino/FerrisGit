@@ -161,7 +161,7 @@ describe('GroupDetail', () => {
   });
 
   describe('subgroup creation dialog', () => {
-    // The form's NgForm registers its ngModel controls (and writes their values) a microtask later.
+    // NgForm registers its ngModel controls, and writes their values, a microtask later.
     async function openDialog() {
       const ctx = loaded('maintainer');
       headerButton(ctx.el, 'Nouveau sous-groupe')!.click();

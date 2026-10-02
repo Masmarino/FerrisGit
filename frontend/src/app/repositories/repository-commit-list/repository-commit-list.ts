@@ -4,7 +4,7 @@ import { CommitInfo, RepositoriesService } from '../repositories.service';
 import { commitTitle, shortSha } from '../commit-format';
 import { PageTitleService } from '../../shell/page-title.service';
 
-/** The latest commits of a ref, newest first. Read-only: it only needs `RepositoriesService.commitsById`. */
+/** The latest commits of a ref, newest first. */
 @Component({
   selector: 'fg-repository-commit-list',
   standalone: true,

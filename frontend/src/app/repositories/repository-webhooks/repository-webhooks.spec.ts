@@ -65,7 +65,7 @@ describe('RepositoryWebhooks', () => {
 
   it('loads and displays delivery history when toggled', () => {
     const { component, fixture, repositorySettingsStub } = setup();
-    // The heading looks up the webhook's URL in the loaded list, so it must be there for the drawer to render.
+    // The drawer heading looks the URL up in the loaded list, so the list has to be there.
     repositorySettingsStub.listWebhooks.mockReturnValue(
       of([{ id: 'w1', url: 'https://example.com', events: ['issue_closed'], active: true, createdAt: '2026-01-01T00:00:00Z' }]),
     );
@@ -126,7 +126,7 @@ describe('RepositoryWebhooks', () => {
     fixture.detectChanges();
 
     expect(toastStub.show).toHaveBeenCalledWith("Impossible de charger l'historique des livraisons.", 'error');
-    // The toast announces it. The drawer says it too, but silently (one live region, not two).
+    // The toast announces it; the drawer shows it too, but silently.
     const failed = (fixture.nativeElement as HTMLElement).querySelector('gbt-drawer gbt-alert .gbt-alert');
     expect(failed?.textContent?.trim()).toBe("L'historique n'a pas pu être chargé.");
     expect(failed?.getAttribute('data-variant')).toBe('error');
@@ -145,7 +145,7 @@ describe('RepositoryWebhooks', () => {
     component['newWebhookEvents'].set(['issue_closed']);
     component.addWebhook();
 
-    // `ngOnInit` never ran here, so this call came only from the refresh after `addWebhook()`.
+    // ngOnInit never ran here, so this call is the refresh after addWebhook().
     expect(repositorySettingsStub.listWebhooks).toHaveBeenCalledTimes(1);
   });
 
@@ -250,7 +250,7 @@ describe('RepositoryWebhooks', () => {
       fixture.detectChanges();
       const el = fixture.nativeElement as HTMLElement;
       expect(el.querySelectorAll('gbt-skeleton-list .gbt-skeleton-list__row')).toHaveLength(2);
-      // One polite status, outside any aria-busy region (a busy ancestor can hold the announcement back).
+      // One polite status, outside any aria-busy region (those can hold back the announcement).
       expect(text(el.querySelector('gbt-skeleton-list [role="status"]'))).toBe('Chargement des webhooks…');
       expect(el.querySelector('[aria-busy="true"]')).toBeNull();
 
@@ -268,7 +268,7 @@ describe('RepositoryWebhooks', () => {
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toContain("Les webhooks n'ont pas pu être chargés");
       expect(failed?.getAttribute('data-variant')).toBe('error');
-      // The error toast announces the failure, so the inline block stays silent (one live region, not two).
+      // The toast announces the failure, so the inline block stays silent.
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
       expect(failed?.querySelector('button')?.textContent?.trim()).toBe('Réessayer');
@@ -388,7 +388,7 @@ describe('RepositoryWebhooks', () => {
         fixture.detectChanges();
         await fixture.whenStable();
         expect(dialog(el)).not.toBeNull();
-        // The dialog took the focus (it is not still on the opener), so getting it back is a real move.
+        // The dialog took focus (it isn't still on the opener), so getting it back is a real move.
         expect(document.activeElement).toBe(dialog(el));
 
         dismiss();

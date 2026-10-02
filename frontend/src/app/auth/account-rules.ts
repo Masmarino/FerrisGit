@@ -1,6 +1,6 @@
 import { emailProblem, usernameProblem } from '@masmarino/gabarit';
 
-// French messages over Gabarit's account rules, which mirror the server's (`account_rules.rs`). The server has the final say.
+// French messages over Gabarit's account rules, which mirror the server's (`account_rules.rs`). The server decides in the end.
 
 export const USERNAME_HINT = '3 à 32 caractères, lettres, chiffres, - et _. Enregistré en minuscules.';
 export const USERNAME_ERROR = 'Commencez par une lettre ; 3 à 32 caractères : lettres, chiffres, - et _';

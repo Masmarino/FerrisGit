@@ -14,7 +14,7 @@ const CONTEXT_NAME: &str = "kind-ferrisgit-test";
 
 static CLUSTER_READY: OnceLock<Mutex<bool>> = OnceLock::new();
 
-/// Ensures the shared `kind` cluster exists (created on first use) and returns a client for it.
+/// Creates the shared kind cluster on first use and returns a client for it.
 pub async fn test_client() -> Client {
     let lock = CLUSTER_READY.get_or_init(|| Mutex::new(false));
     let mut ready = lock.lock().await;
@@ -47,8 +47,8 @@ pub async fn test_client() -> Client {
     Client::try_from(config).expect("failed to build a kube::Client from the kind cluster config")
 }
 
-/// A throwaway namespace deleted when the guard drops. Deletion is fire-and-forget because Drop
-/// can't be async. A leak in a disposable local cluster is harmless.
+/// A throwaway namespace, deleted on drop. Fire-and-forget since Drop can't be async; a leak in a
+/// disposable local cluster is harmless.
 pub struct TestNamespace {
     pub name: String,
     client: Client,
@@ -87,9 +87,8 @@ impl Drop for TestNamespace {
     }
 }
 
-/// Builds a client authenticated as the given `ServiceAccount` instead of cluster-admin, so a test can
-/// check that an RBAC role is enough. The config is inferred again because `kube::Client` can't expose
-/// its own.
+/// Client authenticated as the given ServiceAccount instead of cluster-admin, to check an RBAC role is
+/// enough. The config is inferred again because `kube::Client` can't expose its own.
 pub async fn scoped_client_for(namespace: &str, service_account: &str) -> Client {
     let output = TokioCommand::new("kubectl")
         .args([

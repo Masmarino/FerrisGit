@@ -33,7 +33,7 @@ export class MrThreadCard {
 
   protected rootAuthorName = computed(() => authorName(this.thread().root.author));
 
-  // A resolved thread starts collapsed. That state is local to the UI and not saved.
+  // A resolved thread starts collapsed. Not persisted.
   protected expanded = signal(false);
 
   protected collapsed = computed(() => this.thread().resolved && !this.expanded());
@@ -51,7 +51,7 @@ export class MrThreadCard {
     return authorName(comment.author);
   }
 
-  // The +/- prefix mirrors FileDiffView: a real character, so the added/removed distinction survives without colour.
+  // Same +/- prefix as FileDiffView, so added vs removed doesn't depend on colour.
   protected excerptText(line: ExcerptLine): string {
     const prefix = line.kind === 'added' ? '+' : line.kind === 'removed' ? '-' : ' ';
     return prefix + line.content.replace(/\r?\n$/, '');

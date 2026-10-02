@@ -46,8 +46,8 @@ export class FileDiffView {
 
   applySuggestionClicked = output<{ commentId: string }>();
 
-  // An added file has nothing on the old side and a deleted one nothing on the new side: show the one side as a single wide
-  // column. Checked against the rows too, so a file whose rows contradict its change type still gets both sides.
+  // An added file has no old side and a deleted one no new side, so show the other as one wide column.
+  // The rows are checked too, so a file whose rows contradict its change type still gets both sides.
   protected layout = computed<DiffLayout>(() => {
     const file = this.file();
     const rows = file.hunks.flatMap((hunk) => hunk.rows);
@@ -65,7 +65,7 @@ export class FileDiffView {
 
   protected hunks = computed<HunkView[]>(() => this.file().hunks.map((hunk) => ({ rows: hunk.rows, header: hunkHeader(hunk.rows) })));
 
-  // Each key holds an array because independent root comments (different reviewers, or one twice) can anchor to the same file/line/side.
+  // An array per key: independent root comments can anchor to the same line and side.
   protected threadsByKey = computed<Map<string, CommentThread[]>>(() => {
     const roots = this.comments().filter((c) => c.replyToId === null);
     const repliesByRoot = new Map<string, Comment[]>();
@@ -77,7 +77,7 @@ export class FileDiffView {
     const map = new Map<string, CommentThread[]>();
     for (const root of roots) {
       if (root.lineNumber === null || root.side === null) {
-        continue; // General comments are rendered in MergeRequestDetail, not per line here.
+        continue; // General comments are shown by MergeRequestDetail.
       }
       const key = `${root.endLine ?? root.lineNumber}:${root.side}`;
       const thread = { root, replies: repliesByRoot.get(root.id) ?? [] };
@@ -94,7 +94,7 @@ export class FileDiffView {
     this.resolveToggled.emit({ commentId: thread.root.id, resolved: !thread.root.resolved });
   }
 
-  // A resolved thread starts collapsed. That state is local to the UI and not saved.
+  // A resolved thread starts collapsed. Not persisted.
   protected expandedResolved = signal<ReadonlySet<string>>(new Set());
 
   protected isExpanded(rootId: string): boolean {
@@ -111,7 +111,7 @@ export class FileDiffView {
     this.expandedResolved.set(next);
   }
 
-  // Keyed by thread root id: one shared signal would echo any typed draft into every open reply box.
+  // Per thread root id, otherwise a draft typed in one reply box would show up in all of them.
   protected replyDrafts = signal<Record<string, string>>({});
 
   protected replyBodyFor(rootId: string): string {
@@ -165,9 +165,9 @@ export class FileDiffView {
     this.suggestionBody.set('');
   }
 
-  // The add-comment button only listens to mousedown/mouseover (drag to select a range), so Enter and Space did
-  // nothing. `event.detail === 0` means a keyboard click. A real mouse click already opened the compose row through
-  // beginSelecting/finishSelecting and must do nothing here, or a multi-line selection would collapse to one line.
+  // The button only listens to mousedown/mouseover (drag to select a range), so Enter and Space did nothing.
+  // detail === 0 means a keyboard click. A real click has already opened the compose row and must be
+  // ignored here, or a multi-line selection would collapse to one line.
   protected onAddCommentClick(event: MouseEvent, lineNumber: number, side: 'old' | 'new'): void {
     if (event.detail !== 0) {
       return;
@@ -244,8 +244,8 @@ export class FileDiffView {
     return selecting ? `${base} file-diff-view__row--selecting` : base;
   }
 
-  // Background colour alone (`rowClass`) is invisible to colourblind readers: every changed line gets a literal +/-
-  // prefix, chosen per side because a 'modified' row pairs a removed old line with an added new line.
+  // Background colour alone is invisible to colourblind readers, so changed lines get a literal +/-.
+  // Per side, because a 'modified' row pairs a removed old line with an added new one.
   protected oldPrefix(row: SplitDiffRow): string {
     return row.oldContent !== null && (row.kind === 'removed' || row.kind === 'modified') ? '-' : ' ';
   }
@@ -254,8 +254,8 @@ export class FileDiffView {
     return row.newContent !== null && (row.kind === 'added' || row.kind === 'modified') ? '+' : ' ';
   }
 
-  // Each side is tinted on its own: on a 'modified' row the old half is a removal and the new half an addition.
-  // The half of an added or removed line that has no content is 'empty'.
+  // Each side is tinted on its own: on a 'modified' row the old half is a removal, the new half an addition.
+  // A half with no content is 'empty'.
   protected oldTone(row: SplitDiffRow): 'removed' | 'context' | 'empty' {
     if (row.oldContent === null) {
       return 'empty';

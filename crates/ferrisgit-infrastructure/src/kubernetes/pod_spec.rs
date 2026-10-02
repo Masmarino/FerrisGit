@@ -9,7 +9,7 @@ use uuid::Uuid;
 pub const JOB_ID_LABEL: &str = "ferrisgit.io/job-id";
 const CACHE_MOUNT_ROOT: &str = "/ferrisgit-cache";
 
-/// The one place a job's Pod name is built, so `cancel`'s lookup can't drift from `build_pod`.
+/// Single place a Pod name is built, so `cancel`'s lookup can't drift from `build_pod`.
 pub fn pod_name(job_id: Uuid) -> String {
     format!("ferrisgit-job-{job_id}")
 }

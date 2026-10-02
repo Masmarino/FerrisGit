@@ -2,17 +2,17 @@ import { computed, inject } from '@angular/core';
 import { RepositoryRole } from './repositories.service';
 import { RepositoryContextService } from './repository-context.service';
 
-/** The owner, Contributors and Maintainers may write (comment, open issues); a Reader only reads. */
+/** Everyone but a Reader can write (comment, open issues). */
 export function canWrite(role: RepositoryRole | null): boolean {
   return role === 'owner' || role === 'contributor' || role === 'maintainer';
 }
 
-/** The owner and Maintainers administer the repository: merging, deleting, managing releases. */
+/** Merging, deleting, managing releases: owner and Maintainers only. */
 export function canMaintain(role: RepositoryRole | null): boolean {
   return role === 'owner' || role === 'maintainer';
 }
 
-/** Permissions of the repository the user is currently on. Both are `false` until its role has loaded. Call in an injection context. */
+/** Permissions on the current repository, both false until its role loads. Needs an injection context. */
 export function injectRepositoryPermissions() {
   const context = inject(RepositoryContextService);
   const role = computed(() => context.current()?.role ?? null);

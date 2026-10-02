@@ -30,8 +30,8 @@ export class BranchSwitcher implements OnInit {
     ...this.tagNames().map((name) => ({ value: name, label: name, icon: 'tag' })),
   ]);
 
-  // On the bare repository view `currentRef()` is `'HEAD'`, which matches no branch or tag option, so
-  // `gbt-select` would show its placeholder. Use the default branch's name instead.
+  // On the bare repository view the ref is 'HEAD', which matches no option and would leave the select
+  // on its placeholder, so show the default branch instead.
   protected selectedRef = computed(() => {
     if (this.currentRef() !== 'HEAD') return this.currentRef();
     return this.branches().find((b) => b.isDefault)?.name ?? this.currentRef();

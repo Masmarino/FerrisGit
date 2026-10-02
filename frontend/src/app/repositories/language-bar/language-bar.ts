@@ -12,7 +12,7 @@ function hashString(value: string): number {
   return Math.abs(hash);
 }
 
-/** Fixed colours for every language name the backend can send, plus `"Other"`. Hashing into 7 colours would collide with up to 17 names, so the hash is only a fallback. */
+/** Every language the backend can send, plus "Other". Hashing alone would collide (17 names, 7 colours), so it's only a fallback. */
 const LANGUAGE_COLOR_MAP: Record<string, string> = {
   Rust: '#dea584',
   TypeScript: '#3178c6',
@@ -55,7 +55,7 @@ export class LanguageBar implements OnInit {
   ref = input.required<string>();
 
   private repositories = inject(RepositoriesService);
-  /** `null` while loading. A failed request shows as "no languages". */
+  /** `null` while loading; a failed request looks like no languages. */
   protected languages = signal<LanguageStat[] | null>(null);
 
   protected colorFor = colorForLanguage;

@@ -1,5 +1,5 @@
-// Who may write on issues, labels and milestones, and who may be assigned or manage collaborators, with the roles
-// granted directly and through groups. The rule documented in the README is: Reader reads, Contributor contributes.
+// Who may write on issues, labels and milestones, who can be assigned, and who manages collaborators, with roles
+// granted directly and through groups. The rule from the README: Reader reads, Contributor contributes.
 
 mod common;
 
@@ -9,7 +9,7 @@ use serde_json::{Value, json};
 use sqlx::PgPool;
 
 async fn spawn(pool: PgPool) -> Server {
-    // These tests are not about MFA: they log in with a plain session.
+    // Not about MFA, so log in with a plain session.
     spawn_with(pool, Options::default(), |state| {
         state.mfa_enforced = false;
     })
@@ -92,7 +92,7 @@ async fn every_write_on_issues_labels_and_milestones_needs_the_contributor_role(
     let admin = session(&server, "admin", ADMIN_PASSWORD).await;
     let (_, reader_jwt) = user(&server, "reader").await;
     let (contributor_id, contributor_jwt) = user(&server, "contributor").await;
-    // Signed in, with no role on the repository: on a public one that still means Reader access.
+    // Signed in with no role on the repository still means Reader on a public one.
     let (_, stranger_jwt) = user(&server, "stranger").await;
     let repo = create_repository(
         &server,
@@ -204,7 +204,7 @@ async fn every_write_on_issues_labels_and_milestones_needs_the_contributor_role(
         ),
     ];
 
-    // The API answers an insufficient role like an unknown repository: 404, whatever the repository's visibility.
+    // Too low a role looks like an unknown repository: a 404 whatever the visibility.
     for (who, jwt) in [("reader", &reader_jwt), ("stranger", &stranger_jwt)] {
         for (method, path, body) in &writes {
             let response = call(&server, method.clone(), jwt, path, body.clone()).await;
@@ -297,8 +297,8 @@ async fn a_contributor_can_open_and_comment_on_an_issue_of_a_private_repository(
     assert_eq!(comment["body"], "Noted");
 }
 
-/// A team group whose Maintainer is `lead`, `dev` is a Contributor and `viewer` a Reader on it; `outsider` is in
-/// no group. The repository belongs to a subgroup, so every role is inherited.
+/// A team group where `lead` is Maintainer, `dev` Contributor and `viewer` Reader; `outsider` is in no group. The
+/// repository is in a subgroup, so every role is inherited.
 struct Team {
     repo: String,
     lead_jwt: String,
@@ -368,7 +368,7 @@ async fn an_issue_can_be_assigned_to_a_contributor_whose_role_comes_from_a_group
     assert_eq!(issue["number"], 1);
     let assign = format!("/repositories/{repo}/issues/1/assign");
 
-    // "Assign me", as the group Contributor who has no direct grant on the repository.
+    // "Assign me" as a group Contributor with no direct grant on the repository.
     let assigned = ok_json(
         &server,
         Method::POST,
@@ -390,7 +390,7 @@ async fn an_issue_can_be_assigned_to_a_contributor_whose_role_comes_from_a_group
     .await;
     assert_eq!(reassigned["assigneeId"], team.dev_id.as_str());
 
-    // But not to someone who cannot contribute: a group Reader, or a user with no role at all.
+    // But not to someone who can't contribute: a group Reader, or a user with no role.
     for refused in [&team.viewer_id, &team.outsider_id] {
         let response = call(
             &server,
@@ -454,7 +454,7 @@ async fn a_group_maintainer_manages_the_collaborators_of_a_group_repository(pool
     let (_, _) = user(&server, "guest").await;
     let collaborators = format!("/repositories/{repo}/collaborators");
 
-    // The lead is Maintainer of the parent group and holds no direct grant on the repository.
+    // lead is Maintainer of the parent group with no direct grant on the repository.
     add_collaborator(&server, &team.lead_jwt, repo, "guest", "reader").await;
     let listed = ok_json(
         &server,

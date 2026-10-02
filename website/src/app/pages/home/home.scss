@@ -1,0 +1,364 @@
+@use '../../../breakpoints' as bp;
+
+// The hero follows the pointer a little (Parallax directive): the mesh the other way, the scene by half.
+$follow: transform 600ms var(--ease-out);
+
+:host {
+  display: block;
+}
+
+// Hero: copy on the left, the live scene on the right, on a mesh of the three colours and a faint grid.
+.hero {
+  --px: 0px;
+  --py: 0px;
+
+  position: relative;
+  padding-block: clamp(3rem, 2rem + 5vw, 6.5rem) clamp(3.5rem, 2.5rem + 5vw, 7rem);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.hero__mesh {
+  position: absolute;
+  inset: -20% -10%;
+  z-index: -2;
+  background:
+    radial-gradient(42% 55% at 18% 30%, var(--mesh-a), transparent 70%),
+    radial-gradient(48% 60% at 82% 28%, var(--mesh-b), transparent 70%),
+    radial-gradient(38% 45% at 60% 95%, var(--mesh-c), transparent 70%);
+  filter: blur(8px);
+  transform: translate3d(calc(var(--px) * -1), calc(var(--py) * -1), 0);
+  transition: $follow;
+  pointer-events: none;
+}
+
+// The grid fades out towards the bottom, under a layer of noise.
+.hero__grid {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-image:
+    linear-gradient(var(--grid-ink) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-ink) 1px, transparent 1px);
+  background-size: 32px 32px;
+  mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.6) 55%, transparent 100%);
+  pointer-events: none;
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    content: '';
+    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+  }
+}
+
+.hero__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-7) var(--s-8);
+  align-items: center;
+}
+
+.hero__copy {
+  min-width: 0;
+
+  h1 {
+    max-width: 17ch;
+    margin-bottom: var(--s-5);
+  }
+
+  .lead {
+    max-width: 46ch;
+    margin-bottom: var(--s-6);
+    color: var(--text-2);
+  }
+}
+
+.hero__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: center;
+}
+
+// The install command as a second action: the prompt, the command, a copy button.
+.command {
+  display: inline-flex;
+  gap: 0.25rem;
+  align-items: center;
+  max-width: 100%;
+  min-height: var(--tap);
+  padding: 0 0.25rem 0 0.875rem;
+  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  backdrop-filter: blur(8px);
+}
+
+.command__text {
+  min-width: 0;
+  padding: 0;
+  overflow: hidden;
+  color: var(--text);
+  font: 500 var(--t-14) var(--mono);
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  background: none;
+}
+
+.command__prompt {
+  margin-inline-end: 0.5rem;
+  color: var(--brand-text);
+}
+
+.hero__assurance {
+  margin: var(--s-5) 0 0;
+  color: var(--text-3);
+  font-size: var(--t-14);
+}
+
+.hero__plan-link {
+  display: inline-block;
+  margin-inline-start: 0.25rem;
+  color: var(--text-2);
+  font-weight: 500;
+  text-decoration-color: var(--line-strong);
+  text-underline-offset: 0.25em;
+
+  &:hover {
+    color: var(--brand-text);
+    text-decoration-color: var(--brand);
+  }
+}
+
+.hero__scene {
+  min-width: 0;
+  transform: translate3d(calc(var(--px) * 0.5), calc(var(--py) * 0.5), 0);
+  transition: $follow;
+}
+
+@media (min-width: bp.$lg) {
+  .hero__inner {
+    grid-template-columns: minmax(0, 10fr) minmax(0, 11fr);
+  }
+}
+
+// Facts band: exact figures in mono, their meaning in text.
+.facts {
+  background: var(--bg-2);
+  border-block: 1px solid var(--line);
+}
+
+.facts__list {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin-block: 0;
+  background: var(--line);
+  border-inline: 1px solid var(--line);
+  padding-inline: 0;
+}
+
+.fact {
+  display: grid;
+  gap: 0.25rem;
+  padding: var(--s-5) var(--s-4);
+  background: var(--bg-2);
+
+  dt {
+    font: 500 var(--t-24) / 1.1 var(--mono);
+    letter-spacing: -0.02em;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-2);
+    font-size: var(--t-14);
+    line-height: 1.4;
+  }
+}
+
+@media (min-width: bp.$md) {
+  .facts__list {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: bp.$xl) {
+  .facts__list {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+  }
+}
+
+.section__more {
+  margin: var(--s-6) 0 0;
+}
+
+.ci-facts {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-5) var(--s-7);
+  margin: var(--s-7) 0 0;
+
+  div {
+    padding-top: var(--s-4);
+    border-top: 1px solid var(--line-strong);
+  }
+
+  dt {
+    margin-bottom: 0.375rem;
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-2);
+    font-size: var(--t-15);
+    line-height: 1.55;
+  }
+}
+
+@media (min-width: bp.$md) {
+  .ci-facts {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+// The five crates in a row under the architecture plan.
+.crates {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 var(--s-5);
+  padding: 0;
+  margin: var(--s-7) 0 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    gap: 0.25rem;
+    padding: var(--s-4) 0;
+    border-top: 1px solid var(--line-strong);
+  }
+}
+
+.crates__name {
+  color: var(--text);
+  font-size: var(--t-14);
+  font-weight: 500;
+}
+
+.crates__text {
+  color: var(--text-2);
+  font-size: var(--t-15);
+  line-height: 1.5;
+}
+
+@media (min-width: bp.$md) {
+  .crates {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: bp.$xl) {
+  .crates {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+// Security: a ruled list, each fact with the mechanism behind it.
+.sec {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 0 var(--s-7);
+  margin: 0;
+}
+
+.sec__row {
+  display: grid;
+  gap: 0.25rem;
+  padding: var(--s-4) 0;
+  border-top: 1px solid var(--line);
+
+  dt {
+    font-weight: 600;
+  }
+
+  dd {
+    margin: 0;
+    color: var(--text-2);
+    font-size: var(--t-15);
+    line-height: 1.5;
+  }
+}
+
+@media (min-width: bp.$md) {
+  .sec {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sec__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+// Roadmap strip: the five planned versions.
+.strip {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-4);
+  padding: 0;
+  margin: 0 0 var(--s-6);
+  list-style: none;
+}
+
+.strip__item {
+  position: relative;
+  display: grid;
+  gap: 0.375rem;
+  padding: var(--s-4) var(--s-4) var(--s-4) var(--s-5);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-control);
+
+  // A thin rust rule on the leading edge: the line of the timeline, cut into five.
+  &::before {
+    position: absolute;
+    inset-block: var(--s-4);
+    inset-inline-start: -1px;
+    width: 3px;
+    content: '';
+    background: var(--brand);
+    border-radius: 2px;
+  }
+}
+
+.strip__tag {
+  color: var(--brand-text);
+  font-size: var(--t-15);
+  font-weight: 500;
+}
+
+.strip__title {
+  font-size: var(--t-15);
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+@media (min-width: bp.$md) {
+  .strip {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: var(--s-3);
+  }
+}
+
+// Closing block of the page.
+.finale {
+  padding-top: 0;
+}
+
+.finale__box {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}

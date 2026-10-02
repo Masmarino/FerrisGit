@@ -113,7 +113,7 @@ export class MergeRequestDetail implements OnInit {
   protected mergeConflict = signal(false);
   protected reviewSummary = signal<ReviewSummary | null>(null);
   protected canWrite = this.permissions.canWrite;
-  /** The server merges only for the owner and Maintainers (`POST /merge-requests/{id}/merge`): a Contributor does not get the button. */
+  /** The server only lets the owner and Maintainers merge, so a Contributor gets no button. */
   protected canMerge = this.permissions.canMaintain;
   protected labels = signal<Label[]>([]);
   protected milestones = signal<Milestone[]>([]);
@@ -152,8 +152,8 @@ export class MergeRequestDetail implements OnInit {
     return `${count} ${count === 1 ? 'fichier modifié' : 'fichiers modifiés'}`;
   });
 
-  // A stable reference: binding `labels.map(...)` in the template built a new array on every pass, so NgModel
-  // re-applied the value and re-triggered detection forever.
+  // Computed because `labels.map(...)` in the template made a new array on every pass, so NgModel kept
+  // re-applying the value and change detection never settled.
   protected labelIds = computed(() => this.mergeRequest()?.labels.map((label) => label.id) ?? []);
   protected labelOptions = computed<SelectOption<string>[]>(() => this.labels().map((label) => ({ value: label.id, label: label.name, color: label.color })));
   protected milestoneOptions = computed<SelectOption<string | null>[]>(() => [
@@ -165,7 +165,7 @@ export class MergeRequestDetail implements OnInit {
     return id ? (this.milestones().find((milestone) => milestone.id === id)?.title ?? null) : null;
   });
 
-  /** Everyone involved, once each: the author, then commenters and reviewers in the timeline's order, then reviewers it did not show. Unresolvable users are skipped. */
+  /** Everyone involved, once each: author, then commenters and reviewers in timeline order, then the remaining reviewers. Unresolvable users are skipped. */
   protected participants = computed<UserRef[]>(() => {
     const people: (UserRef | null)[] = [this.author()];
     for (const item of this.timeline().items) {
@@ -248,8 +248,7 @@ export class MergeRequestDetail implements OnInit {
     this.loadInto(this.mergeRequests.timeline(this.mergeRequestId()), this.timeline);
   }
 
-  // The overview (timeline) and the Modifications tab read separate payloads, so a change made in
-  // either one has to refresh both.
+  // The timeline and the Modifications tab load separate payloads, so a change in one must refresh both.
   private reloadDiscussion(): void {
     this.reloadComments();
     this.reloadTimeline();
@@ -262,7 +261,7 @@ export class MergeRequestDetail implements OnInit {
   protected onTimelineComment(body: string): void {
     this.mergeRequests.addComment(this.mergeRequestId(), body).subscribe({
       next: () => {
-        // The composer keeps the draft until now, so a failed POST does not lose what was typed.
+        // Only now is the draft cleared, so a failed POST doesn't lose what was typed.
         this.timelineView()?.clearDraft();
         this.reloadDiscussion();
         this.toast.show('Commentaire ajouté.');
@@ -342,7 +341,7 @@ export class MergeRequestDetail implements OnInit {
   }
 
   protected close(): void {
-    // Re-fetches the detail rather than navigating away, so the status badge updates in place.
+    // Refetch instead of navigating away, so the status badge updates in place.
     this.mergeRequests.close(this.mergeRequestId()).subscribe({
       next: () => {
         this.mergeRequests.detail(this.mergeRequestId()).subscribe({ next: (mr) => this.mergeRequest.set(mr) });

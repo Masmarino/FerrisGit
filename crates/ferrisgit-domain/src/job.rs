@@ -13,7 +13,7 @@ pub enum JobStatus {
     Success,
     Failed,
     Canceled,
-    /// Never started because a job it depends on (by `needs`, or through a stage barrier) did not succeed.
+    /// Never started because a job it depends on, through `needs` or a stage barrier, didn't succeed.
     Skipped,
 }
 
@@ -83,14 +83,11 @@ pub struct NewJob {
     pub cache: Vec<String>,
 }
 
-/// Where the server decides which jobs may start, for every engine: `claim_next` (Docker runners poll) and
-/// `list_runnable` (the server pushes, as with Kubernetes) both call this. `jobs` are one pipeline's jobs in creation
-/// order, which is stage order, so a stage's position is that of its first job.
+/// The one place that decides which jobs may start, for every engine: `claim_next` (runners poll) and `list_runnable`
+/// (the server pushes, as with Kubernetes) both use it. `jobs` come in creation order, which is stage order.
 ///
-/// A pending job is released when:
-/// - it has `needs`: all of them succeeded;
-/// - otherwise, and it is not in the first stage: every job of every earlier stage succeeded;
-/// - otherwise (first stage, no `needs`): right away.
+/// A pending job is released once all its `needs` succeeded or, without `needs`, once every job of the earlier stages
+/// succeeded. A job in the first stage with no `needs` starts right away.
 pub fn runnable_jobs(jobs: &[Job]) -> Vec<&Job> {
     jobs.iter()
         .filter(|job| job.status == JobStatus::Pending)
@@ -101,8 +98,8 @@ pub fn runnable_jobs(jobs: &[Job]) -> Vec<&Job> {
         .collect()
 }
 
-/// The pending jobs that can never start because something they wait on (see `runnable_jobs`) failed, was canceled or
-/// was itself skipped, transitively. The caller marks them `Skipped`, which is what lets the pipeline finish.
+/// Pending jobs that can never start because something they wait on failed, was canceled or skipped, transitively.
+/// The caller marks them `Skipped` so the pipeline can finish.
 pub fn unreachable_jobs(jobs: &[Job]) -> Vec<&Job> {
     let mut dead: std::collections::HashSet<Uuid> = jobs
         .iter()
@@ -137,7 +134,7 @@ pub fn unreachable_jobs(jobs: &[Job]) -> Vec<&Job> {
     }
 }
 
-/// The jobs `job` waits on. `None` when a `needs` entry names no job of the pipeline: it can never be satisfied.
+/// The jobs `job` waits on. `None` when a `needs` names a job that doesn't exist, so it can never run.
 fn dependencies<'a>(job: &Job, jobs: &'a [Job]) -> Option<Vec<&'a Job>> {
     if !job.needs.is_empty() {
         return job
@@ -155,42 +152,38 @@ pub trait JobStorePort: Send + Sync {
     async fn create(&self, new_job: NewJob) -> Result<Job, DomainError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Job>, DomainError>;
     async fn list_for_pipeline(&self, pipeline_id: Uuid) -> Result<Vec<Job>, DomainError>;
-    /// Eligible if the job's `tags` is empty or a subset of `runner_tags` and `runnable_jobs` releases it. Sets it
-    /// `running`. `None` if nothing is claimable.
+    /// Picks a pending job whose tags are empty or a subset of the runner's and that `runnable_jobs` releases, and marks it
+    /// running.
     async fn claim_next(
         &self,
         runner_id: Uuid,
         runner_tags: &[String],
     ) -> Result<Option<Job>, DomainError>;
     async fn append_logs(&self, id: Uuid, chunk: &str) -> Result<(), DomainError>;
-    /// Moves a job to `status` only from a non-terminal state. A terminal job is left untouched and `false` is returned
-    /// (also when the job doesn't exist). This keeps a cancellation final: a late runner report must not bring the job
-    /// back.
+    /// Moves a job to `status` unless it is already terminal, in which case it returns `false` (also for a missing job).
+    /// That keeps a cancellation final: a late runner report can't bring the job back.
     async fn update_status(&self, id: Uuid, status: JobStatus) -> Result<bool, DomainError>;
-    /// Puts every `running` job claimed by `runner_id` back to `pending` (runner revoked): `jobs.runner_id` is `ON
-    /// DELETE SET NULL` and `claim_next` only looks at `pending`, so such a job would be stranded. Returns how many
-    /// were released.
+    /// Puts the runner's `running` jobs back to `pending` when it is revoked. `jobs.runner_id` is `ON DELETE SET NULL` and
+    /// `claim_next` only picks `pending`, so they'd be stranded otherwise. Returns how many were released.
     async fn release_jobs_claimed_by(&self, runner_id: Uuid) -> Result<u64, DomainError>;
-    /// Across every pipeline; enforces `system_settings.max_concurrent_jobs`.
+    /// Across every pipeline, to enforce `max_concurrent_jobs`.
     async fn count_running(&self) -> Result<i64, DomainError>;
-    /// The pipeline's jobs that `runnable_jobs` releases, without claiming them (unlike `claim_next`). Lets an engine
-    /// with no polling of its own, like Kubernetes, progress. Their `logs` are left empty.
+    /// The pipeline's jobs that `runnable_jobs` releases, without claiming them. Lets an engine with no polling, like
+    /// Kubernetes, move forward. Logs come back empty.
     async fn list_runnable(&self, pipeline_id: Uuid) -> Result<Vec<Job>, DomainError>;
 }
 
-/// The log retention policy (`system_settings.log_retention_days`). Kept apart from `JobStorePort`: only a background
-/// sweep and the pipeline detail page need it.
+/// Log retention. Kept apart from `JobStorePort` because only a background sweep and the pipeline detail page need it.
 #[async_trait]
 pub trait JobLogRetentionPort: Send + Sync {
-    /// Empties the logs of at most `limit` terminal jobs that finished before `cutoff` and remembers when. Jobs,
-    /// pipelines and statuses stay. Returns how many jobs were purged; a result below `limit` means nothing eligible
-    /// is left.
+    /// Empties the logs of at most `limit` terminal jobs finished before `cutoff` and records when. Returns how many were
+    /// purged; fewer than `limit` means nothing eligible is left.
     async fn purge_logs_finished_before(
         &self,
         cutoff: DateTime<Utc>,
         limit: i64,
     ) -> Result<u64, DomainError>;
-    /// When the logs of the jobs of a pipeline were purged, for the jobs that were.
+    /// When each purged job of the pipeline had its logs purged.
     async fn logs_purged_at(
         &self,
         pipeline_id: Uuid,

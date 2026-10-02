@@ -94,8 +94,8 @@ impl WebhookDispatcherPort for FakeWebhooks {
     }
 }
 
-/// Inserts a user and a repository directly: the foreign keys into `repositories`/`users` are plumbing
-/// these tests aren't proving. Returns `(repository_id, owner_id)`.
+/// Inserts a user and a repository directly: the foreign keys are plumbing these tests aren't proving.
+/// Returns `(repository_id, owner_id)`.
 pub async fn insert_repository(pool: &sqlx::PgPool) -> (Uuid, Uuid) {
     let repository_id = Uuid::new_v4();
     let owner_id = Uuid::new_v4();

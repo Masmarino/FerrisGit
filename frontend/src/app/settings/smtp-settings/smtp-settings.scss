@@ -61,7 +61,7 @@
   @include settings-section.form-actions;
 }
 
-// A live region that also speaks while nothing is being saved, which `gbt-save-status` cannot (Gabarit gap).
+// A live region that also speaks while nothing is being saved, which `gbt-save-status` can't do (Gabarit gap).
 .smtp-settings__summary {
   display: inline-flex;
   align-items: center;

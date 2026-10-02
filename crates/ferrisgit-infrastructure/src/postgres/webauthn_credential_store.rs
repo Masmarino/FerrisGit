@@ -29,7 +29,7 @@ struct Row {
 
 impl From<Row> for StoredPasskey {
     fn from(row: Row) -> Self {
-        // `jsonb` does not keep the original text: the JSON comes back compact, with its keys in Postgres' order.
+        // jsonb doesn't keep the original text: the JSON comes back compact, with keys in Postgres' order.
         Self {
             id: row.id,
             user_id: row.user_id,
@@ -42,8 +42,8 @@ impl From<Row> for StoredPasskey {
     }
 }
 
-/// The domain hands the passkey over as text, and it is stored as `jsonb`. The parse error is not
-/// forwarded because it could quote a fragment of the key material.
+/// The domain hands the passkey over as text and it's stored as jsonb. The parse error isn't forwarded because
+/// it could quote a fragment of the key material.
 fn parse_passkey(passkey_json: &str) -> Result<serde_json::Value, DomainError> {
     serde_json::from_str(passkey_json)
         .map_err(|_| DomainError::Infrastructure("stored passkey is not valid JSON".to_string()))
@@ -72,8 +72,8 @@ impl WebauthnCredentialPort for PostgresWebauthnCredentialStore {
 
     async fn insert(&self, passkey: &StoredPasskey) -> Result<bool, DomainError> {
         let value = parse_passkey(&passkey.passkey_json)?;
-        // The unique index on credential_id settles concurrent registrations of the same credential. One
-        // insert lands, and the others are no-ops that never touch the existing row.
+        // The unique index on credential_id settles concurrent registrations of the same credential: one insert lands,
+        // the others are no-ops that never touch the existing row.
         let result = sqlx::query(
             "INSERT INTO webauthn_credentials (id, user_id, name, credential_id, passkey, created_at, last_used_at) VALUES ($1, $2, $3, $4, $5, $6, $7) \
              ON CONFLICT (credential_id) DO NOTHING",
@@ -105,8 +105,8 @@ impl WebauthnCredentialPort for PostgresWebauthnCredentialStore {
         .execute(&self.pool)
         .await
         .map_err(infra)?;
-        // The passkey was deleted between the assertion and this write (the user removed it in another session):
-        // fail rather than let a login succeed on a credential that no longer exists.
+        // Passkey deleted between the assertion and this write (removed from another session): fail rather than let
+        // a login succeed on a credential that no longer exists.
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("passkey".to_string()));
         }
@@ -201,7 +201,7 @@ mod tests {
         let user = seed_user(&pool, "alice").await;
         let store = store(pool.clone());
         let mut stored = passkey(user, "MacBook", &[1]);
-        // jsonb drops whitespace and key order but keeps the content
+        // jsonb drops whitespace and key order but keeps the content.
         stored.passkey_json =
             "{ \"z\": [1, 2, {\"b\": null}],\n \"a\": \"caf\u{e9}\" }".to_string();
 

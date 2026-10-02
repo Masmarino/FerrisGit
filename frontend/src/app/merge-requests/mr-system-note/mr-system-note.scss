@@ -16,7 +16,7 @@
 }
 
 .mr-system-note__marker {
-  // 24px on a 22px line: centred on it, inside the 3px of padding above and below.
+  // 24px on a 22px line, centred, so it overflows into the 3px padding.
   @include rail.on-rail(rail.$marker-size, 2px);
   border-radius: 50%;
 }

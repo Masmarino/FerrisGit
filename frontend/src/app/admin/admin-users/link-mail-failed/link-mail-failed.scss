@@ -3,7 +3,7 @@
   min-width: 0;
 }
 
-// Gabarit centres the icon on the alert. With several lines of text it belongs next to the title.
+// Gabarit centres the icon on the alert; with several lines it belongs next to the title.
 :host ::ng-deep gbt-alert .gbt-alert {
   align-items: flex-start;
 }
@@ -26,7 +26,7 @@
   font-weight: 600;
 }
 
-// What the mail server said: free text, possibly one long word.
+// What the mail server said: free text, maybe one long word.
 .link-mail-failed__reason {
   margin: 0;
   font-size: 0.8125rem;
@@ -40,7 +40,7 @@
   line-height: 1.4;
 }
 
-// On a phone, give the copy button and Gabarit's 26px dismiss button 44px targets.
+// On a phone, 44px targets for the copy button and Gabarit's 26px dismiss button.
 @media (max-width: 599px) {
   :host ::ng-deep gbt-copy-field .gbt-copy-field__copy .gbt-button {
     width: 44px;

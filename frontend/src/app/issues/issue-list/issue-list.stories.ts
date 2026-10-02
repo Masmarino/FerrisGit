@@ -129,7 +129,7 @@ function withData(options: { issues?: Issue[]; role?: 'owner' | 'reader'; labels
 const rect = (el: Element) => el.getBoundingClientRect();
 const centreY = (el: Element) => rect(el).top + rect(el).height / 2;
 
-/** Layout checks jsdom cannot make: no horizontal overflow, aside beside the list from 769px, status icon, title and trailing items on one line. */
+/** Layout checks jsdom can't make: no horizontal overflow, aside beside the list from 769px, status icon, title and trailing items on one line. */
 function assertPageLayout(canvas: HTMLElement): number {
   const layout = canvas.querySelector('gbt-page-layout');
   const main = canvas.querySelector('.gbt-page-layout__main');
@@ -152,7 +152,7 @@ function assertPageLayout(canvas: HTMLElement): number {
     const icon = row.querySelector('.gbt-list-row__leading gbt-icon');
     if (!icon || Math.abs(centreY(icon) - line) > 1) throw new Error('status icon off the title line');
     const trailing = Array.from(row.querySelectorAll('.issue-list__trailing > *'));
-    // A trailing column wrapped under the title (a phone with a long assignee name) is allowed.
+    // A trailing column wrapping under the title (phone, long assignee name) is fine.
     const onTitleLine = trailing.filter((item) => rect(item).top < rect(row.querySelector('.gbt-list-row__meta') ?? row).top);
     for (const item of onTitleLine) {
       if (Math.abs(centreY(item) - line) > 1) throw new Error('trailing item off the title line');
@@ -282,7 +282,7 @@ export const CreateModalWithValidationError: Story = {
       if (!input) throw new Error('title field not rendered yet');
       return input;
     });
-    // A real focus/blur pair only fires when the story's window has focus: dispatch the blur itself.
+    // A real focus/blur pair only fires when the story's window has focus, so dispatch the blur ourselves.
     title.dispatchEvent(new FocusEvent('blur'));
     await waitFor(() => expect(dialog.querySelector('.gbt-input__error')?.textContent).toContain('Le titre est requis'));
     const submit = Array.from(dialog.querySelectorAll('button')).find((b) => b.textContent?.includes('Créer le ticket'));

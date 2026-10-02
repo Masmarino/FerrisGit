@@ -3,7 +3,7 @@ use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
 use uuid::Uuid;
 
-/// The eight `repositories` columns, shared by every store that returns a `Repository`.
+/// The `repositories` columns shared by every store that returns a `Repository`.
 #[derive(sqlx::FromRow)]
 pub(super) struct RepositoryRow {
     pub id: Uuid,

@@ -157,7 +157,7 @@ function assertPageLayout(canvas: HTMLElement): void {
   for (const event of Array.from(canvas.querySelectorAll('.home-page__event'))) {
     const marker = event.querySelector('.home-page__event-marker')!;
     const link = event.querySelector('.home-page__event-link')!;
-    const firstLine = rect(link).top + 10; // half of the 1.25rem line
+    const firstLine = rect(link).top + 10; // half the 1.25rem line
     if (Math.abs(centreY(marker) - firstLine) > 1) throw new Error('activity marker off its first line');
   }
 }

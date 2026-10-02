@@ -1,9 +1,7 @@
-//! Passkeys (WebAuthn) as an MFA factor: registration, login assertion, listing and deletion.
-//! `webauthn-rs` runs the ceremonies. This service adds single-use ceremonies bound to a user, persistence of
-//! credentials and counters, and the API error semantics: any failed assertion is the same
-//! `Unauthorized("invalid code")` as a wrong TOTP code, so nothing reveals which factor exists. Passkeys are a second
-//! factor after the password (non-discoverable flow).
-//! Security events and token-epoch bumps are left to the caller, like in `MfaService`.
+//! Passkeys (WebAuthn) as a second factor after the password, with the non-discoverable flow.
+//! `webauthn-rs` runs the ceremonies, this adds single-use ceremonies bound to a user and the storage of credentials
+//! and counters. A failed assertion looks like a wrong TOTP code, so nothing reveals which factor exists.
+//! Like `MfaService`, security events and token-epoch bumps are the caller's job.
 
 use std::sync::Arc;
 
@@ -19,21 +17,19 @@ use crate::passkey_ceremonies::{CeremonyState, PasskeyCeremonies};
 
 const RELYING_PARTY_NAME: &str = "FerrisGit";
 const MAX_NAME_CHARS: usize = 40;
-/// Bounds the size of every ceremony state (each one copies the user's credentials) and of the
-/// `allowCredentials` / `excludeCredentials` lists sent to the browser.
+/// Caps the ceremony states (each copies the user's credentials) and the credential lists sent to the browser.
 const MAX_PASSKEYS_PER_USER: i64 = 20;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 struct RelyingParty {
-    /// The registrable host, no scheme and no port (WebAuthn's "RP ID").
+    /// The RP ID: host only, no scheme or port.
     pub id: String,
-    /// Scheme, host and any non-default port, exactly as the browser reports it.
+    /// As the browser reports it, with the port when it isn't the default.
     pub origin: Url,
 }
 
-/// `None` (with a warning) when the public URL cannot carry passkeys: not a URL, not http(s), an IP-literal host
-/// (relying-party ids must be domain names), or plain `http` on a host other than `localhost` / `*.localhost`
-/// (browsers only offer WebAuthn in a secure context).
+/// `None` (with a warning) when the public URL can't carry passkeys: not http(s), an IP host (RP ids must be domain
+/// names), or plain http anywhere but localhost (browsers only allow WebAuthn in a secure context).
 fn relying_party(public_url: &str) -> Option<RelyingParty> {
     let url = Url::parse(public_url)
         .ok()
@@ -69,8 +65,7 @@ fn relying_party(public_url: &str) -> Option<RelyingParty> {
     Some(RelyingParty { id, origin })
 }
 
-/// `None` (with a warning) when passkeys are impossible here: every passkey route then answers 503 while TOTP keeps
-/// working.
+/// `None` (with a warning) when passkeys can't work here. The passkey routes then answer 503 and TOTP carries on.
 pub fn build_webauthn(public_url: &str) -> Option<Webauthn> {
     let relying_party = relying_party(public_url)?;
     match WebauthnBuilder::new(&relying_party.id, &relying_party.origin)
@@ -106,7 +101,7 @@ impl PasskeyService {
         }
     }
 
-    /// `false` for an IP-literal public URL. Listing and deleting stored passkeys never needs it.
+    /// Listing and deleting stored passkeys works even when this is `false`.
     pub fn available(&self) -> bool {
         self.webauthn.is_some()
     }
@@ -117,7 +112,6 @@ impl PasskeyService {
         })
     }
 
-    /// The challenge excludes the user's stored credentials.
     pub async fn start_registration(
         &self,
         user_id: Uuid,
@@ -152,8 +146,8 @@ impl PasskeyService {
         Ok((challenge_id, challenge))
     }
 
-    /// The name and per-user cap are checked before the ceremony is consumed. A failed ceremony is the generic
-    /// `Validation("invalid passkey")`. An existing credential id is a `Conflict` and is never overwritten.
+    /// Name and cap are checked before the ceremony is consumed. A credential id that already exists is a conflict and
+    /// is never overwritten.
     pub async fn finish_registration(
         &self,
         user_id: Uuid,
@@ -213,9 +207,8 @@ impl PasskeyService {
         Ok((challenge_id, challenge))
     }
 
-    /// Every failure is the same `Unauthorized("invalid code")` and the ceremony is spent either way. On success the
-    /// counter and backup state are saved along with `last_used_at`. If that write fails, the login fails: a counter
-    /// that is not recorded would defeat the clone check.
+    /// The ceremony is spent whatever happens. If saving the new counter fails the login fails too, otherwise the clone
+    /// check would be useless.
     pub async fn finish_authentication(
         &self,
         user_id: Uuid,
@@ -238,9 +231,8 @@ impl PasskeyService {
         else {
             return Err(invalid_code());
         };
-        // The library compared against the counter the ceremony held, and a ceremony started before another login was
-        // saved holds an older one. Compare against the saved counter too, to catch a cloned key. Synced passkeys
-        // always report 0 and are exempt.
+        // The library only compared with the counter the ceremony started with, which is stale if another login was
+        // saved since. Check the saved one too to catch a cloned key. Synced passkeys always report 0, so skip those.
         let stored_counter = stored_counter(row)?;
         if (result.counter() != 0 || stored_counter != 0)
             && u64::from(result.counter()) <= stored_counter
@@ -248,7 +240,7 @@ impl PasskeyService {
             return Err(invalid_code());
         }
         let mut passkey = deserialize_passkey(row)?;
-        // `Some(false)` (nothing changed, typical of synced passkeys) still records `last_used_at` below.
+        // Returns whether anything changed. Ignored: `last_used_at` is recorded either way.
         passkey.update_credential(&result);
         self.credentials
             .update_after_authentication(row.id, &serialize_passkey(&passkey)?)
@@ -259,8 +251,8 @@ impl PasskeyService {
         self.credentials.list_for_user(user_id).await
     }
 
-    // There is no `delete` here on purpose: removing a passkey must also revoke the backup codes when it was the last
-    // factor, which is `MfaService::remove_passkey`'s job (it owns both ports).
+    // No `delete` on purpose: dropping the last factor must also drop the backup codes, which `MfaService::remove_passkey`
+    // does.
 }
 
 pub(super) fn invalid_code() -> DomainError {
@@ -271,7 +263,7 @@ fn invalid_passkey() -> DomainError {
     DomainError::Validation("invalid passkey".to_string())
 }
 
-/// 1 to 40 characters once trimmed, no control characters (newlines and escape sequences included).
+/// 1 to 40 characters once trimmed, no control characters.
 fn validated_name(name: &str) -> Result<String, DomainError> {
     let name = name.trim();
     if name.is_empty()
@@ -291,7 +283,7 @@ fn ensure_below_cap(existing: i64) -> Result<(), DomainError> {
     }
 }
 
-/// Fails closed when the stored layout is unexpected: an unreadable counter would defeat the clone check.
+/// Fails closed on an unexpected layout, an unreadable counter would defeat the clone check.
 fn stored_counter(stored: &StoredPasskey) -> Result<u64, DomainError> {
     serde_json::from_str::<serde_json::Value>(&stored.passkey_json)
         .ok()
@@ -309,7 +301,7 @@ fn serialize_passkey(passkey: &Passkey) -> Result<String, DomainError> {
         .map_err(|e| DomainError::Infrastructure(format!("cannot serialize a passkey: {e}")))
 }
 
-/// The error never carries the stored JSON.
+/// The error deliberately leaves out the stored JSON.
 fn deserialize_passkey(stored: &StoredPasskey) -> Result<Passkey, DomainError> {
     serde_json::from_str(&stored.passkey_json).map_err(|_| {
         DomainError::Infrastructure(format!("stored passkey {} is unreadable", stored.id))

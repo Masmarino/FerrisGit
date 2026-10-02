@@ -5,8 +5,8 @@ use crate::job::Job;
 
 #[async_trait]
 pub trait JobExecutionPort: Send + Sync {
-    /// Called once a job's dependencies are satisfied. What happens depends on the engine: the Docker engine does
-    /// nothing (runners poll for ready jobs), and a Kubernetes engine creates a Pod.
+    /// Called once a job's dependencies are satisfied. The Docker engine does nothing (runners poll), a Kubernetes engine
+    /// creates a Pod.
     async fn submit(&self, job: &Job) -> Result<(), DomainError>;
 
     /// Called when a job or its pipeline is canceled.

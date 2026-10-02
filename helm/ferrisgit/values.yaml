@@ -1,8 +1,8 @@
 image:
   repository: masmarino/ferrisgit
-  # Required: a release tag such as 1.4.2 (CI passes the one it just pushed). `latest` works but is always pulled.
+  # Required: a release tag like 1.4.2 (CI passes the one it just pushed). latest works but is always pulled.
   tag: ""
-  # Optional sha256:... digest: the pod then runs exactly that image, whatever the tag points to later.
+  # Optional sha256:... digest. The pod then runs exactly that image, whatever the tag points to later.
   digest: ""
   pullPolicy: IfNotPresent
 
@@ -15,12 +15,11 @@ replicaCount: 1
 service:
   port: 8080
 
-# On SIGTERM the server finishes the requests in flight and drops the connections still open after 10 seconds (the
-# pipeline event streams never end by themselves). 30 seconds leaves room for that.
+# On SIGTERM the server finishes in-flight requests and drops connections still open after 10 seconds (the pipeline event
+# streams never end on their own), so 30 seconds is enough.
 terminationGracePeriodSeconds: 30
 
-# A push is held in memory while it is received (600 MiB at most, up to 8 at a time): raise the memory limit if you expect
-# large pushes in parallel.
+# A push is buffered in memory (600 MiB at most, 8 at a time): raise the limit if you expect big pushes in parallel.
 resources:
   requests:
     cpu: 100m
@@ -28,7 +27,7 @@ resources:
   limits:
     memory: 2Gi
 
-# 100 and 101 are the ids `adduser -S` and `addgroup -S` give the `ferrisgit` user of the image (see the Dockerfile).
+# 100 and 101 are the ids adduser -S and addgroup -S give the ferrisgit user in the image (see the Dockerfile).
 podSecurityContext:
   runAsNonRoot: true
   runAsUser: 100
@@ -58,22 +57,21 @@ ingress:
   enabled: true
   className: traefik
   host: app.ferrisgit.pro
-  # Certificate from Traefik's own ACME resolver (HTTP-01), named here as it is in the cluster's Traefik static
-  # configuration. It is the default because Traefik answers /.well-known/acme-challenge/ on the `web` entrypoint for its
-  # own resolver, which leaves no room for cert-manager's HTTP-01. Needs a DNS A record from `host` to the Traefik load
-  # balancer, and only works with className traefik. The Ingress then has no TLS secretName: Traefik keeps the
-  # certificate in its own store.
+  # Traefik's own ACME resolver (HTTP-01), named as in the cluster's Traefik static configuration. It's the default because
+  # Traefik answers /.well-known/acme-challenge/ on the web entrypoint for its own resolver, which leaves no room for
+  # cert-manager's HTTP-01. Needs a DNS A record from host to the Traefik load balancer, and only works with className
+  # traefik. The Ingress then has no TLS secretName: Traefik keeps the certificate in its own store.
   certResolver: letsencrypt-http
-  # Alternative: an existing cert-manager ClusterIssuer (for example letsencrypt-prod), with certResolver set to "" (both
-  # set is an error). The certificate lands in the Secret tlsSecretName. With neither set, no certificate is requested and
-  # tlsSecretName must already hold one.
+  # Alternative: an existing cert-manager ClusterIssuer (letsencrypt-prod, say) with certResolver set to "" (both is an
+  # error). The certificate lands in the Secret tlsSecretName. With neither set, no certificate is requested and
+  # tlsSecretName has to hold one already.
   clusterIssuer: ""
   tlsSecretName: "" # empty = <release>-tls (cert-manager mode, or an existing Secret); unused with certResolver
-  # Traefik Middlewares (namespace-name@kubernetescrd, comma-separated). They must already exist, or Traefik drops the
-  # route: `https` (redirect to HTTPS) and `headers` (security headers), both in the `traefik` namespace. There is no
-  # rate-limit middleware on purpose: a clone or a push is a burst of requests that one would reject. "" uses none.
+  # Traefik Middlewares (namespace-name@kubernetescrd, comma-separated). They have to exist already, or Traefik drops the
+  # route: https (redirect to HTTPS) and headers (security headers), both in the traefik namespace. No rate-limit
+  # middleware on purpose, since a clone or a push is a burst of requests it would reject. "" uses none.
   middlewares: "traefik-https@kubernetescrd,traefik-headers@kubernetescrd"
-  # Traefik TLSOption (name@kubernetescrd), which must already exist: `mintls13` in the `traefik` namespace, TLS 1.3 minimum.
+  # Traefik TLSOption (name@kubernetescrd) that has to exist already: mintls13 in the traefik namespace, TLS 1.3 minimum.
   # "" uses Traefik's defaults.
   tlsOptions: "traefik-mintls13@kubernetescrd"
   annotations: {}
@@ -82,40 +80,40 @@ networkPolicy:
   # Only the FerrisGit pod may connect to PostgreSQL, not the CI job pods. Needs a CNI that enforces NetworkPolicy.
   enabled: true
   # Who may reach the FerrisGit pod, as NetworkPolicy peers. Empty means anyone. An ingress controller in another
-  # namespace must be named here, for example:
+  # namespace has to be listed here, for example:
   #   - namespaceSelector:
   #       matchLabels:
   #         kubernetes.io/metadata.name: traefik
   appIngressFrom: []
 
 ferrisgit:
-  # Creates the first administrator, only while the users table is empty. The password is secrets.bootstrapAdminPassword.
-  # An empty username disables the bootstrap.
+  # Creates the first administrator, only while the users table is empty, with the password secrets.bootstrapAdminPassword.
+  # An empty username turns it off.
   bootstrapAdminUsername: admin
   rustLog: info
-  # Public address of the app (scheme and host, no path). Empty means https://<ingress.host>. Passkeys need it to equal
-  # the origin the browser uses.
+  # Public address of the app (scheme and host, no path). Empty means https://<ingress.host>. Passkeys need it to match the
+  # browser's origin.
   publicUrl: ""
   # The ingress controller's pod network, as comma-separated CIDRs (for example "10.42.0.0/16"). X-Forwarded-For is only
-  # used for a connection from there. Left empty, every visitor looks like the ingress pod and all of them share one
-  # rate-limit budget for sign-in, registration and activation, so with ingress.enabled the chart refuses to render
-  # unless allowSharedRateLimit is true. Several CIDRs on the command line:
-  # --set-string ferrisgit.trustedProxyCidrs='10.42.0.0/16\,10.43.0.0/16', or use a values file.
+  # trusted from there. Left empty, every visitor looks like the ingress pod and they all share one rate-limit budget for
+  # sign-in, registration and activation, so with ingress.enabled the chart won't render unless allowSharedRateLimit is
+  # true. Several CIDRs on the command line: --set-string ferrisgit.trustedProxyCidrs='10.42.0.0/16\,10.43.0.0/16', or
+  # use a values file.
   trustedProxyCidrs: ""
-  # Accepts an empty trustedProxyCidrs behind the ingress: one rate-limit budget shared by every visitor.
+  # Allows an empty trustedProxyCidrs behind the ingress: every visitor then shares one rate-limit budget.
   allowSharedRateLimit: false
   # Extra environment variables for the server container, as a list of {name, value}.
   extraEnv: []
 
-# Kubernetes execution engine, where each CI job runs as a Pod. The chart gives the FerrisGit pod a ServiceAccount with the
-# Role the README documents (pods, pods/log, persistentvolumeclaims; never Secrets). The engine itself is chosen in the
-# admin settings. Disabled here, the pod gets no API token and only Docker runners work.
+# Kubernetes execution engine, where each CI job runs as a Pod. The FerrisGit pod gets a ServiceAccount with the Role the
+# README documents (pods, pods/log, persistentvolumeclaims, never Secrets). The engine itself is picked in the admin
+# settings. Disabled, the pod gets no API token and only Docker runners work.
 kubernetesExecutor:
   enabled: true
-  # Namespace the job Pods run in; empty means the release namespace. Another namespace must already exist, and the same
-  # value goes in `k8s_namespace` in the admin settings (the server only detects its own namespace).
+  # Namespace the job Pods run in; empty means the release namespace. Another one has to exist already, and the same value
+  # goes in k8s_namespace in the admin settings (the server only detects its own namespace).
   namespace: ""
-  # A ClusterRole with get and list on storageclasses, only used to pre-fill k8s_cache_storage_class. Optional.
+  # A ClusterRole with get and list on storageclasses, only there to pre-fill k8s_cache_storage_class. Optional.
   detectStorageClass: true
 
 postgres:
@@ -147,16 +145,16 @@ postgres:
       memory: 1Gi
 
 # Left empty, Helm generates each of these on first install (templates/secret.yaml) and finds them again on upgrade with
-# `lookup`. Under `helm template`, `--dry-run`, Argo CD or Flux, `lookup` returns nothing and every render would invent new
-# values (a database password nobody knows, an encryption key that makes stored CI variables unreadable): set all four
+# lookup. Under helm template, --dry-run, Argo CD or Flux, lookup returns nothing and every render would invent new values
+# (a database password nobody knows, an encryption key that makes stored CI variables unreadable), so set all four
 # yourself. An explicit value wins over the stored one, except postgresPassword: PostgreSQL only reads it when it
-# initialises an empty volume. The Secret carries `helm.sh/resource-policy: keep`.
+# initialises an empty volume. The Secret has helm.sh/resource-policy: keep.
 secrets:
   postgresPassword: ""
   # At least 32 characters.
   jwtSecret: ""
-  # Exactly 32 characters. Encrypts CI variables, webhook secrets, the SMTP password and TOTP secrets at rest. There is no
-  # rotation: changing it makes them unreadable.
+  # Exactly 32 characters. Encrypts CI variables, webhook secrets, the SMTP password and TOTP secrets at rest. It can't be
+  # rotated: changing it makes them unreadable.
   settingsEncryptionKey: ""
   # At least 8 characters.
   bootstrapAdminPassword: ""

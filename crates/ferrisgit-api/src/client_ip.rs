@@ -1,9 +1,8 @@
 //! Which address a per-IP throttle (login, registration, activation) keys on.
 //!
-//! By default it is the TCP peer. Behind a reverse proxy (the Traefik ingress in production) the peer is always the
-//! proxy, which would put every client in one bucket. `TRUSTED_PROXY_CIDRS` lists the networks the proxy connects
-//! from, and the `X-Forwarded-For` header is only read for a peer inside one of them. Anybody else can send that
-//! header too, and it is ignored.
+//! Normally the TCP peer. Behind a reverse proxy (Traefik in production) the peer is always the proxy, so every
+//! client would share one bucket. `TRUSTED_PROXY_CIDRS` lists the networks the proxy connects from, and
+//! `X-Forwarded-For` is only read for a peer inside one of them: anyone else can send that header too.
 
 use std::net::{IpAddr, Ipv4Addr, Ipv6Addr};
 
@@ -14,7 +13,7 @@ pub struct Cidr {
 }
 
 impl Cidr {
-    /// `address/prefix` or a bare `address` (a /32 or /128). Host bits are masked off (`10.2.0.5/16` is `10.2.0.0/16`).
+    /// `address/prefix`, or a bare address (/32 or /128). Host bits are masked off, so `10.2.0.5/16` is `10.2.0.0/16`.
     pub fn parse(raw: &str) -> Result<Self, String> {
         let (address, prefix) = match raw.split_once('/') {
             Some((address, prefix)) => (address, Some(prefix)),
@@ -40,7 +39,7 @@ impl Cidr {
 
     pub fn contains(&self, ip: IpAddr) -> bool {
         let ip = ip.to_canonical();
-        // Different families never match (`mask` keeps the family).
+        // `mask` keeps the family, so v4 never matches v6.
         ip.is_ipv4() == self.network.is_ipv4() && mask(ip, self.prefix) == self.network
     }
 }
@@ -89,16 +88,13 @@ fn parse_forwarded_entry(entry: &str) -> Option<IpAddr> {
     entry.strip_prefix('[')?.strip_suffix(']')?.parse().ok()
 }
 
-/// The address to key the throttle on. `peer` is the TCP peer. It is `None` when the server was not started with
-/// connect info, which leaves one shared bucket: degraded, but never absent. `forwarded_for` is the joined value of
-/// the `X-Forwarded-For` header(s).
+/// The address to key the throttle on. `peer` is `None` when the server has no connect info, which means one
+/// shared bucket. `forwarded_for` is the joined `X-Forwarded-For` value.
 ///
-/// With no trusted network, or a peer outside them, the peer is the client and the header is ignored (anyone can
-/// send it). For a trusted peer the header is read from its right end, since each proxy appends the address it saw.
-/// Trusted hops are skipped and the first untrusted address is the client. When nothing is usable (no header, only
-/// trusted hops, or an unparseable element before an untrusted address), it falls back to the peer, never to a
-/// forged value.
-/// IPv6 addresses are keyed by their /64 (a client owns a whole /64 and can rotate inside it), IPv4-mapped ones as IPv4.
+/// An untrusted peer is the client and the header is ignored. For a trusted peer the header is read from the right,
+/// since each proxy appends the address it saw: skip trusted hops, the first untrusted address is the client. If
+/// nothing usable is left (no header, only trusted hops, an unparseable entry) fall back to the peer, never to a
+/// forged value. IPv6 is keyed by its /64, because a client owns the whole /64 and can rotate inside it.
 pub fn resolve_client_ip(
     peer: Option<IpAddr>,
     forwarded_for: Option<&str>,
@@ -279,7 +275,7 @@ mod tests {
             resolve_client_ip(Some(ip("10.2.0.7")), Some("198.51.100.4"), &trusted),
             ip("198.51.100.4")
         );
-        // The client can put anything on the left: the proxy appended the real address on the right.
+        // The client controls the left side, the proxy appended the real address on the right.
         assert_eq!(
             resolve_client_ip(
                 Some(ip("10.2.0.7")),
@@ -305,7 +301,7 @@ mod tests {
             ),
             ip("198.51.100.4")
         );
-        // An untrusted hop in the middle is the first from the right: everything left of it is unverified.
+        // The first untrusted hop from the right wins, everything left of it is unverified.
         assert_eq!(
             resolve_client_ip(
                 Some(ip("10.2.0.7")),

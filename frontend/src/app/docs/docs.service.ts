@@ -61,12 +61,12 @@ export function locateDocsPage(index: DocsIndex, section: string | null, page: s
   return { ...order[at], previous: link(order[at - 1]), next: link(order[at + 1]) };
 }
 
-// The SPA fallback answers an unknown path with the app's index.html: that is no Markdown page.
+// The SPA fallback answers an unknown path with index.html, which isn't a Markdown page.
 const looksLikeHtml = (text: string) => /^\s*<!doctype html|^\s*<html[\s>]/i.test(text);
 
 /**
- * The product documentation, shipped with the app as static files under `/docs/`. The index and every page are
- * fetched once and kept: they only change with a new version of the app. A failure is not kept, so it is retried.
+ * The product documentation, shipped as static files under `/docs/`. The index and each page are fetched once and
+ * kept, since they only change with a new version of the app. A failure isn't kept, so it gets retried.
  */
 @Injectable({ providedIn: 'root' })
 export class DocsService {
@@ -82,7 +82,7 @@ export class DocsService {
     return this.index$;
   }
 
-  /** The page's Markdown. A missing file fails with a 404, also when the server answered with the app shell instead. */
+  /** The page's Markdown. A missing file fails with a 404, including when the server answers with the app shell. */
   page(section: string, page: string): Observable<string> {
     const key = `${section}/${page}`;
     const known = this.pages.get(key);

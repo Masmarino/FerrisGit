@@ -8,8 +8,8 @@ use ferrisgit_domain::webhook::{
 use ferrisgit_domain::webhook_event::WebhookEvent;
 use uuid::Uuid;
 
-/// Any user can create a repository and be its Maintainer, so without a cap one event could fan out to unbounded
-/// simultaneous outbound requests at one target (amplification, or a self-inflicted DoS).
+/// Anyone can create a repo and be its Maintainer, so without a cap one event could fan out into unbounded parallel
+/// requests at a single target.
 const MAX_WEBHOOKS_PER_REPOSITORY: usize = 20;
 
 pub struct CreateWebhookUseCase {
@@ -51,12 +51,9 @@ impl CreateWebhookUseCase {
     }
 }
 
-/// Rejects non-`http`/`https` URLs and hosts that resolve (via DNS, or literally) to loopback, link-local, private
-/// (RFC 1918) or the cloud metadata address 169.254.169.254. Closes a blind SSRF: any Maintainer could otherwise scan
-/// internal hosts and ports by reading `httpStatus`/`success` from the deliveries endpoint.
-///
-/// The resolved IPs are checked, not just the hostname string: a public-looking name can resolve to an internal
-/// address.
+/// Rejects non-http(s) URLs and hosts that resolve to loopback, link-local, private (RFC 1918) or the cloud metadata
+/// address. Otherwise any Maintainer could scan internal hosts and ports through the deliveries endpoint (blind SSRF).
+/// Resolved IPs are checked, not just the hostname: a public-looking name can point at an internal address.
 pub(crate) async fn validate_webhook_url(url: &str) -> Result<(), DomainError> {
     let parsed = url::Url::parse(url)
         .map_err(|_| DomainError::Validation("invalid webhook url".to_string()))?;
@@ -104,8 +101,7 @@ fn reject_if_disallowed_ip(ip: IpAddr) -> Result<(), DomainError> {
     Ok(())
 }
 
-/// A typo or outdated integration would otherwise silently subscribe to nothing. Failing right away with the bad value
-/// named is easier to diagnose.
+/// Unknown event names are rejected by name: a typo would otherwise subscribe to nothing, silently.
 pub(crate) fn validate_event_kinds(events: &[String]) -> Result<(), DomainError> {
     let unknown: Vec<&str> = events
         .iter()
@@ -206,8 +202,7 @@ mod tests {
         assert!(matches!(result, Err(DomainError::Validation(_))));
     }
 
-    // `is_disallowed_webhook_target`'s unit tests live in `ferrisgit_domain::webhook`, shared with the delivery-time
-    // resolver.
+    // The unit tests for `is_disallowed_webhook_target` live in the domain crate, next to the delivery-time resolver.
 
     #[tokio::test]
     async fn validate_webhook_url_rejects_literal_private_ips_without_any_dns_lookup() {
@@ -239,8 +234,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_webhook_url_accepts_a_normal_public_looking_https_url() {
-        // example.com is IANA-reserved and resolves publicly: exercises real DNS without depending on a third party's
-        // uptime for a rejection.
+        // example.com is reserved by IANA and resolves publicly: real DNS, without relying on anyone's server being up.
         validate_webhook_url("https://example.com/hook")
             .await
             .expect("a normal public https url must be accepted");
@@ -271,8 +265,7 @@ mod tests {
 
     #[tokio::test]
     async fn validate_webhook_url_rejects_a_hostname_that_resolves_to_loopback() {
-        // `localhost` looks nothing like a private IP as a string, which is why the name must be resolved before the IP
-        // check.
+        // "localhost" doesn't look like a private IP as a string, hence the name has to be resolved first.
         let err = validate_webhook_url("http://localhost/hook")
             .await
             .unwrap_err();

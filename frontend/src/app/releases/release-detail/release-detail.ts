@@ -78,7 +78,7 @@ export class ReleaseDetail implements OnInit {
   protected release = signal<ReleaseDetailResponse | null>(null);
   protected notFound = signal(false);
   protected role = computed(() => this.repositoryContext.current()?.role ?? null);
-  // Not `protected` because the spec calls it directly.
+  // Public so the spec can call it.
   canManage = computed(() => this.role() === 'owner' || this.role() === 'maintainer');
 
   protected status = computed(() => {
@@ -129,7 +129,7 @@ export class ReleaseDetail implements OnInit {
 
   protected deleteReleaseOpen = signal(false);
   protected assetPendingDelete = signal<ReleaseAsset | null>(null);
-  /** True while a confirmed file deletion runs: its confirmation stays open and ignores a second click. */
+  /** True while a confirmed file deletion runs: the confirmation stays open and ignores a second click. */
   protected deletingAsset = signal(false);
 
   ngOnInit(): void {
@@ -198,7 +198,7 @@ export class ReleaseDetail implements OnInit {
         this.publishing.set(false);
         this.release.set(release);
         this.toast.show('Release publiée.');
-        // The button is gone with the draft: keep the keyboard user in the header's actions.
+        // The button is gone with the draft, so keep the keyboard user in the header's actions.
         this.focusAfterRender('.release-detail__edit-button button');
       },
       error: () => {
@@ -257,7 +257,7 @@ export class ReleaseDetail implements OnInit {
         this.release.update((release) => (release ? { ...release, assets: release.assets.filter((a) => a.id !== asset.id) } : release));
         this.toast.show('Fichier supprimé.');
       },
-      // The confirmation covers the page, so an error must close it first to be visible.
+      // The confirmation covers the page, so an error has to close it first to be visible.
       error: () => {
         this.deletingAsset.set(false);
         this.assetPendingDelete.set(null);
@@ -266,7 +266,7 @@ export class ReleaseDetail implements OnInit {
     });
   }
 
-  /** Fetched via `HttpClient` so the auth interceptor attaches the JWT (a plain `<a [href]>` would 401), then saved through a synthetic `<a download>`. */
+  /** Goes through HttpClient so the auth interceptor adds the JWT (a plain `<a [href]>` would 401), then saved through a synthetic `<a download>`. */
   download(asset: ReleaseAsset): void {
     this.releases.downloadAsset(this.repositoryId(), this.tagName(), asset.id).subscribe({
       next: (blob) => {

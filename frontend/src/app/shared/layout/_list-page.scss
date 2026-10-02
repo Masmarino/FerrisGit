@@ -1,7 +1,7 @@
-// Building blocks of the list pages (issues, merge requests, pipelines, releases…). Each page keeps its
-// own BEM selectors and includes these mixins.
+// Building blocks of the list pages (issues, merge requests, pipelines, releases…). Each page keeps its own BEM
+// selectors and includes these mixins.
 
-// Visually hidden, still read by assistive technology.
+// Hidden on screen, still read by screen readers.
 @mixin visually-hidden {
   position: absolute;
   width: 1px;
@@ -11,15 +11,15 @@
   white-space: nowrap;
 }
 
-// Header and layout share the 1440px frame so the h1 and its actions line up with the list and aside.
+// Header and layout share the 1440px frame so the h1 and its actions line up with the list and the aside.
 @mixin page-host {
   display: block;
   max-width: 1440px;
   margin-inline: auto;
 }
 
-// Gabarit gap: the segmented control has no tabular-nums option. It is set here so the tabs keep their
-// width when a count changes.
+// Gabarit gap: the segmented control has no tabular-nums option. Set here so the tabs keep their width when a count
+// changes.
 @mixin segmented-counts {
   ::ng-deep .gbt-segmented-control__option {
     font-variant-numeric: tabular-nums;
@@ -45,7 +45,7 @@
   text-align: center;
 }
 
-// A flex box so the glyph centres on the title line instead of an inline baseline.
+// A flex box so the glyph centres on the title line, not an inline baseline.
 @mixin row-status {
   display: inline-flex;
   align-items: center;
@@ -57,7 +57,7 @@
   font-weight: 500;
 }
 
-// The kebab is a 32px target; its negative margins keep the row's 24px title line and right edge.
+// The kebab is a 32px target; negative margins keep the row's 24px title line and right edge.
 @mixin row-menu {
   margin: -4px -8px -4px 0;
 
@@ -104,8 +104,8 @@
   padding: 1rem 1.5rem 2rem;
 }
 
-// In the panel's heading row: the negative block margins keep that row at its own height, so the
-// search field does not jump when the button appears.
+// In the panel's heading row: negative block margins keep the row's height, so the search field doesn't jump when the
+// button appears.
 @mixin filter-reset {
   margin-block: -0.25rem;
 }
@@ -122,7 +122,7 @@
   gap: 1rem;
 }
 
-// Actions row of an inline form in a card (`gbt-card` has no footer slot). Dialogs use `[modal-footer]` instead.
+// Actions row of an inline form in a card, which has no footer slot. Dialogs use `[modal-footer]` instead.
 @mixin create-actions {
   display: flex;
   flex-wrap: wrap;

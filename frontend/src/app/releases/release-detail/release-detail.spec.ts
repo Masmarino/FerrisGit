@@ -104,7 +104,7 @@ describe('ReleaseDetail', () => {
 
       expect(text(el.querySelector('gbt-page-header h1'))).toBe('First release');
       const badges = el.querySelector('.gbt-page-header__badges')!;
-      // Direct child only: fg-status-badge (the next sibling) renders its own gbt-badge nested inside it.
+      // Direct child only: fg-status-badge, the next sibling, renders its own gbt-badge nested inside it.
       expect(text(badges.querySelector(':scope > gbt-badge'))).toBe('v1.0.0');
       expect(text(badges.querySelector('fg-status-badge'))).toBe('Publiée');
       expect(pageTitleStub.set).toHaveBeenCalledWith('First release');
@@ -273,7 +273,7 @@ describe('ReleaseDetail', () => {
   });
 
   describe('editing', () => {
-    /** Opens the edit form; its `ngModel` fields register a microtask later, so wait for it before reading or typing. */
+    /** Opens the edit form. Its `ngModel` fields register a microtask later, so wait before reading or typing. */
     async function startEditing(role: Role = 'maintainer') {
       const ctx = setup(role, { ...baseRelease, prerelease: true });
       buttonByText(headerActions(ctx.el), 'Modifier')!.click();
@@ -351,9 +351,9 @@ describe('ReleaseDetail', () => {
       { ...asset, id: 'a2', filename: 'checksums.txt', sizeBytes: 812, uploader: null },
     ];
     const rows = (el: HTMLElement) => Array.from(el.querySelectorAll<HTMLElement>('.release-detail__assets-list > li'));
-    // The download specs replace these statics (jsdom has no object URLs): put the originals back,
-    // or delete the property again when there was none (assigning `undefined` would leave an own
-    // property behind, and `'createObjectURL' in URL` true for every later spec).
+    // The download specs replace these statics (jsdom has no object URLs). Put the originals back, or delete the
+    // property when there was none: assigning `undefined` would leave an own property behind and keep
+    // `'createObjectURL' in URL` true for every later spec.
     const originals = (['createObjectURL', 'revokeObjectURL'] as const).map((name) => [name, Object.getOwnPropertyDescriptor(URL, name)] as const);
     afterEach(() => {
       for (const [name, descriptor] of originals) {
@@ -588,7 +588,7 @@ describe('ReleaseDetail', () => {
       const commit = panel(el, 'Commit cible');
       expect(text(commit.querySelector('.release-detail__missing-tag'))).toBe("Le tag git de cette release a été supprimé ; le commit cible n'est plus disponible.");
       expect(commit.querySelector('.release-detail__missing-tag gbt-icon')).toBeTruthy();
-      // A lasting fact about the page, not an interruption, so no assertive live region.
+      // A lasting fact about the page, not an interruption: no assertive live region.
       expect(commit.querySelector('[role="alert"]')).toBeNull();
       expect(panel(el, 'Tag').querySelector('a')).toBeNull();
     });

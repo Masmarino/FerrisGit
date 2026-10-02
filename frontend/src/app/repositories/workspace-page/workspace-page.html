@@ -4,7 +4,7 @@
 </gbt-page-header>
 
 <gbt-page-layout width="wide" asideWidth="sm">
-  <!-- One grid for every tab: its search and sort stay while the tabs change what it lists. -->
+  <!-- One grid for all tabs, so search and sort survive a tab switch. -->
   <fg-workspace-grid
     #grid
     [groups]="activeGroups()"
@@ -49,7 +49,7 @@
   }
 </gbt-page-layout>
 
-<!-- Built on each opening and destroyed on close: a closed dialog never keeps a draft. -->
+<!-- Rebuilt on each opening, so a closed dialog never keeps a draft. -->
 @if (createModalOpen()) {
   <fg-create-repository-modal (close)="createModalOpen.set(false)" (created)="onRepoCreated()" />
 }

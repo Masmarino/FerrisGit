@@ -21,16 +21,25 @@ impl GitOutput {
         String::from_utf8_lossy(&self.stdout).trim().to_string()
     }
 
-    /// Strips one trailing newline rather than calling `.trim()`. A root file name ending in whitespace
-    /// (possible through a raw `git push`) would otherwise get renamed on the next `save_page`.
+    /// Not `.trim()`: a root file name ending in whitespace (possible via a raw push) would get renamed
+    /// on the next save_page.
     pub fn stdout_without_final_newline(&self) -> String {
         let text = String::from_utf8_lossy(&self.stdout);
         text.strip_suffix('\n').unwrap_or(&text).to_string()
     }
 }
 
-/// Runs `git` in `repo_path` with extra environment variables and optional stdin. A failing exit
-/// status is reported in the output, not as an error: only a failure to run `git` at all is one.
+/// Same name and email for author and committer, as the environment variables git reads.
+pub(crate) fn identity_env<'a>(name: &'a str, email: &'a str) -> [(&'a str, &'a str); 4] {
+    [
+        ("GIT_AUTHOR_NAME", name),
+        ("GIT_AUTHOR_EMAIL", email),
+        ("GIT_COMMITTER_NAME", name),
+        ("GIT_COMMITTER_EMAIL", email),
+    ]
+}
+
+/// A failing exit status is reported in the output; only failing to run git at all is an error.
 pub(crate) async fn run(
     repo_path: &Path,
     args: &[&str],
@@ -53,7 +62,7 @@ pub(crate) async fn run(
                 .map_err(infra)?;
             let mut pipe = child.stdin.take().expect("stdin was piped");
             pipe.write_all(data).await.map_err(infra)?;
-            // Closing the pipe lets the child see EOF.
+            // Dropping the pipe closes it, so git sees EOF.
             drop(pipe);
             child.wait_with_output().await.map_err(infra)?
         }
@@ -66,8 +75,8 @@ pub(crate) async fn run(
     })
 }
 
-/// Accepts a plausible short or full git object id (7 to 40 lowercase hex characters), so nothing
-/// else can become a positional argument: given `--help`, `git ls-tree` exits 0 and prints help text.
+/// A short or full hex object id. Keeps arbitrary input out of the argument list: `git ls-tree --help`
+/// exits 0 and prints help.
 pub(crate) fn is_plausible_commit_sha(value: &str) -> bool {
     (7..=40).contains(&value.len())
         && value

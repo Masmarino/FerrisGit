@@ -1,0 +1,817 @@
+@use '@masmarino/gabarit/tokens';
+
+// Fonts are self-hosted and subset to what the five languages need (scripts/subset-fonts.py). Instrument Sans, variable
+// in weight, is the text face; IBM Plex Mono is for code, paths, hashes and the figures of the facts band.
+
+@font-face {
+  font-family: 'Instrument Sans';
+  font-style: normal;
+  font-weight: 400 700;
+  font-display: swap;
+  src: url('/fonts/instrument-sans-var.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-400.woff2') format('woff2');
+}
+
+@font-face {
+  font-family: 'IBM Plex Mono';
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url('/fonts/ibm-plex-mono-500.woff2') format('woff2');
+}
+
+// Theme: slate-indigo ink for dark, near-white paper for light. The crab's rust is the only warm accent; the product's
+// indigo marks links and running jobs inside the demos, patina green marks success. Gabarit follows
+// prefers-color-scheme by itself. The mapping below puts its components on our tokens and honours an explicit light
+// choice on a dark system, which Gabarit doesn't.
+
+@mixin theme-dark {
+  --bg: #0b0f1c;
+  --bg-2: #0e1322;
+  --surface: #121829;
+  --surface-2: #182036;
+  --surface-3: #1f2842;
+  --line: rgba(174, 186, 222, 0.14);
+  --line-strong: rgba(174, 186, 222, 0.28);
+  --text: #e9edf7;
+  --text-2: #a7b1c9;
+  --text-3: #7e899f;
+  --brand: #f0622a;
+  --brand-2: #f5b13d;
+  --brand-text: #ff9469;
+  --brand-soft: rgba(240, 98, 42, 0.14);
+  --on-brand: #1a0f07;
+  --indigo: #8b95ff;
+  --indigo-soft: rgba(139, 149, 255, 0.16);
+  --patina: #3fbf95;
+  --patina-soft: rgba(63, 191, 149, 0.16);
+  --del: #f2857d;
+  --del-soft: rgba(242, 133, 125, 0.16);
+  --warn: #f5b13d;
+  --window-shadow: 0 30px 80px -30px rgba(2, 6, 20, 0.85), 0 0 0 1px rgba(174, 186, 222, 0.1);
+  --mesh-a: rgba(240, 98, 42, 0.22);
+  --mesh-b: rgba(70, 82, 200, 0.2);
+  --mesh-c: rgba(63, 191, 149, 0.12);
+  --grid-ink: rgba(174, 186, 222, 0.05);
+  --glow: rgba(240, 98, 42, 0.16);
+}
+
+@mixin theme-light {
+  --bg: #faf7f3;
+  --bg-2: #f4efe8;
+  --surface: #ffffff;
+  --surface-2: #f4efe8;
+  --surface-3: #ebe4da;
+  --line: rgba(48, 28, 10, 0.1);
+  --line-strong: rgba(48, 28, 10, 0.22);
+  --text: #1d1712;
+  --text-2: #584b3f;
+  --text-3: #685a4d;
+  --brand: #c2410c;
+  --brand-2: #f0a52c;
+  --brand-text: #a8360a;
+  --brand-soft: rgba(194, 65, 12, 0.09);
+  --on-brand: #ffffff;
+  --indigo: #4a55d2;
+  --indigo-soft: rgba(74, 85, 210, 0.1);
+  --patina: #15805d;
+  --patina-soft: rgba(21, 128, 93, 0.12);
+  --del: #c23a32;
+  --del-soft: rgba(194, 58, 50, 0.1);
+  --warn: #b26b05;
+  --window-shadow: 0 30px 70px -32px rgba(60, 30, 8, 0.32), 0 0 0 1px rgba(48, 28, 10, 0.09);
+  --mesh-a: rgba(236, 110, 50, 0.2);
+  --mesh-b: rgba(240, 180, 90, 0.2);
+  --mesh-c: rgba(63, 191, 149, 0.12);
+  --grid-ink: rgba(48, 28, 10, 0.05);
+  --glow: rgba(194, 65, 12, 0.1);
+}
+
+// Gabarit's token names, set from ours, so its components (button, icon, copy button, job status) match.
+@mixin gabarit-map {
+  --bg-principal: var(--surface);
+  --bg-panel: var(--surface-2);
+  --bg-hover: color-mix(in srgb, var(--text) 7%, transparent);
+  --border-color: var(--line-strong);
+  --gbt-hairline: var(--line);
+  --gbt-card-border: var(--line);
+  --text-primary: var(--text);
+  --text-secondary: var(--text-2);
+  --text-discret: var(--text-3);
+  --primary: var(--indigo);
+  --primary-hover: var(--indigo);
+  --text-on-primary: var(--on-brand);
+  --color-success-text: var(--patina);
+  --color-success-vivid-base: var(--patina);
+  --color-error-text: var(--del);
+  --color-info-bg: var(--surface-2);
+  --color-info-bg-text: var(--text);
+  --site-border-radius: 12px;
+  --site-border-radius-sm: 8px;
+  --site-border-radius-lg: 16px;
+  --site-shadow-sm: none;
+  --site-shadow-md: 0 8px 24px -12px rgba(2, 6, 20, 0.4);
+  --site-shadow-lg: var(--window-shadow);
+}
+
+// Gabarit's light values for the tokens we don't map. Its dark block applies under prefers-color-scheme whatever
+// data-theme says, so a "light" choice on a dark system needs them back.
+@mixin gabarit-light-rest {
+  --bg-track: var(--grey-200);
+  --text-on-color: #ffffff;
+  --text-on-error: #ffffff;
+  --color-success-base: var(--green-500);
+  --color-success-bg: var(--green-100);
+  --color-success-bg-text: var(--green-800);
+  --color-warning-base: #c38927;
+  --color-warning-text: #6f4d16;
+  --color-warning-bg: var(--amber-100);
+  --color-warning-bg-text: var(--amber-800);
+  --color-error-base: var(--red-500);
+  --color-error-fill: #a82727;
+  --color-error-hover: #8f2121;
+  --color-error-bg: var(--red-100);
+  --color-error-bg-text: var(--red-800);
+  --bg-inverse: var(--grey-900);
+}
+
+:root {
+  color-scheme: light;
+  --sans: 'Instrument Sans', 'Helvetica Neue', Arial, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, 'SF Mono', Menlo, Consolas, monospace;
+  --font-family: var(--sans);
+  --gbt-font-mono: var(--mono);
+
+  // Type scale, in rem on a 16px root.
+  --t-13: 0.8125rem;
+  --t-14: 0.875rem;
+  --t-15: 0.9375rem;
+  --t-17: 1.0625rem;
+  --t-20: 1.25rem;
+  --t-24: 1.5rem;
+  --t-30: 1.875rem;
+  --t-h2: clamp(1.875rem, 1.2rem + 2.4vw, 3rem);
+  --t-h1: clamp(2.5rem, 1.4rem + 4.4vw, 4.5rem);
+
+  // 8pt spacing scale.
+  --s-1: 0.25rem;
+  --s-2: 0.5rem;
+  --s-3: 0.75rem;
+  --s-4: 1rem;
+  --s-5: 1.5rem;
+  --s-6: 2rem;
+  --s-7: 3rem;
+  --s-8: 4rem;
+  --s-9: 6rem;
+  --section: clamp(4rem, 3rem + 5vw, 7.5rem);
+
+  // Radii by role.
+  --r-control: 8px;
+  --r-chip: 6px;
+  --r-pill: 999px;
+  --r-tile: 16px;
+  --r-window: 12px;
+
+  --header-h: 4rem;
+  --container: 75rem;
+  --gutter: clamp(16px, 1rem + 2vw, 40px);
+  --tap: 2.75rem;
+
+  // Every animation takes its duration and curve from these.
+  --dur-1: 150ms;
+  --dur-2: 250ms;
+  --dur-3: 450ms;
+  --dur-4: 700ms;
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --stagger: 70ms;
+
+  @include theme-light;
+  @include gabarit-map;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    @include theme-dark;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  @include theme-dark;
+}
+
+:root[data-theme='light'] {
+  color-scheme: light;
+  @include gabarit-light-rest;
+  @include theme-light;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-padding-top: calc(var(--header-h) + 1.5rem);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  margin: 0;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--t-17);
+  line-height: 1.6;
+  background: var(--bg);
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  overflow-wrap: break-word;
+}
+
+app-root {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+main:focus {
+  outline: none;
+}
+
+img,
+svg {
+  max-width: 100%;
+}
+
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  color: var(--text);
+  font-weight: 600;
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--t-h1);
+  font-weight: 650;
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+}
+
+h2 {
+  font-size: var(--t-h2);
+}
+
+h3 {
+  font-size: var(--t-20);
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0 0 1em;
+}
+
+a {
+  color: var(--text);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--brand-text);
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+code,
+kbd,
+.mono {
+  font-family: var(--mono);
+  font-size: 0.875em;
+}
+
+code {
+  padding: 0.1em 0.35em;
+  color: var(--text);
+  background: color-mix(in srgb, var(--text) 8%, transparent);
+  border-radius: 5px;
+}
+
+pre code {
+  padding: 0;
+  background: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+// Reached by keyboard first (lang-shell); it only shows while focused.
+.skip-link {
+  position: absolute;
+  top: -100%;
+  left: 24px;
+  z-index: 200;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--tap);
+  padding: 0 1rem;
+  color: var(--on-brand);
+  font: 600 var(--t-14) var(--sans);
+  background: var(--brand);
+  border-radius: var(--r-control);
+
+  &:focus {
+    top: 24px;
+  }
+}
+
+// The toggle shows the icon of the active theme. Plain selectors here rather than component styles, because they
+// depend on an attribute of <html>. The doubled class beats the `display` of gbt-icon's own host rule.
+.theme-toggle .theme-toggle__moon.theme-toggle__moon {
+  display: none;
+}
+
+:root[data-theme='dark'] .theme-toggle {
+  .theme-toggle__sun.theme-toggle__sun {
+    display: none;
+  }
+
+  .theme-toggle__moon.theme-toggle__moon {
+    display: inline-flex;
+  }
+}
+
+:root[data-theme='light'] .theme-toggle {
+  .theme-toggle__sun.theme-toggle__sun {
+    display: inline-flex;
+  }
+
+  .theme-toggle__moon.theme-toggle__moon {
+    display: none;
+  }
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .theme-toggle {
+    .theme-toggle__sun.theme-toggle__sun {
+      display: none;
+    }
+
+    .theme-toggle__moon.theme-toggle__moon {
+      display: inline-flex;
+    }
+  }
+}
+
+.container {
+  width: min(100%, var(--container));
+  padding-inline: var(--gutter);
+  margin-inline: auto;
+}
+
+.section {
+  padding-block: var(--section);
+}
+
+.section--band {
+  background: var(--bg-2);
+  border-block: 1px solid var(--line);
+}
+
+// Title block of a section: the heading and one paragraph, left-aligned.
+.section__head {
+  max-width: 44rem;
+  margin-bottom: var(--s-7);
+
+  h2 {
+    margin-bottom: var(--s-4);
+  }
+
+  p {
+    max-width: 60ch;
+    margin: 0;
+    color: var(--text-2);
+    font-size: var(--t-20);
+    line-height: 1.5;
+  }
+}
+
+.lead {
+  max-width: 56ch;
+  margin: 0 0 var(--s-6);
+  color: var(--text-2);
+  font-size: var(--t-20);
+  line-height: 1.5;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: center;
+}
+
+// Text links carry a quiet underline that takes the brand colour on hover.
+.text-link {
+  display: inline-flex;
+  gap: 0.35rem;
+  align-items: center;
+  min-height: var(--tap);
+  color: var(--text);
+  font-weight: 600;
+  text-decoration: underline;
+  text-decoration-color: var(--line-strong);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 0.3em;
+  transition:
+    color var(--dur-1) var(--ease),
+    text-decoration-color var(--dur-1) var(--ease);
+
+  &:hover {
+    color: var(--brand-text);
+    text-decoration-color: var(--brand);
+  }
+}
+
+// German compounds need hyphenation to fit narrow columns; elsewhere it only gets in the way.
+:root:lang(de) :is(.check-list, .planned-list, .tile p, .fact dd, h2, h3) {
+  hyphens: auto;
+}
+
+// Lists of what ships (small patina tick) and of what does not yet (hollow circle).
+.check-list,
+.planned-list {
+  display: grid;
+  max-width: 64ch;
+  gap: 0.55rem;
+  padding: 0;
+  margin: 0 0 1rem;
+  list-style: none;
+
+  li {
+    position: relative;
+    min-width: 0;
+    padding-inline-start: 1.75rem;
+  }
+
+  li::before {
+    position: absolute;
+    top: 0.45em;
+    inset-inline-start: 0;
+    width: 1rem;
+    height: 1rem;
+    content: '';
+    border-radius: 50%;
+  }
+}
+
+// The tick is a mask filled with the theme's patina, so one image serves both themes.
+.check-list li::before {
+  background: var(--patina-soft);
+}
+
+.check-list li::after {
+  position: absolute;
+  top: 0.45em;
+  inset-inline-start: 0;
+  width: 1rem;
+  height: 1rem;
+  content: '';
+  background: var(--patina);
+  mask: no-repeat center / 10px
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 10 10'%3E%3Cpath d='M2 5.2l2.2 2.2L8 3' fill='none' stroke='%23000' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+}
+
+.planned-list li::before {
+  border: 1.5px dashed var(--text-3);
+}
+
+// A status in plain words: a dot and the word. Filled for something planned, hollow for an idea; never for what ships.
+.status {
+  display: inline-flex;
+  gap: 0.45rem;
+  align-items: center;
+  color: var(--text-2);
+  font-size: var(--t-13);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.status::before {
+  width: 0.5rem;
+  height: 0.5rem;
+  content: '';
+  background: var(--brand);
+  border-radius: 50%;
+}
+
+.status--idea::before {
+  background: none;
+  border: 1.5px solid var(--text-3);
+}
+
+// Closing block of a page.
+.cta {
+  position: relative;
+  padding: clamp(2.5rem, 2rem + 4vw, 5rem) clamp(1.5rem, 1rem + 3vw, 4rem);
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-tile);
+
+  h2 {
+    max-width: 20ch;
+    margin-bottom: var(--s-4);
+  }
+
+  .lead {
+    margin-bottom: var(--s-6);
+  }
+}
+
+// A warm glow in its corner, the same light as the hero.
+.cta::before {
+  position: absolute;
+  inset: -40% -20% auto auto;
+  width: 60%;
+  aspect-ratio: 1;
+  content: '';
+  background: radial-gradient(closest-side, var(--mesh-a), transparent 70%);
+  pointer-events: none;
+}
+
+// Title block of the Product and Roadmap pages.
+.page-head {
+  padding-block: var(--s-9) var(--s-7);
+
+  h1 {
+    max-width: 20ch;
+    margin-bottom: var(--s-5);
+  }
+
+  .lead {
+    margin-bottom: var(--s-5);
+  }
+}
+
+// Gabarit's buttons, restyled: primary on the amber-to-rust gradient with dark ink, secondary a hairline on the
+// surface. The hover is a layer that fades in, so only opacity, transform and box-shadow animate.
+
+a[gbtButton].gbt-button,
+button[gbtButton].gbt-button {
+  position: relative;
+  min-height: var(--tap);
+  padding-inline: 1.125rem;
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: var(--t-15);
+  font-weight: 600;
+  letter-spacing: -0.005em;
+  background: var(--surface);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-control);
+  isolation: isolate;
+  transition:
+    transform var(--dur-1) var(--ease),
+    box-shadow var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease);
+
+  &::after {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    content: '';
+    background: var(--text);
+    border-radius: inherit;
+    opacity: 0;
+    transition: opacity var(--dur-1) var(--ease);
+  }
+
+  &:hover {
+    color: var(--text);
+    text-decoration: none;
+    border-color: var(--text-3);
+  }
+
+  &:hover::after {
+    opacity: 0.05;
+  }
+
+  &:active {
+    transform: translate3d(0, 1px, 0);
+  }
+
+  &.gbt-button--primary {
+    color: var(--on-brand);
+    background: var(--brand);
+    border-color: transparent;
+    box-shadow: 0 1px 2px rgba(2, 6, 20, 0.2);
+
+    &::after {
+      background: #fff;
+    }
+
+    &:hover {
+      color: var(--on-brand);
+      border-color: transparent;
+      box-shadow: 0 8px 24px -8px var(--brand);
+    }
+
+    &:hover::after {
+      opacity: 0.14;
+    }
+  }
+
+  &.gbt-button--ghost {
+    background: transparent;
+    border-color: transparent;
+  }
+}
+
+a[href],
+button:not(:disabled),
+summary,
+[role='tab'] {
+  cursor: pointer;
+}
+
+// Tiles: hairline surfaces whose border lights up under the pointer (the Glow directive sets --mx/--my).
+
+.tile {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-tile);
+  isolation: isolate;
+}
+
+.tile::before {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  content: '';
+  background: radial-gradient(
+    28rem circle at var(--mx, 50%) var(--my, 50%),
+    var(--glow),
+    transparent 60%
+  );
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease);
+  pointer-events: none;
+}
+
+.tile::after {
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  content: '';
+  background: radial-gradient(
+    18rem circle at var(--mx, 50%) var(--my, 50%),
+    color-mix(in srgb, var(--brand) 55%, transparent),
+    transparent 60%
+  );
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity var(--dur-3) var(--ease);
+  // A ring: the gradient shows through a 1px mask around the edge.
+  mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  mask-composite: exclude;
+  padding: 1px;
+  pointer-events: none;
+}
+
+@media (hover: hover) {
+  .tile:hover::before,
+  .tile:hover::after,
+  .tile:focus-within::before,
+  .tile:focus-within::after {
+    opacity: 1;
+  }
+}
+
+// Motion: only transform and opacity animate (plus stroke-dashoffset in SVG), nothing is hidden unless `html.js` is
+// set, and prefers-reduced-motion drops every animation.
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 10px, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+// Scroll reveals (Reveal directive). Hidden only under `html.js` until the directive adds `is-revealed`.
+html.js [data-reveal]:not(.is-revealed) {
+  opacity: 0;
+  transform: translate3d(0, 10px, 0);
+}
+
+html.js [data-reveal].is-revealed {
+  transition:
+    opacity var(--dur-3) var(--ease-out) calc(var(--i, 0) * var(--stagger)),
+    transform var(--dur-4) var(--ease-out) calc(var(--i, 0) * var(--stagger));
+}
+
+// The hero text rises line by line with plain keyframes, so it never waits for scripts.
+.rise > * {
+  animation: rise var(--dur-4) var(--ease-out) both;
+}
+
+@for $n from 1 through 6 {
+  .rise > :nth-child(#{$n}) {
+    animation-delay: #{($n - 1) * 90ms};
+  }
+}
+
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation-duration: var(--dur-2);
+  animation-timing-function: var(--ease);
+}
+
+// Colours fade when the theme changes. ThemeStore sets the class only right after a click on the toggle.
+html.theme-transition,
+html.theme-transition *,
+html.theme-transition *::before,
+html.theme-transition *::after {
+  transition:
+    background-color var(--dur-2) var(--ease),
+    border-color var(--dur-2) var(--ease),
+    color var(--dur-2) var(--ease),
+    fill var(--dur-2) var(--ease),
+    stroke var(--dur-2) var(--ease) !important;
+}
+
+// Loops pause in background tabs (MotionService sets the attribute).
+html[data-tab-hidden] .loop,
+html[data-tab-hidden] .loop * {
+  animation-play-state: paused !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+  }
+
+  html.js [data-reveal]:not(.is-revealed) {
+    opacity: 1;
+    transform: none;
+  }
+
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}

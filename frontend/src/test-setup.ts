@@ -1,6 +1,6 @@
 /**
- * Under this test runner, jsdom's `localStorage` is a bare object without the Storage methods, so field initializers
- * that read it (like AuthService's token signal) throw. In that case, install a minimal in-memory Storage.
+ * Under this test runner jsdom's `localStorage` is a bare object with no Storage methods, so initializers that read
+ * it (AuthService's token signal) throw. Install a small in-memory Storage when that happens.
  */
 function createStorage(): Storage {
   const entries = new Map<string, string>()

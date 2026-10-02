@@ -21,8 +21,7 @@ pub struct KubernetesPodExecutor {
     jobs: Arc<dyn JobStorePort>,
     system_settings: Arc<dyn SystemSettingsStorePort>,
     events: Arc<dyn PipelineEventPublisherPort>,
-    /// Used when `SystemSettings.k8s_namespace` is unset; resolved once at boot from the same cluster
-    /// config that produced `client`.
+    /// Used when `SystemSettings.k8s_namespace` is unset. Resolved once at boot from the config that built `client`.
     default_namespace: String,
 }
 
@@ -277,8 +276,8 @@ mod tests {
 
     #[tokio::test]
     async fn submit_does_not_publish_a_running_event_when_the_job_already_went_terminal() {
-        // A fast watcher report can make the job terminal before `submit` marks it `Running`. Then
-        // `update_status` returns `false`, and `submit` must not publish a stale `Running` event.
+        // A fast watcher report can make the job terminal before submit marks it Running. update_status then
+        // returns false and submit must not publish a stale Running event.
         let client = test_client().await;
         let ns = TestNamespace::create(&client).await;
         let the_job = job(vec![]);

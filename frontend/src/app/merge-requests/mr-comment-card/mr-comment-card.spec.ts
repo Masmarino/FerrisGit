@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import { MrCommentCard } from './mr-comment-card';
 
 describe('MrCommentCard', () => {
-  // Freeze "now" so the relative date cannot flip at a minute or hour boundary. Only Date is faked.
+  // Freeze "now" so the relative date can't flip at a minute or hour boundary. Only Date is faked.
   beforeEach(() => {
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date(2026, 8, 24, 15, 0, 0));

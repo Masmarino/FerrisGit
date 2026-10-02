@@ -41,7 +41,7 @@ const RELEASE: ReleaseDetail = {
 
 const PUBLIC_REPO = { ...REPO, isStarred: undefined };
 
-/** The public repository pages inside the public layout, on fake reads, starting at `url`. */
+/** The public repository pages in the public layout, on fake reads, starting at `url`. */
 function atRepository(url: string, resolved: () => ReturnType<RepositoriesService['resolve']> = () => of<ResolvedPath>({ type: 'personalRepository', repositoryId: REPO.id })) {
   return [
     withPublicCatalog({ url, routes: [{ matcher: publicRepositoryMatcher, component: PublicRepositoryPage }] }),

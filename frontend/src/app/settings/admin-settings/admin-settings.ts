@@ -19,7 +19,7 @@ const SECTIONS: { key: SectionKey; label: string; icon: string }[] = [
 
 const DEFAULT_SECTION: SectionKey = 'execution';
 
-/** The instance settings: a tab per section, each in its own component, all editing through one `SettingsEditor`. */
+/** The instance settings: a tab per section, each its own component, all editing through one `SettingsEditor`. */
 @Component({
   selector: 'fg-admin-settings',
   standalone: true,

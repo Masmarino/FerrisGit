@@ -7,8 +7,8 @@ use super::{
 };
 
 impl GixRepositoryReader {
-    /// Diffs merge-base(`source_branch`, `target_branch`) to `source_branch`'s tip by walking both trees
-    /// into `BTreeMap` snapshots (gix's tree-diff feature is not enabled). Line diffs use `similar`.
+    /// Diffs the merge base of the two branches against the source tip. Both trees are walked into BTreeMap
+    /// snapshots because gix's tree-diff feature isn't enabled; line diffs come from `similar`.
     pub fn diff_branches(
         &self,
         disk_path: &Path,

@@ -40,8 +40,8 @@ export class NotificationBell implements OnInit, OnDestroy {
     });
   }
 
-  // Bound on the trigger button, not on gbt-popover's host, so the bubble phase runs this before Popover's own toggle
-  // handler. `popover.open()` still reflects the state before this click, so the list only refreshes when about to open.
+  // Bound on the trigger button, not the popover host, so it runs before the popover's own toggle handler. `open()`
+  // still holds the state from before the click, so the list only refreshes when the click opens it.
   protected onTriggerClick(): void {
     if (!this.popover()?.open()) {
       this.notifications.list().subscribe({ next: (list) => this.items.set(list) });

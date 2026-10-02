@@ -617,7 +617,7 @@ async fn role_gating_matches_reader_contributor_maintainer_across_git_settings_a
     )
     .await;
     let final_collaborators = final_collaborators.as_array().unwrap();
-    // The owner is never itself a collaborator row, so this is the original three plus `extra`.
+    // The owner has no collaborator row, so this is the original three plus `extra`.
     assert_eq!(
         final_collaborators.len(),
         4,

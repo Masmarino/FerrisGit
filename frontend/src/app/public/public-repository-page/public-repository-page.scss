@@ -1,5 +1,5 @@
-// A block, not a flex column: the reused pages centre themselves with `margin-inline: auto`, which in a flex
-// column would shrink them to their content.
+// A block, not a flex column: the reused pages centre with `margin-inline: auto`, which would shrink them to their
+// content in a flex column.
 :host {
   display: block;
 }

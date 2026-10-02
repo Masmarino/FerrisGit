@@ -35,49 +35,45 @@ pub trait UserRepositoryPort: Send + Sync {
         user_id: Uuid,
         password_hash: String,
     ) -> Result<(), DomainError>;
-    /// Active means the flag is set and no invitation is pending (an invited admin who never activated does not count).
-    /// `SetAdminUseCase` uses it for an early, clear refusal of a demotion that would leave no usable admin.
+    /// Counts admins who are active: flag set and no pending invitation. `SetAdminUseCase` uses it to refuse early, with a
+    /// clear message, a demotion that would leave no usable admin.
     async fn count_admins(&self) -> Result<i64, DomainError>;
-    /// Sets or clears the admin flag. `NotFound` for an unknown user. The store refuses, atomically and with
-    /// `Conflict`, to clear it on the last active admin: `count_admins` followed by this write is check-then-act, and
-    /// two admins demoting each other at the same time would both pass. There is no default implementation on purpose:
-    /// a store that skipped the floor would be worse than none.
+    /// Sets or clears the admin flag. `NotFound` for an unknown user. Clearing it on the last active admin is refused with
+    /// `Conflict`, atomically: `count_admins` then this write is check-then-act, so two admins demoting each other at once
+    /// would both pass. No default on purpose, a store that skipped this check would be worse than none.
     async fn set_admin(&self, user_id: Uuid, is_admin: bool) -> Result<(), DomainError>;
-    /// Deletes the account and its personal repositories in one transaction and returns them (the caller removes git
-    /// storage and release assets once the rows are gone). The store cascades the rest of what the user owns
-    /// and turns what they wrote elsewhere into content by a deleted user (the author field becomes `None`).
-    /// `NotFound` for an unknown user.
-    /// Refused with `Conflict`, atomically and before anything is written, for the last active admin (same floor as
-    /// `set_admin`) and for the last Maintainer of a group hierarchy (same rule as `group_maintainer_guard`).
-    /// A group repository the user created (`owner_id` means "created by", never an access grant) survives: its
-    /// `owner_id` passes to `heir_id` (the acting admin), because `repositories.owner_id` cascades.
-    /// `heir_id == user_id` is a `Validation` error. No default implementation, like `set_admin`.
+    /// Deletes the account and its personal repositories in one transaction and returns them so the caller can remove the
+    /// git storage and release assets. Other things the user owns cascade, and what they wrote elsewhere stays with a
+    /// `None` author. `NotFound` for an unknown user.
+    ///
+    /// Refused with `Conflict`, before anything is written, for the last active admin (same rule as `set_admin`) and for the
+    /// last Maintainer of a group hierarchy. A group repo the user created survives with `heir_id` (the acting admin) as its
+    /// `owner_id`, because that column cascades. `heir_id == user_id` is a `Validation` error. No default, like `set_admin`.
     async fn delete(
         &self,
         user_id: Uuid,
         heir_id: Uuid,
     ) -> Result<Vec<crate::repository::Repository>, DomainError>;
-    /// Username only, never scoped: any authenticated user can find any other by name.
+    /// By username only and never scoped: any signed-in user can find anyone by name.
     async fn search(&self, query: &str, limit: i64) -> Result<Vec<User>, DomainError>;
-    /// Keep new accounts unique regardless of casing (the table's `UNIQUE` constraints are case-sensitive). No
-    /// default implementations: a store that forgot them would let duplicates through.
+    /// Used to keep usernames and emails unique regardless of case, since the `UNIQUE` constraints are case-sensitive. No
+    /// default: a store that forgot them would let duplicates through.
     async fn find_by_username_ignore_case(
         &self,
         username: &str,
     ) -> Result<Option<User>, DomainError>;
     async fn find_by_email_ignore_case(&self, email: &str) -> Result<Option<User>, DomainError>;
-    /// Ordered by creation time then id, at most `limit`.
+    /// Ordered by creation time then id.
     async fn list(&self, _limit: i64) -> Result<Vec<User>, DomainError> {
         Ok(vec![])
     }
-    /// Epoch embedded in every JWT at issue time (see `bump_token_epoch`). Defaults to `Ok(0)` rather than
-    /// `unimplemented!()` because it is on every authenticated request's hot path.
+    /// The epoch stamped into every JWT. Defaults to 0 instead of `unimplemented!()` since every authenticated request
+    /// reads it.
     async fn get_token_epoch(&self, _user_id: Uuid) -> Result<i32, DomainError> {
         Ok(0)
     }
-    /// Invalidates every token issued before this call: a JWT carrying the old epoch fails `AuthUser`'s check even if
-    /// unexpired. Called on password change and admin password/MFA reset. No-op by default, paired with
-    /// `get_token_epoch`'s constant default.
+    /// Invalidates every token issued so far: a JWT with the old epoch fails the check even if it hasn't expired. Called on
+    /// password change and on admin password or MFA resets. No-op by default, matching the constant `get_token_epoch`.
     async fn bump_token_epoch(&self, _user_id: Uuid) -> Result<(), DomainError> {
         Ok(())
     }
@@ -89,12 +85,11 @@ pub trait PasswordHasherPort: Send + Sync {
 }
 
 pub trait TokenIssuerPort: Send + Sync {
-    /// `token_epoch` is embedded in the claims (see `UserRepositoryPort::bump_token_epoch`).
+    /// The epoch goes into the claims, see `UserRepositoryPort::bump_token_epoch`.
     fn issue(&self, user_id: Uuid, token_epoch: i32) -> Result<String, DomainError>;
-    /// Returns the subject id and the token's `token_epoch`. `AuthUser` compares it with the user's current epoch to
-    /// detect revocation.
+    /// Returns the subject id and the token epoch, which `AuthUser` compares to the user's current one to detect revocation.
     fn verify(&self, token: &str) -> Result<(Uuid, i32), DomainError>;
-    /// Affects subsequent `issue` calls immediately; already-issued tokens keep their `exp`.
+    /// Applies to the next `issue` right away, tokens already issued keep their `exp`.
     fn set_ttl_hours(&self, hours: i64);
 }
 

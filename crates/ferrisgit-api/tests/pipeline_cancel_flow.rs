@@ -1,5 +1,5 @@
-// `POST /api/pipelines/{id}/cancel`. Pipeline and job fixtures are seeded through the store ports, so no runner or Docker is needed.
-// Cancelling an already-terminal pipeline must leave its status untouched.
+// `POST /api/pipelines/{id}/cancel`. Fixtures go through the store ports, so no runner or Docker is needed.
+// Cancelling a pipeline that already finished leaves its status alone.
 
 mod common;
 
@@ -163,7 +163,7 @@ async fn canceling_an_already_terminal_pipeline_over_http_is_a_no_op(pool: PgPoo
             })
             .await
             .unwrap();
-        // The job mirrors the pipeline's terminal status, so it is a real non-cancelable outcome.
+        // The job mirrors the pipeline's final status, so it's a real outcome that can't be cancelled.
         let job_terminal_status = match terminal_status {
             PipelineStatus::Success => JobStatus::Success,
             PipelineStatus::Failed => JobStatus::Failed,
@@ -226,7 +226,7 @@ async fn canceling_a_pipeline_requires_contributor_access_to_its_repository(pool
     let repository_id: Uuid = repo_res["id"].as_str().unwrap().parse().unwrap();
     let repo_id_str = repo_res["id"].as_str().unwrap();
 
-    // A Reader can see pipelines, but `cancel` requires Contributor+.
+    // A Reader sees pipelines, but cancel needs Contributor.
     post_ok(
         &client,
         addr,

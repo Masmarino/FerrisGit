@@ -179,45 +179,44 @@ pub struct AppState {
     pub wiki_writer: Arc<dyn WikiWriterPort>,
     pub login_rate_limiter: Arc<LoginRateLimiter>,
     pub register_rate_limiter: Arc<LoginRateLimiter>,
-    /// Shared by `POST /auth/activate` and `POST /auth/reset-password`: both redeem a token, so one budget bounds
-    /// a client's argon2 cost across them.
+    /// Shared by activate and reset-password: both redeem a token, so one budget caps a client's argon2 cost
+    /// across the two.
     pub activation_rate_limiter: Arc<LoginRateLimiter>,
     pub invitations: Arc<dyn UserInvitationPort>,
     pub password_resets: Arc<dyn PasswordResetPort>,
     pub registration_settings: Arc<dyn RegistrationSettingsPort>,
     pub public_pages_settings: Arc<dyn PublicPagesSettingsPort>,
     pub public_catalog: Arc<dyn PublicCatalogPort>,
-    /// Per-IP budget shared by every anonymous `/api/public/*` route.
+    /// One per-IP budget for all the anonymous `/api/public/*` routes.
     pub public_rate_limiter: Arc<LoginRateLimiter>,
     pub totp_credentials: Arc<dyn TotpCredentialPort>,
     pub passkey_credentials: Arc<dyn WebauthnCredentialPort>,
-    /// Unavailable without a usable `PUBLIC_URL`: passkey routes answer 503, TOTP keeps working.
+    /// Without a usable `PUBLIC_URL` the passkey routes answer 503 and TOTP keeps working.
     pub passkeys: Arc<PasskeyService>,
     pub passkey_start_limiter: Arc<LoginRateLimiter>,
-    /// Publishes no security event and bumps no epoch: the routes do.
+    /// Doesn't publish security events or bump the epoch, the routes do.
     pub mfa: Arc<MfaService>,
     pub mfa_pending: Arc<dyn MfaPendingTokenPort>,
-    /// Tokens that already completed a login or enrolment. A token is only consumed on success.
+    /// Tokens that already finished a login or enrolment. Only a success spends one.
     pub mfa_spent_tokens: SingleUseTokens,
     pub first_setup_locks: Arc<FirstSetupLocks>,
     pub mfa_limiter: Arc<MfaRateLimiter>,
-    /// For tests only. Nothing at runtime can change it, so production cannot turn MFA off. Tests that are not
-    /// about MFA set it to `false` so login returns a plain session.
+    /// Tests only: nothing at runtime changes it, so production can't turn MFA off. Tests that aren't about MFA set
+    /// it to false so login returns a plain session.
     pub mfa_enforced: bool,
-    /// Caps concurrent git request bodies buffered before authentication (see `MAX_BUFFERED_GIT_BODY_MB`).
+    /// Caps the git request bodies buffered at once before authentication (see `MAX_BUFFERED_GIT_BODY_MB`).
     pub git_body_semaphore: Arc<tokio::sync::Semaphore>,
     pub metrics_snapshots: Arc<dyn MetricsSnapshotRepositoryPort>,
     pub health_check: Arc<dyn HealthCheckPort>,
     pub storage_health: Arc<dyn StorageHealthCheckPort>,
     pub directory_size: Arc<dyn DirectorySizePort>,
-    /// Auto-detected at boot. It pre-fills `k8s_namespace` in the admin settings and is the runtime fallback when
-    /// that setting is unset.
+    /// Detected at boot. Pre-fills `k8s_namespace` in the admin settings and is the fallback while it's unset.
     pub detected_k8s_namespace: Option<String>,
-    /// Best effort. It only pre-fills `k8s_cache_storage_class` and is never a runtime fallback, since an
-    /// unverifiable ReadWriteMany guess could quietly break caches.
+    /// Best-effort guess that only pre-fills `k8s_cache_storage_class`. Never a fallback: a wrong ReadWriteMany
+    /// guess could quietly break caches.
     pub detected_k8s_default_storage_class: Option<String>,
     pub started_at: std::time::Instant,
-    /// Pre-built because the hourly scheduler in `main.rs` calls it outside any HTTP request.
+    /// Built up front because the hourly timer in `main.rs` runs it outside any request.
     pub record_metrics_snapshot: Arc<RecordMetricsSnapshotUseCase>,
     pub purge_expired_job_logs: Arc<PurgeExpiredJobLogsUseCase>,
 }
@@ -268,7 +267,7 @@ impl AppState {
             hasher.clone(),
             passkey_credentials.clone(),
         ));
-        // `None` (a warning is logged) when the public URL cannot carry passkeys.
+        // `None` (with a warning) when the public URL can't carry passkeys.
         let passkeys = Arc::new(PasskeyService::new(
             build_webauthn(&config.public_url).map(Arc::new),
             passkey_credentials.clone(),
@@ -292,8 +291,7 @@ impl AppState {
         let docker_executor: Arc<dyn JobExecutionPort> =
             Arc::new(DockerRunnerExecutor::new(jobs.clone()));
 
-        // Inferred here rather than via `kube::Client::try_default()` to keep `default_namespace` as an
-        // auto-detected fallback.
+        // Not `kube::Client::try_default()`: we want the inferred config too, for its default namespace.
         let kubernetes_config = kube::Config::infer().await.ok();
         let kubernetes_client = kubernetes_config
             .as_ref()
@@ -318,7 +316,7 @@ impl AppState {
                 default_k8s_namespace.clone(),
             )),
             None => {
-                // `infer()` does no connectivity check, so this only means no config was found.
+                // infer() never checks connectivity, so this just means no config was found.
                 tracing::warn!(
                     "no Kubernetes configuration found at startup; the Kubernetes execution engine will explicitly fail if selected"
                 );
@@ -331,7 +329,7 @@ impl AppState {
         ));
 
         if let Some(client) = kubernetes_client {
-            // The watcher does not re-read `k8s_namespace` if it changes mid-flight.
+            // Read once: the watcher won't notice a later change to k8s_namespace.
             let namespace = system_settings
                 .get()
                 .await

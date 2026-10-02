@@ -4,38 +4,35 @@ use uuid::Uuid;
 
 use crate::error::DomainError;
 
-/// What consuming a valid password-reset token yields: whose password it lets the bearer set.
+/// A consumed reset token: whose password it lets the bearer set.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PasswordReset {
     pub user_id: Uuid,
     pub expires_at: DateTime<Utc>,
 }
 
-/// Pending password-reset links triggered by an admin. Only the hash is stored. Like `UserInvitationPort` without
-/// `renew` and `expiries`: every reset issues a fresh link.
+/// Pending admin-triggered reset links. Only the hash is stored. Like the invitation port minus `renew` and `expiries`,
+/// since every reset issues a fresh link.
 #[async_trait]
 pub trait PasswordResetPort: Send + Sync {
-    /// Replaces any existing reset link of the user (one live link per user): a second admin reset kills the first
-    /// link instead of leaving two valid ones in the wild.
+    /// Replaces the user's reset link, if any, so a second admin reset kills the first instead of leaving two valid ones.
     async fn replace(
         &self,
         user_id: Uuid,
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<(), DomainError>;
-    /// Atomic single use: `Some` only for a token that exists and has not expired; the row is deleted.
+    /// Single use: returns the reset only if the token exists and hasn't expired, and deletes it.
     async fn consume(&self, token_hash: &str) -> Result<Option<PasswordReset>, DomainError>;
-    /// Puts back a link that was consumed but could not be used (the password write failed), but only if the user has
-    /// no link at all by now. Returns `true` only if it was put back. Unlike `replace` it never overwrites: an admin
-    /// who issued a new reset in the meantime must not see the older link revived over theirs.
+    /// Puts back a consumed link whose password write failed, but only if the user has no link by now, so it never revives
+    /// an old link over one an admin issued in the meantime. Returns `true` if it was put back.
     async fn restore(
         &self,
         user_id: Uuid,
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<bool, DomainError>;
-    /// Whether the user has a reset link at all, expired or not. An admin reset scrambles the password until the link
-    /// is used (and `consume` deletes the row), so a row means the user cannot sign in. `SetAdminUseCase` must not
-    /// count such an admin toward the "never zero admins" floor.
+    /// Whether the user has a reset link at all, expired or not. An admin reset scrambles the password until the link is
+    /// used, so a pending row means the user can't sign in and `SetAdminUseCase` shouldn't count them as an admin.
     async fn is_pending(&self, user_id: Uuid) -> Result<bool, DomainError>;
 }

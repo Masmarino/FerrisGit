@@ -38,7 +38,7 @@ impl MergeRequestStatus {
 pub struct MergeRequest {
     pub id: Uuid,
     pub repository_id: Uuid,
-    /// `None` once the author's account was deleted: the merge request outlives them.
+    /// `None` once the author's account is deleted: the merge request outlives them.
     pub author_id: Option<Uuid>,
     pub source_branch: String,
     pub target_branch: String,
@@ -100,8 +100,7 @@ pub struct MergeRequestReview {
 pub trait MergeRequestStorePort: Send + Sync {
     async fn create(&self, new_mr: NewMergeRequest) -> Result<MergeRequest, DomainError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<MergeRequest>, DomainError>;
-    /// Optionally narrowed to those carrying at least one of `label_ids` and/or in `milestone_id`; `None` doesn't
-    /// narrow by that dimension.
+    /// Optionally narrowed to merge requests with at least one of the labels and/or in the milestone.
     async fn list_for_repository_filtered(
         &self,
         repository_id: Uuid,
@@ -124,7 +123,7 @@ pub trait MergeRequestStorePort: Send + Sync {
         limit: i64,
     ) -> Result<Vec<MergeRequest>, DomainError>;
 
-    /// Open merge requests authored by `user_id`, restricted to `repository_ids`, most recent first.
+    /// Open merge requests authored by the user, most recent first.
     async fn list_authored_by(
         &self,
         user_id: Uuid,
@@ -132,8 +131,8 @@ pub trait MergeRequestStorePort: Send + Sync {
         limit: i64,
     ) -> Result<Vec<MergeRequest>, DomainError>;
 
-    /// Open merge requests `user_id` did not author and has not reviewed, in `repository_ids`, most recent first.
-    /// There is no "assigned reviewer" concept; this is the heuristic for "awaiting my review".
+    /// Open merge requests the user neither authored nor reviewed, most recent first. There are no assigned reviewers, so
+    /// this stands in for "awaiting my review".
     async fn list_awaiting_review_by(
         &self,
         user_id: Uuid,

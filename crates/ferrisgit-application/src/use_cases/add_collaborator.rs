@@ -69,7 +69,7 @@ impl AddCollaboratorUseCase {
             .find_by_username(username)
             .await?
             .ok_or_else(|| DomainError::Validation("no such user".to_string()))?;
-        // A group repository's `owner_id` only records who created it: it carries no implicit role.
+        // On a group repo owner_id is just the creator, not a role.
         if repo.group_id.is_none() && target.id == repo.owner_id {
             return Err(DomainError::Validation(
                 "the owner is already a collaborator".to_string(),
@@ -329,8 +329,7 @@ mod tests {
         }
     }
 
-    /// A repository in `child`, itself below `root`, whose creator holds no role anywhere. `member` holds
-    /// `member_role` on `root`.
+    /// A repo in `child` (below `root`) whose creator has no role anywhere. `member` holds `member_role` on `root`.
     async fn group_repository_fixture(
         member: &User,
         member_role: CollaboratorRole,

@@ -61,7 +61,7 @@ async fn full_git_hosting_flow_works_end_to_end(pool: PgPool) {
         get_json(&client, addr, &jwt, "/repositories/admin/hello/commits").await;
     assert_eq!(commits_res.as_array().unwrap().len(), 1);
 
-    // Regression: a push whose packfile exceeds axum's default 2 MiB body limit must succeed. The bytes are incompressible, so zlib cannot shrink the pack below the limit.
+    // A push whose packfile exceeds axum's default 2 MiB body limit has to succeed. The bytes are incompressible, so zlib can't shrink the pack under it.
     let mut state_val: u64 = 0x9E3779B97F4A7C15;
     let large_file: Vec<u8> = (0..3 * 1024 * 1024)
         .map(|_| {
@@ -90,7 +90,6 @@ async fn full_git_hosting_flow_works_end_to_end(pool: PgPool) {
     )
     .await;
 
-    // A packfile above 2 MiB must get through the request body limit.
     git(&["push", "origin", "HEAD:main"], &repo_path).await;
 
     let commits_res_after_large: serde_json::Value =

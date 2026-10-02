@@ -68,12 +68,12 @@ describe('RepositoryLabelsSettings', () => {
     fixture.detectChanges();
 
     expect(component['labelPendingDelete']()).toEqual(label);
-    // French terms only: "tickets" and "demandes de fusion", not "issues" or "merge requests".
+    // French terms only ("tickets", "demandes de fusion"), never "issues" or "merge requests".
     expect((fixture.nativeElement as HTMLElement).querySelector('[role="dialog"]')?.textContent).toContain(
       "Ce label sera retiré de tous les tickets et de toutes les demandes de fusion qui l'utilisent. Cette action est irréversible.",
     );
 
-    // Skips `ConfirmDangerModal`'s typed confirmation, which has its own tests.
+    // The typed confirmation has its own tests, so skip it here.
     component.deleteLabel();
     fixture.detectChanges();
 
@@ -183,7 +183,7 @@ describe('RepositoryLabelsSettings', () => {
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toContain("Les labels n'ont pas pu être chargés");
       expect(failed?.getAttribute('data-variant')).toBe('error');
-      // The error toast announces the failure, so the inline block stays silent (one live region, not two).
+      // The toast announces the failure, so the inline block stays silent.
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
       expect(failed?.querySelector('button')?.textContent?.trim()).toBe('Réessayer');

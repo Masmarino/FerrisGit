@@ -6,8 +6,8 @@
 
 <gbt-page-layout width="wide">
   @if (loading()) {
-    <!-- The grid announces once that the dashboard is loading (a polite status, outside any aria-busy region). The
-         card's own placeholder rows stay silent. -->
+    <!-- The grid announces the loading once, as a polite status outside any aria-busy region. The cards' placeholder rows
+         stay silent. -->
     <div class="home-page__main home-page__loading">
       <gbt-stat-grid ariaLabel="Résumé" [loading]="true" loadingLabel="Chargement du tableau de bord…" />
       <gbt-card variant="outlined" [flush]="true" aria-hidden="true">
@@ -69,8 +69,8 @@
 
                         <span row-meta class="home-page__meta">
                           <a class="home-page__repo" [routerLink]="row.repositoryLink" [title]="row.repositoryPath"><gbt-badge mono>{{ row.repositoryPath }}</gbt-badge></a>
-                          <!-- No "·" separator: the chip's border already sets it apart, and a separator would start
-                               the wrapped line on a phone. -->
+                          <!-- No "·" separator: the chip's border already sets it apart, and on a phone it would start the
+                               wrapped line. -->
                           <span class="home-page__opened">
                             {{ row.kind === 'issue' ? 'ouvert' : 'ouverte' }}
                             <time [attr.datetime]="row.createdAt" [title]="row.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>

@@ -2,7 +2,7 @@
 $radius: 12px;
 $card-motion: 200ms cubic-bezier(0, 0, 0.2, 1);
 
-// Status tints shared by the lane icons and the menu items: the same colours as the list rows' status icons.
+// Status tints shared by the lane icons and the menu items, same colours as the list rows' status icons.
 @mixin status-tint {
   color: var(--text-secondary);
 
@@ -69,8 +69,8 @@ $card-motion: 200ms cubic-bezier(0, 0, 0.2, 1);
   }
 }
 
-// Lanes share the width down to 260px. Below that the board scrolls sideways inside itself (`cdkScrollable` lets a
-// drag near its edge scroll it). It is positioned so it clips the hidden text of off-screen cards instead of widening the page.
+// Lanes share the width down to 260px, below that the board scrolls sideways inside itself (`cdkScrollable` lets a drag
+// near its edge scroll it). It's positioned so it clips the hidden text of off-screen cards instead of widening the page.
 .issue-kanban__board {
   position: relative;
   display: grid;
@@ -83,8 +83,8 @@ $card-motion: 200ms cubic-bezier(0, 0, 0.2, 1);
   scrollbar-width: thin;
 }
 
-// A tinted lane with its status colour as an inset bar along the top edge. The lanes of a row share the tallest
-// height, up to about one screen. Beyond that the cards scroll inside the lane under a fixed header.
+// A tinted lane with its status colour as an inset bar along the top edge. Lanes in a row share the tallest height, up
+// to about one screen; beyond that the cards scroll inside the lane under a fixed header.
 .issue-kanban__lane {
   --lane-accent: color-mix(in srgb, var(--text-secondary) 55%, transparent);
 
@@ -174,8 +174,7 @@ $card-motion: 200ms cubic-bezier(0, 0, 0.2, 1);
   display: none;
 }
 
-// Hover lifts the card with a shadow only. A transform would re-anchor the fixed position of the card's
-// open menu.
+// Hover lifts the card with a shadow only: a transform would re-anchor the fixed position of the card's open menu.
 .issue-kanban__card {
   position: relative;
   display: flex;

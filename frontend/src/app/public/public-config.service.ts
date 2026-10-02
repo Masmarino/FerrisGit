@@ -3,8 +3,8 @@ import { inject, Injectable } from '@angular/core';
 import { catchError, map, Observable, of, tap } from 'rxjs';
 
 /**
- * Whether the instance opens its public pages to visitors, from `GET /api/auth/config`. `null` means unknown (the
- * request failed): callers decide what is safe. Only a known answer is cached, so a failure is retried next time.
+ * Whether the instance opens its public pages to visitors, from `GET /api/auth/config`. `null` means the request failed
+ * and callers pick the safe side. Only a known answer is cached, so a failure is retried.
  */
 @Injectable({ providedIn: 'root' })
 export class PublicConfigService {

@@ -494,7 +494,7 @@ describe('AdminSettings', () => {
         http.expectNone('/api/admin/settings');
       });
 
-      // A number field cannot hold letters, so only numbers that are not whole counts reach the handler.
+      // A number field can't hold letters, so only numbers that aren't whole counts reach the handler.
       it.each(['0', '-2', '1.5'])('explains that "%s" is not valid instead of saving it', async (value) => {
         const { harness, el, http } = await setup();
 

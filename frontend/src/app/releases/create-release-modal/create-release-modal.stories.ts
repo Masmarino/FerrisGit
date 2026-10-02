@@ -7,7 +7,7 @@ import { ReleasesService, TagSummary } from '../releases.service';
 import { BranchInfo, MergeRequestsService } from '../../merge-requests/merge-requests.service';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 
-// `provideFerrisgitIcons` returns `EnvironmentProviders`, which only fits in an `ApplicationConfig`.
+// provideFerrisgitIcons returns EnvironmentProviders, which only fits in an ApplicationConfig.
 const withIcons = applicationConfig({ providers: [provideFerrisgitIcons()] });
 
 const BRANCHES: BranchInfo[] = [

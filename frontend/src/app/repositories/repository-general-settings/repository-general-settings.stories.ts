@@ -101,14 +101,14 @@ export const DescriptionSaved: Story = {
     const description = await rendered<HTMLTextAreaElement>(canvasElement, '[data-field="description"] textarea');
     await userEvent.clear(description);
     await userEvent.type(description, 'Un nouveau texte.');
-    fireEvent.blur(description); // A `blur()` call does nothing while the preview frame is not focused.
+    fireEvent.blur(description); // blur() does nothing while the preview frame lacks focus.
     await waitFor(() => expect(canvasElement.querySelector('[data-field="description"] [role="status"]')?.textContent?.trim()).toBe('Enregistré'));
     await expectSettingsLayout(canvasElement);
   },
 };
 
 export const SaveFailed: Story = {
-  // Fails a moment later, like a real HTTP error, not synchronously inside the event.
+  // Fail a bit later, like a real HTTP error, not synchronously.
   decorators: [withService({ update: () => timer(200).pipe(switchMap(() => throwError(() => ({ status: 500 })))) })],
   play: async ({ canvasElement }) => {
     const description = await rendered<HTMLTextAreaElement>(canvasElement, '[data-field="description"] textarea');

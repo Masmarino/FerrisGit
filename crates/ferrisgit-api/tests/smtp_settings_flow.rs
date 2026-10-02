@@ -1,4 +1,4 @@
-// The mailer is a recording fake, except in the one test that exercises the real unconfigured `SmtpEmailSender`.
+// The mailer is a recording fake, except in the one test that uses the real, unconfigured SmtpEmailSender.
 
 mod common;
 
@@ -103,7 +103,7 @@ async fn anonymous_and_non_admin_callers_are_refused(pool: PgPool) {
             .await
             .unwrap(),
     ];
-    // `AdminUser` reports a non-admin as `DomainError::Unauthorized` (401); there is no 403 variant.
+    // A non-admin comes back as Unauthorized (401), there's no 403 variant.
     for res in non_admin {
         assert_eq!(res.status(), 401);
     }

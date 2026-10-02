@@ -2,12 +2,12 @@ use std::path::Path;
 
 use super::{
     GitReadError, GixRepositoryReader, WikiPageContentRaw, WikiPageInfoRaw, WikiRevisionRaw,
-    commit_info, id_at_path, newest_first_walk, open,
+    commit_info, id_at_path, newest_first_walk, open, walked_commit,
 };
 
 impl GixRepositoryReader {
-    /// Callers only get here after checking that a `wikis` row exists, so a `gix::open` failure is a
-    /// real `GitReadError` (disk and Postgres disagree). Only a repo with zero commits yields `Ok(None)`.
+    /// Callers have already checked that a `wikis` row exists, so a failing `gix::open` is a real error (disk
+    /// and Postgres disagree). Only a repo with zero commits gives `Ok(None)`.
     pub fn wiki_head_sha(&self, disk_path: &Path) -> Result<Option<String>, GitReadError> {
         let repo = open(disk_path)?;
         Ok(repo.head_id().ok().map(|id| id.to_string()))
@@ -28,7 +28,7 @@ impl GixRepositoryReader {
         let mut pages = Vec::new();
         for entry in tree.iter() {
             let entry = entry.map_err(GitReadError::other)?;
-            // The namespace is flat: ignore any subdirectory a raw `git push` might have created.
+            // The namespace is flat: skip any subdirectory a raw git push might have created.
             if entry.mode().is_tree() {
                 continue;
             }
@@ -74,8 +74,7 @@ impl GixRepositoryReader {
         }))
     }
 
-    /// Commits that changed `{slug}.md`, newest first: the blob differs from the first parent's
-    /// (added or modified). A commit that only removed the page is not included.
+    /// Commits that added or modified `{slug}.md`, newest first. One that only removed the page is left out.
     pub fn list_wiki_page_revisions(
         &self,
         disk_path: &Path,
@@ -89,10 +88,7 @@ impl GixRepositoryReader {
 
         let mut revisions = Vec::new();
         for info in newest_first_walk(&repo, head_id.detach())? {
-            let commit = info
-                .map_err(GitReadError::other)?
-                .object()
-                .map_err(GitReadError::other)?;
+            let commit = walked_commit(info)?;
             let Some(current_blob) =
                 id_at_path(&commit.tree().map_err(GitReadError::other)?, &file_name)?
             else {

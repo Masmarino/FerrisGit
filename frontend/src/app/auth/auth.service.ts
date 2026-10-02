@@ -6,9 +6,8 @@ import { map, Observable, tap } from 'rxjs';
 const TOKEN_KEY = 'ferrisgit_token';
 
 /**
- * The `AuthPort` for Gabarit's auth kit. For a local account the password step never returns a session (`token` is
- * null and `mfaToken` names the next MFA step). The first enrolment doesn't store it either. The kit calls
- * `setToken` once the backup codes are acknowledged.
+ * The auth kit's port. For a local account the password step returns no session (`token` is null, `mfaToken` names the
+ * next MFA step), and neither does the first enrolment: the kit calls `setToken` once the backup codes are acknowledged.
  */
 @Injectable({ providedIn: 'root' })
 export class AuthService implements AuthPort {
@@ -58,7 +57,7 @@ export class AuthService implements AuthPort {
     return this.http.post<PasskeyChallenge>('/api/auth/mfa/setup/passkey/start', { mfaToken });
   }
 
-  /** Like `confirmTotp`, this doesn't store the session token. The caller calls `setToken` once the backup codes are saved. */
+  /** Doesn't store the session token, like `confirmTotp`; the caller does it once the backup codes are saved. */
   finishPasskeySetup(mfaToken: string, challengeId: string, credential: unknown, name: string): Observable<MfaSetupResult> {
     return this.http.post<MfaSetupResult>('/api/auth/mfa/setup/passkey/finish', { mfaToken, challengeId, credential, name });
   }
@@ -67,7 +66,7 @@ export class AuthService implements AuthPort {
     return this.http.post<TotpEnrollment>('/api/auth/mfa/setup/totp/enroll', { mfaToken });
   }
 
-  /** Doesn't store the session token. The caller calls `setToken` once the backup codes (shown only once) are saved. */
+  /** Doesn't store the session token; the caller does it once the backup codes (shown only once) are saved. */
   confirmTotp(mfaToken: string, code: string): Observable<MfaSetupResult> {
     return this.http.post<MfaSetupResult>('/api/auth/mfa/setup/totp/confirm', { mfaToken, code });
   }

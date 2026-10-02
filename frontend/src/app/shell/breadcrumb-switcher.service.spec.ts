@@ -31,7 +31,7 @@ describe('BreadcrumbSwitcherService', () => {
     const childrenReq = http.expectOne('/api/groups/group-1/children');
     const reposReq = http.expectOne('/api/groups/group-1/repositories');
     childrenReq.flush([{ id: 'group-2', parentGroupId: 'group-1', name: 'backend', description: '', createdAt: '2026-01-01' }]);
-    // forkJoin only emits once both sources have emitted.
+    // forkJoin waits for both sources.
     expect(service.loading()).toBe(true);
     reposReq.flush([
       { id: 'repo-1', name: 'widget', description: '', owner: 'acme', role: 'reader', visibility: 'private', createdAt: '2026-01-01', path: ['acme', 'widget'] },
@@ -80,7 +80,7 @@ describe('BreadcrumbSwitcherService', () => {
     expect(service.repositories().length).toBe(1);
 
     service.loadForGroup('group-3');
-    // Cleared synchronously. This singleton lives across navigations, so a different group's switcher must not show the previous group's siblings.
+    // Cleared right away, so another group's switcher never shows the previous group's siblings.
     expect(service.groups()).toEqual([]);
     expect(service.repositories()).toEqual([]);
 
@@ -136,7 +136,7 @@ describe('BreadcrumbSwitcherService', () => {
     service.loadForGroup('g1');
     expect(service.loading()).toBe(true);
 
-    // forkJoin cancels the second request.
+    // forkJoin cancels the second request on error.
     const childrenReq = http.expectOne('/api/groups/g1/children');
     childrenReq.flush('error', { status: 500, statusText: 'Server Error' });
 
@@ -149,7 +149,7 @@ describe('BreadcrumbSwitcherService', () => {
 
     const retryChildrenReq = http.expectOne('/api/groups/g1/children');
 
-    // Two repositories requests are pending (the failed load and the retry): flush the second.
+    // Two repositories requests are pending (the failed load and the retry); answer the second.
     const reposRequests = http.match('/api/groups/g1/repositories');
     expect(reposRequests.length).toBe(2);
     const retryReposReq = reposRequests[1];

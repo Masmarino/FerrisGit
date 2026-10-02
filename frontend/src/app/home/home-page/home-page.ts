@@ -31,7 +31,7 @@ import { StatusBadge, StatusKind } from '../../shared/layout/status-badge/status
 
 const EMPTY: DashboardResponse = { assignedIssues: [], authoredIssues: [], authoredMergeRequests: [], mergeRequestsToReview: [], activity: [] };
 
-/** The API returns at most this many items per category: a full list reads as "20+". */
+/** The API returns at most this many items per category, so a full list reads "20+". */
 const CAP = 20;
 
 type CategoryKey = 'assignedIssues' | 'authoredIssues' | 'authoredMergeRequests' | 'mergeRequestsToReview';
@@ -53,7 +53,7 @@ const CATEGORIES: readonly Category[] = [
 interface TodoRow {
   id: string;
   kind: StatusKind;
-  /** Null for a merge request (its API id is not a number worth showing). */
+  /** Null for a merge request: its API id isn't a number worth showing. */
   number: string | null;
   title: string;
   link: string[];
@@ -85,7 +85,7 @@ function countLabel(length: number): string {
   return length >= CAP ? `${CAP}+` : String(length);
 }
 
-/** Gabarit gap: the counter writes `N+` only above its `max`, so a full category is handed over as one past `max`. */
+/** Gabarit gap: the counter only writes `N+` above its `max`, so a full category is passed as `max + 1`. */
 function counterValue(length: number): number {
   return length >= CAP ? CAP + 1 : length;
 }
@@ -125,7 +125,7 @@ function mergeRequestRow(item: SearchMergeRequestResult): TodoRow {
   };
 }
 
-/** No line break just inside « guillemets »: a narrow rail column otherwise leaves a lone "»". */
+/** No line break inside « guillemets », or a narrow rail column leaves a lone "»". */
 function keepGuillemetsAttached(sentence: string): string {
   return sentence.replaceAll('« ', '« ').replaceAll(' »', ' »');
 }

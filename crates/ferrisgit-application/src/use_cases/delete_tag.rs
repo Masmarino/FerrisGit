@@ -25,8 +25,7 @@ impl DeleteTagUseCase {
         }
     }
 
-    /// Refuses to delete a tag a release still references: a Maintainer should not silently sever an active release's
-    /// link to its commit. `(repository_id, tag_name)` is unique per release, so a hit means the tag is in use.
+    /// Refuses to delete a tag a release still uses, so nobody silently cuts a release off from its commit.
     pub async fn execute(&self, repository_id: Uuid, tag_name: String) -> Result<(), DomainError> {
         let repo = self
             .repositories

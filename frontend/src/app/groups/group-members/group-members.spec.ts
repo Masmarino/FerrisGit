@@ -98,7 +98,7 @@ describe('GroupMembers', () => {
   describe('for a maintainer', () => {
     it('adds a member with the chosen role, clears the field and reloads the list', async () => {
       const { fixture, el, groupsStub, toastStub } = setup();
-      await fixture.whenStable(); // the form's NgForm registers its ngModel controls a microtask later
+      await fixture.whenStable(); // NgForm registers its ngModel controls a microtask later
       fixture.detectChanges();
       const input = el.querySelector<HTMLInputElement>('.group-members__add input')!;
       input.value = 'carol';

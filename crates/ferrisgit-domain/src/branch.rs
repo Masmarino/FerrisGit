@@ -11,8 +11,7 @@ pub struct BranchInfo {
     pub is_default: bool,
 }
 
-/// Lists a repository's branches straight from its git refs. Nothing about branches is persisted, so this is always a
-/// live read.
+/// Lists branches straight from the git refs. Nothing is persisted, so it's always a live read.
 #[async_trait]
 pub trait BranchReaderPort: Send + Sync {
     async fn list_branches(

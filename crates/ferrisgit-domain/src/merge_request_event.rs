@@ -70,9 +70,9 @@ pub struct NewMergeRequestEvent {
 #[async_trait]
 pub trait MergeRequestEventPort: Send + Sync {
     async fn record(&self, event: NewMergeRequestEvent) -> Result<MergeRequestEvent, DomainError>;
-    /// Events of one merge request, oldest first (`created_at ASC, id ASC`).
+    /// Oldest first.
     async fn list(&self, merge_request_id: Uuid) -> Result<Vec<MergeRequestEvent>, DomainError>;
-    /// The source-branch head last seen for this merge request, `None` until first recorded.
+    /// Last seen head of the source branch, `None` until first recorded.
     async fn head_sha(&self, merge_request_id: Uuid) -> Result<Option<String>, DomainError>;
     async fn set_head_sha(&self, merge_request_id: Uuid, sha: &str) -> Result<(), DomainError>;
 }

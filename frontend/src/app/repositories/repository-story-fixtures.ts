@@ -1,4 +1,4 @@
-// Storybook-only fixtures for the repository code pages.
+// Storybook fixtures for the repository code pages.
 import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
 import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
@@ -11,7 +11,7 @@ import { provideFerrisgitIcons } from '../shared/register-icons';
 import { daysAgo, hoursAgo, minutesAgo } from '../shared/layout/page-story-helpers';
 import { fakeToast } from '../shared/layout/settings-story-helpers';
 
-// `EnvironmentProviders` only fit in an `ApplicationConfig`, not in `moduleMetadata`'s `Provider[]`.
+// EnvironmentProviders only fit in an ApplicationConfig, not in moduleMetadata.
 export const withRouterAndIcons = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
 
 const commit = (sha: string, message: string, authorName: string, committedAt: string): CommitInfo => ({
@@ -180,7 +180,7 @@ export interface RepositoryFixture {
   commits: CommitInfo[];
   contributors: Contributor[];
   languages: LanguageStat[];
-  /** Tree listing error (404 = empty repository at HEAD, or unknown ref/path elsewhere). */
+  /** Status for a failing tree listing: 404 means empty repository at HEAD, unknown ref or path elsewhere. */
   treeStatus?: number;
 }
 

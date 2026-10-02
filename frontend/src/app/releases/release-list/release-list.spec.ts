@@ -340,7 +340,7 @@ describe('ReleaseList', () => {
       expect(TestBed.inject(GbtToastService).toasts().at(-1)).toMatchObject({ message: 'Impossible de charger les releases. Réessayez plus tard.', variant: 'error' });
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toBe("Les releases n'ont pas pu être chargées.");
-      // The toast announces it, so the inline message stays silent (one live region, not two).
+      // The toast announces it, so the inline message stays silent: one live region, not two.
       expect(failed?.getAttribute('data-variant')).toBe('error');
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();

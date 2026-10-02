@@ -87,7 +87,7 @@ struct Harness {
     use_case: ReportJobResultUseCase,
 }
 
-/// A running pipeline holding `jobs`, whose two engines are one recording fake.
+/// A running pipeline with `jobs`. Both engines are the same recording fake.
 fn harness(pipeline_id: Uuid, jobs: Vec<Job>) -> Harness {
     harness_over(pipeline(pipeline_id), jobs)
 }
@@ -697,7 +697,7 @@ async fn a_canceled_job_skips_its_dependents_and_the_pipeline_ends_canceled() {
 
 #[tokio::test]
 async fn skipped_jobs_alone_never_make_a_successful_pipeline() {
-    // Defensive: if only skipped jobs remain (a failed job was swept elsewhere), the pipeline is a failure.
+    // Only skipped jobs left means a failed one was swept elsewhere, so count it as failed.
     let pipeline_id = Uuid::new_v4();
     let ok = staged_job(pipeline_id, "build", "ok", &[], JobStatus::Running);
     let skipped = staged_job(pipeline_id, "test", "skipped", &[], JobStatus::Skipped);

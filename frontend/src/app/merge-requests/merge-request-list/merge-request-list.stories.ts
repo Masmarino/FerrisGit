@@ -106,7 +106,7 @@ function withData(options: { list?: MergeRequestSummary[]; role?: 'owner' | 'rea
 const rect = (el: Element) => el.getBoundingClientRect();
 const centreY = (el: Element) => rect(el).top + rect(el).height / 2;
 
-/** Layout checks jsdom cannot make: no horizontal overflow, aside beside the list from 769px, tabs inside the header, row items on the title line. */
+/** Layout checks jsdom can't make: no horizontal overflow, aside beside the list from 769px, tabs in the header, row items on the title line. */
 function assertPageLayout(canvas: HTMLElement): number {
   const layout = canvas.querySelector('gbt-page-layout');
   const main = canvas.querySelector('.gbt-page-layout__main');
@@ -307,7 +307,7 @@ export const CreateModalWithBranchError: Story = {
     await waitFor(() => expect(dialog.querySelector('.merge-request-list__create-target .gbt-select__trigger')?.textContent?.trim()).toBe('main'));
     await pickOption(dialog, '.merge-request-list__create-source', 'main');
     await waitFor(() => expect(dialog.querySelector('.merge-request-list__create-target .gbt-select__error')?.textContent).toContain('Identique à la branche source'));
-    // A real focus/blur pair only fires when the story's window has focus: dispatch the blur itself.
+    // A real blur only fires when the story's window has focus, so dispatch it by hand.
     dialog.querySelector<HTMLInputElement>('.merge-request-list__create-title input')!.dispatchEvent(new FocusEvent('blur'));
     await waitFor(() => expect(dialog.querySelector('.gbt-input__error')?.textContent).toContain('Le titre est requis'));
     const submit = Array.from(dialog.querySelectorAll('button')).find((b) => b.textContent?.includes('Créer la demande de fusion'));

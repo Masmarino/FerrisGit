@@ -20,7 +20,7 @@ import { fakeDocsService } from './docs/docs-fixtures';
 
 const TOKEN_KEY = 'ferrisgit_token';
 
-// No outlet: the router recognises, guards and loads the components without rendering them.
+// No outlet: routes get matched, guarded and loaded, never rendered.
 async function open(url: string, options: { signedIn?: boolean; publicPagesEnabled?: boolean } = {}) {
   if (options.signedIn) {
     localStorage.setItem(TOKEN_KEY, 'a-token');

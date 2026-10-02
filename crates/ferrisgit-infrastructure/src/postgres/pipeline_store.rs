@@ -16,7 +16,7 @@ impl PostgresPipelineStore {
     }
 }
 
-// Runtime queries rather than `query!`: `SELECT *` would otherwise need every new column in the offline cache.
+// Runtime queries: SELECT * would otherwise need every new column in the offline cache.
 #[derive(sqlx::FromRow)]
 struct Row {
     id: Uuid,
@@ -334,7 +334,7 @@ mod tests {
             .await
             .unwrap();
 
-        // Leave a real gap between the two `created_at` values: sub-millisecond inserts would make the cutoff ambiguous.
+        // Real gap between the two created_at values: sub-millisecond inserts would make the cutoff ambiguous.
         std::thread::sleep(std::time::Duration::from_millis(5));
 
         store

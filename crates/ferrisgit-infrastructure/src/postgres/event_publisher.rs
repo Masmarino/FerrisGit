@@ -29,8 +29,8 @@ impl EventPublisherPort for PostgresEventPublisher {
     ) -> Result<(), DomainError> {
         let payload = serde_json::to_value(&event).map_err(infra)?;
 
-        // Use the event's subject id when it names one, so the audit log can filter by aggregate_id. Only
-        // events with no natural subject (anonymous actor) get a fresh id.
+        // Use the subject id when the event names one, so the audit log can filter by aggregate_id. Only events
+        // with no natural subject (anonymous actor) get a fresh id.
         let aggregate_id = match &event {
             SecurityEvent::LoginSucceeded { user_id }
             | SecurityEvent::MfaVerificationFailed { user_id }
@@ -116,8 +116,8 @@ impl PipelineEventPublisherPort for PostgresEventPublisher {
     }
 }
 
-/// Advisory-lock-then-append for the `Pipeline` and `Job` events. `publish_security_event` repeats the same steps
-/// with a literal `'Security'` aggregate type, which keeps its queries in the offline `.sqlx` cache.
+/// Advisory-lock-then-append for Pipeline and Job events. `publish_security_event` repeats the steps with a literal
+/// 'Security' aggregate type, which keeps its queries in the offline .sqlx cache.
 async fn publish_versioned_event<E: serde::Serialize>(
     pool: &sqlx::PgPool,
     aggregate_type: &str,

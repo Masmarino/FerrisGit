@@ -7,15 +7,12 @@ use ferrisgit_domain::repository::RepositoryStorePort;
 use ferrisgit_domain::repository_collaborator::RepositoryCollaboratorStorePort;
 use uuid::Uuid;
 
-/// Every repository `user_id` can see: owned, collaborated on, reachable through any group membership (inherited roles
-/// included, see `GroupStorePort::list_member_group_ids`), or `Public` whatever the relationship. Deduplicated, in no
-/// particular order.
+/// Every repository the user can see: owned, collaborated on, reached through a group (inherited roles included) or
+/// public. Deduplicated, in no particular order, ids only.
 ///
-/// Including public repositories is where this differs from `GET /repositories`, which leaves them to search rather
-/// than showing them on every personal dashboard. Returns bare ids only.
-///
-/// For negative filters (for example "awaiting my review") use `member_repository_ids`: adding every public repository
-/// would defeat the filter.
+/// Public ones are the difference with `GET /repositories`, which leaves them to search instead of filling every
+/// dashboard. For negative filters such as "awaiting my review" use `member_repository_ids`, or the public set would
+/// defeat the filter.
 pub async fn visible_repository_ids(
     repositories: &Arc<dyn RepositoryStorePort>,
     repository_collaborators: &Arc<dyn RepositoryCollaboratorStorePort>,
@@ -31,10 +28,9 @@ pub async fn visible_repository_ids(
     Ok(ids)
 }
 
-/// Repositories `user_id` belongs to through a direct relationship: owned, collaborated on, or group membership
-/// (inherited included). Unlike `visible_repository_ids`, public ones are left out. Use it for negative filters (for
-/// example merge requests not yet reviewed), which over the public set turn into "everything on the instance I haven't
-/// touched". Deduplicated, in no particular order.
+/// Repositories the user is tied to directly: owned, collaborated on or through a group (inherited included). Public
+/// ones are left out, unlike `visible_repository_ids`, because a negative filter like "not yet reviewed" over the public
+/// set means "everything on the instance I haven't touched". Deduplicated, in no particular order.
 pub async fn member_repository_ids(
     repositories: &Arc<dyn RepositoryStorePort>,
     repository_collaborators: &Arc<dyn RepositoryCollaboratorStorePort>,
@@ -73,7 +69,7 @@ mod tests {
     use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
     use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 
-    /// `user_id` holds a direct (arbitrary) role on each of `group_ids` and no other groups exist.
+    /// The user has a direct role (any) on each of `group_ids`, and no other groups exist.
     async fn groups_with_member(user_id: Uuid, group_ids: &[Uuid]) -> Arc<dyn GroupStorePort> {
         let groups = FakeGroups::new(
             group_ids

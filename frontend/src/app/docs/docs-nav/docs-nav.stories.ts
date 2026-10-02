@@ -11,7 +11,7 @@ import { atPhoneWidth, inDarkTheme, inShellContentArea, withFerrisgitIcons } fro
 
 const withRouter = applicationConfig({ providers: [provideRouter([{ path: '**', children: [] }]), provideLocationMocks(), { provide: DocsService, useValue: fakeDocsService() }] });
 
-// The nav answers to the page layout's width (container query), so it is shown in a page-layout nav column.
+// The nav follows the page layout's width (container query), so show it in a page-layout nav column.
 const render = (args: Partial<DocsNav>) => ({
   props: args,
   template: `<gbt-page-layout width="wide" navLabel="Documentation"><fg-docs-nav page-nav [index]="index" [section]="section" [page]="page" /><p>Contenu</p></gbt-page-layout>`,

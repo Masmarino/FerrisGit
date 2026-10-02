@@ -58,7 +58,7 @@
       <div class="admin-settings__field-footer">
         <div class="admin-settings__hints">
           @if (!s.k8sCacheStorageClass && s.detectedK8sDefaultStorageClass) {
-            <!-- Gabarit gap: a compact hint that isn't assertive (a `gbt-alert` warning is role=alert and full size). -->
+            <!-- Gabarit gap: a compact, non-assertive hint (a `gbt-alert` warning is role=alert and full size). -->
             <p class="admin-settings__hint admin-settings__hint--warning">
               <gbt-icon name="alert-triangle" aria-hidden="true" />Détecté automatiquement depuis le cluster : {{ s.detectedK8sDefaultStorageClass }} — vérifiez qu'elle supporte bien
               ReadWriteMany avant de l'utiliser.

@@ -40,7 +40,7 @@ impl From<ExcerptLine> for ExcerptLineResponse {
     }
 }
 
-// Built once per timeline entry and serialized straight away: boxing the large variant would only add an allocation.
+// Built once per entry and serialized right away, so boxing the large variant would only add an allocation.
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
@@ -97,8 +97,8 @@ async fn timeline(
         .list_comments(merge_request_id)
         .await?;
     let events = state.merge_request_events.list(merge_request_id).await?;
-    // The diff only feeds excerpts and the outdated flag. Without it (for example when the source
-    // branch is gone) the timeline still answers, just without them.
+    // The diff only feeds excerpts and the outdated flag, so if it's missing (source branch gone, say) the
+    // timeline still answers without them.
     let diffs = live_diffs(&state, &mr, &repo).await.unwrap_or_else(|err| {
         tracing::warn!(error = %err, merge_request_id = %merge_request_id, "could not compute the diff for the timeline; omitting excerpts");
         None

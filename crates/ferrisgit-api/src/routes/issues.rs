@@ -84,7 +84,7 @@ impl From<Issue> for IssueResponse {
 }
 
 impl IssueResponse {
-    /// Every handler returning issues goes through here so they all carry the same fields.
+    /// Every handler that returns issues builds them here, so the fields stay the same.
     async fn build_many(state: &AppState, issues: Vec<Issue>) -> Result<Vec<Self>, DomainError> {
         let ids: Vec<Uuid> = issues.iter().map(|i| i.id).collect();
         let labels_by_issue = state.labels.list_for_issues(&ids).await?;
@@ -160,8 +160,8 @@ struct UpdateIssueRequest {
     title: String,
     description: String,
     kind: String,
-    /// Double `Option` to tell an absent field (`None`) from an explicit `null` (`Some(None)`, which clears it).
-    /// Serde turns a missing plain `Option` into `None`, so an omitted `milestoneId` would silently clear the milestone.
+    /// Double `Option` so an absent field (`None`) differs from an explicit `null` (`Some(None)`, which clears it).
+    /// With a plain `Option`, leaving out `milestoneId` would silently clear the milestone.
     #[serde(default, deserialize_with = "crate::routes::deserialize_present")]
     milestone_id: Option<Option<Uuid>>,
 }

@@ -11,8 +11,8 @@
     </gbt-stat-grid>
 
     <section class="admin-dashboard__evolution" aria-labelledby="admin-dashboard-evolution-heading">
-      <!-- The card stays `ready` so its header (heading and period control) names it in every state. The list
-           card's own loading and failed states would replace that header. -->
+      <!-- Stays `ready` so the header (heading and period control) names the card in every state. The list
+           card's loading and failed states would replace that header. -->
       <gbt-list-card>
         <div list-card-header class="admin-dashboard__band">
           <span class="admin-dashboard__card-title">
@@ -28,9 +28,8 @@
             <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="loadHistory()" />
           </gbt-alert>
         } @else {
-          <!-- Placed beside the busy charts, not inside them, because a live region inside an aria-busy one is not
-               announced. It is always rendered (not inserted by `@if`), so it exists before its text changes and the
-               change is announced. -->
+          <!-- Beside the busy charts, not inside: a live region in an aria-busy one isn't announced. Always rendered
+               (no @if) so it exists before its text changes. -->
           <span class="sr-only" role="status">{{ history() === null ? "Chargement de l'historique…" : '' }}</span>
           <div class="admin-dashboard__charts" [attr.aria-busy]="historyState() === 'loading' ? 'true' : null">
             <section class="admin-dashboard__chart-pane" aria-labelledby="admin-dashboard-storage-heading">

@@ -22,7 +22,7 @@
   font-weight: 500;
 }
 
-// The header's actions row already wraps and spaces its children; this wrapper only gives the projected `@if` block a single root.
+// The header's actions row already wraps and spaces its children: this wrapper only gives the projected @if block a single root.
 .release-detail__actions {
   display: flex;
   flex-wrap: wrap;
@@ -48,7 +48,7 @@ gbt-card {
 .release-detail__notes-body {
   padding: 1.5rem 2rem 1.75rem;
 
-  // The markdown is injected HTML: emulated encapsulation only reaches it through ::ng-deep.
+  // The markdown is injected HTML, which emulated encapsulation only reaches through ::ng-deep.
   ::ng-deep {
     @include prose.markdown;
   }
@@ -109,7 +109,7 @@ gbt-card {
   min-width: 0;
 }
 
-// Wraps rather than truncates: `…-x86_64.tar.gz` and `…-x86_64.tar.gz.sig` differ only at the end.
+// Wraps instead of truncating: `…-x86_64.tar.gz` and `…-x86_64.tar.gz.sig` only differ at the end.
 .release-detail__asset-name {
   color: var(--text-primary);
   font-family: var(--gbt-font-mono);

@@ -1,0 +1,665 @@
+{
+  "meta": {
+    "home": {
+      "title": "FerrisGit: a self-hosted Git platform in one Rust binary",
+      "description": "Repositories, merge requests with inline review, issues, wikis, releases, signed webhooks and a built-in CI/CD engine, served by a single Rust binary and one PostgreSQL. Run it with Docker Compose or Helm."
+    },
+    "features": {
+      "title": "Product | FerrisGit",
+      "description": "What FerrisGit does today: repositories and groups, merge requests, issues, wikis, releases, CI/CD, mandatory multi-factor authentication, webhooks and public pages. And what is not there yet."
+    },
+    "roadmap": {
+      "title": "Roadmap | FerrisGit",
+      "description": "Where FerrisGit is heading, version by version from 0.2 to 0.6: protected branches, five languages, an analysis engine, quality gates, code quality and security analysis. None of it exists yet."
+    },
+    "imageAlt": "FerrisGit: a Git platform in one Rust binary, next to a drawing of its architecture"
+  },
+  "a11y": {
+    "skipToContent": "Skip to content"
+  },
+  "nav": {
+    "label": "Main",
+    "homeLabel": "FerrisGit, home page",
+    "product": "Product",
+    "ci": "CI/CD",
+    "selfHosting": "Self-hosting",
+    "roadmap": "Roadmap",
+    "docs": "Docs",
+    "github": "GitHub",
+    "openApp": "Open FerrisGit",
+    "openMenu": "Open the menu",
+    "closeMenu": "Close the menu"
+  },
+  "language": {
+    "label": "Language"
+  },
+  "theme": {
+    "switchToLight": "Switch to the light theme",
+    "switchToDark": "Switch to the dark theme"
+  },
+  "footer": {
+    "tagline": "A self-hosted Git platform, written in Rust, that you run on your own server.",
+    "product": "Product",
+    "docs": "Documentation",
+    "project": "Project",
+    "links": {
+      "install": "Installation",
+      "kubernetes": "Deploying on Kubernetes",
+      "ci": "The .ferrisgit-ci.yml reference",
+      "api": "REST API",
+      "security": "Security",
+      "milestones": "Milestones"
+    },
+    "license": "License",
+    "rights": "All rights reserved.",
+    "noLicense": "No license has been chosen yet. The documentation is in French.",
+    "noTracking": "No cookies, no tracking, no third-party resource on this site."
+  },
+  "plan": {
+    "title": "Architecture of a FerrisGit instance",
+    "description": "Isometric drawing. A Git client and a browser talk to one Rust binary, ferrisgit-api, made of the api, application, domain and infrastructure crates. The binary stores its data in PostgreSQL and in Git repositories on disk, and runs pipeline jobs either through a ferrisgit-runner on a Docker host or as Pods in a Kubernetes cluster. An orange line follows a push to its jobs. Seven numbered circles lead to the tiles of the page.",
+    "caption": "One instance. The orange line follows a push from the client to the jobs it starts.",
+    "scroll": "Isometric drawing of the architecture, scrollable",
+    "git": {
+      "name": "Git client",
+      "l1": "HTTPS, username + token",
+      "l2": "no SSH yet"
+    },
+    "browser": {
+      "name": "Browser",
+      "l1": "signed in, or anonymous",
+      "l2": "on public pages"
+    },
+    "api": {
+      "l1": "REST API, Git over HTTP,",
+      "l2": "web interface"
+    },
+    "domain": {
+      "l1": "entities and ports, no I/O"
+    },
+    "application": {
+      "l1": "use cases"
+    },
+    "infrastructure": {
+      "l1": "adapters: PostgreSQL,",
+      "l2": "git, Docker, Kubernetes,",
+      "l3": "SMTP, webhooks"
+    },
+    "postgres": {
+      "l1": "accounts, issues,",
+      "l2": "pipelines;",
+      "l3": "migrations run",
+      "l4": "at startup"
+    },
+    "repositories": {
+      "name": "Git repositories",
+      "l1": "on disk, wikis included"
+    },
+    "docker": {
+      "name": "Docker host",
+      "l1": "the runner polls every",
+      "l2": "5 s by default, one job",
+      "l3": "at a time, in a container"
+    },
+    "kubernetes": {
+      "name": "Kubernetes cluster",
+      "l1": "one Pod per job, created",
+      "l2": "by the server"
+    },
+    "flow": {
+      "push": "git push",
+      "pipeline": "pipeline created",
+      "jobs": "jobs",
+      "poll": "polls for jobs"
+    },
+    "views": {
+      "1": "Repositories",
+      "2": "Merge requests",
+      "3": "Issues",
+      "4": "Public pages",
+      "5": "Search",
+      "6": "Pipelines",
+      "7": "Webhooks"
+    },
+    "fig": "Fig. 1",
+    "pan": "Swipe to pan the drawing",
+    "viewsLabel": "What the numbers point at",
+    "dimBinary": "ferrisgit-api: one binary",
+    "key": {
+      "label": "Key to the drawing",
+      "request": "request or storage",
+      "push": "a push, to its jobs",
+      "poll": "the runner polls",
+      "detail": "a numbered tile of this page"
+    }
+  },
+  "screens": {
+    "repository": "FerrisGit: the file list of a repository, with its last commit",
+    "merge-request": "FerrisGit: a review thread on a line of a merge request, with the reply field and the Resolve button",
+    "pipeline": "FerrisGit: a running pipeline, stages as a stepper and jobs as linked nodes",
+    "issues": "FerrisGit: two columns of the kanban board, with the cards of the issues",
+    "explore": "FerrisGit: the catalogue of public repositories, readable without an account",
+    "docs": "FerrisGit: a page of the built-in documentation, with the navigation tree",
+    "open": "Open the full screen"
+  },
+  "scene": {
+    "title": "Retry failed webhook deliveries",
+    "open": "Open",
+    "merged": "Merged",
+    "running": "Running",
+    "passed": "Passed",
+    "commented": "commented on",
+    "suggestion": "Suggested change",
+    "apply": "Apply suggestion",
+    "applied": "Applied in",
+    "approved": "approved these changes",
+    "mergedBy": "merged the request, merge commit",
+    "description": "Illustration of one merge request in FerrisGit, from the push to the merge: a push over HTTPS creates the request, a reviewer suggests a change on a line, the author applies it in one click, the reviewer approves, the request is merged. The merge starts the pipeline of the repository: format and clippy run, then test, and all three succeed.",
+    "pipelineOn": "Pipeline on",
+    "mergeCommit": "merge commit, pushed to the default branch"
+  },
+  "ci": {
+    "codeLabel": "Example of a .ferrisgit-ci.yml for a Rust project: formatting, Clippy and tests",
+    "pipeline": {
+      "created": "Pipeline created",
+      "running": "Pipeline running",
+      "success": "Pipeline passed",
+      "failed": "Pipeline failed"
+    },
+    "replay": "Replay",
+    "graphLabel": "The pipeline of the example file",
+    "job": {
+      "pending": "waiting",
+      "running": "running",
+      "success": "succeeded",
+      "failed": "failed",
+      "skipped": "skipped"
+    },
+    "failSwitch": "Make clippy fail",
+    "notePassing": "format and clippy start together; test declares needs: [format, clippy] and starts once both have succeeded.",
+    "noteFailing": "clippy failed: test is skipped without running, because one of the jobs it needs did not succeed. The pipeline ends as failed instead of waiting."
+  },
+  "caps": {
+    "review": {
+      "title": "Review on the diff",
+      "text": "A comment stays attached to its line. A reviewer can write a suggestion that the author applies in one click, as a commit. Approvals are counted, conflicts are detected.",
+      "openThread": "Open",
+      "resolved": "Resolved",
+      "comment": "Exponential backoff, so a flapping endpoint stops being hammered.",
+      "suggestion": "Suggested change",
+      "apply": "Apply suggestion",
+      "applied": "Applied in",
+      "reset": "Undo"
+    },
+    "pipeline": {
+      "title": "Pipelines on every push",
+      "text": "After every push, FerrisGit reads the file on the default branch and creates a pipeline. Stages are barriers, needs are dependencies; jobs run in Docker containers through a small runner, or as Kubernetes Pods."
+    },
+    "kanban": {
+      "title": "Issues, as a list or a board",
+      "text": "Labels, milestones, assignees and four states. Drag a card to change its state, or use the card's menu from the keyboard.",
+      "todo": "To do",
+      "doing": "In progress",
+      "card1": "Pagination skips a page when filtering by label",
+      "card2": "Search engine rewrite",
+      "card3": "Dark mode for the wiki editor"
+    },
+    "roles": {
+      "title": "Three roles, per repository or per group",
+      "text": "A role granted on a group applies to everything below it. The highest role wins.",
+      "action": "Action",
+      "reader": "Reader",
+      "contributor": "Contributor",
+      "maintainer": "Maintainer",
+      "readerShort": "Reader",
+      "contributorShort": "Contrib.",
+      "maintainerShort": "Maint.",
+      "rows": {
+        "read": "Browse, clone, read",
+        "write": "Push, open issues and requests, review",
+        "merge": "Merge, release, settings, collaborators"
+      }
+    },
+    "webhook": {
+      "title": "Signed webhooks",
+      "text": "Twelve events on merge requests, issues, pipelines and collaborators. Each delivery carries an HMAC-SHA256 signature of its raw body; the secret is encrypted at rest."
+    },
+    "catalog": {
+      "title": "Public pages, no account needed",
+      "text": "Visitors browse the catalogue, README, files, commits and releases of public repositories, and clone them. An administrator switch turns the public pages off.",
+      "repo1": "Self-hosted Git platform in Rust: repositories, issues, merge requests and pipelines.",
+      "repo2": "Angular design system: components and dataviz for self-hosted applications."
+    },
+    "mfa": {
+      "title": "Multi-factor sign-in, for everyone",
+      "text": "No account can skip it. Authenticator apps (TOTP), passkeys (WebAuthn) and ten single-use backup codes.",
+      "totp": "Authenticator app",
+      "passkey": "Passkey",
+      "backup": "Backup codes",
+      "enrolled": "Enrolled",
+      "backupLeft": "8 of 10 left"
+    },
+    "search": {
+      "title": "Search from every page",
+      "text": "Repositories, issues, merge requests and users, as you type. Notifications in the application tell you what concerns you.",
+      "repos": "Repositories",
+      "issues": "Issues",
+      "mrs": "Merge requests",
+      "reposHit": "acme / webhooks-cli",
+      "issuesHit": "#31 Webhook secret rotation",
+      "mrsHit": "!42 Retry failed webhook deliveries"
+    }
+  },
+  "install": {
+    "tabsLabel": "Ways to run FerrisGit",
+    "tabs": {
+      "compose": "Docker Compose",
+      "helm": "Helm chart",
+      "source": "From source"
+    },
+    "labels": {
+      "compose": "Start the stack with Docker Compose",
+      "helm": "Install the chart on Kubernetes",
+      "source": "Run the backend and the web application locally"
+    },
+    "regions": {
+      "compose": "Commands to start FerrisGit with Docker Compose",
+      "helm": "Commands to install FerrisGit on Kubernetes with Helm",
+      "source": "Commands to run FerrisGit from its source code"
+    },
+    "notes": {
+      "compose": "Compose builds the image from the sources. To use the published image instead, replace `build: .` by `image: masmarino/ferrisgit:0.1.1` in `docker-compose.yml`.",
+      "helm": "Left empty, the chart generates the database password, `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY` and the first administrator's password in the `ferrisgit-secrets` Secret. The release must be called `ferrisgit`.",
+      "source": "Needs `rustup`, Node.js 26, Docker with Compose and `git` on the PATH. The script starts PostgreSQL, applies the migrations and runs the backend on port 8080 and the Angular dev server on port 4201."
+    },
+    "docLink": {
+      "compose": "Installation guide (in French)",
+      "helm": "Deploying on Kubernetes (in French)",
+      "source": "Installation guide (in French)"
+    },
+    "copy": "Copy",
+    "copied": "Copied",
+    "copyFailed": "Copy failed",
+    "then": {
+      "title": "What happens next",
+      "secrets": "The server refuses to start while a secret is missing or too short: `JWT_SECRET` needs 32 characters or more, `SETTINGS_ENCRYPTION_KEY` exactly 32.",
+      "start": "It connects to PostgreSQL, applies its migrations, creates the first administrator if the users table is empty, and listens on port 8080.",
+      "signin": "The first sign-in walks you through enrolling an authenticator app or a passkey, and shows your ten backup codes. There is no way around it."
+    },
+    "needs": {
+      "title": "What you need",
+      "docker": "Docker with the Compose plugin, or a Kubernetes cluster with Traefik, a CNI that enforces NetworkPolicy and a default StorageClass.",
+      "postgres": "PostgreSQL 18: the Compose stack and the chart bring their own.",
+      "https": "A domain and TLS in front, through a reverse proxy: FerrisGit does not terminate HTTPS itself, and passkeys only work on a secure origin."
+    }
+  },
+  "home": {
+    "hero": {
+      "title": "A Git platform in one Rust binary.",
+      "subtitle": "Repositories, merge requests with inline review, issues, wikis, releases, signed webhooks and a CI/CD engine. One process, one PostgreSQL, on your own server.",
+      "copy": "Copy the command",
+      "copied": "Copied",
+      "copyFailed": "Copy failed",
+      "assurance": "A single binary and a database. No account on a third-party service, no telemetry sent anywhere.",
+      "planLink": "See how it is made."
+    },
+    "facts": {
+      "title": "In figures",
+      "binary": {
+        "value": "1",
+        "label": "Rust binary serves the REST API, Git over HTTP and the web interface"
+      },
+      "postgres": {
+        "value": "1",
+        "label": "PostgreSQL 18 holds every record; repositories live on disk"
+      },
+      "crates": {
+        "value": "5",
+        "label": "Cargo crates, in a hexagonal layout"
+      },
+      "routes": {
+        "value": "173",
+        "label": "REST routes under `/api`, each documented"
+      },
+      "mfa": {
+        "value": "3",
+        "label": "sign-in factors (TOTP, passkeys, backup codes); MFA is mandatory"
+      },
+      "engines": {
+        "value": "2",
+        "label": "job engines: Docker runners or Kubernetes Pods"
+      }
+    },
+    "caps": {
+      "title": "What you get, as the interface shows it",
+      "text": "Each tile is a piece of the real product. The interface is in French for now; five languages are planned for 0.2.",
+      "more": "The full feature list"
+    },
+    "ci": {
+      "title": "A push becomes a pipeline",
+      "text": "Describe the jobs in `.ferrisgit-ci.yml` at the root of the repository. After every successful push, FerrisGit reads the file on the default branch and creates a pipeline. Flip the switch to see what the scheduler does when a job fails.",
+      "engines": {
+        "title": "Two ways to run a job",
+        "text": "Docker runners: a small `ferrisgit-runner` binary polls the server and runs each job in a container. Or Kubernetes: the server creates one Pod per job in your cluster."
+      },
+      "errors": {
+        "title": "Mistakes are shown",
+        "text": "A file that is present but invalid creates a failed pipeline that carries the parser's message, shown in the interface."
+      },
+      "vars": {
+        "title": "Variables and caches",
+        "text": "Per-repository CI variables, encrypted at rest with AES-256-GCM (Docker runners). Per-job caches with Kubernetes."
+      },
+      "docs": "The .ferrisgit-ci.yml reference (in French)"
+    },
+    "install": {
+      "title": "Two minutes to self-host",
+      "text": "FerrisGit is one container image with PostgreSQL next to it. Try it with Docker Compose, install the Helm chart on Kubernetes, or run it from the sources."
+    },
+    "made": {
+      "title": "How it is made",
+      "text": "One process, five crates, a hexagonal layout: the domain knows nothing of the database, the adapters know nothing of the use cases.",
+      "crates": {
+        "domain": "Entities, value objects and the ports the rest depends on. No I/O.",
+        "application": "The use cases. Depends on the domain only, tested against in-memory fakes.",
+        "infrastructure": "Adapters: PostgreSQL (sqlx), Git (gix and the git binary), SMTP, Kubernetes, Argon2, AES-GCM, JWT.",
+        "api": "The axum server: REST API under /api, Git smart HTTP, the Angular bundle. This is the binary.",
+        "runner": "The stand-alone Docker job runner."
+      },
+      "link": "The source on GitHub"
+    },
+    "security": {
+      "title": "Security and your data",
+      "text": "What protects an instance, named precisely. The data never leaves your server.",
+      "mfa": {
+        "title": "Multi-factor authentication is mandatory",
+        "text": "An account with no factor enrolled is forced through setup before it can do anything else. TOTP, passkeys and backup codes."
+      },
+      "passwords": {
+        "title": "Passwords hashed with Argon2",
+        "text": "One salt per password. An unknown username costs as much work as a wrong password, and gets the same answer."
+      },
+      "secrets": {
+        "title": "Secrets encrypted with AES-256-GCM",
+        "text": "CI variables, webhook secrets, the SMTP password and TOTP secrets, under `SETTINGS_ENCRYPTION_KEY`."
+      },
+      "tokens": {
+        "title": "Tokens for Git, never passwords",
+        "text": "Git over HTTPS authenticates with a personal access token, stored hashed: the server cannot read it back."
+      },
+      "audit": {
+        "title": "An audit log",
+        "text": "Failed sign-ins, refused Git access, password resets, promotions and MFA resets by an administrator are recorded as events."
+      },
+      "cookies": {
+        "title": "No cookies, strict headers",
+        "text": "Sessions are JWTs. Every response carries a Content-Security-Policy, `X-Frame-Options: DENY`, and the sign-in routes are rate-limited per IP."
+      },
+      "data": {
+        "title": "Your data, on your server",
+        "text": "PostgreSQL and a directory of repositories, both yours to back up. The image runs as an unprivileged user on a read-only filesystem."
+      },
+      "link": "The security page of the documentation (in French)"
+    },
+    "roadmap": {
+      "title": "Where it is heading",
+      "text": "Five versions, none shipped. Items are only ticked once they ship.",
+      "v02": {
+        "tag": "0.2",
+        "title": "Protected branches, checks, five languages"
+      },
+      "v03": {
+        "tag": "0.3",
+        "title": "An analysis engine: secrets and dependencies"
+      },
+      "v04": {
+        "tag": "0.4",
+        "title": "Quality gates and a dashboard"
+      },
+      "v05": {
+        "tag": "0.5",
+        "title": "Code quality: metrics, rules, coverage"
+      },
+      "v06": {
+        "tag": "0.6",
+        "title": "Security analysis and ArtiFerris"
+      },
+      "link": "The full roadmap"
+    },
+    "cta": {
+      "title": "Try it, then run your own.",
+      "text": "The public instance shows the product. Your instance keeps your code.",
+      "install": "Installation guide"
+    }
+  },
+  "features": {
+    "title": "What FerrisGit does today",
+    "intro": "Everything on this page ships today. What is planned is on the roadmap.",
+    "note": "The application interface and its documentation are in French for now.",
+    "sections": {
+      "repos": {
+        "title": "Repositories and groups",
+        "text": "Host code under your own account or inside a hierarchy of groups, and decide who can do what.",
+        "bullets": {
+          "b1": "Repositories owned by a user, or nested inside groups and subgroups",
+          "b2": "Public or private; the description and the visibility can be changed afterwards",
+          "b3": "Reader, Contributor and Maintainer roles, per repository or per group",
+          "b4": "Git over HTTP(S): clone, fetch and push with your username and a personal access token",
+          "b5": "Repository stars and language statistics"
+        }
+      },
+      "mrs": {
+        "title": "Merge requests",
+        "text": "Review happens on the diff, and the whole conversation stays in one place.",
+        "bullets": {
+          "b1": "Threaded inline comments",
+          "b2": "Code suggestions that can be applied from the interface",
+          "b3": "Approvals and change requests",
+          "b4": "Conflict detection",
+          "b5": "A timeline of everything that happened"
+        }
+      },
+      "issues": {
+        "title": "Issues",
+        "text": "Track the work next to the code.",
+        "bullets": {
+          "b1": "Labels and milestones",
+          "b2": "Assignees",
+          "b3": "A kanban board with four states"
+        }
+      },
+      "public": {
+        "title": "Public pages and search",
+        "text": "Open a project to people who do not have an account.",
+        "bullets": {
+          "b1": "Visitors browse public repositories read-only: catalogue, README, files, commits and releases",
+          "b2": "Release files can be downloaded without signing in",
+          "b3": "Signed-in users get search, in-app notifications and a personal dashboard"
+        }
+      },
+      "wikis": {
+        "title": "Wikis and releases",
+        "text": "Documentation and deliverables stay with the code.",
+        "bullets": {
+          "b1": "Each wiki is stored as a Git repository of its own",
+          "b2": "Releases carry attached files"
+        }
+      },
+      "ci": {
+        "title": "CI/CD",
+        "text": "A built-in engine, configured by a file in the repository.",
+        "bullets": {
+          "b1": "Pipelines described in `.ferrisgit-ci.yml` at the root of the repository",
+          "b2": "Docker runners (a small `ferrisgit-runner` binary that polls the server) or Kubernetes, where each job runs as a Pod",
+          "b3": "Per-repository variables, encrypted at rest (Docker runners only)",
+          "b4": "Per-job caches (Kubernetes only)"
+        }
+      },
+      "webhooks": {
+        "title": "Webhooks",
+        "text": "Tell other tools when something happens.",
+        "bullets": {
+          "b1": "Signed requests (HMAC-SHA256) for merge request, collaborator, pipeline and issue events",
+          "b2": "Secrets encrypted at rest",
+          "b3": "No retries and no delivery log yet: both are on the roadmap"
+        }
+      },
+      "docs": {
+        "title": "Documentation",
+        "text": "Built into the application, at `/docs`.",
+        "bullets": {
+          "b1": "Open to everyone, signed in or not",
+          "b2": "A user guide, the CI/CD reference, administration and self-hosting, and the REST API reference",
+          "b3": "Written in French, with search"
+        }
+      },
+      "accounts": {
+        "title": "Accounts and administration",
+        "text": "Multi-factor authentication is not optional.",
+        "bullets": {
+          "b1": "Mandatory for every account: authenticator apps (TOTP), passkeys (WebAuthn) and single-use backup codes",
+          "b2": "Free registration behind an administrator switch, or accounts created by e-mail invitation",
+          "b3": "Administration: users and invitations, instance settings, usage metrics and a health page"
+        }
+      },
+      "tech": {
+        "title": "Under the hood",
+        "text": "What you deploy, and what it needs.",
+        "bullets": {
+          "b1": "One Rust binary (axum) serves the REST API, the Git protocol and the Angular web application",
+          "b2": "PostgreSQL 18 for the data; repository contents on the server's disk",
+          "b3": "Docker Compose or a Helm chart for Kubernetes; image `masmarino/ferrisgit`",
+          "b4": "A hexagonal architecture, split across five Cargo crates"
+        }
+      }
+    },
+    "missing": {
+      "title": "Not there (yet)",
+      "intro": "These are on the roadmap. None of them exists today.",
+      "items": {
+        "i1": "Git over SSH and deploy keys: Git is served over HTTP(S) only",
+        "i2": "Protected branches: a Contributor can push to any branch of the repository",
+        "i3": "Code-quality scanning and security analysis, including on merge requests",
+        "i4": "Forks and merge requests between repositories, squash and rebase merges",
+        "i5": "Single sign-on (OIDC, LDAP)",
+        "i6": "An interface in English, Italian, Spanish and German, and a theme setting: it is in French today and follows the system theme",
+        "i7": "A link with ArtiFerris"
+      },
+      "roadmap": "See the roadmap"
+    },
+    "tabs": {
+      "label": "Features by domain",
+      "items": {
+        "repos": "Repositories",
+        "mrs": "Merge requests",
+        "issues": "Issues",
+        "ci": "CI/CD",
+        "public": "Public pages",
+        "docs": "Documentation"
+      }
+    },
+    "sheet": {
+      "title": "Wikis, webhooks, accounts and deployment"
+    },
+    "made": "The same instance as on the home page. The numbers open the matching tabs and sections."
+  },
+  "roadmap": {
+    "title": "Roadmap: none of this exists yet",
+    "intro": "Versions 0.2 to 0.6, then a list with no order and ideas with no version. The details change as each item is designed.",
+    "milestones": "GitHub milestones",
+    "readme": "Roadmap in the README",
+    "planned": "Planned",
+    "groups": {
+      "v02": {
+        "title": "A CI foundation for checks, five languages and a theme setting",
+        "intro": "Code scanning needs the platform to understand checks: results that belong to a commit, show up on a merge request and can stop a merge. This version builds that, translates the interface and lets people choose its theme.",
+        "items": {
+          "i1": "Protected branches: no direct push, merge only through a merge request, required approvals and required checks.",
+          "i2": "Pipelines on merge requests, with their status shown on the merge request and required before a merge.",
+          "i3": "Predefined CI variables (commit, branch, merge request, pipeline) and `rules` to decide when a job runs.",
+          "i4": "Pipeline artifacts and a report upload API, which is what the scans of the next versions use.",
+          "i5": "Re-running a pipeline from the interface, and scheduled pipelines.",
+          "i6": "Personal access tokens usable on the REST API, with scopes, and an OpenAPI description generated from the code.",
+          "i7": "A first link with ArtiFerris: publish an artifact built by a pipeline to an ArtiFerris instance.",
+          "i8": "The interface in English, French, Italian, Spanish and German. The language follows the browser on a first visit, can be changed on the fly and is saved on the account. The e-mails FerrisGit sends use the recipient's language, and the public pages follow the reader's `Accept-Language`. The documentation is translated afterwards.",
+          "i9": "Dark mode as a setting: choose system, light or dark, saved on the account and applied without a flash. The interface follows the system preference today and has no switch. The logo of the signed-in shell follows the theme too."
+        }
+      },
+      "v03": {
+        "title": "The analysis engine, secrets and dependencies",
+        "intro": "FerrisGit gets its own analysis engine instead of wrapping third-party tools: a `ferrisgit-scan` binary that a pipeline job runs, so the analysis scales with the runners and the server stays light. Its analysers are plugins that produce findings in a model close to SARIF, so reports from other tools can still be imported next to the native ones.",
+        "items": {
+          "i1": "The engine and the findings store: a scan per commit, findings identified by a stable fingerprint, and a baseline per branch to tell the new findings of a merge request from the old ones.",
+          "i2": "Native secret detection, in the diff of a merge request and in the whole history.",
+          "i3": "Native dependency audit: lockfiles (`Cargo.lock`, `package-lock.json`, and others later) matched against public advisory databases such as OSV.",
+          "i4": "Findings shown inline on the merge request diff and summarised in its timeline.",
+          "i5": "Import of SARIF reports from other tools."
+        }
+      },
+      "v04": {
+        "title": "Quality gates and the dashboard",
+        "items": {
+          "i1": "Quality gates, configurable per repository: for example no new blocker finding and a minimum coverage on new code. A gate is a required check, so it can block a merge.",
+          "i2": "A repository dashboard: open findings, their age, trend per branch, technical debt and hotspots.",
+          "i3": "Triage: mark a finding as a false positive or as won't fix, assign it, suppress it in the code, and keep the history.",
+          "i4": "A `.ferrisgit/scan.yml` file to choose analysers, rule sets and thresholds, and to exclude paths."
+        }
+      },
+      "v05": {
+        "title": "Code quality",
+        "intro": "The full repository is analysed on every push to the default branch and on every merge request, and the gates only look at what a merge request introduces (the \"clean as you code\" approach), so an existing project stays adoptable.",
+        "items": {
+          "i1": "Parsing through tree-sitter, so the same engine reads several languages. Rust and TypeScript first.",
+          "i2": "Metrics: size, cyclomatic and cognitive complexity, duplication.",
+          "i3": "Code smells and bug patterns, as declarative rules and as native rules.",
+          "i4": "Test coverage tracking (LCOV and Cobertura reports), with the coverage of what a merge request changes."
+        }
+      },
+      "v06": {
+        "title": "Security analysis and ArtiFerris",
+        "items": {
+          "i1": "Static application security testing: pattern rules first, then data flow within a function.",
+          "i2": "Container image and infrastructure-as-code scanning.",
+          "i3": "A security summary on every merge request and a security dashboard for the repository, with severities and the option to block merging above a chosen severity.",
+          "i4": "Trace every artifact published to ArtiFerris back to the commit, merge request and pipeline that produced it, and show it on the FerrisGit release and pipeline pages.",
+          "i5": "Bring the artifact scan results of ArtiFerris back into the merge request checks.",
+          "i6": "Explore shared identity, so that one account and one MFA enrolment work on both platforms."
+        }
+      },
+      "platform": {
+        "title": "The platform, in no fixed order",
+        "items": {
+          "i1": "Git over SSH and deploy keys.",
+          "i2": "Forks and merge requests between repositories; renaming and transferring a repository with redirects.",
+          "i3": "Squash and rebase merges, reopening a merge request, draft merge requests and `CODEOWNERS`.",
+          "i4": "Mentions (`@name`), issue references (`#12`) and closing an issue from a commit or a merge request.",
+          "i5": "Full-text search in the code, and import from GitHub and GitLab.",
+          "i6": "Self-service password reset, e-mail notifications with per-user settings, and single sign-on (OIDC, LDAP).",
+          "i7": "An audit log page in the administration, Prometheus metrics, and backup and restore tooling.",
+          "i8": "Webhooks with retries, a delivery log and more events (push, release)."
+        }
+      },
+      "consideration": {
+        "title": "Under consideration, not scheduled",
+        "intro": "Ideas with no version yet; what they contain is still to be defined.",
+        "items": {
+          "i1": "AI agents on a repository. Candidates: a review assistant on merge requests, summaries of merge requests and commits, an explanation of why a pipeline failed, issue triage and labelling. Whatever ships has to fit a self-hosted platform: a model endpoint the administrator chooses (a local one included), opt-in per repository, scoped credentials, and every action recorded.",
+          "i2": "A commit graph in the repository view: branches, merges and tags drawn together, next to the file tree and the commit list that already exist.",
+          "i3": "Profile photos, stored in S3-compatible object storage. The initials stay as the fallback, and the same storage could later hold release files and pipeline artifacts."
+        }
+      }
+    },
+    "artiferris": {
+      "title": "Connecting with ArtiFerris",
+      "text": "ArtiFerris already stores npm packages and Docker/OCI images and scans them for vulnerabilities. FerrisGit and ArtiFerris are complementary halves of the same delivery chain. The link grows in three steps: publishing from a pipeline (0.2), tracing an artifact back to its commit (0.6), and bringing the scan results back into the merge request checks (0.6). Shared identity stays an open question.",
+      "link": "ArtiFerris on GitHub"
+    },
+    "considering": "Under consideration"
+  },
+  "notFound": {
+    "title": "Page not found",
+    "description": "This page does not exist on the FerrisGit website.",
+    "text": "The address may have changed, or the page never existed. Pick a language to go to the home page.",
+    "languages": "Home pages by language"
+  }
+}

@@ -1,6 +1,6 @@
-// Instance settings `logRetentionDays`, `maxConcurrentJobs` and `runnerRegistrationToken` (their validation over HTTP),
-// and the log retention itself: the sweep empties the logs of old finished jobs and the pipeline detail says so. Fixtures
-// go through the store ports, and finish times are moved back in time with SQL.
+// Validation over HTTP of the logRetentionDays, maxConcurrentJobs and runnerRegistrationToken settings, and the
+// retention itself: the sweep empties the logs of old finished jobs and the pipeline detail says so. Fixtures go through
+// the store ports and finish times are moved back with SQL.
 
 mod common;
 

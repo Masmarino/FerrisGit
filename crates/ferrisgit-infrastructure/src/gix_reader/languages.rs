@@ -3,8 +3,7 @@ use std::path::Path;
 
 use super::{GitReadError, GixRepositoryReader, LanguageStat, commit_by_sha, open};
 
-/// File entries `compute_language_stats` visits before giving up with `None`, so the frontend
-/// shows no language bar rather than a partial one.
+/// Entries visited before giving up with `None`, so the frontend shows no language bar rather than a partial one.
 const MAX_FILES_FOR_LANGUAGE_STATS: usize = 2000;
 
 /// Languages listed individually; the rest are folded into "Other".
@@ -19,7 +18,7 @@ impl GixRepositoryReader {
         self.compute_language_stats_with_limit(disk_path, revision, MAX_FILES_FOR_LANGUAGE_STATS)
     }
 
-    /// `compute_language_stats` with an explicit file limit, so tests can trip the cutoff cheaply.
+    /// With an explicit file limit, so tests can trip the cutoff cheaply.
     pub fn compute_language_stats_with_limit(
         &self,
         disk_path: &Path,
@@ -96,8 +95,8 @@ fn language_for_extension(file_name: &str) -> Option<&'static str> {
     }
 }
 
-/// Recursively sums bytes per language across `tree` using `find_header` (no content decode).
-/// Returns `Ok(false)` as soon as `*files_visited` exceeds `max_files`.
+/// Sums bytes per language over `tree`, reading object headers only. Returns `Ok(false)` once
+/// `*files_visited` exceeds `max_files`.
 fn walk_tree_for_languages(
     repo: &gix::Repository,
     tree: &gix::Tree,

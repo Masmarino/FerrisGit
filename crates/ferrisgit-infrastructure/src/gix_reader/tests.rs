@@ -10,9 +10,8 @@ fn init_repo_with_one_commit(dir: &Path) {
     run(&["commit", "-q", "-m", "add readme"]);
 }
 
-/// Builds a merge whose first parent is older than its second. `BreadthFirst` sorting would return
-/// the older first parent first, while `ByCommitTime(NewestFirst)` must return the newer feature
-/// commit first.
+/// A merge whose first parent is older than its second: BreadthFirst sorting would return the older parent
+/// first, while ByCommitTime(NewestFirst) must return the newer feature commit.
 fn init_repo_with_merge_commit(dir: &Path) {
     let run = |args: &[&str]| git(dir, args);
     let commit = |message: &str, date: &str| {
@@ -70,7 +69,7 @@ fn list_commits_on_an_empty_repository_returns_an_empty_list() {
     assert!(reader.list_commits(tmp.path(), 10).unwrap().is_empty());
 }
 
-/// `init_repo_with_one_commit` plus a `feature` branch with one extra commit and a `v1` tag on `main`'s first commit.
+/// `init_repo_with_one_commit` plus a `feature` branch with one more commit and a `v1` tag on main's first commit.
 fn init_repo_with_branch_and_tag(dir: &Path) {
     init_repo_with_one_commit(dir);
     git(dir, &["tag", "v1", "HEAD~1"]);
@@ -444,7 +443,7 @@ fn list_branches_returns_every_local_branch_with_the_defaults_tip() {
     run(&["commit", "--allow-empty", "-q", "-m", "root"]);
     run(&["checkout", "-q", "-b", "feature"]);
     run(&["commit", "--allow-empty", "-q", "-m", "feature work"]);
-    // `is_default` is a live read of HEAD, so switch back to `main` after `checkout -b feature`.
+    // is_default reads HEAD live, so switch back to main after `checkout -b feature`.
     run(&["checkout", "-q", "main"]);
 
     let reader = GixRepositoryReader;
@@ -661,7 +660,7 @@ fn init_diverged_repo(dir: &Path) {
     run(&["add", "."]);
     commit_on_current_branch(dir, "feature work");
     run(&["checkout", "-q", "main"]);
-    // unrelated change on main after the branches diverge: the diff must stay relative to the merge base
+    // An unrelated change on main after the branches diverge: the diff must stay relative to the merge base.
     std::fs::write(dir.join("unrelated.txt"), "main-only change\n").unwrap();
     run(&["add", "."]);
     commit_on_current_branch(dir, "unrelated main work");

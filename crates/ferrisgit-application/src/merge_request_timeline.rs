@@ -7,7 +7,7 @@ use ferrisgit_domain::diff::{DiffLineKind, DiffSide, FileDiff, resolve_anchor_co
 use ferrisgit_domain::merge_request_comment::MergeRequestComment;
 use ferrisgit_domain::merge_request_event::{MergeRequestEvent, MergeRequestEventKind};
 
-/// Number of diff lines shown above a thread: the anchor line plus the two before it.
+/// Diff lines shown above a thread: the anchor line and the two before it.
 const EXCERPT_LINES: usize = 3;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -50,7 +50,7 @@ impl TimelineItem {
     }
 }
 
-/// Whether the live diff no longer holds the content a comment was anchored to.
+/// Whether the live diff no longer has the content a comment was anchored to.
 pub fn is_outdated(diffs: &[FileDiff], comment: &MergeRequestComment) -> bool {
     let (Some(file_path), Some(line_number), Some(side)) = (
         comment.file_path.as_deref(),
@@ -63,8 +63,8 @@ pub fn is_outdated(diffs: &[FileDiff], comment: &MergeRequestComment) -> bool {
         != comment.anchor_content.as_deref()
 }
 
-/// Up to three diff lines ending at `end_line` (the anchor plus the two lines before it),
-/// numbered on `side`. Empty when the file or the line is not part of the diff.
+/// Up to three diff lines ending at `end_line` (the anchor and the two before it), numbered on `side`. Empty if the file
+/// or line isn't in the diff.
 fn excerpt_for(
     diffs: &[FileDiff],
     file_path: &str,
@@ -96,8 +96,8 @@ fn excerpt_for(
         .collect()
 }
 
-/// Merges comments and journal events into one chronological stream. Pure: the caller
-/// fetches everything (and the live diff, when it could be computed) and passes it in.
+/// Merges comments and journal events into one chronological stream. Pure: the caller fetches everything, including the
+/// live diff when it could be computed.
 pub fn assemble_timeline(
     comments: Vec<MergeRequestComment>,
     events: Vec<MergeRequestEvent>,
@@ -120,8 +120,8 @@ pub fn assemble_timeline(
         .filter_map(|c| c.reply_to_id.map(|parent| (c.id, parent)))
         .collect();
 
-    // Walks up the reply chain to the thread root it hangs off, if any. The hop bound is only there in case of a cyclic
-    // chain, which the store never produces.
+    // Walks up the reply chain to its thread root, if any. The hop limit only guards against a cyclic chain, which the
+    // store never produces.
     let thread_root_of = |comment: &MergeRequestComment| -> Option<Uuid> {
         let mut current = comment.reply_to_id?;
         for _ in 0..comment_count {
@@ -146,7 +146,7 @@ pub fn assemble_timeline(
         }
     }
 
-    // The latest resolve/reopen event per thread decides who resolved it and when.
+    // The latest resolve or reopen event per thread says who resolved it and when.
     let mut latest_resolution: HashMap<Uuid, &MergeRequestEvent> = HashMap::new();
     for event in events.iter().filter(|e| {
         matches!(
@@ -185,8 +185,7 @@ pub fn assemble_timeline(
             (Some(diffs), Some(file_path), Some(line_number), Some(side)) => {
                 let end_line = root.end_line.unwrap_or(line_number);
                 let outdated = is_outdated(diffs, &root);
-                // An outdated anchor no longer matches what is on that line: showing the code there now would
-                // mislead.
+                // An outdated anchor no longer matches that line, so showing today's code there would mislead.
                 let excerpt = if outdated {
                     Vec::new()
                 } else {

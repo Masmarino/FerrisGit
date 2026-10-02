@@ -36,7 +36,7 @@ struct Row {
     finished_at: Option<chrono::DateTime<chrono::Utc>>,
 }
 
-/// Everything but `logs` (which can be large): enough to schedule jobs, and to run them.
+/// Everything but `logs`, which can be large.
 macro_rules! select_without_logs {
     ($tail:literal) => {
         concat!(
@@ -47,7 +47,7 @@ macro_rules! select_without_logs {
 }
 
 impl PostgresJobStore {
-    /// Every job of the given pipelines, in creation order (which is stage order): the input `runnable_jobs` expects.
+    /// Every job of the given pipelines in creation (= stage) order, which is what `runnable_jobs` expects.
     async fn pipelines_jobs(&self, pipeline_ids: &[Uuid]) -> Result<Vec<Job>, DomainError> {
         let rows: Vec<Row> = sqlx::query_as(select_without_logs!(
             "WHERE pipeline_id = ANY($1) ORDER BY created_at"
@@ -132,10 +132,10 @@ impl JobStorePort for PostgresJobStore {
         rows.into_iter().map(Job::try_from).collect()
     }
 
-    /// Which jobs may start is decided by `runnable_jobs`, the same rule `list_runnable` applies. It needs the whole
-    /// pipeline, so the candidates are read first and the claim itself is a conditional `UPDATE ... WHERE status =
-    /// 'pending'`: if another runner got there first, the next candidate is tried. A stale read only ever errs on the
-    /// side of waiting, since a `success` never goes back.
+    /// `runnable_jobs` decides which jobs may start (same rule as `list_runnable`) and needs the whole pipeline. So
+    /// read the candidates first, then claim with a conditional `UPDATE ... WHERE status = 'pending'`: if another
+    /// runner got there first, try the next candidate. A stale read only errs on the side of waiting, since a
+    /// success never goes back.
     async fn claim_next(
         &self,
         runner_id: Uuid,
@@ -195,8 +195,8 @@ impl JobStorePort for PostgresJobStore {
         Ok(())
     }
 
-    /// The `status NOT IN (...)` predicate enforces "terminal is terminal" in the database instead of a
-    /// racy read-then-write. `rows_affected() == 0` means the job was already terminal.
+    /// The `status NOT IN (...)` predicate keeps "terminal is terminal" in the database instead of a racy
+    /// read-then-write. `rows_affected() == 0` means the job was already terminal.
     async fn update_status(&self, id: Uuid, status: JobStatus) -> Result<bool, DomainError> {
         let result = sqlx::query(
             "UPDATE jobs SET status = $1::text, \
@@ -297,8 +297,7 @@ mod tests {
         }
     }
 
-    /// `jobs.runner_id` has a foreign key to `runners.id`, so claim_next tests that
-    /// actually expect a row to be claimed must pass a runner id that really exists.
+    /// `jobs.runner_id` is a foreign key, so claim_next tests that expect a claim need a runner id that really exists.
     async fn seed_runner(pool: &PgPool) -> Uuid {
         sqlx::query_scalar!(
             "INSERT INTO runners (name, token_hash) VALUES ($1, $2) RETURNING id",
@@ -680,8 +679,8 @@ mod tests {
             .create(job_in_stage(second_pipeline, "test", "alone"))
             .await
             .unwrap();
-        // Jobs of `first_pipeline` come first by age: its "unit" is blocked, "compile" is taken, then the other
-        // pipeline's job (first stage of its own pipeline) is released.
+        // First pipeline's jobs come first by age: its "unit" is blocked, "compile" is taken, then the other pipeline's
+        // job (first stage of its own pipeline) is released.
         let first = store.claim_next(runner_id, &[]).await.unwrap().unwrap();
         assert_eq!(first.name, "compile");
         let second = store.claim_next(runner_id, &[]).await.unwrap().unwrap();

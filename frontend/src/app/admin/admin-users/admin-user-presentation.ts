@@ -68,12 +68,12 @@ export const passwordResetToast = (email: string) => `Mot de passe rÃ©initialisÃ
 
 export const apiMessage = (err: { error?: unknown }) => (typeof err.error === 'object' && err.error !== null ? (err.error as { error?: unknown }).error : undefined);
 
-/** The server's 400 for an admin resetting their own password (the pages never offer it; a stale page could). */
+/** The server's 400 for an admin resetting their own password. The pages never offer it, but a stale page could. */
 export const OWN_PASSWORD_REFUSED = 'use your account settings to change your own password';
-/** The server's 400 for a reset on an account still pending activation (the pages never offer it either). */
+/** The server's 400 for a reset on an account still pending activation (never offered either). */
 export const PENDING_ACTIVATION_REFUSED = 'the user has not activated their account yet; resend the invitation instead';
 export const LAST_ADMIN_REFUSED = 'cannot remove the last administrator';
-/** The server's 409 when deleting the last Maintainer of a group hierarchy. The message is this prefix, the group's path, then {@link LAST_MAINTAINER_SUFFIX}. */
+/** The server's 409 for deleting the last Maintainer of a group hierarchy. The message is this prefix, the group's path, then {@link LAST_MAINTAINER_SUFFIX}. */
 const LAST_MAINTAINER_PREFIX = 'the user is the last maintainer of the group ';
 const LAST_MAINTAINER_SUFFIX = '; promote another member first';
 

@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 
-/** The wordmark is black, so the dark theme uses the light variant. The host is a `picture` (no wrapper element) so the panel sizes the `img` directly. */
+/** The wordmark is black, so dark mode gets the light variant. The host is a `picture` so the panel can size the `img` directly. */
 @Component({
   selector: 'picture[fgAuthLogo]',
   standalone: true,

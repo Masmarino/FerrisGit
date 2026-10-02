@@ -1,9 +1,9 @@
-// Storybook-only helpers shared by the merge request timeline stories.
+// Helpers shared by the merge request timeline stories.
 import { componentWrapperDecorator } from '@storybook/angular-vite';
 
-// A leaf item (comment card, thread, system note) hangs its avatar/marker in the timeline's left
-// gutter: shown standalone it needs the same 44px gutter and 2px rail as `.mr-timeline__body`
-// (see `_timeline-rail.scss`), or the marker would be clipped and float on nothing.
+// A lone item (card, thread, note) hangs its marker in the timeline's left gutter. Without the same
+// 44px gutter and 2px rail as .mr-timeline__body (see _timeline-rail.scss) the marker would be
+// clipped and float on nothing.
 const hairline = 'color-mix(in srgb, var(--border-color) 45%, transparent)';
 export const onTimelineRail = componentWrapperDecorator(
   (story) =>
@@ -12,7 +12,7 @@ export const onTimelineRail = componentWrapperDecorator(
 
 export const RAIL_AXIS = 16;
 
-/** Play-function guard (jsdom cannot measure layout): every element matching `markerSelector` is centred on the rail within 0.5px. */
+/** Play-function guard (jsdom can't measure layout): every marker must be centred on the rail within 0.5px. */
 export function expectOnRail(canvasElement: HTMLElement, markerSelector: string, railSelector = '.mr-story-rail'): void {
   const rail = canvasElement.querySelector(railSelector);
   if (!rail) throw new Error(`no rail (${railSelector})`);

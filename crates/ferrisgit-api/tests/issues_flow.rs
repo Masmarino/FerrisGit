@@ -112,7 +112,7 @@ async fn issues_support_kanban_assignment_comments_and_notifications(pool: PgPoo
     assert_eq!(assigned_issue["number"], 1);
     assert_eq!(assigned_issue["status"], "todo");
 
-    // Only look at `issue_assigned`, so the earlier `collaborator_added` notification is not mixed in.
+    // Filter on issue_assigned so the earlier collaborator_added doesn't get in the way.
     let contributor_notifications_after_assign_res =
         get(&client, addr, contributor_jwt, "/notifications").await;
     assert_eq!(contributor_notifications_after_assign_res.status(), 200);
@@ -187,7 +187,7 @@ async fn issues_support_kanban_assignment_comments_and_notifications(pool: PgPoo
     assert_eq!(commented_notification["actorUsername"], "contributor");
     assert_eq!(commented_notification["read"], false);
 
-    // The commenter is also the assignee: no notification for their own comment, so the list still holds only the two earlier ones.
+    // The commenter is the assignee, so no notification for their own comment: still only the two earlier ones.
     let contributor_notifications_after_comment_res =
         get(&client, addr, contributor_jwt, "/notifications").await;
     assert_eq!(contributor_notifications_after_comment_res.status(), 200);
@@ -297,7 +297,7 @@ async fn issues_carry_labels_and_milestones_and_the_list_can_be_filtered_by_both
     .await;
     let repo_id = repo["id"].as_str().unwrap().to_string();
 
-    // A milestone scoped to another repository must never be assignable here.
+    // A milestone from another repository can't be assigned here.
     let other_repo: serde_json::Value = post_json(
         &client,
         addr,
@@ -330,7 +330,7 @@ async fn issues_carry_labels_and_milestones_and_the_list_can_be_filtered_by_both
     .await;
     assert_eq!(issue_two["number"], 2);
 
-    // A bare date value is rejected: only RFC 3339 is accepted.
+    // A bare date is rejected, only RFC 3339 goes through.
     let bare_date_status = post(
         &client,
         addr,
@@ -382,7 +382,7 @@ async fn issues_carry_labels_and_milestones_and_the_list_can_be_filtered_by_both
         .unwrap();
     assert_eq!(with_milestone["milestoneId"], milestone_id.as_str());
 
-    // Full-replace PATCH: an omitted `milestoneId` is refused rather than clearing the milestone.
+    // PATCH replaces everything, so a missing milestoneId is refused instead of clearing the milestone.
     let omitted_res = patch(
         &client,
         addr,
@@ -439,7 +439,7 @@ async fn issues_carry_labels_and_milestones_and_the_list_can_be_filtered_by_both
     assert_eq!(set_labels.len(), 1);
     assert_eq!(set_labels[0]["id"], label_id.as_str());
 
-    // Repeating a label id in one request must not blow up on the join table's primary key.
+    // The same label id twice in one request mustn't hit the join table's primary key.
     let duplicate_labels: serde_json::Value = put(
         &client,
         addr,

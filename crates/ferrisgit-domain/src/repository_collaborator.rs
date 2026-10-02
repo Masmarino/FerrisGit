@@ -5,7 +5,7 @@ use uuid::Uuid;
 use crate::error::DomainError;
 use crate::repository::Repository;
 
-/// Declaration order is the ordering, so `role >= CollaboratorRole::X` is a valid tier check. No `Serialize`:
+/// Variants are declared in ascending order, so `role >= CollaboratorRole::X` works as a tier check. Not `Serialize`:
 /// responses go through `as_str()` into a DTO.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub enum CollaboratorRole {
@@ -42,8 +42,8 @@ pub struct RepositoryCollaborator {
     pub created_at: DateTime<Utc>,
 }
 
-/// A repository the user collaborates on but does not own, with the owner's username and the user's role, so `GET
-/// /repositories` needs no further query per row.
+/// A repository the user collaborates on but doesn't own, with the owner's username and the user's role, so
+/// `GET /repositories` needs no extra query per row.
 #[derive(Debug, Clone)]
 pub struct CollaboratedRepository {
     pub repository: Repository,
@@ -51,8 +51,8 @@ pub struct CollaboratedRepository {
     pub role: CollaboratorRole,
 }
 
-/// Who besides the owner has standing access to a repository, and at what role. Checked on nearly every repo-scoped
-/// request, hence a lean port separate from `RepositorySettingsStorePort`.
+/// Who besides the owner has standing access to a repository, and with which role. Checked on almost every request, so
+/// it's a lean port apart from `RepositorySettingsStorePort`.
 #[async_trait]
 pub trait RepositoryCollaboratorStorePort: Send + Sync {
     /// `Conflict` if that pair already exists.
@@ -62,21 +62,20 @@ pub trait RepositoryCollaboratorStorePort: Send + Sync {
         user_id: Uuid,
         role: CollaboratorRole,
     ) -> Result<(), DomainError>;
-    /// `NotFound("collaborator")` if the pair doesn't exist, unlike `remove`: the caller asked for a role to take
-    /// effect.
+    /// `NotFound("collaborator")` if the pair doesn't exist, unlike `remove`: the caller wants a role to take effect.
     async fn set_role(
         &self,
         repository_id: Uuid,
         user_id: Uuid,
         role: CollaboratorRole,
     ) -> Result<(), DomainError>;
-    /// A no-op (not an error) if the pair doesn't exist.
+    /// Doesn't fail if the pair doesn't exist.
     async fn remove(&self, repository_id: Uuid, user_id: Uuid) -> Result<(), DomainError>;
     async fn list_for_repository(
         &self,
         repository_id: Uuid,
     ) -> Result<Vec<RepositoryCollaborator>, DomainError>;
-    /// `None` if they aren't a collaborator. The hot path of every access check.
+    /// `None` if the user isn't a collaborator. Hot path of every access check.
     async fn get_role(
         &self,
         repository_id: Uuid,
@@ -86,8 +85,7 @@ pub trait RepositoryCollaboratorStorePort: Send + Sync {
         &self,
         user_id: Uuid,
     ) -> Result<Vec<Uuid>, DomainError>;
-    /// Same repositories as `list_repositories_for_collaborator` with owner username and role in one query (`GET
-    /// /repositories`). Defaulted to `unimplemented!()` so test doubles that never use it need no stub.
+    /// The same repositories as `list_repositories_for_collaborator`, with owner username and role, in one query.
     async fn list_collaborations_for_user(
         &self,
         _user_id: Uuid,

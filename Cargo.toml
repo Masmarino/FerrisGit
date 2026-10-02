@@ -36,13 +36,12 @@ tempfile = "3"
 sha2 = "0.11"
 hex = "0.4"
 
-# Line tables are enough for RUST_BACKTRACE=1 to show file:line. Full debug info only matters in an
-# interactive debugger, and it is the biggest contributor to the size of target/ (every integration test
-# links its own binary). Test builds inherit this from dev.
+# Line tables are enough for RUST_BACKTRACE=1 to show file:line. Full debug info only helps in a debugger and is what
+# bloats target/ (every integration test links its own binary). Test builds inherit this from dev.
 [profile.dev]
 debug = "line-tables-only"
 
-# Thin LTO and one codegen unit give a smaller, faster production binary without the build time of fat LTO.
+# Thin LTO and one codegen unit give a smaller, faster binary without the build time of fat LTO.
 [profile.release]
 lto = "thin"
 codegen-units = 1

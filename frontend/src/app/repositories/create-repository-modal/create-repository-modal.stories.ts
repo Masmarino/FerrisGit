@@ -7,7 +7,7 @@ import { RepositoriesService } from '../repositories.service';
 import { GroupsService, WritableGroup } from '../../groups/groups.service';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 
-// `provideFerrisgitIcons` returns `EnvironmentProviders`, which only fits in an `ApplicationConfig`.
+// provideFerrisgitIcons returns EnvironmentProviders, which only fit in an ApplicationConfig.
 const withIcons = applicationConfig({ providers: [provideFerrisgitIcons()] });
 
 function withGroups(groups: WritableGroup[], create: () => unknown = () => of(undefined)) {

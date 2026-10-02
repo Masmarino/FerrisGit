@@ -152,7 +152,7 @@ mod tests {
     use std::time::Duration;
     use tokio::time::{sleep, timeout};
 
-    /// Never called here (single-job pipelines, `list_runnable` returns nothing). It only satisfies the constructor.
+    /// Never called here (single-job pipelines, `list_runnable` returns nothing), it just satisfies the constructor.
     #[derive(Default)]
     struct NoopExecution;
     #[async_trait]

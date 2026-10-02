@@ -4,9 +4,9 @@ import type { BackupCodesResult, MfaPort, MfaStatus, Passkey, PasskeyChallenge, 
 import { Observable } from 'rxjs';
 
 /**
- * The `MfaPort` behind Gabarit's account security cards. When the password is wrong, password-protected calls answer
- * 400, not 401, which the auth interceptor would read as an expired session. `disable` and `deletePasskey` revoke the
- * caller's own session on the server. The cards then emit `sessionRevoked` and FerrisGit signs out.
+ * The port behind Gabarit's account security cards. A wrong password answers 400, not 401, which the interceptor would
+ * take for an expired session. `disable` and `deletePasskey` revoke the caller's own session on the server, so the
+ * cards emit `sessionRevoked` and we sign out.
  */
 @Injectable({ providedIn: 'root' })
 export class MfaService implements MfaPort {
@@ -28,7 +28,7 @@ export class MfaService implements MfaPort {
     return this.http.post<BackupCodesResult>('/api/me/mfa/backup-codes/regenerate', { currentPassword });
   }
 
-  /** MFA is mandatory, so removing the factor also revokes the caller's own session. The user is signed out and enrols again at the next login. */
+  /** MFA is mandatory, so removing the factor also revokes the caller's session: they enrol again at the next login. */
   disable(currentPassword: string): Observable<void> {
     return this.http.post<void>('/api/me/mfa/totp/disable', { currentPassword });
   }
@@ -42,7 +42,7 @@ export class MfaService implements MfaPort {
     return this.http.post<Passkey>('/api/me/mfa/passkeys/register/finish', { challengeId, credential, name });
   }
 
-  /** Revokes the caller's own session like removing the app. A 404 means it was already gone (nobody was signed out). */
+  /** Revokes the caller's session like removing the app. A 404 means the key was already gone and nobody got signed out. */
   deletePasskey(id: string, currentPassword: string): Observable<void> {
     return this.http.post<void>(`/api/me/mfa/passkeys/${encodeURIComponent(id)}/delete`, { currentPassword });
   }

@@ -35,7 +35,7 @@ interface TreeRow {
   entry: TreeEntry;
   depth: number;
   parentPath: string[];
-  /** Router link built once with the row, so the template binds a stable array. */
+  /** Built once per row so the template binds a stable array. */
   link: string[];
 }
 
@@ -104,7 +104,7 @@ export class RepositoryTreeView implements OnInit {
     return r ? this.repositories.cloneUrl(r.path) : '';
   });
 
-  /** The clone URL cut after each `/` so push commands wrap between path segments on a phone (`<wbr>`). */
+  /** The clone URL cut after each `/`, so commands can wrap between segments on a phone. */
   protected cloneUrlSegments = computed(() => this.cloneUrl().split(/(?<=[^/:]\/)/));
 
   protected rootLink = computed(() => {
@@ -116,7 +116,7 @@ export class RepositoryTreeView implements OnInit {
 
   protected currentFolderName = computed(() => this.treePath().at(-1) ?? '');
 
-  /** The newest commit: the ref's head at the root, else the newest last-commit among the folder's entries (no extra request). */
+  /** At the root the ref's head, else the newest last-commit among the folder's entries (no extra request). */
   protected latestCommit = computed<CommitInfo | null>(() => {
     if (this.treePath().length === 0) {
       return this.commits()[0] ?? null;
@@ -162,8 +162,7 @@ export class RepositoryTreeView implements OnInit {
 
   protected shortSha = shortSha;
 
-  // Directories expand in place. `expandedPaths` and `childrenCache` are keyed by the full path joined with '/',
-  // and `visibleRows` flattens them into the rendered rows.
+  // Directories expand in place. Both maps are keyed by the full path joined with '/'.
   private expandedPaths = signal<ReadonlySet<string>>(new Set());
   private childrenCache = signal<ReadonlyMap<string, TreeEntry[]>>(new Map());
   private loadingPaths = signal<ReadonlySet<string>>(new Set());
@@ -234,7 +233,7 @@ export class RepositoryTreeView implements OnInit {
     this.repositories.getById(this.repositoryId()).subscribe({
       next: (repo) => {
         this.repo.set(repo);
-        // Arrived from the header's `Cloner` action on another page (`…#cloner`): bring the clone box into view.
+        // Came from the "Cloner" action on another page (#cloner): scroll to the clone box.
         if (this.route.snapshot.fragment === CLONE_PANEL_ID) {
           afterNextRender(() => revealClonePanel(this.document), { injector: this.injector });
         }
@@ -259,10 +258,10 @@ export class RepositoryTreeView implements OnInit {
     if (this.treePath().length === 0) {
       this.repositories.readmeAt(this.repositoryId(), this.ref()).subscribe({
         next: (readme) => this.readme.set(readme.content ?? null),
-        error: () => {}, // A failed README fetch renders the same as "no README".
+        error: () => {}, // Same as no README.
       });
 
-      // The banner's commit: the head of the current ref (a failure just leaves the banner out).
+      // Head commit for the banner; if it fails the banner is simply left out.
       this.repositories.commitsById(this.repositoryId(), this.ref()).subscribe({
         next: (commits) => this.commits.set(commits),
         error: () => {},

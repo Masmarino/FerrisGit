@@ -47,7 +47,7 @@ export interface FileDiff {
 
 export interface Comment {
   id: string;
-  /** `null` once the author's account was deleted (the comment outlives it). */
+  /** `null` once the author's account is deleted; the comment stays. */
   authorId: string | null;
   author: UserRef | null;
   body: string;

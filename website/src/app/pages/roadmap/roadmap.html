@@ -1,0 +1,70 @@
+<section class="page-head container rise">
+  <h1>{{ 'roadmap.title' | transloco }}</h1>
+  <p class="lead">{{ 'roadmap.intro' | transloco }}</p>
+  <div class="actions">
+    <a
+      gbtButton
+      variant="primary"
+      size="large"
+      [href]="milestonesUrl"
+      target="_blank"
+      rel="noopener"
+      >{{ 'roadmap.milestones' | transloco }}</a
+    >
+    <a
+      gbtButton
+      variant="secondary"
+      size="large"
+      [href]="readmeUrl"
+      target="_blank"
+      rel="noopener"
+      >{{ 'roadmap.readme' | transloco }}</a
+    >
+  </div>
+</section>
+
+<div class="container roadmap">
+  @for (group of groups; track group.id) {
+    <section
+      class="group"
+      appReveal
+      appRevealMode="mark"
+      [attr.aria-labelledby]="'group-' + group.id"
+    >
+      <header class="group__header">
+        @if (group.tag) {
+          <span class="group__tag mono" aria-hidden="true">{{ group.tag }}</span>
+        }
+        <h2 [id]="'group-' + group.id">
+          {{ 'roadmap.groups.' + group.id + '.title' | transloco }}
+        </h2>
+        <span class="status" [class.status--idea]="group.status === 'considering'">{{
+          'roadmap.' + group.status | transloco
+        }}</span>
+      </header>
+      @if (group.hasIntro) {
+        <p
+          class="group__intro"
+          [innerHTML]="'roadmap.groups.' + group.id + '.intro' | transloco | inlineCode"
+        ></p>
+      }
+      <ul class="planned-list">
+        @for (n of group.numbers; track n) {
+          <li
+            [innerHTML]="'roadmap.groups.' + group.id + '.items.i' + n | transloco | inlineCode"
+          ></li>
+        }
+      </ul>
+    </section>
+  }
+
+  <section class="group" appReveal appRevealMode="mark" aria-labelledby="group-artiferris">
+    <header class="group__header">
+      <h2 id="group-artiferris">{{ 'roadmap.artiferris.title' | transloco }}</h2>
+    </header>
+    <p class="group__intro">{{ 'roadmap.artiferris.text' | transloco }}</p>
+    <a class="text-link" [href]="artiferrisUrl" target="_blank" rel="noopener">{{
+      'roadmap.artiferris.link' | transloco
+    }}</a>
+  </section>
+</div>

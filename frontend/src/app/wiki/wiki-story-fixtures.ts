@@ -1,4 +1,4 @@
-// Storybook-only fixtures and fakes for the wiki stories (not imported by the app).
+// Storybook fixtures and fakes for the wiki stories, not imported by the app.
 import { Provider, signal } from '@angular/core';
 import { applicationConfig } from '@storybook/angular-vite';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
@@ -129,7 +129,7 @@ export function wikiProviders(options: FakeWikiOptions = {}): Provider[] {
 
 const rect = (el: Element) => el.getBoundingClientRect();
 
-/** The wiki shell's columns follow `gbt-page-layout`'s width: three beyond 1100px, aside under main beyond 768px, one column below that. Nothing overflows, and the nav's first line is level with the h1. */
+/** The wiki shell's columns follow `gbt-page-layout`'s width: three beyond 1100px, aside under main beyond 768px, one below that. Nothing overflows and the nav's first line is level with the h1. */
 export async function expectWikiColumns(canvasElement: HTMLElement, { aside }: { aside: boolean }): Promise<void> {
   const layout = canvasElement.querySelector('gbt-page-layout')!;
   const width = rect(layout).width;
@@ -143,7 +143,7 @@ export async function expectWikiColumns(canvasElement: HTMLElement, { aside }: {
     await expect(Math.abs(rect(nav).top - rect(main).top)).toBeLessThan(2);
     await expect(rect(nav).width).toBeCloseTo(240, 0);
     // `@container gbt-page-layout (min-width: 769px)` in wiki-layout.scss: the pages list scrolls on its own.
-    // A container name that does not match the layout's silently leaves it at `visible`.
+    // A container name that doesn't match the layout's silently leaves it at `visible`.
     const list = canvasElement.querySelector('.wiki-nav__list');
     if (list) await expect(getComputedStyle(list).overflowY, 'nav list scrolls beside the page (min-width: 769px rule)').toBe('auto');
     const h1 = canvasElement.querySelector('.gbt-page-header__title');

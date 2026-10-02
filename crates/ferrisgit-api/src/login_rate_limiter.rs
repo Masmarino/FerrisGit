@@ -5,12 +5,12 @@ use std::time::{Duration, Instant};
 
 const WINDOW: Duration = Duration::from_secs(60);
 const MAX_ATTEMPTS_PER_WINDOW: u32 = 10;
-/// Cap on tracked IPs so a spray from many addresses cannot grow the map without bound. Clearing on overflow
-/// never lets a blocked attempt back in. It only resets windows early under a large distributed attack.
+/// Cap on tracked IPs so a spray from many addresses can't grow the map forever. Clearing on overflow never lets
+/// a blocked client back in, it only resets windows early under a big distributed attack.
 const MAX_TRACKED_IPS: usize = 50_000;
 
-/// A fixed-window rate limiter keyed by source IP: the login default is 10 attempts per 60 seconds, and
-/// `with_limits` gives registration and activation their own budget.
+/// Fixed-window limiter keyed by source IP. Login gets 10 attempts per 60 s; `with_limits` gives registration and
+/// activation their own budget.
 pub struct LoginRateLimiter {
     attempts: Mutex<HashMap<IpAddr, (u32, Instant)>>,
     max_attempts: u32,
@@ -36,7 +36,7 @@ impl LoginRateLimiter {
         self.check_or_retry_after(ip).is_ok()
     }
 
-    /// Same as `check`, but a refusal says how long until the client's window renews.
+    /// Like `check`, but a refusal says how long until the window renews.
     pub fn check_or_retry_after(&self, ip: IpAddr) -> Result<(), Duration> {
         let mut attempts = self.attempts.lock().unwrap();
         if attempts.len() > MAX_TRACKED_IPS {

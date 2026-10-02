@@ -1,4 +1,4 @@
-// Storybook-only fixtures shared by the issue stories (not imported by the app).
+// Storybook fixtures shared by the issue stories, not imported by the app.
 import { Label } from '../labels/labels.service';
 import { Milestone } from '../milestones/milestones.service';
 import { UserRef } from '../shared/user-ref';

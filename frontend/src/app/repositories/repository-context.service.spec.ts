@@ -58,7 +58,7 @@ describe('RepositoryContextService', () => {
     service.enter('repo-2', ['acme', 'other'], [], null);
     http.expectOne('/api/repositories/by-id/repo-2').flush(repositoryFixture({ id: 'repo-2', role: 'owner', path: ['acme', 'other'] }));
 
-    // The first repository's fetch resolves after the switch and must not overwrite repo-2's context.
+    // The first repository's fetch lands after the switch and shouldn't overwrite repo-2's context.
     firstReq.flush(repositoryFixture({ role: 'maintainer', path: ['acme', 'widget'] }));
 
     expect(service.current()).toEqual({ repositoryId: 'repo-2', path: ['acme', 'other'], role: 'owner', ancestors: [], groupId: null });

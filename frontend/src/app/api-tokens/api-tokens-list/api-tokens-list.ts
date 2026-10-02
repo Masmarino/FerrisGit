@@ -29,7 +29,7 @@ export class ApiTokensList implements OnInit {
   private focusAfterRevoke: number | null = null;
 
 
-  /** "Créé le 12/08/2026" but "Créé il y a 3 j": the article only precedes an absolute date. */
+  /** "Créé le 12/08/2026" but "Créé il y a 3 j": the article only goes before an absolute date. */
   protected readonly on = (iso: string) => (/^\d/.test(formatRelativeTime(iso, 'fr', undefined, RELATIVE_OPTIONS)) ? 'le ' : '');
 
   protected list = signal<ApiTokenSummary[]>([]);
@@ -82,8 +82,8 @@ export class ApiTokensList implements OnInit {
         this.newTokenName.set('');
         this.refresh();
         this.toast.show('Jeton généré.');
-        // Emptying the name disables the focused "Générer" button, so the focus moves to the token, shown
-        // only once. A screen reader reads the card's name, then the token, the warning and the copy button.
+        // Emptying the name disables the focused "Générer" button, so focus moves to the token, shown only once. A screen
+        // reader reads the card's name, then the token, the warning and the copy button.
         afterNextRender(() => this.focusCard(this.revealCard()), { injector: this.injector });
       },
       error: () => {
@@ -110,7 +110,7 @@ export class ApiTokensList implements OnInit {
     const index = this.list().findIndex((token) => token.id === id);
     this.tokens.revoke(id).subscribe({
       next: () => {
-        // The dialog gives the focus back to the row's button, which the refreshed list removes.
+        // The dialog gives focus back to the row's button, which the refreshed list removes.
         this.focusAfterRevoke = Math.max(index, 0);
         this.revoking.set(false);
         this.tokenPendingRevoke.set(null);
@@ -120,7 +120,7 @@ export class ApiTokensList implements OnInit {
         this.toast.show('Jeton révoqué.');
         this.refresh();
       },
-      // The confirmation covers the page, so an error must close it first to be visible.
+      // The confirmation covers the page, so an error has to close it first to be visible.
       error: () => {
         this.revoking.set(false);
         this.tokenPendingRevoke.set(null);

@@ -46,7 +46,7 @@
   @include settings-section.field-row(minmax(0, 1fr) minmax(0, 14rem));
 }
 
-// Gabarit gap: its select keeps a 180px minimum width and an inline-block box. Here it fills its grid column.
+// Gabarit gap: its select keeps a 180px minimum width and an inline-block box; here it fills its grid column.
 .group-members__role-input {
   display: block;
   min-width: 0;
@@ -66,14 +66,14 @@
   gap: 0.75rem;
 }
 
-// The label is kept for assistive technology only. Negative margins keep the 32px control on the row's 24px title line.
+// The label is for screen readers only. Negative margins keep the 32px control on the row's 24px title line.
 .group-members__role-select {
   width: 10rem;
   min-width: 0;
   margin-block: -0.25rem;
 }
 
-// This sits outside the list row's own rule for icon-only actions, so it needs the same negative margins to keep the row's 24px title line.
+// Outside the list row's own rule for icon-only actions, so it needs the same negative margins to keep the 24px title line.
 .group-members__remove {
   margin-block: -0.4375rem;
 }

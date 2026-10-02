@@ -3,7 +3,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, map } from 'rxjs';
 
-/** The URL, after redirects, of the last completed navigation. Needs an injection context. */
+/** The URL of the last completed navigation, after redirects. Needs an injection context. */
 export function currentUrl(): Signal<string> {
   const router = inject(Router);
   return toSignal(

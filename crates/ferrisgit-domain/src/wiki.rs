@@ -18,8 +18,8 @@ pub struct NewWiki {
     pub disk_path: String,
 }
 
-/// Always derived from the parent repository's disk_path, never recomputed from owner/group, so it cannot drift.
-/// Shared by `SaveWikiPageUseCase` and the git-http lazy-create-on-push.
+/// Always derived from the repository's disk path, never rebuilt from owner or group, so it can't drift. Shared by
+/// `SaveWikiPageUseCase` and the lazy create on push.
 pub fn wiki_disk_path_for(repository_disk_path: &str) -> String {
     format!(
         "{}.wiki.git",
@@ -31,13 +31,12 @@ pub fn wiki_disk_path_for(repository_disk_path: &str) -> String {
 
 #[async_trait]
 pub trait WikiStorePort: Send + Sync {
-    /// Plain lookup, never creates: read paths must have no write side effect (a repository with no wiki is a valid
-    /// state).
+    /// Plain lookup that never creates, so reads have no side effect. A repository without a wiki is normal.
     async fn find_by_repository_id(&self, repository_id: Uuid)
     -> Result<Option<Wiki>, DomainError>;
 
-    /// Idempotent upsert: returns the existing row or inserts one. The row's `disk_path` never changes, so
-    /// `new_wiki.disk_path` is only used the first time. Two concurrent callers get the same row, and no error.
+    /// Upsert: returns the existing row or inserts one, so `new_wiki.disk_path` only matters the first time. Concurrent
+    /// callers get the same row without an error.
     async fn find_or_create(&self, new_wiki: NewWiki) -> Result<Wiki, DomainError>;
 }
 

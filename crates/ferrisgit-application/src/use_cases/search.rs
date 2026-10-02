@@ -60,7 +60,7 @@ impl SearchUseCase {
         }
     }
 
-    /// Empty/whitespace-only `query` short-circuits to empty results without touching any store.
+    /// A blank query returns nothing without touching any store.
     pub async fn execute(&self, user_id: Uuid, query: &str) -> Result<SearchResults, DomainError> {
         let trimmed = query.trim();
         if trimmed.is_empty() {
@@ -75,7 +75,7 @@ impl SearchUseCase {
         )
         .await?;
 
-        // Users are never scoped to `visible_ids`: searchable by any authenticated user.
+        // Users aren't scoped to visible repos, any signed-in user can find any user.
         if visible_ids.is_empty() {
             let users = self.users.search(trimmed, RESULTS_PER_TYPE).await?;
             return Ok(SearchResults {
@@ -157,8 +157,7 @@ mod tests {
         let user_id = Uuid::new_v4();
         let owned_id = Uuid::new_v4();
         let matching_repo = repo(owned_id, user_id, "widget parser");
-        // Owned by someone else. It matches the query text but must never appear in `user_id`'s results, since it isn't
-        // in their visible-repository set.
+        // Matches the query but belongs to someone else, so it mustn't show up for this user.
         let other_owners_repo = repo(Uuid::new_v4(), Uuid::new_v4(), "widget other");
         let (use_case, _repositories) =
             use_case(vec![matching_repo.clone(), other_owners_repo], vec![]);

@@ -20,8 +20,8 @@ impl PostgresBackupCodeStore {
 impl BackupCodePort for PostgresBackupCodeStore {
     async fn replace_all(&self, user_id: Uuid, code_hashes: &[String]) -> Result<(), DomainError> {
         let mut tx = self.pool.begin().await.map_err(infra)?;
-        // Serialises concurrent replacements for one user: under READ COMMITTED, two interleaved
-        // delete-then-insert transactions would otherwise both survive and leave two sets of codes.
+        // Serializes concurrent replacements for a user: under READ COMMITTED, two interleaved delete-then-insert
+        // transactions would both survive and leave two sets of codes.
         sqlx::query("SELECT pg_advisory_xact_lock(hashtext($1))")
             .bind(format!("mfa-backup-codes:{user_id}"))
             .execute(&mut *tx)
@@ -49,8 +49,7 @@ impl BackupCodePort for PostgresBackupCodeStore {
         .fetch_all(&self.pool)
         .await
         .map_err(infra)?;
-        // Every unused hash is checked (no early exit on the first match) so timing does not reveal
-        // which position matched.
+        // Check every unused hash with no early exit, so timing doesn't reveal which position matched.
         let mut matched: Option<Uuid> = None;
         for (id, hash) in &candidates {
             if verify_backup_code(plaintext_code, hash) && matched.is_none() {
@@ -58,8 +57,7 @@ impl BackupCodePort for PostgresBackupCodeStore {
             }
         }
         let Some(id) = matched else { return Ok(false) };
-        // This is what makes codes single-use: if two consumers race on the same row, only one UPDATE
-        // sees `used_at IS NULL`.
+        // This is what makes codes single-use: when two consumers race on a row, only one UPDATE sees `used_at IS NULL`.
         let result = sqlx::query("UPDATE mfa_backup_codes SET used_at = now() WHERE id = $1 AND user_id = $2 AND used_at IS NULL")
             .bind(id)
             .bind(user_id)

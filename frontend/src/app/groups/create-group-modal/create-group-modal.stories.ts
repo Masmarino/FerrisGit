@@ -7,7 +7,7 @@ import { Group, GroupsService } from '../groups.service';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { atPhoneWidth, inDarkTheme } from '../../shared/layout/page-story-helpers';
 
-// `provideFerrisgitIcons` returns `EnvironmentProviders`, which only fits in an `ApplicationConfig`.
+// Environment providers only work in `applicationConfig`, not `moduleMetadata`.
 const withIcons = applicationConfig({ providers: [provideFerrisgitIcons()] });
 
 const GROUP: Group = { id: 'g1', parentGroupId: null, name: 'acme-france', description: '', createdAt: '2026-01-01T00:00:00Z' };

@@ -53,7 +53,7 @@ describe('RepositoryCiVariables', () => {
     expect(repositorySettingsStub.setCiVariable).toHaveBeenCalledWith('repo-1', 'API_KEY', 'secret', true);
     expect(component['newVariableKey']()).toBe('');
     expect(component['newVariableValue']()).toBe('');
-    // The section's list was re-fetched once (`ngOnInit` never ran here).
+    // ngOnInit never ran here, so this is the one refetch.
     expect(repositorySettingsStub.listCiVariables).toHaveBeenCalledTimes(1);
   });
 
@@ -107,7 +107,7 @@ describe('RepositoryCiVariables', () => {
       const el = fixture.nativeElement as HTMLElement;
 
       expect(el.querySelectorAll('gbt-skeleton-list .gbt-skeleton-list__row')).toHaveLength(3);
-      // One polite status, outside any aria-busy region (a busy ancestor can hold the announcement back).
+      // One polite status, outside any aria-busy region (those can hold back the announcement).
       expect(text(el.querySelector('gbt-skeleton-list [role="status"]'))).toBe('Chargement des variables…');
       expect(el.querySelector('[aria-busy="true"]')).toBeNull();
       expect(el.querySelector('gbt-list-row')).toBeNull();
@@ -130,7 +130,7 @@ describe('RepositoryCiVariables', () => {
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toContain("Les variables n'ont pas pu être chargées");
       expect(failed?.getAttribute('data-variant')).toBe('error');
-      // The error toast announces the failure, so the inline block stays silent (one live region, not two).
+      // The toast announces the failure, so the inline block stays silent.
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
       expect(failed?.querySelector('button')?.textContent?.trim()).toBe('Réessayer');

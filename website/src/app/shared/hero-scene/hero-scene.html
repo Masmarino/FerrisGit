@@ -1,0 +1,138 @@
+<app-window [url]="url()">
+  <div class="scene" aria-hidden="true">
+    <!-- Page 1: the merge request. -->
+    <div class="scene__page scene__page--mr">
+      <header class="scene__head">
+        <div class="scene__title">
+          <span class="scene__no">!42</span>
+          <span class="scene__name">{{ 'scene.title' | transloco }}</span>
+          <span class="scene__badge" [class.is-merged]="merged()">
+            {{ (merged() ? 'scene.merged' : 'scene.open') | transloco }}
+          </span>
+        </div>
+        <p class="scene__branches">
+          <span class="mono">fix/retry-webhooks</span>
+          <svg viewBox="0 0 16 16" width="14" height="14"><path d="M3 8h9m-3-3 3 3-3 3" /></svg>
+          <span class="mono">main</span>
+          <span class="scene__by">alex</span>
+        </p>
+      </header>
+
+      <ol class="scene__timeline">
+        <li class="scene__item" [class.is-on]="at(1)">
+          <div class="scene__term">
+            <p class="scene__cmd">
+              <span class="scene__prompt">$</span> git push origin fix/retry-webhooks
+            </p>
+            <div class="scene__out" [class.is-on]="at(2)">
+              <p>Enumerating objects: 11, done.</p>
+              <p>Writing objects: 100% (6/6), 1.42 KiB | 1.42 MiB/s, done.</p>
+              <p>To https://git.example.com/acme/api.git</p>
+              <p>
+                &nbsp;* [new branch]&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;fix/retry-webhooks -&gt;
+                fix/retry-webhooks
+              </p>
+            </div>
+          </div>
+        </li>
+
+        <li class="scene__item" [class.is-on]="at(3)">
+          <div class="scene__card">
+            <p class="scene__card-head">
+              <span><b>camille</b> {{ 'scene.commented' | transloco }}</span>
+              <span class="mono scene__path">src/webhooks/dispatch.rs:48</span>
+            </p>
+            <div class="scene__diff" [class.is-applied]="applied()">
+              <p class="scene__line scene__line--del">
+                <span class="scene__ln">48</span>let delay = Duration::from_secs(1);
+              </p>
+              <p class="scene__line scene__line--add">
+                <span class="scene__ln">48</span>let delay = Duration::from_secs(2u64.pow(attempt));
+              </p>
+            </div>
+            <div class="scene__suggestion">
+              <span>{{ 'scene.suggestion' | transloco }}</span>
+              @if (applied()) {
+                <span class="scene__applied">
+                  <svg viewBox="0 0 16 16" width="14" height="14">
+                    <path d="M3 8.5 6.5 12 13 4" />
+                  </svg>
+                  {{ 'scene.applied' | transloco }} <span class="mono">b7e2c91</span>
+                </span>
+              } @else {
+                <span class="scene__button">{{ 'scene.apply' | transloco }}</span>
+              }
+            </div>
+          </div>
+        </li>
+
+        <li class="scene__item scene__event" [class.is-on]="at(5)">
+          <span class="scene__dot scene__dot--ok">
+            <svg viewBox="0 0 16 16" width="12" height="12"><path d="M3 8.5 6.5 12 13 4" /></svg>
+          </span>
+          <p><b>camille</b> {{ 'scene.approved' | transloco }}</p>
+        </li>
+
+        <li class="scene__item scene__event" [class.is-on]="at(6)">
+          <span class="scene__dot scene__dot--merge">
+            <svg viewBox="0 0 24 24" width="14" height="14">
+              <circle cx="18" cy="18" r="3" />
+              <circle cx="6" cy="6" r="3" />
+              <path d="M6 21V9a9 9 0 0 0 9 9" />
+            </svg>
+          </span>
+          <p><b>alex</b> {{ 'scene.mergedBy' | transloco }} <span class="mono">3f0d2e1</span></p>
+        </li>
+      </ol>
+    </div>
+
+    <!-- Page 2: the pipeline the merge created on main. Only the live loop shows it. -->
+    <div class="scene__page scene__page--pipeline">
+      <header class="scene__head">
+        <div class="scene__title">
+          <span class="scene__no">#a4f1c7</span>
+          <span class="scene__name"
+            >{{ 'scene.pipelineOn' | transloco }} <span class="mono">main</span></span
+          >
+          <span class="scene__badge" [class.is-running]="!at(10)">
+            {{ (at(10) ? 'scene.passed' : 'scene.running') | transloco }}
+          </span>
+        </div>
+        <p class="scene__branches">
+          <span class="mono">3f0d2e1</span>
+          <span>{{ 'scene.mergeCommit' | transloco }}</span>
+        </p>
+      </header>
+      <div class="scene__stages">
+        <div class="scene__stage">
+          <span class="scene__stage-name">lint</span>
+          <span class="scene__job" [attr.data-state]="lint()">
+            <gbt-job-status [status]="lint()" /> format
+          </span>
+          <span class="scene__job" [attr.data-state]="lint()">
+            <gbt-job-status [status]="lint()" /> clippy
+          </span>
+        </div>
+        <svg class="scene__links" viewBox="0 0 40 88" width="40" height="88">
+          <path d="M0 18C20 18 20 44 40 44" />
+          <path d="M0 70C20 70 20 44 40 44" />
+        </svg>
+        <div class="scene__stage scene__stage--test">
+          <span class="scene__stage-name">test</span>
+          <span class="scene__job" [attr.data-state]="test()">
+            <gbt-job-status [status]="test()" /> test
+          </span>
+        </div>
+      </div>
+      <div class="scene__log">
+        <p><span class="scene__prompt">$</span> cargo test --all-targets</p>
+        <p class="scene__log-line" [class.is-on]="at(9)">Compiling api v0.1.1 (/build)</p>
+        <p class="scene__log-line" [class.is-on]="at(9)">Running unittests src/lib.rs</p>
+        <p class="scene__log-line scene__log-ok" [class.is-on]="at(10)">
+          test result: ok. 148 passed; 0 failed
+        </p>
+      </div>
+    </div>
+  </div>
+</app-window>
+<p class="sr-only">{{ 'scene.description' | transloco }}</p>

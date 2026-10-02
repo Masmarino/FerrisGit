@@ -10,17 +10,16 @@ pub struct Config {
     pub bootstrap_admin_username: Option<String>,
     pub bootstrap_admin_password: Option<String>,
     pub settings_encryption_key: [u8; 32],
-    /// The public origin (`https://host[:port]`, no trailing slash or path); mail links are built from it.
+    /// Bare origin, no path or trailing slash. Mail links are built from it.
     pub public_url: String,
-    /// `TRUSTED_PROXY_CIDRS`. Empty by default: `X-Forwarded-For` is then never trusted. See `client_ip`.
+    /// From `TRUSTED_PROXY_CIDRS`. Empty means `X-Forwarded-For` is never trusted (see `client_ip`).
     pub trusted_proxy_cidrs: Vec<Cidr>,
 }
 
-/// The result is the ASCII-serialised origin (`scheme://host[:port]`, lower-cased, default port dropped). The
-/// error is the message the server panics with.
+/// Returns the normalised origin, or the message the server panics with.
 fn parse_public_url(raw: &str) -> Result<String, String> {
     let trimmed = raw.trim();
-    // Refused before parsing: the WHATWG parser silently drops tabs/newlines and reads `\` as `/`.
+    // The WHATWG parser silently drops tabs and newlines and turns `\` into `/`, so refuse them up front.
     if trimmed
         .chars()
         .any(|c| c == '\\' || c.is_control() || c.is_whitespace())
@@ -29,7 +28,7 @@ fn parse_public_url(raw: &str) -> Result<String, String> {
             "PUBLIC_URL must not contain whitespace, control characters or backslashes".to_string(),
         );
     }
-    // Require a literal `://` (the parser would also accept `https:example.com`). The scheme can be in any case.
+    // The parser would also take `https:example.com`, so insist on a literal `://`.
     let lower = trimmed.to_ascii_lowercase();
     if !(lower.starts_with("http://") || lower.starts_with("https://")) {
         return Err("PUBLIC_URL must start with http:// or https://".to_string());
@@ -102,11 +101,11 @@ mod tests {
     use super::*;
     use std::sync::Mutex;
 
-    /// These tests change the process environment, so they must not interleave.
+    /// These tests change the process environment, so they can't run in parallel.
     static ENV_LOCK: Mutex<()> = Mutex::new(());
 
     fn env_lock() -> std::sync::MutexGuard<'static, ()> {
-        // A `should_panic` test poisons the lock on purpose.
+        // A should_panic test poisons the lock on purpose.
         ENV_LOCK
             .lock()
             .unwrap_or_else(|poisoned| poisoned.into_inner())
@@ -135,7 +134,7 @@ mod tests {
         let _ = Config::from_env();
     }
 
-    /// Sets the variables `from_env` reads before `PUBLIC_URL`, so the test reaches it.
+    /// Everything `from_env` reads before `PUBLIC_URL`, so the test gets that far.
     fn set_valid_env_except_public_url() {
         unsafe {
             std::env::set_var("DATABASE_URL", "postgres://x");
@@ -199,7 +198,7 @@ mod tests {
             parse_public_url("  http://127.0.0.1:8080/ \n"),
             Ok("http://127.0.0.1:8080".to_string())
         );
-        // The ASCII-serialised origin: lower-cased host and scheme, default port dropped, IPv6 kept in brackets.
+        // Host and scheme lower-cased, default port dropped, IPv6 keeps its brackets.
         assert_eq!(
             parse_public_url("HTTPS://Example.COM"),
             Ok("https://example.com".to_string())

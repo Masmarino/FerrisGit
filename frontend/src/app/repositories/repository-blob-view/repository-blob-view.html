@@ -78,7 +78,7 @@
                 <gbt-segmented-control class="repository-blob-view__mode" ariaLabel="Affichage du fichier" size="sm" tinted [options]="markdownModes" [value]="markdownMode()" (valueChange)="markdownMode.set($event)" />
               }
               @if (showsSource()) {
-                <!-- The button keeps its name while its icon turns into a check. The polite message is only read out (`feedback="hidden"`) because a bubble would cover the path on a phone. -->
+                <!-- Feedback is spoken only (feedback="hidden"): a bubble would cover the path on a phone. -->
                 <gbt-copy-button
                   class="repository-blob-view__copy"
                   variant="secondary"

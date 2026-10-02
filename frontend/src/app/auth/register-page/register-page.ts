@@ -13,7 +13,7 @@ import { AuthLogo } from '../auth-logo/auth-logo';
       <a gbtButton variant="link" gbtAuthFooterLink routerLink="/login">Se connecter</a>
     </gbt-auth-register>
   `,
-  // The logo artwork has a transparent margin above the drawing; this pulls it back to the panel's padding.
+  // The logo artwork has a transparent top margin; the offset pulls it back to the panel's padding.
   styles: ':host { --gbt-auth-panel-logo-offset: -0.5rem; }',
 })
 export class RegisterPage {

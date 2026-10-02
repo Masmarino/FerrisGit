@@ -136,7 +136,7 @@ describe('WikiPageList', () => {
     fixture.detectChanges();
     expect(el.querySelector('gbt-empty-state')).toBeNull();
     expect(el.querySelector('gbt-list-card')).toBeNull();
-    // The wiki nav announces the same failed request; the page's own notice stays silent.
+    // The wiki nav announces the same failed request, so the page's own notice stays silent.
     const notice = el.querySelector('.wiki-page-list__load-error .gbt-alert');
     expect(text(notice)).toBe('Le wiki n’a pas pu être chargé.');
     expect(notice?.getAttribute('role')).toBeNull();

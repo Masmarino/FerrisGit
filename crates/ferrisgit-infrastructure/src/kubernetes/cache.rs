@@ -10,8 +10,8 @@ use kube::api::{Api, PostParams};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
-/// PVC names must be DNS-1123 subdomains, so free-form cache keys are sanitized; the repository id in
-/// the name keeps identical keys from different repositories apart.
+/// PVC names must be DNS-1123 subdomains, so cache keys get sanitized; the repository id keeps equal keys
+/// from different repositories apart.
 pub fn pvc_name(repository_id: Uuid, cache_key: &str) -> String {
     let sanitized: String = cache_key
         .to_lowercase()
@@ -21,9 +21,9 @@ pub fn pvc_name(repository_id: Uuid, cache_key: &str) -> String {
     format!("ferrisgit-cache-{repository_id}-{sanitized}")
 }
 
-/// Creates one `ReadWriteMany` PVC per declared cache key, if absent. There is no fallback to
-/// `ReadWriteOnce`: an unsatisfiable request stays visibly `Pending` instead of silently breaking on
-/// a second node. It doesn't wait for `Bound`, which depends on the cluster's `StorageClass`.
+/// One ReadWriteMany PVC per declared cache key, if absent. No ReadWriteOnce fallback: an unsatisfiable
+/// request should stay visibly Pending, not silently break on a second node. Doesn't wait for Bound, which
+/// depends on the cluster's StorageClass.
 pub async fn ensure_cache_pvcs(
     client: &Client,
     namespace: &str,
@@ -37,8 +37,7 @@ pub async fn ensure_cache_pvcs(
         if pvcs.get_opt(&name).await.map_err(infra)?.is_some() {
             continue;
         }
-        let mut requests = BTreeMap::new();
-        requests.insert("storage".to_string(), Quantity("5Gi".to_string()));
+        let requests = BTreeMap::from([("storage".to_string(), Quantity("5Gi".to_string()))]);
         let pvc = PersistentVolumeClaim {
             metadata: ObjectMeta {
                 name: Some(name),
@@ -58,7 +57,7 @@ pub async fn ensure_cache_pvcs(
         };
         match pvcs.create(&PostParams::default(), &pvc).await {
             Ok(_) => {}
-            Err(kube::Error::Api(err)) if err.code == 409 => {} // created concurrently between our get_opt and create — fine
+            Err(kube::Error::Api(err)) if err.code == 409 => {} // lost a race with a concurrent create, fine
             Err(err) => return Err(infra(err)),
         }
     }

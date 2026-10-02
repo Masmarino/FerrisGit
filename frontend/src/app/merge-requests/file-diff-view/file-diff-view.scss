@@ -1,7 +1,6 @@
 
-// The side-by-side diff of one file inside its card (`.mr-diff__file`). One fixed-layout table for the whole file: a
-// line-number gutter and a code column per side, the same for every hunk. A long line wraps inside its own half
-// (continuation lines align under the code, not the +/- prefix), so both sides stay in view without horizontal scrolling.
+// Side-by-side diff of one file inside its card (.mr-diff__file): one fixed-layout table, so every hunk
+// has the same gutter and code columns. A long line wraps inside its own half, so no horizontal scrolling.
 
 $code-font-size: 0.8125rem;
 $code-line-height: 1.25rem;
@@ -78,8 +77,8 @@ $prefix-width: 2ch;
   border-left: 0;
 }
 
-// The +/- prefix hangs in the left padding (negative text indent), so wrapped continuation lines line
-// up with the code rather than with the prefix.
+// The +/- prefix hangs in the left padding (negative text-indent), so wrapped lines line up with the
+// code, not the prefix.
 .file-diff-view__content {
   padding-right: $code-padding;
   padding-left: calc(#{$code-padding} + #{$prefix-width});
@@ -97,7 +96,7 @@ $prefix-width: 2ch;
   user-select: none;
 }
 
-// Added and removed halves: the code on the status background, its gutter a step stronger. A half that exists only on the other side is greyed.
+// Added and removed halves: code on the status background, gutter a step stronger. A half that only exists on the other side is greyed.
 .file-diff-view__content--added {
   background: color-mix(in srgb, var(--color-success-bg) 55%, transparent);
 
@@ -137,7 +136,7 @@ $prefix-width: 2ch;
   background: color-mix(in srgb, var(--primary) 22%, transparent);
 }
 
-// The add-comment button covers the gutter's right padding and the code's left padding, not the number or the code.
+// Covers the gutter's right padding and the code's left padding, but not the number or the code.
 .file-diff-view__add-comment {
   position: absolute;
   top: 0;
@@ -244,9 +243,9 @@ $prefix-width: 2ch;
   font-size: 0.8125rem;
 }
 
-// Two halves of about 15 characters would break every line into fragments, so a narrow card shows a unified
-// diff, in CSS only. An unchanged line shows its two numbers and its code once, and a removed and an added
-// half each take their own line. Added and deleted files keep their single side.
+// Two halves of ~15 characters would shred every line, so a narrow card shows a unified diff, in CSS only.
+// An unchanged line shows its two numbers and its code once; a removed and an added half each get their
+// own line. Added and deleted files keep their single side.
 
 $narrow-gutter: 2.75rem;
 $narrow-gutter-padding: 0.375rem;
@@ -283,7 +282,7 @@ $narrow-gutter-padding: 0.375rem;
     border-radius: 4px;
     font-size: 0.75rem;
 
-    // The glyph stays small, but the touch target is at least 24x24px.
+    // Small glyph, but the touch target is at least 24x24px.
     &::after {
       content: '';
       position: absolute;
@@ -298,7 +297,7 @@ $narrow-gutter-padding: 0.375rem;
       display: none;
     }
 
-    // Still read by assistive technology, out of the layout.
+    // Out of the layout but still read by screen readers.
     thead {
       position: absolute;
       width: 1px;
@@ -322,7 +321,7 @@ $narrow-gutter-padding: 0.375rem;
       grid-column: 1 / -1;
     }
 
-    // Consecutive full-width rows would draw a doubled hairline outside the collapsed table model.
+    // Back-to-back full-width rows would draw a double hairline outside the table model.
     .file-diff-view__thread-row + .file-diff-view__thread-row > td,
     .file-diff-view__compose-row + .file-diff-view__thread-row > td {
       border-top: 0;
@@ -350,9 +349,8 @@ $narrow-gutter-padding: 0.375rem;
       grid-column: 1 / 3;
     }
 
-    // An unchanged line's code shows once (the new side), and a half with nothing in it not at all.
-    // The old number of an unchanged line stays, without its comment button: commenting goes through
-    // the new side's.
+    // An unchanged line's code shows once (new side), an empty half not at all. The old number stays but
+    // loses its comment button: commenting goes through the new side.
     .file-diff-view__content--old-side:not(.file-diff-view__content--removed),
     .file-diff-view__content--empty,
     .file-diff-view__gutter--empty {

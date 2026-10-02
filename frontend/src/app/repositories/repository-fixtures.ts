@@ -1,7 +1,7 @@
-// Plain data builder shared by the repository specs and stories.
+// Data builder shared by the repository specs and stories.
 import { Repository } from './repositories.service';
 
-/** A private repository owned by the first path segment; override whatever the test cares about. */
+/** A private repository owned by the first path segment. */
 export function repositoryFixture(fields: Partial<Repository> = {}): Repository {
   const path = fields.path ?? ['alice', 'hello'];
   return {

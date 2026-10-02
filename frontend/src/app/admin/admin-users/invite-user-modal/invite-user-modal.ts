@@ -11,9 +11,9 @@ const EMAIL_INVALID = 'Saisissez une adresse e-mail valide, par exemple nom@exem
 const SEND_FAILED = "L'invitation n'a pas pu être envoyée. Réessayez plus tard.";
 
 /**
- * The parent renders it under `@if` (rebuilt on each opening, so a closed dialog never keeps a draft). A refused
- * invitation keeps the dialog open with the draft. An accepted one emits `invited` and shows its result. `close` is the
- * parent's cue to remove it.
+ * Rendered under @if by the parent, so each opening starts fresh and a closed dialog never keeps a draft.
+ * A refused invitation leaves it open with the draft; an accepted one emits `invited` and shows the result.
+ * `close` is the parent's cue to remove it.
  */
 @Component({
   selector: 'fg-invite-user-modal',
@@ -29,7 +29,7 @@ export class InviteUserModal {
   close = output<void>();
   invited = output<InviteResult>();
 
-  // Not `protected` because the spec calls it directly (the codebase's convention for members the tests drive).
+  // Public so the spec can call it.
   username = signal('');
   email = signal('');
   isAdmin = signal(false);
@@ -72,7 +72,7 @@ export class InviteUserModal {
         this.sending.set(false);
         this.result.set(result);
         this.invited.emit(result);
-        // The form that had the focus is gone, so move the focus to the result, the next thing to read.
+        // The form that had the focus is gone, so move it to the result, the next thing to read.
         afterNextRender(() => this.resultRegion()?.nativeElement.focus(), { injector: this.injector });
       },
       error: (err: unknown) => {

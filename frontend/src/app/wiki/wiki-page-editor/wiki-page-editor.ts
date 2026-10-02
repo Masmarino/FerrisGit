@@ -37,7 +37,7 @@ export class WikiPageEditor implements OnInit {
   protected saving = signal(false);
   /** Set by a 409: the explanation stays above the editor until the next save attempt. */
   protected conflict = signal(false);
-  // Not `protected` because the spec calls it directly.
+  // Public so the spec can call it.
   newSlug = signal('');
   content = signal('');
   message = signal('');
@@ -87,7 +87,7 @@ export class WikiPageEditor implements OnInit {
       return;
     }
     if (this.isCreate() && this.existingPages().some((page) => page.slug === slug)) {
-      // The create-or-update PUT would silently overwrite an existing page: block it here.
+      // The create-or-update PUT would silently overwrite an existing page, so block it here.
       this.toast.show(`Une page nommée « ${slug} » existe déjà — modifiez-la plutôt que d'en créer une nouvelle.`, 'error');
       return;
     }
@@ -106,7 +106,7 @@ export class WikiPageEditor implements OnInit {
       error: (err: { status?: number }) => {
         this.saving.set(false);
         if (err.status === 409) {
-          // Keeps `content()` so the user's text is not lost. They can reload the current version and reapply their changes.
+          // Keeps `content()` so the user's text isn't lost. They can reload the current version and reapply their changes.
           this.conflict.set(true);
           this.toast.show(CONFLICT_MESSAGE, 'error');
         } else {

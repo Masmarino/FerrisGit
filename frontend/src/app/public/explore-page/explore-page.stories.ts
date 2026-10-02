@@ -5,7 +5,7 @@ import { ExplorePage } from './explore-page';
 import { atPhoneWidth, inDarkTheme, inShellContentArea, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { CATALOG, CATALOG_ERRORS, catalogPage, LOADING_CATALOG, withPublicCatalog } from '../public-story-fixtures';
 
-/** Real-layout checks jsdom cannot make: nothing overflows, and every card stays inside the column. */
+/** Layout checks jsdom can't do: nothing overflows and every card stays inside the column. */
 async function expectCatalogLayout({ canvasElement }: { canvasElement: HTMLElement }) {
   const cards = await waitFor(() => {
     const found = Array.from(canvasElement.querySelectorAll('.explore-page__results > li'));

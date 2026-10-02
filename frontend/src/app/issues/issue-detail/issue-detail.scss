@@ -107,7 +107,7 @@ gbt-card {
   min-width: 0;
   padding: 0.875rem 1.25rem 1rem;
 
-  // The markdown is injected HTML: emulated encapsulation only reaches it through ::ng-deep.
+  // The markdown is injected HTML, which emulated encapsulation only reaches through ::ng-deep.
   ::ng-deep {
     @include prose.markdown;
   }
@@ -137,7 +137,7 @@ gbt-card {
 .issue-detail__composer {
   position: relative;
 
-  // The rail stops at the composer's marker: mask it below.
+  // The rail stops at the composer's marker, so mask it below.
   &::before {
     content: '';
     position: absolute;
@@ -166,7 +166,7 @@ gbt-card {
   align-self: flex-end;
 }
 
-// In the panel's heading row: the negative block margins keep that row at its own height.
+// In the panel's heading row: negative block margins keep that row at its own height.
 .issue-detail__panel-action {
   margin-block: -0.25rem;
 }

@@ -1,7 +1,7 @@
 @use '../../shared/layout/list-page';
 @use '../../shared/layout/settings-section';
 
-// Header and layout share the 1440px ("wide") frame, so the h1 lines up with the nav's left edge.
+// Header and layout share the 1440px frame so the h1 lines up with the nav's left edge.
 :host {
   @include list-page.page-host;
 }

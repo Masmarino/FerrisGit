@@ -101,7 +101,7 @@ function withData(options: { releases?: ReleaseSummary[]; role?: 'owner' | 'main
 const rect = (el: Element) => el.getBoundingClientRect();
 const centreY = (el: Element) => rect(el).top + rect(el).height / 2;
 
-/** Layout checks jsdom cannot make: no horizontal overflow, aside beside the list from 769px, tag chip, title and status on one line in a wide card. */
+/** Layout checks jsdom can't make: no horizontal overflow, aside beside the list from 769px, tag chip, title and status on one line in a wide card. */
 function assertPageLayout(canvas: HTMLElement): number {
   const layout = canvas.querySelector('gbt-page-layout');
   const main = canvas.querySelector('.gbt-page-layout__main');

@@ -282,8 +282,8 @@ impl MergeRequestStorePort for PostgresMergeRequestStore {
         rows.into_iter().map(MergeRequest::try_from).collect()
     }
 
-    /// `IS DISTINCT FROM`, not `!=`: a merge request whose author's account was deleted (`author_id` NULL) still
-    /// awaits everyone's review, where `NULL != $2` would silently drop it.
+    /// `IS DISTINCT FROM`, not `!=`: an MR whose author's account was deleted (`author_id` NULL) still awaits
+    /// everyone's review, and `NULL != $2` would silently drop it.
     async fn list_awaiting_review_by(
         &self,
         user_id: Uuid,
@@ -1241,7 +1241,7 @@ mod tests {
         .await
         .unwrap();
 
-        // The LEFT JOIN yields one row per matching label; DISTINCT must collapse them to one per MR.
+        // The LEFT JOIN gives one row per matching label; DISTINCT must collapse them to one per MR.
         let results = store
             .list_for_repository_filtered(
                 repository_id,

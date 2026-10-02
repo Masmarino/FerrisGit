@@ -1,5 +1,5 @@
-//! `/healthz` and `/readyz`, what the Kubernetes probes call: liveness must hold when the database does not, readiness
-//! must follow the database, and neither says anything about why.
+//! `/healthz` and `/readyz`, the Kubernetes probes: liveness holds when the database doesn't, readiness follows the
+//! database, and neither says why.
 
 mod common;
 
@@ -42,7 +42,7 @@ async fn spawn(pool: PgPool, customize: impl FnOnce(&mut AppState)) -> Harness {
             ..Default::default()
         },
         |state| {
-            // A budget of one request: the probes must not draw on it.
+            // A budget of one request, which the probes mustn't draw on.
             state.public_rate_limiter =
                 Arc::new(LoginRateLimiter::with_limits(1, Duration::from_secs(60)));
             customize(state);

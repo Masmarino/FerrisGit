@@ -1,8 +1,8 @@
 {{- if .Values.kubernetesExecutor.enabled }}
 {{- $sa := include "ferrisgit.serviceAccountName" . }}
 {{- $jobsNamespace := include "ferrisgit.jobsNamespace" . }}
-# What the Kubernetes execution engine needs: a Pod per CI job, its logs, and the cache claims. Never Secrets. Same rules
-# as the README ("Kubernetes execution engine") and as the fixture of the RBAC test in ferrisgit-infrastructure.
+# What the Kubernetes engine needs: a Pod per CI job, its logs and the cache claims, never Secrets. Same rules as the
+# README and the RBAC test fixture in ferrisgit-infrastructure.
 apiVersion: v1
 kind: ServiceAccount
 metadata:

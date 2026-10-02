@@ -36,7 +36,7 @@
   gap: 0.5rem;
 }
 
-// Gabarit gap: `gbt-menu` has no button variant for its trigger; reuse `gbt-button--secondary`'s tokens.
+// Gabarit gap: gbt-menu has no button variant for its trigger, so reuse gbt-button--secondary's tokens.
 .admin-user-detail__menu ::ng-deep .gbt-menu__trigger {
   border-color: var(--border-color);
   background: var(--bg-panel);
@@ -106,7 +106,7 @@
   color: var(--text-secondary);
 }
 
-// !important because Gabarit's title slot sets `flex: none` on every direct child except links, and wins on specificity.
+// !important: Gabarit's title slot sets `flex: none` on every direct child but links, and wins on specificity.
 .admin-user-detail__repository-name {
   flex: 0 1 auto !important;
   min-width: 0;

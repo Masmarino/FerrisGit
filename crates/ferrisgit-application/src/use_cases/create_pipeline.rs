@@ -60,10 +60,8 @@ impl CreatePipelineUseCase {
         }
     }
 
-    /// `Ok(None)` when there is nothing to run: CI disabled, or the commit has no pipeline file. A file that is there
-    /// but invalid still yields a pipeline: `Failed` from the start, without jobs, carrying the parser's message, so
-    /// the pusher can read it in the interface (and is notified like for any failed pipeline). `Err` is for real
-    /// failures (storage, git).
+    /// `Ok(None)` when there's nothing to run (CI off, or no pipeline file). An invalid file still gives a pipeline,
+    /// failed from the start with the parser's message and no jobs, so the pusher sees why. `Err` is for real failures.
     pub async fn execute(
         &self,
         repository_id: Uuid,
@@ -120,8 +118,8 @@ impl CreatePipelineUseCase {
             .await
             .ok();
 
-        // Stage order, then name: jobs are listed by creation time, and that is the only place
-        // the pipeline page can recover the `stages` order from (it isn't stored anywhere else).
+        // Create in stage order, then by name. Jobs are listed by creation time, and that's the only place the
+        // pipeline page can read the stage order from.
         let mut ordered_jobs: Vec<_> = definition.jobs.iter().collect();
         ordered_jobs.sort_by_key(|(job_name, job_def)| {
             (
@@ -156,8 +154,7 @@ impl CreatePipelineUseCase {
                 .ok();
         }
 
-        // What can start now (the first stage, minus anything with `needs`) is decided by `runnable_jobs`, like for
-        // every later release: `ReportJobResultUseCase` asks `list_runnable` again as jobs succeed.
+        // Same rule as for every later release: the report-result use case asks `list_runnable` again as jobs succeed.
         for job in self.jobs.list_runnable(pipeline.id).await? {
             if let Err(err) = executor.submit(&job).await {
                 tracing::error!(error = %err, job_id = %job.id, "failed to submit job to execution engine; marking it failed");
@@ -229,8 +226,8 @@ mod tests {
 
     const COMPILE_ONLY_YAML: &[u8] = b"stages: [build]\njobs:\n  compile:\n    stage: build\n    image: rust:1.82\n    script: [\"cargo build\"]\n";
 
-    /// What a test changes about the world the use case runs in: the pipeline file the commit holds, CI on or off, the
-    /// active engine and, unless `executor` replaces it, a recording `FakeExecution` behind both engines.
+    /// What a test can change: the pipeline file in the commit, CI on or off, the active engine and, unless `executor`
+    /// replaces it, a recording `FakeExecution` behind both engines.
     struct Config {
         file: Option<Vec<u8>>,
         ci_enabled: bool,
@@ -262,7 +259,7 @@ mod tests {
     fn setup(config: Config) -> Setup {
         let repo = repository(Uuid::new_v4());
         let repository_id = repo.id;
-        // `notify_pipeline_failure` resolves the owner through `find_by_id(repo.owner_id)`: seed that exact id.
+        // The failure notification looks the owner up by `repo.owner_id`, so seed that exact id.
         let owner = User {
             id: repo.owner_id,
             ..user("florian")
@@ -504,8 +501,7 @@ mod tests {
 
     #[tokio::test]
     async fn jobs_are_created_in_stage_order_not_alphabetical_order() {
-        // Creation order must follow `stages`, not the alphabetical BTreeMap order: the pipeline page derives stage
-        // order from creation time.
+        // Creation order has to follow `stages`, not the BTreeMap's alphabetical one.
         let yaml = b"stages: [prepare, check]\njobs:\n  a-check:\n    stage: check\n    image: alpine:3.20\n    script: [\"true\"]\n  z-prepare:\n    stage: prepare\n    image: alpine:3.20\n    script: [\"true\"]\n";
         let setup = setup(Config::with_file(yaml));
 

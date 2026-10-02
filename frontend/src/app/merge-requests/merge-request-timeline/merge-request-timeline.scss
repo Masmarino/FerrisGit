@@ -25,7 +25,7 @@
   gap: 0.375rem;
 }
 
-// The segmented control's own track is --bg-panel, the page colour: a hairline gives it an edge.
+// The control's track is the page colour (--bg-panel), so a hairline gives it an edge.
 .mr-timeline__filter {
   margin-left: auto;
   border: 1px solid var(--gbt-hairline);
@@ -73,7 +73,7 @@
 .mr-timeline__composer {
   position: relative;
 
-  // The rail stops at the composer's marker: mask it below.
+  // The rail ends at the composer's marker, so mask it below.
   &::before {
     content: '';
     position: absolute;
@@ -102,7 +102,7 @@ gbt-card {
   padding: 0.75rem;
 }
 
-// Right-aligned under the field (a flex column would otherwise stretch or start-align it).
+// A flex column would stretch or left-align it, so push it right under the field.
 .comment-button {
   align-self: flex-end;
 }

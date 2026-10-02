@@ -1,7 +1,7 @@
 use crate::error::DomainError;
 
-/// Reversible encryption for values that must be read back in plaintext later (CI/CD variables), unlike
-/// `PasswordHasherPort`, which is one-way. Implementations own the encryption key and callers never see it.
+/// Reversible encryption for values read back as plaintext later (CI variables), unlike the one-way
+/// `PasswordHasherPort`. The implementation owns the key, callers never see it.
 pub trait SecretEncryptorPort: Send + Sync {
     fn encrypt(&self, plaintext: &str) -> Result<Vec<u8>, DomainError>;
     fn decrypt(&self, ciphertext: &[u8]) -> Result<String, DomainError>;

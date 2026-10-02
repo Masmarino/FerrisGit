@@ -29,7 +29,7 @@ async fn the_owner_can_delete_their_own_repository_and_its_storage_directory_dis
     )
     .await;
     let repo_id = repo_res["id"].as_str().unwrap().to_string();
-    // Personal-repo disk paths use `{owner_id}/{name}.git` and the admin's id is not at hand, so find the one owner directory.
+    // Personal repos live at {owner_id}/{name}.git and we don't have the admin's id, so find the single owner directory.
     let owner_dir = std::fs::read_dir(&storage_dir)
         .unwrap()
         .next()

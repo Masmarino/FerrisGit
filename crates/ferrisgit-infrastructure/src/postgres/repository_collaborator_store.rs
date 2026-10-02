@@ -342,7 +342,7 @@ mod tests {
         let owner_id = seed_user(&pool, "owner").await;
         let collaborator_id = seed_user(&pool, "collaborator").await;
         let repo_id = seed_repository(&pool, owner_id, "hello").await;
-        // goes around the port to check that the column DEFAULT itself does the backfill
+        // Goes around the port to check that the column DEFAULT itself does the backfill.
         sqlx::query!(
             "INSERT INTO repository_collaborators (repository_id, user_id) VALUES ($1, $2)",
             repo_id,

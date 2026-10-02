@@ -19,7 +19,7 @@ import { expectSettingsLayout, fakeToast } from '../../shared/layout/settings-st
 @Component({ template: '' })
 class Blank {}
 
-// In-memory navigation: the nav's links are relative to the page's route, so clicking a section moves to `/?section=<key>`.
+// The nav links are relative to the page's route, so a click lands on `/?section=<key>`.
 const withRouter = applicationConfig({ providers: [provideRouter([{ path: '**', component: Blank }]), provideLocationMocks()] });
 const startAt = (url: string) => applicationConfig({ providers: [provideAppInitializer(() => inject(Router).navigateByUrl(url))] });
 

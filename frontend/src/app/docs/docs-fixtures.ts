@@ -1,4 +1,4 @@
-// A small documentation for the docs specs and stories: an index and its pages, not the real content.
+// A small made-up documentation for the docs specs and stories: an index and its pages.
 import { HttpErrorResponse } from '@angular/common/http';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 import { DocsIndex, DocsService } from './docs.service';

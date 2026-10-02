@@ -9,8 +9,8 @@ import { PublicReleasesService } from './public-releases.service';
 import { PublicRepositoryContextService } from './public-repository-context.service';
 
 /**
- * Points the reused repository pages at the anonymous API. Each stand-in implements the methods those pages call
- * (`Pick<…>` of the real service), and the context keeps a `null` role so no write action shows.
+ * Points the reused repository pages at the anonymous API. Each stand-in covers only the methods those pages call
+ * (a `Pick<…>` of the real service), and the context has a `null` role so no write action shows.
  */
 export function providePublicRepositoryData(): Provider[] {
   return [

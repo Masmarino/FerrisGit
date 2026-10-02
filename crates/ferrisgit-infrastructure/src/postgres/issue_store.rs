@@ -905,7 +905,7 @@ mod tests {
         .await
         .unwrap();
 
-        // The LEFT JOIN yields one row per matching label; DISTINCT must collapse them to one per issue.
+        // The LEFT JOIN gives one row per matching label; DISTINCT must collapse them to one per issue.
         let results = store
             .list_for_repository_filtered(
                 repository_id,

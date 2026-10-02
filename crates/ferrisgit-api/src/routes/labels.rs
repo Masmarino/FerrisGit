@@ -41,7 +41,7 @@ impl From<Label> for LabelResponse {
     }
 }
 
-/// Query string of the issue and merge request listings. `labelIds` is a comma-separated list of UUIDs.
+/// Query string of the issue and merge request listings. `labelIds` is comma-separated UUIDs.
 #[derive(Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct LabelFilterQuery {
@@ -63,7 +63,7 @@ impl LabelFilterQuery {
     }
 }
 
-/// Body of `PUT .../labels`: replaces the labels of an issue or a merge request.
+/// Body of `PUT .../labels`, replacing the labels of an issue or merge request.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SetLabelsRequest {
@@ -151,7 +151,7 @@ async fn require_manage_access(
     } else if let Some(group_id) = label.group_id {
         require_group_role_by_id(state, user_id, group_id, CollaboratorRole::Contributor).await?;
     } else {
-        // Unreachable while the `labels_scope_xor` CHECK holds, but must never fall through with no permission check.
+        // Can't happen while the labels_scope_xor CHECK holds, but never fall through without a permission check.
         return Err(ferrisgit_domain::error::DomainError::NotFound("label".to_string()).into());
     }
     Ok(label)

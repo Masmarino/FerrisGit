@@ -72,7 +72,7 @@ export class GroupMembers implements OnInit {
   protected members = signal<GroupMember[]>([]);
   protected listState = signal<'loading' | 'loaded' | 'failed'>('loading');
   protected membership = signal<GroupMembership | null>(null);
-  /** The add card and row controls wait for 'known' so they don't pop in late. On 'failed' they show anyway, since the server enforces the role. */
+  /** The add card and row controls wait for 'known' so they don't pop in late. On 'failed' they show anyway, the server enforces the role. */
   protected membershipState = signal<'loading' | 'known' | 'failed'>('loading');
   protected canManage = computed(() => this.membership()?.role === 'maintainer');
   protected showControls = computed(() => this.membershipState() === 'failed' || this.canManage());
@@ -87,7 +87,7 @@ export class GroupMembers implements OnInit {
   protected newMemberRole = signal<GroupRole>('contributor');
   protected memberPendingRemoval = signal<GroupMember | null>(null);
   protected removing = signal(false);
-  /** Dropping the entry changes the binding back, so `NgModel` writes the previous role into the select instead of leaving a refused one. */
+  /** Dropping the entry flips the binding back, so `NgModel` rewrites the previous role into the select instead of leaving a refused one. */
   protected pendingRoles = signal<ReadonlyMap<string, GroupRole>>(new Map());
   protected readonly roleOptions: SelectOption<GroupRole>[] = Object.entries(GROUP_ROLE_LABELS).map(([value, label]) => ({ value: value as GroupRole, label }));
 
@@ -164,7 +164,7 @@ export class GroupMembers implements OnInit {
         this.toast.show('Membre retiré.');
         this.refresh();
       },
-      // The confirmation covers the page, so an error must close it first to be visible.
+      // The confirmation covers the page, so close it or the error stays hidden.
       error: () => {
         this.removing.set(false);
         this.memberPendingRemoval.set(null);

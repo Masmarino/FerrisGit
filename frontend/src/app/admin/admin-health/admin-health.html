@@ -4,7 +4,7 @@
   }
   <p header-meta class="admin-health__intro">
     État des services de l'instance
-    <!-- Shown only when the check answered. After a failed check, an older time would look current. -->
+    <!-- Hidden after a failed check, where an older time would look current. -->
     @if (loadError() ? null : checkedAtLabel(); as time) {
       <span class="admin-health__checked">· vérifié à <time>{{ time }}</time></span>
     }

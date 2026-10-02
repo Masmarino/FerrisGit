@@ -110,7 +110,7 @@ impl RepositoryStorePort for PostgresRepositoryStore {
         Ok(())
     }
 
-    // Runtime query: a new `query!` would need a `.sqlx` entry.
+    // Runtime query so it needs no .sqlx entry.
     async fn update_details(
         &self,
         id: Uuid,
@@ -159,11 +159,10 @@ impl RepositoryStorePort for PostgresRepositoryStore {
             .map_err(infra)
     }
 
-    /// `websearch_to_tsquery` handles quoted phrases, `OR` and `-term` exclusion. A query that is only a
-    /// negation matches most rows, capped by `LIMIT`. The `'simple'` config (no stemming or stopwords) is
-    /// there so identifiers match exactly. `, id` breaks ties: ranks can tie (names are only unique per
-    /// owner or group), and `ORDER BY` alone returns tied rows in no set order, so the results and the
-    /// `LIMIT` cut would be unstable.
+    /// websearch_to_tsquery handles quoted phrases, OR and -term. A query that is only a negation matches most rows,
+    /// capped by LIMIT. The 'simple' config (no stemming or stopwords) makes identifiers match exactly. `, id` breaks
+    /// rank ties (names are only unique per owner or group): without it tied rows come back in no set order and
+    /// the LIMIT cut would be unstable.
     async fn search(
         &self,
         ids: &[Uuid],
@@ -314,8 +313,8 @@ mod tests {
         }
     }
 
-    /// Regression: `UNIQUE (owner_id, name)` cross-collided personal and group namespaces, because group
-    /// repositories still carry `owner_id = <creator>`.
+    /// `UNIQUE (owner_id, name)` used to collide the personal and group namespaces, since group repos still carry
+    /// `owner_id = <creator>`.
     #[sqlx::test(migrations = "../../migrations")]
     async fn a_group_repository_may_share_a_name_with_the_creators_personal_repository(
         pool: PgPool,
@@ -615,7 +614,7 @@ mod tests {
         let owner_a = seed_user(&pool, "florian").await;
         let owner_b = seed_user(&pool, "alice").await;
         let store = PostgresRepositoryStore::new(pool);
-        // Two owners so the names can be identical: an exact `ts_rank_cd` tie.
+        // Two owners so the names can be identical: an exact ts_rank_cd tie.
         let a = store
             .create(
                 NewRepository {

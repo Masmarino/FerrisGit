@@ -32,7 +32,7 @@ struct SystemSettingsResponse {
     execution_engine: String,
     k8s_namespace: Option<String>,
     k8s_cache_storage_class: Option<String>,
-    // Only says whether a token is configured. It is stored hashed and never round-trips.
+    // Only says whether a token is set. It's stored hashed and never sent back.
     runner_registration_token_configured: bool,
     log_retention_days: Option<i32>,
     max_concurrent_jobs: Option<i32>,
@@ -41,7 +41,7 @@ struct SystemSettingsResponse {
     registration_enabled: bool,
     public_pages_enabled: bool,
     seo_indexing_enabled: bool,
-    // Not persisted: detected once at boot so the admin UI can pre-fill the k8s settings.
+    // Not persisted, detected at boot so the admin UI can pre-fill the k8s settings.
     detected_k8s_namespace: Option<String>,
     detected_k8s_default_storage_class: Option<String>,
 }

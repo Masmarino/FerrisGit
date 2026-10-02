@@ -1,6 +1,5 @@
-//! Admin-triggered password reset: an admin issues a one-hour link (`AdminResetPasswordUseCase`), the user follows it
-//! and picks a new password (`ConsumePasswordResetUseCase`). Same token mechanics as invitations: 64 random hex
-//! chars, only the SHA-256 stored, consumed atomically once.
+//! Password reset by an admin: they issue a one-hour link, the user follows it and picks a new password. Tokens work
+//! like invitations: 64 random hex chars, only the SHA-256 stored, consumed once.
 
 use std::sync::Arc;
 
@@ -17,11 +16,10 @@ use crate::account_rules::{
 };
 use crate::token_hash::hash_token;
 
-/// One error for unknown, expired, used or malformed tokens: telling them apart would only help someone probing
-/// links.
+/// Same error for unknown, expired, used or malformed tokens, so nobody can probe links.
 const INVALID_LINK: &str = "invalid or expired password reset link";
 
-/// The token exists only to build the reset URL: not stored (only its hash) and redacted from `Debug`.
+/// The token is only there to build the reset URL: it's never stored (just its hash) and `Debug` hides it.
 #[derive(Clone)]
 pub struct IssuedPasswordReset {
     pub user: User,
@@ -37,9 +35,9 @@ impl std::fmt::Debug for IssuedPasswordReset {
     }
 }
 
-/// The user's previous link, if any, stops working. The current password stops working at once (it is replaced by the
-/// hash of a random secret, like `InviteUserUseCase`). Otherwise a lapsed link would leave the old password working
-/// forever, and after an MFA reset whoever holds it could enrol their own factor.
+/// Replaces any previous link. The current password is swapped for a random secret's hash right away (as for an
+/// invitation): otherwise a lapsed link would leave the old password working, and after an MFA reset whoever knows it
+/// could enrol their own factor.
 pub struct AdminResetPasswordUseCase {
     users: Arc<dyn UserRepositoryPort>,
     hasher: Arc<dyn PasswordHasherPort>,
@@ -67,8 +65,8 @@ impl AdminResetPasswordUseCase {
         actor_id: Uuid,
         target_user_id: Uuid,
     ) -> Result<IssuedPasswordReset, DomainError> {
-        // An admin resetting themselves and losing the mail would be locked out, and a sole admin would leave nobody
-        // to issue another link. They use the self-service password change.
+        // Losing the mail would lock an admin out of their own account, and a sole admin has nobody to issue another
+        // link. They go through the normal password change instead.
         if target_user_id == actor_id {
             return Err(DomainError::Validation(
                 "use your account settings to change your own password".to_string(),
@@ -79,8 +77,7 @@ impl AdminResetPasswordUseCase {
             .find_by_id(target_user_id)
             .await?
             .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
-        // An invited account gets in through its activation link. A reset link on top would leave two live links for
-        // one mailbox.
+        // An invited account has its activation link already; a reset link on top would mean two live links.
         if self
             .invitations
             .expiries(&[user.id])
@@ -93,12 +90,11 @@ impl AdminResetPasswordUseCase {
                     .to_string(),
             ));
         }
-        // The slow argon2 run happens before any write, so a hasher failure changes nothing.
+        // Hash first (it's slow), so a hasher failure happens before anything is written.
         let unusable_password_hash =
             hash_blocking(&self.hasher, generate_invitation_token()).await?;
-        // Each step is safe on its own if a later one fails (the admin retries). Sessions are revoked first, before any
-        // way back in exists, then the password is disabled, then the link is stored. If storing the link fails, the
-        // account stays locked with no link, and a new reset fixes it.
+        // Order matters: revoke sessions, disable the password, then store the link. If the last step fails the
+        // account is just locked with no link, and the admin retries.
         self.users.bump_token_epoch(user.id).await?;
         self.users
             .update_password_hash(user.id, unusable_password_hash)
@@ -115,8 +111,8 @@ impl AdminResetPasswordUseCase {
     }
 }
 
-/// No session is issued: the user logs in afterwards, through their MFA (a password reset leaves factors untouched).
-/// Returns whose password was set, for the notification.
+/// No session is issued: the user logs in afterwards, MFA included (a reset leaves factors alone). Returns whose
+/// password was set, for the notification.
 pub struct ConsumePasswordResetUseCase {
     users: Arc<dyn UserRepositoryPort>,
     hasher: Arc<dyn PasswordHasherPort>,
@@ -137,8 +133,8 @@ impl ConsumePasswordResetUseCase {
     }
 
     pub async fn execute(&self, token: &str, new_password: &str) -> Result<Uuid, DomainError> {
-        // Same order as `ActivateAccountUseCase`: hash before consuming, so a rejected password or a hasher failure
-        // does not burn the link. Garbage is refused with the same generic error before anything expensive runs.
+        // Hash before consuming, as in account activation, so a bad password or a hasher failure doesn't burn the link.
+        // Malformed tokens are refused up front, before any hashing.
         if !is_invitation_token_shaped(token) {
             return Err(DomainError::Validation(INVALID_LINK.to_string()));
         }
@@ -155,16 +151,15 @@ impl ConsumePasswordResetUseCase {
             .update_password_hash(reset.user_id, password_hash)
             .await
         {
-            // Best-effort compensation: `restore`, not `replace`, so the same link stays usable with its original
-            // expiry unless an admin issued a newer link meanwhile (that one wins).
+            // Put the link back so the user can retry. `restore` rather than `replace`, so a newer link issued by an
+            // admin in the meantime wins.
             let _ = self
                 .password_resets
                 .restore(reset.user_id, &token_hash, reset.expires_at)
                 .await;
             return Err(error);
         }
-        // Repeated after the admin's bump. It is cheap, and it keeps "a password write revokes every session" true on
-        // its own.
+        // The admin already bumped it, but it's cheap and keeps "a password write revokes sessions" true by itself.
         self.users.bump_token_epoch(reset.user_id).await?;
         Ok(reset.user_id)
     }
@@ -332,8 +327,6 @@ mod tests {
         assert_eq!(f.users.token_epoch_of(unknown), 0);
     }
 
-    /// A sole admin resetting themselves would lock the instance out; their own password goes through the
-    /// self-service change.
     #[tokio::test]
     async fn an_admin_cannot_reset_their_own_password_this_way() {
         let admin = User {
@@ -746,8 +739,8 @@ mod tests {
         assert!(f.resets.snapshot().is_empty());
     }
 
-    /// Lets an admin win the race: a new reset is issued right after the user's link is consumed, before the failed
-    /// password write is compensated.
+    /// An admin issues a new reset right after the user's link is consumed, before the failed password write is
+    /// compensated.
     struct AdminResetsMeanwhile {
         inner: Arc<FakePasswordResets>,
         newer_hash: String,

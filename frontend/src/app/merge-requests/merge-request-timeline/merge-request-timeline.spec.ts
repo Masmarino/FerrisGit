@@ -52,7 +52,7 @@ const event: TimelineEvent = { type: 'event', id: 'e1', createdAt: '2026-09-23T0
 
 describe('MergeRequestTimeline', () => {
   beforeEach(() => {
-    // The children's pipes (gbtDateTime/gbtRelativeTime) fall back to LOCALE_ID, 'en-US' in a bare TestBed; the app sets it in app.config.ts.
+    // The date pipes fall back to LOCALE_ID, which is en-US in a bare TestBed (the app sets it in app.config.ts).
     TestBed.configureTestingModule({ providers: [{ provide: LOCALE_ID, useValue: 'fr' }] });
   });
 

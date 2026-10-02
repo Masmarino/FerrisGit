@@ -31,7 +31,7 @@ struct ClaimedJobResponse {
     repository_name: String,
     commit_sha: String,
     ci_variables: BTreeMap<String, String>,
-    // Redacted by the runner from every log line.
+    // The runner redacts these from every log line.
     masked_values: Vec<String>,
 }
 
@@ -94,8 +94,8 @@ struct AppendLogsRequest {
     chunk: String,
 }
 
-/// A runner token is instance-wide, so only the runner that claimed a job may append its logs or report its
-/// result. A wrong runner gets the same `NotFound` as a nonexistent job id, so this is no oracle for job ids.
+/// A runner token is instance-wide, so only the runner that claimed a job may append logs or report a result. Any
+/// other runner gets the same `NotFound` as for a missing job, so job ids can't be probed.
 async fn ensure_job_is_claimed_by(
     state: &AppState,
     runner_id: Uuid,

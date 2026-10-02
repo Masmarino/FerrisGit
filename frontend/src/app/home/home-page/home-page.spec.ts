@@ -228,7 +228,7 @@ describe('HomePage', () => {
       const { el } = loaded({ assignedIssues: [issue({ createdAt: created })], authoredMergeRequests: [mergeRequest({ createdAt: hoursAgo(3) })] });
 
       const issueTime = rows(group(el, 'Tickets assignés'))[0].querySelector('time');
-      // "avant-hier" is Gabarit's own wording for a gap of exactly 2 days.
+      // "avant-hier" is Gabarit's wording for exactly 2 days ago.
       expect(text(issueTime?.parentElement)).toContain('ouvert avant-hier');
       expect(issueTime!.getAttribute('datetime')).toBe(created);
       expect(issueTime!.getAttribute('title')).toMatch(/^\d{2}\/\d{2}\/\d{4} \d{2}:\d{2}$/);
@@ -369,10 +369,10 @@ describe('HomePage', () => {
       fixture.detectChanges();
 
       const loading = el.querySelector('.home-page__loading');
-      // One polite status (the stat grid's), outside any aria-busy region, since a busy ancestor can hold back
-      // the announcement. The card's placeholder rows stay silent.
+      // One polite status (the stat grid's), outside any aria-busy region because a busy ancestor can hold back the
+      // announcement. The cards' placeholder rows stay silent.
       expect(loading?.querySelector('[aria-busy="true"]')).toBeNull();
-      // The skeleton list's own status is a second region, required but silenced with an empty `loadingLabel`. Gabarit gap: it can't be left out.
+      // Gabarit gap: the skeleton list's own status is a second region that can't be left out, so silence it with an empty `loadingLabel`.
       const statuses = Array.from(loading!.querySelectorAll('[role="status"]'), (status) => text(status));
       expect(statuses[0]).toBe('Chargement du tableau de bord…');
       expect(statuses.slice(1).every((status) => status === '')).toBe(true);
@@ -401,7 +401,7 @@ describe('HomePage', () => {
       const error = el.querySelector('gbt-alert');
       expect(text(error)).toContain("Le tableau de bord n'a pas pu être chargé");
       expect(text(error)).toContain('Vérifiez votre connexion, puis réessayez.');
-      // The toast announces the failure and the card shows it silently, so there is one live region, not two.
+      // The toast announces the failure and the card shows it silently: one live region, not two.
       const box = error!.querySelector('.gbt-alert')!;
       expect(box.getAttribute('data-variant')).toBe('error');
       expect(box.getAttribute('role')).toBeNull();

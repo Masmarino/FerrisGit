@@ -42,7 +42,7 @@
           </div>
 
           <div class="repository-pipeline-settings__field repository-pipeline-settings__path" data-field="pipelineFilePath">
-            <!-- `(committed)` rather than `(ngModelChange)`: saving on every keystroke would store every half-typed path. -->
+            <!-- (committed), not (ngModelChange): that would save every half-typed path. -->
             <gbt-input label="Chemin du fichier pipeline" mono placeholder=".ferrisgit-ci.yml" [errorMessage]="pathError()" [ngModel]="s.pipelineFilePath" (committed)="updatePipelineFilePath($event)" />
             <div class="repository-pipeline-settings__field-footer">
               <p class="repository-pipeline-settings__hint">Relatif à la racine du dépôt. Il est lu sur la branche par défaut après chaque push.</p>
@@ -65,7 +65,7 @@
   }
 }
 
-<!-- A field's save state: a live region always in the DOM, so each change is announced. -->
+<!-- Always in the DOM, because a live region added already filled isn't announced reliably. -->
 <ng-template #saveState let-state>
   <gbt-save-status class="repository-pipeline-settings__save-state" [state]="state ?? 'idle'" savingLabel="Enregistrement…" savedLabel="Enregistré" errorLabel="Non enregistré" />
 </ng-template>

@@ -21,8 +21,7 @@ impl DeleteReleaseAssetUseCase {
         }
     }
 
-    /// Looks the asset up (for its `disk_path`), deletes the row (the step that can meaningfully fail), then the file.
-    /// As in `DeleteReleaseUseCase`, failing to delete the file does not undo the row deletion.
+    /// Deletes the row, then the file. As for a whole release, a file that fails to delete is only logged.
     pub async fn execute(&self, asset_id: Uuid, release_id: Uuid) -> Result<(), DomainError> {
         let asset = self
             .releases

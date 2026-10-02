@@ -1,0 +1,11 @@
+apiVersion: v2
+name: ferrisgit-website
+description: FerrisGit public website (prerendered Angular site served by nginx)
+type: application
+version: 0.1.0
+# The image tag actually deployed is image.tag (CI sets it to the version it just pushed).
+appVersion: '0.1.1'
+keywords:
+  - website
+  - static
+  - nginx

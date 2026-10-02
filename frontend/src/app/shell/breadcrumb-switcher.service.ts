@@ -21,7 +21,7 @@ export class BreadcrumbSwitcherService {
 
   readonly groups = signal<SwitcherGroup[]>([]);
   readonly repositories = signal<SwitcherRepository[]>([]);
-  /** True from the moment a new target starts loading until its data arrives. The template then shows a placeholder item rather than an empty `gbt-menu`, whose popup would leave nothing to focus when opened by keyboard. */
+  /** True while a new target loads. The template shows a placeholder item then, because an empty menu opened by keyboard has nothing to focus. */
   readonly loading = signal(false);
 
   loadForGroup(groupId: string): void {
@@ -47,7 +47,7 @@ export class BreadcrumbSwitcherService {
       return;
     }
     this.loadedKey = key;
-    // Cleared synchronously. This singleton lives across navigations, so the switcher must not show the previous target's siblings.
+    // Clear right away: this singleton outlives navigations and shouldn't show the previous target's siblings.
     this.groups.set([]);
     this.repositories.set([]);
     this.loading.set(true);
@@ -61,7 +61,7 @@ export class BreadcrumbSwitcherService {
         }
       },
       error: () => {
-        // A failed load is retried the next time the menu opens.
+        // Forget the key so the next open retries.
         if (this.loadedKey === key) {
           this.loadedKey = null;
           this.loading.set(false);

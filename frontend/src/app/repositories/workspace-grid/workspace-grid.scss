@@ -1,7 +1,6 @@
 @use '../../shared/layout/list-page';
 
-// The card is Gabarit's `gbt-list-card`. Row bits and the pager come from `shared/layout/_list-page.scss`,
-// so only the workspace's own bits stay here.
+// The card is gbt-list-card; row bits and the pager come from shared/layout/_list-page.scss.
 
 :host {
   display: block;
@@ -17,8 +16,8 @@
   min-width: 0;
 }
 
-// Neither a heading nor projected tabs: no header row (and no gap above the box). Gabarit's own
-// `.gbt-list-card__header:empty` never matches here, since the header always holds this (empty) wrapper.
+// No heading and no tabs: hide the header row. Gabarit's own :empty rule never matches because the
+// band wrapper is always there.
 :host ::ng-deep .gbt-list-card__header:has(> .workspace-grid__band:empty) {
   display: none;
 }
@@ -43,7 +42,7 @@
   flex: none;
 }
 
-// The description takes its own line over the meta segments, truncated (full text in its tooltip).
+// The description gets its own line above the meta, truncated (full text in the tooltip).
 .workspace-grid__meta {
   display: flex;
   flex-wrap: wrap;
@@ -61,8 +60,8 @@
   text-overflow: ellipsis;
 }
 
-// Segments are flex items that wrap as units. The dot belongs to the segment after it, so a wrapped
-// line never ends on a dangling "·" (its empty alternative text keeps screen readers quiet).
+// Each segment wraps as a unit, and the dot belongs to the segment after it so a wrapped line never
+// ends on a dangling "·".
 .workspace-grid__segment {
   display: inline-flex;
   align-items: center;
@@ -98,7 +97,7 @@
   @include list-page.row-menu;
 }
 
-// The width the kebab takes in the row (its 32px trigger minus the 8px it overlaps the row's padding).
+// Width of the kebab: its 32px trigger minus the 8px it overlaps the row padding.
 .workspace-grid__menu-slot {
   display: block;
   width: 24px;
@@ -120,7 +119,7 @@
 
 // Narrow card (phone, or a squeezed main column).
 @container gbt-list-card (max-width: 559px) {
-  // A phone-width row cannot keep the badge beside a long path; the leading globe or lock already says the visibility.
+  // No room for the badge next to a long path, and the leading globe or lock says the same thing.
   .workspace-grid__visibility {
     display: none;
   }

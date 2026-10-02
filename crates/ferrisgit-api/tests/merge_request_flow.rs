@@ -450,7 +450,7 @@ async fn creating_diffing_commenting_on_and_merging_a_real_branch_through_the_ap
     assert_eq!(merged_detail["status"], "merged");
     assert_eq!(merged_detail["mergeCommitSha"], merge_commit_sha.as_str());
 
-    // The merge commit is written by git plumbing, not a smart-HTTP push, yet must still trigger a pipeline.
+    // The merge commit comes from git plumbing, not a smart-HTTP push, and still has to trigger a pipeline.
     let pipelines: serde_json::Value = get_json(
         &client,
         addr,
@@ -467,7 +467,7 @@ async fn creating_diffing_commenting_on_and_merging_a_real_branch_through_the_ap
         "merging must trigger a pipeline against the new merge commit, exactly like a real push does"
     );
 
-    // A comment is outdated when its line keeps its number but the content changes. Once the MR is not open, comments always report outdated: false.
+    // A comment is outdated when its line keeps its number but the content changes. Once the MR isn't open, comments always say outdated: false.
 
     let docs_comment: serde_json::Value = post_json(&client, addr, &jwt, &format!("/merge-requests/{mr2_id}/comments"), &json!({ "body": "typo here?", "filePath": "CONTRIBUTING.md", "lineNumber": 1, "side": "new" })).await;
     assert_eq!(docs_comment["outdated"], false);
@@ -589,7 +589,7 @@ async fn creating_diffing_commenting_on_and_merging_a_real_branch_through_the_ap
         "expected a 0/1 approvals message, got: {blocked_body:#}"
     );
 
-    // An MR author cannot approve their own MR, so the gate needs an independent reviewer.
+    // An author can't approve their own MR, so the gate needs another reviewer.
     create_user(&client, addr, &jwt, "reviewer").await;
     post_ok(
         &client,
@@ -668,7 +668,7 @@ async fn creating_diffing_commenting_on_and_merging_a_real_branch_through_the_ap
     .unwrap();
     assert_eq!(final_merge_res["outcome"], "merged");
 
-    // With the approvals gate off, a live "changes requested" review must not block: the summary's `blocked` flag and the merge veto must agree.
+    // With the approvals gate off, a live "changes requested" review doesn't block, and the summary's `blocked` flag and the merge veto have to agree.
     put(
         &client,
         addr,
@@ -750,7 +750,7 @@ async fn updating_a_merge_request_assigns_a_milestone_sets_labels_and_the_list_c
     .await;
     let repo_id = repo_res["id"].as_str().unwrap().to_string();
 
-    // A milestone scoped to another repository must never be assignable here.
+    // A milestone from another repository can't be assigned here.
     let other_repo_res: serde_json::Value = post_json(
         &client,
         addr,
@@ -767,7 +767,7 @@ async fn updating_a_merge_request_assigns_a_milestone_sets_labels_and_the_list_c
     git(&["clone", &clone_url, "repo"], clone_parent.path()).await;
 
     commit_file(&repo_path, "README.md", "line one\n", "root").await;
-    // The clone of an empty repository starts on the host's default branch name, which is `master` without git config.
+    // Cloning an empty repository starts on the host's default branch, `master` without git config.
     git(&["branch", "-M", "main"], &repo_path).await;
     git(&["push", "-q", "origin", "HEAD:main"], &repo_path).await;
 
@@ -805,7 +805,7 @@ async fn updating_a_merge_request_assigns_a_milestone_sets_labels_and_the_list_c
     assert_eq!(update_res["description"], "New description");
     assert_eq!(update_res["milestoneId"], serde_json::Value::Null);
 
-    // Full-replace PATCH: an omitted `milestoneId` must be rejected, not silently clear the milestone (serde maps a missing Option to None, hence Option<Option<Uuid>>).
+    // PATCH replaces everything, so a missing milestoneId is rejected instead of clearing the milestone (hence Option<Option<Uuid>>, a plain Option can't tell the two apart).
     let omitted_milestone_res = patch(
         &client,
         addr,
@@ -861,7 +861,7 @@ async fn updating_a_merge_request_assigns_a_milestone_sets_labels_and_the_list_c
         .unwrap();
     assert_eq!(with_milestone_res["milestoneId"], milestone_id.as_str());
 
-    // Omitting `milestoneId` must be refused and leave the milestone in place. An explicit null clears it.
+    // Leaving out milestoneId is refused and keeps the milestone. An explicit null clears it.
     let omitted_after_set_status = patch(
         &client,
         addr,

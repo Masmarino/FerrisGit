@@ -15,8 +15,7 @@ impl RegisterRunnerUseCase {
         Self { runners }
     }
 
-    /// Returns the stored runner along with the plaintext token. The plaintext is never persisted, and this is the only
-    /// place it exists.
+    /// The plaintext token is returned here and never stored, so this is the only time anyone sees it.
     pub async fn execute(
         &self,
         name: String,

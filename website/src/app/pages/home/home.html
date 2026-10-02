@@ -1,0 +1,193 @@
+<section class="hero" [appParallax]="14" aria-labelledby="hero-title">
+  <div class="hero__mesh" aria-hidden="true"></div>
+  <div class="hero__grid" aria-hidden="true"></div>
+  <div class="container hero__inner">
+    <div class="hero__copy rise">
+      <h1 id="hero-title">{{ 'home.hero.title' | transloco }}</h1>
+      <p class="lead">{{ 'home.hero.subtitle' | transloco }}</p>
+      <div class="hero__actions">
+        <a gbtButton variant="primary" size="large" [href]="appUrl">{{
+          'nav.openApp' | transloco
+        }}</a>
+        <div class="command">
+          <code class="command__text"><span class="command__prompt">$</span>{{ heroCommand }}</code>
+          <gbt-copy-button
+            class="command__copy"
+            variant="ghost"
+            size="medium"
+            [value]="heroCommand"
+            [ariaLabel]="'home.hero.copy' | transloco"
+            [copiedText]="'home.hero.copied' | transloco"
+            [failedText]="'home.hero.copyFailed' | transloco"
+            feedback="bubble"
+          />
+        </div>
+      </div>
+      <p class="hero__assurance">
+        {{ 'home.hero.assurance' | transloco }}
+        <a class="hero__plan-link" [routerLink]="['/', lang()]" fragment="architecture">{{
+          'home.hero.planLink' | transloco
+        }}</a>
+      </p>
+    </div>
+    <div class="hero__scene">
+      <app-hero-scene />
+    </div>
+  </div>
+</section>
+
+<section class="facts" aria-labelledby="facts-title">
+  <h2 id="facts-title" class="sr-only">{{ 'home.facts.title' | transloco }}</h2>
+  <dl class="container facts__list">
+    @for (fact of facts; track fact) {
+      <div class="fact">
+        <dt>{{ 'home.facts.' + fact + '.value' | transloco }}</dt>
+        <dd [innerHTML]="'home.facts.' + fact + '.label' | transloco | inlineCode"></dd>
+      </div>
+    }
+  </dl>
+</section>
+
+<section class="section" id="product" aria-labelledby="caps-title">
+  <div class="container">
+    <div class="section__head" appReveal>
+      <h2 id="caps-title">{{ 'home.caps.title' | transloco }}</h2>
+      <p>{{ 'home.caps.text' | transloco }}</p>
+    </div>
+    <app-capabilities />
+    <p class="section__more">
+      <a class="text-link" [routerLink]="['/', lang(), 'features']">{{
+        'home.caps.more' | transloco
+      }}</a>
+    </p>
+  </div>
+</section>
+
+<section class="section section--band" id="ci" aria-labelledby="ci-title">
+  <div class="container">
+    <div class="section__head" appReveal>
+      <h2 id="ci-title">{{ 'home.ci.title' | transloco }}</h2>
+      <p [innerHTML]="'home.ci.text' | transloco | inlineCode"></p>
+    </div>
+    <app-pipeline-sim />
+    <dl class="ci-facts">
+      <div>
+        <dt>{{ 'home.ci.engines.title' | transloco }}</dt>
+        <dd [innerHTML]="'home.ci.engines.text' | transloco | inlineCode"></dd>
+      </div>
+      <div>
+        <dt>{{ 'home.ci.errors.title' | transloco }}</dt>
+        <dd [innerHTML]="'home.ci.errors.text' | transloco | inlineCode"></dd>
+      </div>
+      <div>
+        <dt>{{ 'home.ci.vars.title' | transloco }}</dt>
+        <dd [innerHTML]="'home.ci.vars.text' | transloco | inlineCode"></dd>
+      </div>
+    </dl>
+    <p class="section__more">
+      <a class="text-link" [href]="docs.ciReference" hreflang="fr">{{
+        'home.ci.docs' | transloco
+      }}</a>
+    </p>
+  </div>
+</section>
+
+<section class="section" id="self-hosting" aria-labelledby="install-title">
+  <div class="container">
+    <div class="section__head" appReveal>
+      <h2 id="install-title">{{ 'home.install.title' | transloco }}</h2>
+      <p>{{ 'home.install.text' | transloco }}</p>
+    </div>
+    <app-install />
+  </div>
+</section>
+
+<section class="section section--band made" id="architecture" aria-labelledby="made-title">
+  <div class="container">
+    <div class="section__head" appReveal>
+      <h2 id="made-title">{{ 'home.made.title' | transloco }}</h2>
+      <p>{{ 'home.made.text' | transloco }}</p>
+    </div>
+    <app-plan-figure page="home" />
+    <ol class="crates">
+      @for (crate of crates; track crate) {
+        <li>
+          <span class="crates__name mono">ferrisgit-{{ crate }}</span>
+          <span class="crates__text">{{ 'home.made.crates.' + crate | transloco }}</span>
+        </li>
+      }
+    </ol>
+    <p class="section__more">
+      <a class="text-link" [href]="githubUrl" target="_blank" rel="noopener">{{
+        'home.made.link' | transloco
+      }}</a>
+    </p>
+  </div>
+</section>
+
+<section class="section" id="security" aria-labelledby="security-title">
+  <div class="container">
+    <div class="section__head" appReveal>
+      <h2 id="security-title">{{ 'home.security.title' | transloco }}</h2>
+      <p>{{ 'home.security.text' | transloco }}</p>
+    </div>
+    <dl class="sec">
+      @for (item of security; track item; let i = $index) {
+        <div class="sec__row" [appReveal]="i">
+          <dt>{{ 'home.security.' + item + '.title' | transloco }}</dt>
+          <dd [innerHTML]="'home.security.' + item + '.text' | transloco | inlineCode"></dd>
+        </div>
+      }
+    </dl>
+    <p class="section__more">
+      <a class="text-link" [href]="docs.security" hreflang="fr">{{
+        'home.security.link' | transloco
+      }}</a>
+    </p>
+  </div>
+</section>
+
+<section class="section section--band" id="roadmap" aria-labelledby="roadmap-title">
+  <div class="container">
+    <div class="section__head" appReveal>
+      <h2 id="roadmap-title">{{ 'home.roadmap.title' | transloco }}</h2>
+      <p>{{ 'home.roadmap.text' | transloco }}</p>
+    </div>
+    <ol class="strip">
+      @for (version of versions; track version; let i = $index) {
+        <li class="strip__item" [appReveal]="i">
+          <span class="strip__tag mono">{{ 'home.roadmap.' + version + '.tag' | transloco }}</span>
+          <span class="strip__title">{{ 'home.roadmap.' + version + '.title' | transloco }}</span>
+          <span class="status">{{ 'roadmap.planned' | transloco }}</span>
+        </li>
+      }
+    </ol>
+    <div class="actions">
+      <a class="text-link" [routerLink]="['/', lang(), 'roadmap']">{{
+        'home.roadmap.link' | transloco
+      }}</a>
+      <a class="text-link" [href]="milestonesUrl" target="_blank" rel="noopener">{{
+        'roadmap.milestones' | transloco
+      }}</a>
+    </div>
+  </div>
+</section>
+
+<section class="section finale" aria-labelledby="cta-title">
+  <div class="container">
+    <div class="cta finale__box">
+      <div class="finale__text">
+        <h2 id="cta-title">{{ 'home.cta.title' | transloco }}</h2>
+        <p class="lead">{{ 'home.cta.text' | transloco }}</p>
+        <div class="actions">
+          <a gbtButton variant="primary" size="large" [href]="appUrl">{{
+            'nav.openApp' | transloco
+          }}</a>
+          <a gbtButton variant="secondary" size="large" [href]="docs.install" hreflang="fr">{{
+            'home.cta.install' | transloco
+          }}</a>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>

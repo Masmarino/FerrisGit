@@ -9,7 +9,7 @@
   @include list-page.header-tabs;
 }
 
-// Four tabs with counts do not fit one line in a phone-width card: they share the header row with tighter padding.
+// Four tabs with counts don't fit on one line at phone width, so tighten the padding.
 @container gbt-list-card (max-width: 479px) {
   .workspace-page__tabs {
     flex: 1 1 100%;
@@ -29,7 +29,7 @@
   }
 }
 
-// The filters' panels and the groups panel read as one stack of panels (`gbt-panel + gbt-panel`).
+// The filters and the groups panel should read as one stack.
 .workspace-page__aside > fg-workspace-grid-filters + gbt-panel {
   margin-top: 1rem;
   padding-top: 1rem;

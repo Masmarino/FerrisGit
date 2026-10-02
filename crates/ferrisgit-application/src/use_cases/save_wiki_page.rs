@@ -163,8 +163,7 @@ mod tests {
             .unwrap()
             .unwrap()
             .id;
-        // `base_sha` must be the sha the first save returned: the fake enforces the same compare-and-swap as
-        // `GitWikiWriter`.
+        // The fake does the same compare-and-swap as the real writer, so the base must be the first save's sha.
         use_case
             .execute(
                 repo.id,
@@ -195,7 +194,7 @@ mod tests {
             Arc::new(FakeWikis::empty()),
             writer.clone(),
         );
-        // A real first save so the second save's `base_sha` is accepted by the fake's compare-and-swap.
+        // A real first save, otherwise the fake's compare-and-swap rejects the second one.
         let first = use_case
             .execute(
                 repo.id,

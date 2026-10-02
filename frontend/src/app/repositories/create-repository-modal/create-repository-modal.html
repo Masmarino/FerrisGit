@@ -2,7 +2,7 @@
   <gbt-modal [isOpen]="true" heading="Nouveau dépôt" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
     <div class="create-repository">
       <div class="create-repository__path">
-        <!-- One label row over both fields so they line up (their own labels differ in height and are for assistive technology only). -->
+        <!-- Shared label row so the fields line up; their own labels differ in height and are for screen readers only. -->
         <span class="create-repository__path-label create-repository__path-label--location" aria-hidden="true">Emplacement</span>
         <span class="create-repository__path-label create-repository__path-label--name" aria-hidden="true">Nom du dépôt *</span>
         <gbt-select

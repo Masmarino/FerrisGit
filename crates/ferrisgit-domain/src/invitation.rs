@@ -4,34 +4,33 @@ use uuid::Uuid;
 
 use crate::error::DomainError;
 
-/// What consuming a valid activation token yields: whose account it activates.
+/// A consumed activation token: the account it activates.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Invitation {
     pub user_id: Uuid,
     pub expires_at: DateTime<Utc>,
 }
 
-/// Pending activation links of invited users. Only the hash of a token is ever stored.
+/// Pending activation links of invited users. Only the token hash is stored.
 #[async_trait]
 pub trait UserInvitationPort: Send + Sync {
-    /// Replaces any existing invitation of the user (one live invitation per user).
+    /// Replaces the user's invitation, if any: one live invitation per user.
     async fn replace(
         &self,
         user_id: Uuid,
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<(), DomainError>;
-    /// Gives an existing invitation of the user a new token and expiry (expired rows included). Returns `true` only if
-    /// a row was updated. Unlike `replace` it never creates a row: a user whose invitation is gone (activated
-    /// meanwhile) gets `false`, so a resend racing an activation cannot bring an invitation back on an active account.
+    /// Gives the user's existing invitation a new token and expiry, expired or not. Returns `false` if there is none: unlike
+    /// `replace` it never creates one, so a resend racing an activation can't revive an invitation on an active account.
     async fn renew(
         &self,
         user_id: Uuid,
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<bool, DomainError>;
-    /// Atomic single use: `Some` only for a token that exists and has not expired; the row is deleted.
+    /// Single use: returns the invitation only if the token exists and hasn't expired, and deletes it.
     async fn consume(&self, token_hash: &str) -> Result<Option<Invitation>, DomainError>;
-    /// The invitations pending for these users (expired ones included), as (user, expiry).
+    /// Pending invitations for these users, expired ones included, as (user, expiry).
     async fn expiries(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, DateTime<Utc>)>, DomainError>;
 }

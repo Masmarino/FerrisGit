@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { Autocomplete, AutocompleteSearchFn } from '@masmarino/gabarit';
 import { DocsSearchHit, DocsSearchService } from '../docs-search.service';
 
-/** The search field above the docs navigation. Pages load on first focus, not before: most visits never search. */
+/** The search field above the docs navigation. Pages load on first focus, since most visits never search. */
 @Component({
   selector: 'fg-docs-search',
   standalone: true,
@@ -13,7 +13,7 @@ import { DocsSearchHit, DocsSearchService } from '../docs-search.service';
   changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class DocsSearch {
-  /** After a result was opened, so a folded navigation can close. */
+  /** Emitted once a result is opened, so a folded navigation can close. */
   opened = output<DocsSearchHit>();
 
   private searchService = inject(DocsSearchService);
@@ -29,7 +29,7 @@ export class DocsSearch {
   }
 
   protected open(hit: DocsSearchHit): void {
-    // The field would keep the chosen title: empty it for the next search.
+    // Empty the field, or it keeps the chosen title.
     this.field().writeValue(null);
     void this.router.navigate(hit.commands, { fragment: hit.fragment ?? undefined });
     this.opened.emit(hit);

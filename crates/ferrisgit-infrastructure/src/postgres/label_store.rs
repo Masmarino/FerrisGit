@@ -6,8 +6,8 @@ use sqlx::PgPool;
 use std::collections::HashSet;
 use uuid::Uuid;
 
-/// Both join tables are keyed on `(owner_id, label_id)`, so a repeated label id would be a primary-key
-/// violation (500). Repeats collapse, keeping first-seen order.
+/// Both join tables are keyed on `(owner_id, label_id)`, so a repeated id would be a primary-key violation
+/// (a 500). Repeats collapse, keeping first-seen order.
 fn dedup_label_ids(label_ids: &[Uuid]) -> Vec<Uuid> {
     let mut seen = HashSet::with_capacity(label_ids.len());
     label_ids
@@ -455,7 +455,7 @@ mod tests {
         );
     }
 
-    /// Regression: repeating a label id in one request raised a primary-key violation (500).
+    /// Repeating a label id in one request used to raise a primary-key violation (a 500).
     #[sqlx::test(migrations = "../../migrations")]
     async fn setting_duplicate_label_ids_is_accepted_and_attaches_the_label_once(pool: PgPool) {
         let repository_id = seed_repository(&pool).await;
@@ -511,7 +511,7 @@ mod tests {
     async fn a_label_with_both_repository_and_group_scope_is_rejected_by_the_db(pool: PgPool) {
         let repository_id = seed_repository(&pool).await;
         let group_id = Uuid::new_v4();
-        // No group row is seeded. The CHECK fires before the FK would, so this still tests the XOR constraint.
+        // No group row is seeded: the CHECK fires before the FK, so this still tests the XOR constraint.
         let result = sqlx::query!(
             "INSERT INTO labels (name, color, repository_id, group_id) VALUES ($1, $2, $3, $4)",
             "Bug",

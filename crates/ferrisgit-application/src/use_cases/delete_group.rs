@@ -21,12 +21,9 @@ impl DeleteGroupUseCase {
         }
     }
 
-    /// Rejects a non-empty group (child group or repository) with `Conflict` rather than cascading, although the FKs
-    /// are `ON DELETE CASCADE`.
-    ///
-    /// The `list_children`/`list_for_group` checks and the delete are separate round-trips. The checks give the
-    /// specific errors for the common case, and the delete goes through `delete_if_empty`, which re-checks emptiness
-    /// atomically. A `false` from it means the rare race, reported as its own `Conflict`.
+    /// A group with a child group or a repository is refused with `Conflict` instead of cascading, even though the
+    /// foreign keys would. The checks give specific errors for the common case; `delete_if_empty` re-checks atomically,
+    /// and a `false` from it is the rare race, with its own `Conflict`.
     pub async fn execute(&self, group_id: Uuid) -> Result<(), DomainError> {
         let children = self.groups.list_children(Some(group_id)).await?;
         if !children.is_empty() {
@@ -72,7 +69,7 @@ mod tests {
     #[tokio::test]
     async fn refuses_to_delete_a_group_with_a_child_group() {
         let group_id = Uuid::new_v4();
-        // A real child of `group_id`, so the assertion shows that `list_children` filters by the group being deleted.
+        // Really a child of `group_id`, so the test shows `list_children` filters on the group being deleted.
         let child = group(Some(group_id), "child");
         let groups = Arc::new(FakeGroups::new(vec![child]));
         let use_case =
@@ -102,14 +99,13 @@ mod tests {
         assert!(groups.deleted_ids().is_empty());
     }
 
-    /// When `delete_if_empty` reports the group was no longer empty (something was created between the checks and the
-    /// delete), a dedicated race `Conflict` is returned instead of cascading.
+    /// `delete_if_empty` says the group stopped being empty (something was created after the checks): race `Conflict`.
     #[tokio::test]
     async fn surfaces_a_race_detected_conflict_when_the_group_stopped_being_empty_just_before_the_atomic_delete()
      {
         let group_id = Uuid::new_v4();
         let groups = Arc::new(FakeGroups::empty());
-        // The fake cannot see `RepositoryStorePort`, so the race is simulated by forcing this call's result.
+        // The fake can't see the repository store, so force the result to simulate the race.
         groups.force_delete_if_empty(false);
         let use_case =
             DeleteGroupUseCase::new(groups.clone(), Arc::new(FakeRepositories::new(vec![])));

@@ -140,8 +140,8 @@ fn open(disk_path: &Path) -> Result<gix::Repository, GitReadError> {
     gix::open(disk_path).map_err(|e| GitReadError::Open(e.to_string()))
 }
 
-/// The commit whose full 40-character hex id is `sha`. A malformed id, an unknown object and a
-/// non-commit all give `None`, so a bad sha never surfaces as an error (and a 500) at the API layer.
+/// The commit with this full 40-character hex id. A malformed id, an unknown object or a non-commit all
+/// give `None`, so a bad sha doesn't turn into a 500.
 fn commit_by_sha<'repo>(repo: &'repo gix::Repository, sha: &str) -> Option<gix::Commit<'repo>> {
     let id = gix::ObjectId::from_hex(sha.as_bytes()).ok()?;
     repo.find_object(id).ok()?.try_into_commit().ok()
@@ -159,6 +159,14 @@ fn newest_first_walk(
         .map_err(GitReadError::other)
 }
 
+fn walked_commit<'repo>(
+    info: Result<gix::revision::walk::Info<'repo>, impl Display>,
+) -> Result<gix::Commit<'repo>, GitReadError> {
+    info.map_err(GitReadError::other)?
+        .object()
+        .map_err(GitReadError::other)
+}
+
 fn commit_info(commit: &gix::Commit<'_>) -> Result<CommitInfo, GitReadError> {
     let decoded = commit.decode().map_err(GitReadError::other)?;
     let author = decoded.author().map_err(GitReadError::other)?;
@@ -172,7 +180,6 @@ fn commit_info(commit: &gix::Commit<'_>) -> Result<CommitInfo, GitReadError> {
     })
 }
 
-/// The object id of the entry at `path` in `tree`, if there is one.
 fn id_at_path(tree: &gix::Tree<'_>, path: &str) -> Result<Option<gix::ObjectId>, GitReadError> {
     Ok(tree
         .lookup_entry_by_path(path)

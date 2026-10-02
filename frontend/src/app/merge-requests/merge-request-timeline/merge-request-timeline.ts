@@ -75,7 +75,7 @@ export class MergeRequestTimeline {
     return `${resolved} ${resolved > 1 ? 'résolues' : 'résolue'}`;
   });
 
-  // The full sentence, for screen readers: the badges alone ("2 ouvertes") lack their noun.
+  // Full sentence for screen readers; the badges alone ("2 ouvertes") lack their noun.
   protected counterText = computed(() => {
     const { open, resolved } = this.threadCounts();
     return `${open} ${open > 1 ? 'discussions ouvertes' : 'discussion ouverte'} · ${resolved} ${resolved > 1 ? 'résolues' : 'résolue'}`;
@@ -88,8 +88,8 @@ export class MergeRequestTimeline {
 
   protected draft = signal('');
 
-  // The draft is kept on emit: the page only knows whether the POST succeeded, so it calls
-  // `clearDraft()` from its success callback (a failed POST must not lose what was typed).
+  // The draft survives the emit: only the page knows if the POST worked, and it calls clearDraft() on
+  // success.
   protected submitComment(): void {
     const body = this.draft().trim();
     if (!body) {

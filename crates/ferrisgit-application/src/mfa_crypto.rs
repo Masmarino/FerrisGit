@@ -1,4 +1,4 @@
-//! Pure TOTP and backup-code helpers. No I/O, no clock: callers pass the time in.
+//! Pure TOTP and backup-code helpers. No I/O and no clock: callers pass the time in.
 
 use ferrisgit_domain::error::DomainError;
 use rand::Rng;
@@ -10,17 +10,15 @@ const TOTP_ISSUER: &str = "FerrisGit";
 const BACKUP_CODE_COUNT: usize = 10;
 pub const TOTP_STEP_SECS: u64 = 30;
 
-/// 20 random bytes (the RFC 4226 recommended seed size), base32 without padding: 32 characters.
+/// 20 random bytes (the RFC 4226 seed size) as unpadded base32, 32 characters.
 pub fn generate_secret_base32() -> String {
     let mut bytes = [0u8; 20];
     rand::rng().fill_bytes(&mut bytes);
     Secret::from(bytes).to_base32()
 }
 
-/// SHA1 / 6 digits / 30 s step: the defaults nearly every authenticator app assumes.
-///
-/// The account name may not contain `:` (the otpauth label separator), so any is replaced by `_`
-/// rather than failing an enrolment over an unusual username.
+/// SHA1, 6 digits, 30 s step: what nearly every authenticator app assumes. A `:` in the account name would break the
+/// otpauth label, so it becomes `_` instead of failing enrolment over an odd username.
 fn build_totp(secret_base32: &str, username: &str) -> Result<Totp, DomainError> {
     let secret = Secret::try_from_base32(secret_base32).map_err(|_| {
         DomainError::Infrastructure("stored TOTP secret is not valid base32".to_string())
@@ -37,8 +35,8 @@ fn build_totp(secret_base32: &str, username: &str) -> Result<Totp, DomainError> 
         .map_err(|e| DomainError::Infrastructure(e.to_string()))
 }
 
-/// `totp-rs` leaves default parameters out of the URL. They are added back so every authenticator app is told exactly
-/// what to compute.
+/// `totp-rs` omits default parameters from the URL, so they're added back to tell every authenticator app exactly what
+/// to compute.
 pub fn otpauth_url(secret_base32: &str, username: &str) -> Result<String, DomainError> {
     let url = build_totp(secret_base32, username)?
         .to_url()
@@ -48,8 +46,8 @@ pub fn otpauth_url(secret_base32: &str, username: &str) -> Result<String, Domain
     ))
 }
 
-/// The highest matching step wins (safest for anti-replay), with one step of skew each way. Constant time: all three
-/// candidate codes are always generated and compared with `subtle::ConstantTimeEq`, no early exit.
+/// The highest matching step wins, which is safest against replay, with one step of skew each way. Constant time: all
+/// three candidates are always generated and compared, no early exit.
 pub fn matching_step(secret_base32: &str, code: &str, now_unix: u64) -> Option<i64> {
     let totp = build_totp(secret_base32, "").ok()?;
     let candidate = code.trim().as_bytes();
@@ -65,6 +63,7 @@ pub fn matching_step(secret_base32: &str, code: &str, now_unix: u64) -> Option<i
     matched
 }
 
+/// Code for a given time. Meant for tests, panics if the secret isn't ours.
 pub fn generate_code_at(secret_base32: &str, unix_time: u64) -> String {
     build_totp(secret_base32, "")
         .expect("a secret produced by generate_secret_base32 is always valid")
@@ -73,12 +72,12 @@ pub fn generate_code_at(secret_base32: &str, unix_time: u64) -> String {
 }
 
 fn generate_backup_code() -> String {
-    let mut bytes = [0u8; 16]; // 128 bits
+    let mut bytes = [0u8; 16];
     rand::rng().fill_bytes(&mut bytes);
     hex::encode(bytes)
 }
 
-/// `(plaintext codes, salted hashes)`, index-aligned. Only the hashes are ever persisted.
+/// The plaintext codes and their salted hashes, index-aligned. Only the hashes are persisted.
 pub fn generate_backup_codes() -> (Vec<String>, Vec<String>) {
     let plaintext: Vec<String> = (0..BACKUP_CODE_COUNT)
         .map(|_| generate_backup_code())
@@ -94,9 +93,8 @@ fn salted_digest(salt_hex: &str, plaintext: &str) -> [u8; 32] {
     Sha256::digest(format!("{salt_hex}{plaintext}").as_bytes()).into()
 }
 
-/// Stored as `<32 hex salt>:<64 hex sha256 of (salt hex || code)>`: salted, so identical plaintexts
-/// never share a stored value and one rainbow table cannot cover a stolen table. The codes are 128-bit
-/// random, so a fast hash is enough (there is nothing to brute-force).
+/// Stored as `<32 hex salt>:<64 hex sha256 of salt hex + code>`. The salt keeps identical codes from sharing a stored
+/// value and defeats a rainbow table. The codes are 128-bit random, so a fast hash is enough.
 pub fn hash_backup_code(plaintext: &str) -> String {
     let mut salt = [0u8; 16];
     rand::rng().fill_bytes(&mut salt);
@@ -107,9 +105,8 @@ pub fn hash_backup_code(plaintext: &str) -> String {
     )
 }
 
-/// Counterpart of `hash_backup_code`. The stored digest is decoded to its 32 bytes and compared with
-/// the recomputed one via `subtle::ConstantTimeEq`, so the comparison does not stop at the first
-/// differing byte. A malformed stored value never verifies.
+/// Counterpart of `hash_backup_code`, compared in constant time so it doesn't stop at the first differing byte. A
+/// malformed stored value never verifies.
 pub fn verify_backup_code(plaintext: &str, stored: &str) -> bool {
     let Some((salt_hex, digest_hex)) = stored.split_once(':') else {
         return false;
@@ -136,9 +133,8 @@ mod tests {
         (unix / TOTP_STEP_SECS) as i64
     }
 
-    /// RFC 6238 appendix B, SHA-1 vectors (secret = ASCII "12345678901234567890"), last six digits of each eight-digit
-    /// reference value. This checks algorithm, digit count and step against an independent source, since every other
-    /// test here goes through the same `build_totp`.
+    /// RFC 6238 appendix B SHA-1 vectors (secret is ASCII "12345678901234567890"), last six digits of each reference value.
+    /// An independent check of algorithm, digits and step, since every other test goes through the same `build_totp`.
     #[test]
     fn matches_the_rfc_6238_known_answers() {
         const RFC_SECRET: &str = "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ";
@@ -191,7 +187,7 @@ mod tests {
         let url = otpauth_url(SECRET, "flo rian").unwrap();
         assert!(url.contains("flo%20rian"), "{url}");
 
-        // ':' is the label separator: the account name is sanitised instead of failing enrolment.
+        // `:` separates the otpauth label, so the name gets sanitised instead of failing enrolment.
         assert!(otpauth_url(SECRET, "a:b").is_ok());
     }
 
@@ -245,7 +241,7 @@ mod tests {
         } else {
             "000000".to_string()
         };
-        // The previous or next step could match `wrong` by chance. Rule that out so the test is not flaky.
+        // The previous or next step could match `wrong` by chance, which would make the test flaky.
         let candidates: HashSet<String> = [NOW - 30, NOW, NOW + 30]
             .iter()
             .map(|t| generate_code_at(SECRET, *t))

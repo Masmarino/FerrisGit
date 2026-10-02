@@ -33,7 +33,7 @@ export type PublicView =
   | ({ kind: 'releases' } & RepositoryBase)
   | ({ kind: 'releaseDetail'; tagName: string } & RepositoryBase);
 
-/** `repositories/<path…>/-/<sub-page…>`: the route consumes the literal `repositories` prefix too. */
+/** `repositories/<path…>/-/<sub-page…>`; the route takes the `repositories` prefix too. */
 export function parsePublicUrl(urlSegments: UrlSegment[]): { pathSegments: string[]; subPage: string[] } {
   const segments = urlSegments.map((s) => s.path).slice(1);
   const marker = segments.indexOf('-');
@@ -84,8 +84,8 @@ function failedView(error: unknown): PublicView {
 }
 
 /**
- * The read-only pages of a public repository, at the same URLs as the signed-in ones. A small public variant of
- * `RepositoryPathResolver`: it knows only the readable sub-pages, and replaces the shell's sidebar with a tab bar.
+ * The read-only pages of a public repository, at the same URLs as the signed-in ones. A small public cousin of
+ * `RepositoryPathResolver`: only the readable sub-pages, with a tab bar instead of the shell's sidebar.
  */
 @Component({
   selector: 'fg-public-repository-page',
@@ -107,7 +107,7 @@ export class PublicRepositoryPage implements OnInit, OnDestroy {
   protected section = signal<PublicSection | null>(null);
   private retry$ = new BehaviorSubject<void>(undefined);
 
-  /** The breadcrumb and tabs follow the repository context, so they stay put while a sub-page loads. */
+  /** Breadcrumb and tabs follow the repository context, so they stay put while a sub-page loads. */
   protected header = computed(() => {
     const ctx = this.context.current();
     if (!ctx) return null;

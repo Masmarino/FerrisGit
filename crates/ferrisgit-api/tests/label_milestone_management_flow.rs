@@ -7,7 +7,7 @@ use serde_json::json;
 use sqlx::PgPool;
 use std::net::SocketAddr;
 
-/// The reader can see the repo but is below the Contributor+ gate on the mutating routes.
+/// A Reader sees the repo but is below the Contributor gate on the mutating routes.
 async fn setup_repo_with_reader(
     client: &reqwest::Client,
     addr: SocketAddr,

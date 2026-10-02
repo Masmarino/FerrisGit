@@ -15,8 +15,8 @@ impl LocalReleaseAssetStorage {
         Self { storage_root }
     }
 
-    /// Strips anything that isn't a plain filename component (separators, leading dots forming `..`).
-    /// Defence in depth: `disk_path` is already built from this name plus a server-generated `asset_id`.
+    /// Keeps a plain filename only: no separators, no leading dots that could form `..`.
+    /// Belt and braces, the path already carries a generated asset id.
     fn sanitize_filename(filename: &str) -> String {
         let cleaned: String = filename
             .chars()
@@ -31,7 +31,6 @@ impl LocalReleaseAssetStorage {
     }
 }
 
-/// Deleting something that is already gone is a success.
 fn ignore_not_found(result: std::io::Result<()>) -> Result<(), DomainError> {
     match result {
         Err(e) if e.kind() != std::io::ErrorKind::NotFound => Err(infra(e)),

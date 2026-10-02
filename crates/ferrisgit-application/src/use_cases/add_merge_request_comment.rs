@@ -67,7 +67,7 @@ impl AddMergeRequestCommentUseCase {
             return Err(DomainError::NotFound("merge request".to_string()));
         };
 
-        // A reply's own suggested content is never trusted, same as its own anchor below.
+        // A reply takes its anchor from the parent, and can't carry a suggestion of its own.
         let suggested_content = if reply_to_id.is_some() {
             None
         } else {
@@ -110,8 +110,7 @@ impl AddMergeRequestCommentUseCase {
             }
             None => match anchor {
                 Some(posted) => {
-                    // A suggestion is spliced into the source tip by new-side line numbers. An old-side number points
-                    // into another version of the file and would splice the wrong lines, so reject it outright.
+                    // Suggestions are spliced in by new-side line numbers; an old-side one would hit the wrong lines.
                     if suggested_content.is_some() && posted.side == DiffSide::Old {
                         return Err(DomainError::Validation(
                             "a suggestion can only be anchored to the new side of the diff"
@@ -192,7 +191,7 @@ impl AddMergeRequestCommentUseCase {
                 .await
                 .ok();
 
-            // Nobody to notify once the author's account is gone.
+            // The author's account may be gone, then there's nobody to notify.
             if let Some(mr_author_id) = mr.author_id
                 && mr_author_id != author_id
             {
@@ -227,8 +226,8 @@ mod tests {
     use ferrisgit_domain::user::User;
     use ferrisgit_domain::webhook_event::WebhookEvent;
 
-    /// A merge request by `author`, in a repository owned by `owner`; `commenter` is a third user. Tests that do not
-    /// care about notifications comment as an unknown user, which skips them.
+    /// A merge request by `author` in `owner`'s repo; `commenter` is a third user. Tests that don't care about
+    /// notifications comment as an unknown user, which skips them.
     struct Fixture {
         use_case: AddMergeRequestCommentUseCase,
         store: Arc<FakeMergeRequests>,
@@ -273,7 +272,7 @@ mod tests {
     }
 
     impl Fixture {
-        /// Posts `body` as an unknown user, with no reply, anchor or suggestion.
+        /// A plain comment: no reply, anchor or suggestion.
         async fn comment(&self, body: &str) -> Result<MergeRequestComment, DomainError> {
             self.use_case
                 .execute(
@@ -287,7 +286,6 @@ mod tests {
                 .await
         }
 
-        /// Posts `body` as an unknown user.
         async fn post(
             &self,
             body: &str,
@@ -602,8 +600,7 @@ mod tests {
 
     #[tokio::test]
     async fn posting_a_plain_old_side_comment_without_a_suggestion_still_works_exactly_as_before() {
-        // A removed line only exists on the old side, so this checks that old-side comments (without a suggestion)
-        // still work.
+        // A removed line only exists on the old side.
         let f = fixture(readme_diff(vec![removed_line(2)]));
 
         let result = f

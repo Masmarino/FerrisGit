@@ -16,7 +16,7 @@ export class ContributorAvatars implements OnInit {
   ref = input.required<string>();
 
   private repositories = inject(RepositoriesService);
-  /** `null` while loading. A failed request shows as "no contributors". */
+  /** `null` while loading; a failed request looks like no contributors. */
   protected contributors = signal<Contributor[] | null>(null);
 
   protected visible = computed(() => (this.contributors() ?? []).slice(0, MAX_VISIBLE_CONTRIBUTORS));

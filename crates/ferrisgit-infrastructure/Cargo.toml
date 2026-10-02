@@ -36,15 +36,12 @@ hkdf = "0.13"
 lettre = { version = "0.11", default-features = false, features = ["tokio1-rustls", "aws-lc-rs", "webpki-roots", "smtp-transport", "builder"] }
 
 [features]
-# Exposes `kubernetes::test_support` (kind-cluster helpers: test_client, TestNamespace, ...)
-# outside of this crate's own `#[cfg(test)]` unit tests, so the Cargo integration test in
-# `tests/` can use the exact same real-cluster helpers. Never enabled in a normal build —
-# only turned on via the self-dependency below, which applies solely to `cargo test`.
+# Exposes kubernetes::test_support (kind-cluster helpers) to the integration tests in tests/, not just to this crate's own
+# unit tests. Never on in a normal build, only through the self-dependency below, which applies to cargo test.
 test-support = []
-# Gates the integration tests below, which need a real `kind` Kubernetes cluster
-# (`test_client()` panics without one). Off by default so `cargo test --workspace`
-# — CI's default — never touches them; run them locally with
-# `cargo test -p ferrisgit-infrastructure --features kind-tests` once a kind cluster is up.
+# Gates the integration tests below, which need a real kind cluster (test_client() panics without one). Off by default so
+# `cargo test --workspace`, which is what CI runs, never touches them. Locally, once a kind cluster is up:
+# `cargo test -p ferrisgit-infrastructure --features kind-tests`.
 kind-tests = []
 
 [[test]]
@@ -57,8 +54,6 @@ required-features = ["kind-tests"]
 
 [dev-dependencies]
 tempfile.workspace = true
-# Self-dependency purely to turn on the `test-support` feature for this crate's own
-# integration tests (tests/): Cargo unifies features across the dependency graph for a
-# build, so declaring ourselves here with the feature enabled makes `kubernetes::test_support`
-# visible to code in `tests/`, without ever shipping it in a normal (non-test) build.
+# Self-dependency whose only job is to switch on test-support for the integration tests in tests/. Cargo unifies features
+# across the build, so kubernetes::test_support becomes visible there without shipping in a normal build.
 ferrisgit-infrastructure = { path = ".", features = ["test-support"] }

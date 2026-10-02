@@ -3,9 +3,8 @@ use kube::api::{Api, ListParams};
 
 const DEFAULT_STORAGE_CLASS_ANNOTATION: &str = "storageclass.kubernetes.io/is-default-class";
 
-/// Best-effort lookup of the cluster's default `StorageClass` to pre-fill `k8s_cache_storage_class`.
-/// `StorageClass` is cluster-scoped and needs a `ClusterRole` beyond the namespaced Role; without it this
-/// returns `None` and job submission is unaffected.
+/// Best-effort default StorageClass, to pre-fill `k8s_cache_storage_class`. It's cluster-scoped and needs a
+/// ClusterRole beyond the namespaced Role; without one this returns `None` and job submission carries on.
 pub async fn detect_default_storage_class(client: &kube::Client) -> Option<String> {
     let api: Api<StorageClass> = Api::all(client.clone());
     let list = match api.list(&ListParams::default()).await {
@@ -66,7 +65,7 @@ mod tests {
 
     #[tokio::test]
     async fn returns_none_without_erroring_when_the_service_account_cannot_list_storage_classes() {
-        // `ferrisgit-ci`'s Role grants no storageclasses permission, so this checks that detection degrades gracefully.
+        // The ferrisgit-ci Role has no storageclasses permission, so this checks detection degrades gracefully.
         let client = test_client().await;
         let ns = TestNamespace::create(&client).await;
         kubectl_apply(&ns.name, FIXTURE).await;

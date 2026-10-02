@@ -1,4 +1,4 @@
-<!-- The card's states render inside its body and the card stays `ready`. Its own states would remove the header that holds the tabs or heading, and focus would be lost when tabs switch. -->
+<!-- States render inside the body and the card stays ready: its own states would drop the header holding the tabs, and focus would be lost on a tab switch. -->
 <gbt-list-card [ariaLabel]="heading() ?? 'Dépôts et groupes'">
   <div list-card-header class="workspace-grid__band">
     @if (heading(); as title) {
@@ -10,7 +10,7 @@
   @if (loading()) {
     <gbt-skeleton-list [rows]="5" loadingLabel="Chargement…" />
   } @else if (failed()) {
-    <!-- The page's error toast announces it, so this alert stays silent (one announcement, not two). -->
+    <!-- The page's error toast already announces the failure. -->
     <gbt-alert class="workspace-grid__failed" variant="error" appearance="subtle" live="off">
       Cette liste n'a pas pu être chargée.
       <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry.emit()" />
@@ -59,7 +59,7 @@
               }
             </span>
 
-            <!-- Every row keeps its trailing column (a menu or an empty slot of the same width) so all rows end on the same edge. -->
+            <!-- Rows without a menu keep an empty slot of the same width, so every row ends on the same edge. -->
             <span row-trailing class="workspace-grid__trailing">
               @if (row.hasMenu) {
                 <gbt-menu class="workspace-grid__menu" [label]="row.menuLabel" triggerIcon="ellipsis-vertical" align="end">

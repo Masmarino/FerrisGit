@@ -1,7 +1,7 @@
 @use '../shared/layout/settings-section';
 
-// A settings field with its hint and save state, as the admin settings sections draw it. Each section
-// includes this once: the classes belong to the section that includes it.
+// A settings field with its hint and save state, as the admin settings sections draw it. Each section includes this
+// once, and the classes belong to that section.
 @mixin fields {
   .admin-settings__form {
     @include settings-section.form;

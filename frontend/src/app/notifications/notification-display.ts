@@ -42,9 +42,9 @@ export function notificationSentence(n: Notification): string {
   }
 }
 
-// Known limitation: a notification only stores the repository's creator and name. For a group repository, this link
-// can point to an unrelated personal repository of the creator with the same name. A real fix needs a repository id on
-// the notification. The `-` marker only makes personal-repository links correct.
+// Known limitation: a notification only stores the repository's creator and name, so for a group repository this link
+// can land on an unrelated personal repository of the creator with the same name. A real fix needs a repository id on
+// the notification.
 export function notificationLink(n: Notification): string[] {
   const repository = ['/repositories', n.repositoryOwner, n.repositoryName, '-'];
   if (n.mergeRequestId) {
@@ -61,7 +61,7 @@ export function notificationLink(n: Notification): string[] {
 
 const COLLABORATORS_SECTION: Readonly<Record<string, string>> = Object.freeze({ section: 'collaborators' });
 
-/** Always the same object, so a template can bind it without handing the router a new value on every change detection. */
+/** Always the same object, so a template can bind it without giving the router a new value on every change detection. */
 export function notificationQueryParams(n: Notification): Readonly<Record<string, string>> | null {
   if (n.mergeRequestId || n.pipelineId) {
     return null;

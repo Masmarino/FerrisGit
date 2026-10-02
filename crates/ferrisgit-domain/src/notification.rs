@@ -97,20 +97,20 @@ pub struct NewNotification {
     pub role: Option<String>,
 }
 
-/// Fire-and-forget by convention: every caller of `create` follows it with `.await.ok()`, because a notification that
-/// fails to write must never fail the action that triggered it.
+/// Fire and forget: callers do `create(..).await.ok()`, since a notification that fails to write shouldn't fail the
+/// action behind it.
 #[async_trait]
 pub trait NotificationStorePort: Send + Sync {
     async fn create(&self, notification: NewNotification) -> Result<(), DomainError>;
-    /// Most recent first, capped at `limit`.
+    /// Most recent first.
     async fn list_for_recipient(
         &self,
         recipient_id: Uuid,
         limit: i64,
     ) -> Result<Vec<Notification>, DomainError>;
     async fn unread_count(&self, recipient_id: Uuid) -> Result<i64, DomainError>;
-    /// Scoped by `recipient_id` so someone else's notification cannot be marked read by guessing an id. Succeeds
-    /// whether or not a row matched (idempotent).
+    /// Scoped by `recipient_id` so nobody can mark someone else's notification read by guessing an id. Succeeds even if no
+    /// row matched.
     async fn mark_read(&self, notification_id: Uuid, recipient_id: Uuid)
     -> Result<(), DomainError>;
     async fn mark_all_read(&self, recipient_id: Uuid) -> Result<(), DomainError>;

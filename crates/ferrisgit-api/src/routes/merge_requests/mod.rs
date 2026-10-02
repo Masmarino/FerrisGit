@@ -91,8 +91,8 @@ impl From<MergeRequest> for MergeRequestResponse {
 }
 
 impl MergeRequestResponse {
-    /// Every handler returning a merge request goes through here: the detail page replaces its state with the
-    /// response of update/merge, so they must all carry the same fields.
+    /// Every handler that returns a merge request builds it here. The detail page swaps its state for the update and
+    /// merge responses, so they all need the same fields.
     async fn build_many(
         state: &AppState,
         merge_requests: Vec<MergeRequest>,
@@ -137,7 +137,7 @@ struct CreateMergeRequestRequest {
     description: String,
 }
 
-// Built once per merge attempt and serialized straight away: boxing the large variant would only add an allocation.
+// Built once per merge attempt and serialized right away, so boxing the large variant would only add an allocation.
 #[allow(clippy::large_enum_variant)]
 #[derive(Serialize)]
 #[serde(tag = "outcome", rename_all = "camelCase")]
@@ -210,13 +210,13 @@ async fn detail(
 struct UpdateMergeRequestRequest {
     title: String,
     description: String,
-    /// Double `Option` to tell an absent field (`None`) from an explicit `null` (`Some(None)`, which clears it).
-    /// Serde turns a missing plain `Option` into `None`, so an omitted `milestoneId` would silently clear the milestone.
+    /// Double `Option` so an absent field (`None`) differs from an explicit `null` (`Some(None)`, which clears it).
+    /// With a plain `Option`, leaving out `milestoneId` would silently clear the milestone.
     #[serde(default, deserialize_with = "crate::routes::deserialize_present")]
     milestone_id: Option<Option<Uuid>>,
 }
 
-/// A failed lookup is an error, not "no milestone": the caller must not journal a change it could not verify.
+/// A failed lookup is an error, not "no milestone", so the caller never journals a change it couldn't verify.
 async fn milestone_title(
     state: &AppState,
     milestone_id: Option<Uuid>,
@@ -294,7 +294,7 @@ async fn set_labels(
         CollaboratorRole::Contributor,
     )
     .await?;
-    // Best-effort: the journal must not become a new way for a label update to fail.
+    // Best effort, the journal shouldn't become a new way for a label update to fail.
     let before = match state.labels.list_for_merge_request(merge_request_id).await {
         Ok(before) => Some(before),
         Err(err) => {
@@ -341,8 +341,7 @@ async fn create(
             req.description,
         )
         .await?;
-    // Best-effort: remember where the source branch stands now, so a later push can be
-    // recorded as "commits pushed" from this sha.
+    // Best effort: remember the source branch tip, so a later push can be journaled as "commits pushed" from it.
     if let Ok(branches) = state.branch_reader.list_branches(&repo.disk_path).await
         && let Some(tip) = branches.iter().find(|b| b.name == mr.source_branch)
     {

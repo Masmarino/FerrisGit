@@ -240,8 +240,7 @@ mod tests {
         );
     }
 
-    /// `infra` has no direct Maintainer left but its ancestor `acme` has one, so removing infra's last direct
-    /// Maintainer succeeds.
+    /// infra loses its last direct maintainer but acme still has one.
     #[tokio::test]
     async fn removing_a_subgroups_last_direct_maintainer_succeeds_when_an_ancestor_still_has_one() {
         let groups = Arc::new(FakeGroups::empty());
@@ -262,7 +261,7 @@ mod tests {
         assert!(!groups.is_member(leaf.id, target.id));
     }
 
-    /// Neither `infra` nor `acme` has another Maintainer, so the guard has to walk the whole chain.
+    /// Nobody left in infra or acme, so the guard has to walk the whole chain.
     #[tokio::test]
     async fn removing_a_subgroups_last_maintainer_is_rejected_when_no_ancestor_has_one_either() {
         let groups = Arc::new(FakeGroups::empty());

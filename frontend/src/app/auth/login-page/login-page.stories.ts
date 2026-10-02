@@ -11,7 +11,7 @@ import { provideFerrisgitAuth } from '../auth-kit';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { REQUEST_OPTIONS, dismissedPrompt, fakeAssertion, stubPasskeyBrowser } from '../../shared/webauthn-testing';
 
-// `provideRouter` and `provideFerrisgitIcons` return EnvironmentProviders, so they go in `applicationConfig`, not `moduleMetadata`.
+// Environment providers only work in `applicationConfig`, not `moduleMetadata`.
 const withApp = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
 
 function withLogin(login$: Observable<LoginResponse>, more: Partial<AuthService> = {}) {
@@ -30,7 +30,7 @@ const PASSKEY_SERVER: Partial<AuthService> = {
   finishPasskeyChallenge: () => of(undefined),
 };
 
-// Stubs the browser's WebAuthn for the story and restores it afterwards.
+// Stubs WebAuthn for the story and restores it afterwards.
 const passkeyBrowser = (get: (() => Promise<unknown>) | null) => () => stubPasskeyBrowser(get ? { get, create: () => new Promise(() => undefined) } : null);
 const answers = () => Promise.resolve(fakeAssertion());
 const dismisses = () => Promise.reject(dismissedPrompt());
@@ -224,7 +224,7 @@ export const PasskeyPrompt: Story = {
   play: async (context) => {
     const canvas = within(context.canvasElement);
     await userEvent.click(await canvas.findByRole('button', { name: 'Se connecter' }));
-    // Element ids are generated per instance, so the button is held rather than looked up by id.
+    // Ids are generated per instance, so find the button by name.
     const passkey = await canvas.findByRole('button', { name: "Utiliser une clé d'accès" });
     await userEvent.click(passkey);
     await waitFor(() => expect(passkey).toHaveAttribute('aria-busy', 'true'));

@@ -12,9 +12,8 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
 
   return next(authedReq).pipe(
     catchError((error: unknown) => {
-      // A 401 only revokes the token its own request was sent with. A late response to a request sent
-      // before `setToken(fresh)` (a poll in flight during a password change, or a tab that lost the
-      // session) must not erase the newer session.
+      // Only drop the token this request was sent with: a late 401 from before a password change shouldn't log out the
+      // fresh session.
       if (error instanceof HttpErrorResponse && error.status === 401 && auth.token() === token) {
         auth.logout();
         router.navigateByUrl('/login');

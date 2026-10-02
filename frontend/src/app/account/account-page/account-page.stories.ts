@@ -21,13 +21,13 @@ import { expectSettingsLayout, fakeToast } from '../../shared/layout/settings-st
 @Component({ template: '' })
 class Blank {}
 
-// In-memory navigation: the nav's links are relative to the page's route, so a click moves to `/?section=<key>`.
+// In-memory navigation: the nav links are relative to the route, so a click goes to `/?section=<key>`.
 const withRouter = applicationConfig({ providers: [provideRouter([{ path: '**', component: Blank }]), provideLocationMocks()] });
 const startAt = (url: string) => applicationConfig({ providers: [provideAppInitializer(() => inject(Router).navigateByUrl(url))] });
 
 const ME: Me = { id: 'u1', username: 'florian.simon', email: 'florian@exemple.fr', isAdmin: false };
 
-// `AuthService` needs `HttpClient` and is created eagerly with the page, so it is swapped for a no-op fake.
+// AuthService needs HttpClient and is created eagerly with the page, so use a no-op fake.
 const fakeAuthService: Pick<AuthService, 'logout' | 'setToken' | 'authConfig'> = {
   logout: () => {},
   setToken: () => {},
@@ -140,7 +140,7 @@ const meta: Meta<AccountPage> = {
     moduleMetadata({
       providers: [
         { provide: AuthService, useValue: fakeAuthService },
-        // A factory, so each story starts from the same profile whatever a previous one saved.
+        // A factory, so every story starts from the same profile whatever a previous one saved.
         { provide: MeService, useFactory: () => fakeMeService(ME) },
         { provide: TokensService, useValue: fakeTokensService(TOKENS) },
         { provide: MfaService, useFactory: () => fakeMfaService({ totpEnabled: true, backupCodesRemaining: 8, passkeys: [PASSKEY] }) },

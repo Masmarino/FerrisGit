@@ -2,7 +2,7 @@ mod common;
 
 use sqlx::PgPool;
 
-/// index.html has no content hash, so heuristic caching could serve a stale shell that references old bundles. It must be `no-cache`, while a hashed asset is left alone.
+/// index.html has no content hash, so without no-cache a browser could keep an old shell pointing at old bundles. Hashed assets are left alone.
 #[sqlx::test]
 async fn the_html_shell_is_never_cached_but_a_hashed_asset_is_left_alone(pool: PgPool) {
     let app = common::spawn_app(pool).await;

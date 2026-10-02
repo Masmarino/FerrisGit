@@ -1,13 +1,12 @@
 use ferrisgit_domain::error::DomainError;
 use std::fmt::Display;
 
-/// Wraps any lower-level failure (sqlx, gix, I/O, ...) as the domain's opaque infrastructure error.
+/// Any lower-level failure (sqlx, gix, I/O...) as the domain's opaque infrastructure error.
 pub(crate) fn infra(error: impl Display) -> DomainError {
     DomainError::Infrastructure(error.to_string())
 }
 
-/// Maps a unique-constraint violation to `Conflict(message())`, anything else to the generic
-/// infrastructure error.
+/// A unique violation becomes `Conflict`, anything else a plain infrastructure error.
 pub(crate) fn conflict_on_duplicate(
     message: impl FnOnce() -> String,
 ) -> impl FnOnce(sqlx::Error) -> DomainError {
@@ -19,8 +18,7 @@ pub(crate) fn conflict_on_duplicate(
     }
 }
 
-/// Runs blocking `work` off the async executor, folding a failed join and the work's own error into
-/// the domain's infrastructure error.
+/// Runs blocking work off the async executor; a failed join and the work's own error both become infra errors.
 pub(crate) async fn blocking<T, E>(
     work: impl FnOnce() -> Result<T, E> + Send + 'static,
 ) -> Result<T, DomainError>

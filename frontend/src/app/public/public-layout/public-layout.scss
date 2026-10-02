@@ -4,7 +4,7 @@
   display: block;
 }
 
-// A size container, so the header folds by its own width (and a 375px story frame shows the phone layout).
+// A size container: the header folds by its own width, so a 375px story frame shows the phone layout.
 .public-layout {
   container: public-layout / inline-size;
   min-height: 100vh;
@@ -58,14 +58,14 @@
   gap: 0.5rem;
 }
 
-// On a phone the icon alone says "GitHub" or "documentation"; the label stays for assistive technology.
+// On a phone the icon says it all; the label stays for screen readers.
 .public-layout__link-label {
   @container public-layout (max-width: 599px) {
     @include list-page.visually-hidden;
   }
 }
 
-// A comfortable tap target on a phone.
+// Big enough to tap.
 @media (pointer: coarse) {
   .public-layout__github,
   .public-layout__docs,

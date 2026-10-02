@@ -19,7 +19,7 @@ use crate::authz::{require_role, require_role_by_id};
 use crate::error::ApiError;
 use crate::state::AppState;
 
-/// Runs a git read on a blocking thread: gix does synchronous disk I/O.
+/// Runs a git read on a blocking thread, gix does synchronous disk I/O.
 async fn read_git<T: Send + 'static>(
     state: &AppState,
     disk_path: &str,
@@ -41,13 +41,13 @@ pub(crate) struct CommitsQuery {
 
 const COMMITS_PAGE_SIZE: usize = 20;
 
-/// An unresolvable `ref` (unknown, or a blob/tree) is a 404; `HEAD` of an empty repository is an empty list.
+/// A `ref` that doesn't resolve (unknown, or a blob/tree) is a 404. `HEAD` of an empty repository is an empty list.
 pub(crate) async fn commits_response(
     state: &AppState,
     disk_path: &str,
     r#ref: Option<String>,
 ) -> Result<Json<Vec<CommitInfo>>, ApiError> {
-    // `HEAD` is the default. When asked for by name it must still list nothing (not 404) on an empty repository.
+    // HEAD is the default, and asking for it by name must still give an empty list, not a 404, on an empty repository.
     let explicit_ref = r#ref.as_deref().is_some_and(|r| r != "HEAD");
     let revision = r#ref.unwrap_or_else(|| "HEAD".to_string());
     let commits = read_git(state, disk_path, move |git, path| {

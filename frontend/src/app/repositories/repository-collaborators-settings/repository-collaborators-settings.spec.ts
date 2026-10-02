@@ -55,7 +55,7 @@ describe('RepositoryCollaboratorsSettings', () => {
 
     expect(repositorySettingsStub.addCollaborator).toHaveBeenCalledWith('repo-1', 'bob', 'maintainer');
     expect(component['newCollaboratorUsername']()).toBe('');
-    // The section's list was re-fetched once (`ngOnInit` never ran here).
+    // ngOnInit never ran here, so this is the one refetch.
     expect(repositorySettingsStub.listCollaborators).toHaveBeenCalledTimes(1);
   });
 
@@ -117,7 +117,7 @@ describe('RepositoryCollaboratorsSettings', () => {
       expect(rows.map((row) => row.querySelector('gbt-user-chip .gbt-user-chip__name')?.textContent?.trim())).toEqual(['alice', 'bob']);
       expect(text(rows[0].querySelector('[row-meta]'))).toContain('ajouté');
       expect(text(rows[0].querySelector('gbt-select .gbt-select__label'))).toBe('Rôle de alice');
-      // The row already says who: the label names the select for assistive technology only.
+      // The row already says who, so the label is for screen readers only.
       expect(rows[0].querySelector('gbt-select .gbt-select__label')!.classList).toContain('gbt-select__label--hidden');
       expect(text(rows[0].querySelector('gbt-select .gbt-select__trigger'))).toContain('Mainteneur');
       expect(button(rows[1], 'Retirer bob')).toBeDefined();
@@ -259,7 +259,7 @@ describe('RepositoryCollaboratorsSettings', () => {
       fixture.detectChanges();
       const el = fixture.nativeElement as HTMLElement;
       expect(el.querySelectorAll('gbt-skeleton-list .gbt-skeleton-list__row')).toHaveLength(3);
-      // One polite status, outside any aria-busy region (a busy ancestor can hold the announcement back).
+      // One polite status, outside any aria-busy region (those can hold back the announcement).
       expect(text(el.querySelector('gbt-skeleton-list [role="status"]'))).toBe('Chargement des collaborateurs…');
       expect(el.querySelector('[aria-busy="true"]')).toBeNull();
 
@@ -277,7 +277,7 @@ describe('RepositoryCollaboratorsSettings', () => {
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toContain("Les collaborateurs n'ont pas pu être chargés");
       expect(failed?.getAttribute('data-variant')).toBe('error');
-      // The error toast announces the failure, so the inline block stays silent (one live region, not two).
+      // The toast announces the failure, so the inline block stays silent.
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
       expect(failed?.querySelector('button')?.textContent?.trim()).toBe('Réessayer');

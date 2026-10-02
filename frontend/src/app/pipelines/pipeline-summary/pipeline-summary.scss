@@ -31,7 +31,7 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
-  // The status glyph is 20px, the name's line 24px: the row keeps its 42px (a touch target).
+  // The status glyph is 20px and the name's line 24px: the row keeps its 42px (a touch target).
   min-height: 2.625rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--border-color);

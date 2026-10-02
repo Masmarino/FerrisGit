@@ -62,7 +62,7 @@ mod tests {
     use ferrisgit_domain::group::Group;
     use ferrisgit_domain::user::User;
 
-    /// The use case over `groups`, with each `(group, user, role)` of `members` already granted.
+    /// The use case over `groups`, with every `(group, user, role)` in `members` already granted.
     async fn fixture(
         users: Vec<User>,
         groups: Vec<Group>,

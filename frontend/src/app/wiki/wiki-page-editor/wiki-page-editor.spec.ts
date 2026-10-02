@@ -67,7 +67,7 @@ describe('WikiPageEditor', () => {
 
   it('navigates to the page view on a successful save', () => {
     const { component, wikiStub, router } = setup(null);
-    // The test router has no routes: a real navigation would reject with NG04002, so `navigate` is stubbed.
+    // The test router has no routes, so a real navigation would reject with NG04002: `navigate` is stubbed.
     const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
     component.newSlug.set('New-Page');
     component.save();
@@ -96,7 +96,7 @@ describe('WikiPageEditor', () => {
 
   it('create mode still saves normally when the typed slug is genuinely new', () => {
     const { component, wikiStub, toastStub, router } = setup(null, [{ slug: 'Home', title: 'Home' }]);
-    // The test router has no routes: a real navigation would reject with NG04002, so `navigate` is stubbed.
+    // The test router has no routes, so a real navigation would reject with NG04002: `navigate` is stubbed.
     vi.spyOn(router, 'navigate').mockResolvedValue(true);
     component.newSlug.set('Getting-Started');
     component.save();

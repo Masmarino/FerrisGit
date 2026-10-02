@@ -16,8 +16,8 @@ impl CreateApiTokenUseCase {
         Self { api_tokens }
     }
 
-    /// Returns the stored token record along with the plaintext token. The plaintext is never persisted, and this is
-    /// the only place it exists.
+    /// Returns the stored record with the plaintext token. Only the hash is persisted, so this is the one time the
+    /// plaintext is available.
     pub async fn execute(
         &self,
         user_id: Uuid,

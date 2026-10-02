@@ -13,7 +13,7 @@ export interface StatusPresentation {
   icon: string;
 }
 
-// Issues: a ring that fills up with progress. The label says it in words.
+// Issues: a ring that fills with progress; the label says it in words.
 const ISSUE_STATUSES: Record<Issue['status'], StatusPresentation> = {
   todo: { label: 'À faire', variant: 'neutral', icon: 'circle-dot' },
   in_progress: { label: 'En cours', variant: 'info', icon: 'circle-half' },
@@ -27,7 +27,7 @@ const MERGE_REQUEST_STATUSES: Record<MergeRequestSummary['status'], StatusPresen
   closed: { label: 'Fermée', variant: 'neutral', icon: 'git-pull-request-closed' },
 };
 
-// Pipelines: one circled glyph per outcome. Only a failure is red.
+// Pipelines: one circled glyph per outcome, and only a failure is red.
 const PIPELINE_STATUSES: Record<PipelineSummary['status'], StatusPresentation> = {
   pending: { label: 'En attente', variant: 'neutral', icon: 'clock' },
   running: { label: 'En cours', variant: 'info', icon: 'circle-play' },
@@ -56,13 +56,13 @@ const FALLBACK_ICONS: Record<StatusKind, string> = {
   release: 'tag',
 };
 
-/** The one place that maps a status to its label, variant and icon. An unknown status shows as its raw text, in neutral. */
+/** The one place mapping a status to its label, variant and icon. An unknown status shows as raw text, in neutral. */
 export function statusPresentation(kind: StatusKind, status: string): StatusPresentation {
   const known = Object.hasOwn(STATUSES[kind], status) ? STATUSES[kind][status] : undefined;
   return known ?? { label: status, variant: 'neutral', icon: FALLBACK_ICONS[kind] };
 }
 
-/** A status as a `gbt-badge`. It is not colour-only: the label is the text and the icon is decorative. */
+/** A status as a `gbt-badge`. Not colour-only: the label carries the meaning and the icon is decoration. */
 @Component({
   selector: 'fg-status-badge',
   standalone: true,

@@ -203,7 +203,7 @@ impl Server {
         .await
     }
 
-    /// Forged by removing the factor without the epoch bump, since the API can no longer produce a session without one. This keeps the account-level enrol and confirm endpoints tested as defence in depth.
+    /// Forged by removing the factor without the epoch bump, since the API can't produce a factor-less session any more. Keeps the enrol and confirm endpoints tested as defence in depth.
     async fn without_factor(&self, user: &Enrolled) -> String {
         self.state
             .mfa
@@ -497,7 +497,7 @@ async fn enroll_confirm_from_the_account_replaces_nothing_when_enrolled(pool: Pg
             .status(),
         400
     );
-    // A confirm with a code of the live secret must not re-confirm nor hand out a second set of codes.
+    // Confirming with a code of the live secret doesn't re-confirm or hand out a second set of codes.
     let confirm = server
         .confirm_self(
             &admin.session,

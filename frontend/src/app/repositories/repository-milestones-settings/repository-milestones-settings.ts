@@ -17,8 +17,8 @@ import {
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { createSettingsList } from '../settings-list';
 
-// A due date is a calendar day stored as UTC midnight, so it is formatted in UTC: formatting in
-// local time would show the previous day west of UTC.
+// A due date is a calendar day stored as UTC midnight. Formatting in local time would show the
+// previous day west of UTC.
 const DUE_DATE_FORMAT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 @Component({
@@ -61,10 +61,8 @@ export class RepositoryMilestonesSettings implements OnInit {
     return Date.UTC(now.getFullYear(), now.getMonth(), now.getDate());
   }
 
-  /**
-   * `gbt-date-picker` builds a day at local midnight, but the API's `due_date` only takes RFC 3339, and
-   * `.toISOString()` would move the day back in time zones ahead of UTC. So rebuild the same Y/M/D at UTC midnight.
-   */
+  // The picker returns local midnight, and toISOString() on that would shift the day east of UTC, so
+  // rebuild the same Y/M/D at UTC midnight.
   protected dueDateForApi(picked: Date | null): string | null {
     if (!picked) {
       return null;
@@ -77,7 +75,7 @@ export class RepositoryMilestonesSettings implements OnInit {
     if (!title) {
       return;
     }
-    // This section only manages title and due date: the description is created empty.
+    // This section has no description field, so it's created empty.
     this.milestonesService.create({ repositoryId: this.repositoryId() }, title, '', this.dueDateForApi(this.newMilestoneDueDate())).subscribe({
       next: () => {
         this.newMilestoneTitle.set('');

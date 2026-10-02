@@ -26,14 +26,14 @@
   @include list-page.row-author;
 }
 
-// A date or a comment count never breaks inside itself; the author's name may (a very long one).
+// A date or a comment count never breaks inside itself; the author's name may, if it's very long.
 .issue-list__meta time,
 .issue-list__comments {
   white-space: nowrap;
 }
 
-// Assignee then menu, both on the title line. The chip never shrinks under its avatar and caps a long
-// name, so the title keeps the room.
+// Assignee then menu, both on the title line. The chip never shrinks under its avatar and caps a long name,
+// so the title keeps its room.
 .issue-list__trailing {
   display: flex;
   align-items: center;
@@ -55,8 +55,8 @@
   @include list-page.row-menu;
 }
 
-// Narrow card (phone, or a squeezed main column): the assignee shrinks to their avatar (the name stays
-// for screen readers and in the tooltip).
+// Narrow card (phone, or a squeezed main column): the assignee shrinks to their avatar, the name stays
+// for screen readers and in the tooltip.
 @container gbt-list-card (max-width: 559px) {
   .issue-list__assignee ::ng-deep .gbt-user-chip__name {
     @include list-page.visually-hidden;

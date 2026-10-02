@@ -71,7 +71,7 @@ impl CloseMergeRequestUseCase {
                 .await
                 .ok();
 
-            // Nobody to notify once the author's account is gone.
+            // The author's account may be gone, then there's nobody to notify.
             if let Some(mr_author_id) = mr.author_id
                 && mr_author_id != user_id
             {
@@ -111,8 +111,7 @@ mod tests {
         webhooks: Arc<FakeWebhooks>,
     }
 
-    /// One merge request by `author`, in a repository owned by somebody else; `closer` is a third user. `adjust`
-    /// changes the merge request before it is stored.
+    /// A merge request by `author` in somebody else's repo; `closer` is a third user. `adjust` edits it before storing.
     fn fixture(adjust: impl FnOnce(MergeRequest) -> MergeRequest) -> Fixture {
         let owner = user("owner");
         let author = user("author");
@@ -209,8 +208,7 @@ mod tests {
         ));
     }
 
-    /// The author's account was deleted (`author_id` set to NULL): the merge request still closes and its webhook
-    /// still fires, there is just nobody left to notify.
+    /// Author deleted (`author_id` is NULL): it still closes and the webhook still fires, just nobody to notify.
     #[tokio::test]
     async fn closing_a_merge_request_whose_author_was_deleted_notifies_nobody() {
         let f = fixture(|mr| MergeRequest {

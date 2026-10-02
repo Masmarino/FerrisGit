@@ -61,7 +61,7 @@ async fn list(
     require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Reader).await?;
 
     let Some(wiki) = state.wikis.find_by_repository_id(repository_id).await? else {
-        // Having no wiki row yet is normal (empty list, not 404), and a read must never create one.
+        // No wiki row yet is normal: answer an empty list, and a read must never create the row.
         return Ok(Json(WikiListResponse {
             head_sha: None,
             pages: Vec::new(),
@@ -145,7 +145,7 @@ async fn save(
     }))
 }
 
-/// `base_sha` is a query parameter (`?baseSha=...`): no other `DELETE` route carries a JSON body.
+/// `baseSha` goes in the query string because none of our DELETE routes takes a JSON body.
 async fn delete(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,

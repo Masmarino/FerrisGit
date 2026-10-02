@@ -1,22 +1,21 @@
 @use '../../shared/layout/prose';
 @use '../../shared/layout/card';
 
-// A documentation page in the main column of a wide `gbt-page-layout`. The reading styles are the README's
-// (`prose.markdown`), with what the docs add on top: callouts, roomier tables and code.
+// A docs page in the main column of a wide `gbt-page-layout`. Reading styles are the README's (`prose.markdown`) plus
+// callouts and roomier tables and code.
 
 :host {
   display: block;
 }
 
-// Gabarit gap: its widest preset stops at 1440px and there is none that fills the page. The docs use the whole width:
-// navigation, text and outline all have room on a large screen. The extra attribute out-ranks the layout's own
-// `:host([data-width])` rule.
+// Gabarit gap: the widest preset stops at 1440px and none fills the page. The docs use the whole width so navigation,
+// text and outline have room on a large screen. The extra attribute beats the layout's own `:host([data-width])`.
 gbt-page-layout[data-width] {
   max-width: none;
 }
 
-// Gabarit gap: the outline needs the three-column layout (≥ 1101px wide). Below, the aside would land under the
-// page, far from what it outlines, so it goes; the in-page breadcrumb and headings remain.
+// Gabarit gap: the outline needs the three-column layout (1101px and up). Below that the aside would land under the
+// page, far from what it outlines, so it goes; the breadcrumb and headings stay.
 @container gbt-page-layout (max-width: 1100px) {
   :host ::ng-deep .gbt-page-layout__aside {
     display: none;
@@ -35,13 +34,13 @@ gbt-page-layout[data-width] {
   min-width: 0;
 }
 
-// The article is a size container: `gbt-card` is not one.
+// The article is a size container, which `gbt-card` isn't.
 .docs-page__article {
   container: docs-article / inline-size;
   min-width: 0;
 }
 
-// Gabarit gap: the card sets its own text styles on its root, so the page's are inherited instead.
+// Gabarit gap: the card sets its own text styles on its root; inherit the page's instead.
 gbt-card {
   @include card.inherit-text;
 }
@@ -57,7 +56,7 @@ gbt-card {
       line-height: 1.7;
     }
 
-    // An outline link or a `#fragment` lands the heading just under the top edge.
+    // An outline link or `#fragment` lands the heading just under the top edge.
     h1,
     h2,
     h3,
@@ -65,7 +64,7 @@ gbt-card {
       scroll-margin-top: 1rem;
     }
 
-    // Reached by a link or a new page (focused programmatically): no ring around a whole heading.
+    // Focused by code after a link or a new page: no ring around a whole heading.
     [tabindex='-1']:focus {
       outline: none;
     }

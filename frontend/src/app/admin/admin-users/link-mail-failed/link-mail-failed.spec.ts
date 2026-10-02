@@ -83,7 +83,7 @@ describe('LinkMailFailed', () => {
 
   it('copies through the legacy copy command when the page has no clipboard API (plain-HTTP instance)', async () => {
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
-    // jsdom has no `execCommand`, so the stub is an own property of `document` that is deleted afterwards.
+    // jsdom has no execCommand: the stub is an own property of `document`, deleted afterwards.
     const execCommand = vi.fn().mockReturnValue(true);
     Object.defineProperty(document, 'execCommand', { configurable: true, writable: true, value: execCommand });
     try {

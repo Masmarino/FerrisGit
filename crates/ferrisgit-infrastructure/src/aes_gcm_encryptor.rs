@@ -9,8 +9,7 @@ pub struct AesGcmSecretEncryptor {
 }
 
 impl AesGcmSecretEncryptor {
-    /// `key` must be exactly 32 bytes (AES-256). Any other length panics, since it's
-    /// a configuration error caught at startup, not a runtime one.
+    /// Panics unless `key` is exactly 32 bytes (AES-256): a config error that should stop startup.
     pub fn new(key: &[u8]) -> Self {
         Self {
             cipher: Aes256Gcm::new_from_slice(key)
@@ -83,7 +82,7 @@ mod tests {
         assert!(encryptor_b.decrypt(&ciphertext).is_err());
     }
 
-    // Produced by aes-gcm 0.10 with the key `[7; 32]`: nonce (12 bytes) followed by the ciphertext and tag.
+    // Blob from aes-gcm 0.10 with key [7; 32]: 12-byte nonce, then ciphertext and tag.
     // Secrets stored before an upgrade must stay readable.
     const BLOB_FROM_AES_GCM_0_10: &str = "0102030405060708090a0b0cc80998fb18c79149864c676ab8d1c22ca180cd5cc90c6c6c9c8856ec3caebeae6ebc";
 

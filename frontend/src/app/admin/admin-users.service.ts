@@ -8,13 +8,13 @@ export interface AdminUser {
   email: string;
   isAdmin: boolean;
   createdAt: string;
-  /** `invited` while an invitation is pending, even if its `invitationExpiresAt` is already past. */
+  /** Stays `invited` while pending, even once `invitationExpiresAt` has passed. */
   state: 'active' | 'invited';
   invitationExpiresAt: string | null;
   mfaEnabled: boolean;
 }
 
-/** `emailError` and `activationUrl` are missing keys (not null) unless the mail could not be sent. The link is then the only way to reach the invitee. */
+/** Both fields are absent unless the mail failed to send, in which case the link is the only way to reach the invitee. */
 export interface InviteResult {
   user: AdminUser;
   emailSent: boolean;
@@ -22,14 +22,14 @@ export interface InviteResult {
   activationUrl?: string;
 }
 
-/** Same contract as {@link InviteResult}, without the user row. `emailError` and `resetUrl` are missing unless the mail was not sent. */
+/** Like InviteResult without the user row. `emailError` and `resetUrl` are only there when the mail failed. */
 export interface PasswordResetResult {
   emailSent: boolean;
   emailError?: string;
   resetUrl?: string;
 }
 
-/** Metadata and size on disk only, never a path into its content. Group repositories are not listed (they survive the account's deletion). */
+/** Name and size on disk only, no way into the content. Group repos aren't listed since they outlive the account. */
 export interface AdminUserRepository {
   id: string;
   name: string;
@@ -56,22 +56,22 @@ export class AdminUsersService {
     return this.http.post<InviteResult>('/api/admin/users/invite', { username, email, isAdmin });
   }
 
-  /** Issues a new link (the old one stops working) and mails it again. 400 for a user who is already active. */
+  /** New link (the old one stops working), mailed again. 400 if the user is already active. */
   resend(id: string): Observable<InviteResult> {
     return this.http.post<InviteResult>(`${this.userUrl(id)}/invitation`, {});
   }
 
-  /** Ends the user's sessions and deletes their factors, so their next sign-in starts a first enrolment. */
+  /** Ends their sessions and wipes their factors, so the next sign-in enrols from scratch. */
   resetMfa(id: string): Observable<void> {
     return this.http.delete<void>(`${this.userUrl(id)}/mfa`);
   }
 
-  /** Ends the user's sessions, voids their current password and mails a link valid for one hour. 400 for the caller's own account or a pending one. */
+  /** Ends their sessions, voids the password and mails a link valid for one hour. 400 for your own account or a pending one. */
   resetPassword(id: string): Observable<PasswordResetResult> {
     return this.http.post<PasswordResetResult>(`${this.userUrl(id)}/reset-password`, {});
   }
 
-  /** Grants or removes the administrator flag. 204, idempotent; 409 for the demotion of the last active administrator. */
+  /** Idempotent, 204. 409 when demoting the last active administrator. */
   setAdmin(id: string, isAdmin: boolean): Observable<void> {
     return this.http.put<void>(`${this.userUrl(id)}/admin`, { isAdmin });
   }
@@ -81,7 +81,7 @@ export class AdminUsersService {
     return this.http.get<AdminUserRepository[]>(`${this.userUrl(id)}/repositories`);
   }
 
-  /** Deletes the account and its personal repositories. What the user wrote elsewhere stays, attributed to a deleted user. Returns 204, 400 for the caller's own account, 404 for an unknown user, 409 for the last active administrator or a group's last Maintainer. */
+  /** Deletes the account and its personal repos; what they wrote elsewhere stays, attributed to a deleted user. 204, 400 for your own account, 404 for an unknown user, 409 for the last active administrator or a group's last Maintainer. */
   deleteUser(id: string): Observable<void> {
     return this.http.delete<void>(this.userUrl(id));
   }

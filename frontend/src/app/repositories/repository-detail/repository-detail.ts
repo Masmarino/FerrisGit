@@ -12,13 +12,13 @@ export class RepositoryDetail implements OnInit {
   repositoryId = input.required<string>();
   path = input.required<string[]>();
 
-  /** A stable empty path rather than a fresh `[]` literal bound to an input. */
+  /** Stable reference, unlike a `[]` literal bound in the template. */
   protected readonly rootPath: string[] = [];
 
   private pageTitle = inject(PageTitleService);
 
   ngOnInit(): void {
-    // The overview has no breadcrumb segment of its own. Reset it so a subpage title does not linger after navigating back here.
+    // The overview has no breadcrumb segment, so clear whatever a subpage left behind.
     this.pageTitle.set('');
   }
 }

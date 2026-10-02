@@ -15,12 +15,9 @@ impl DeleteRunnerUseCase {
         Self { runners, jobs }
     }
 
-    /// Revokes a runner: its token stops authenticating immediately.
-    ///
-    /// Claimed jobs go back to `pending` first. `jobs.runner_id` is `ON DELETE SET NULL` but `claim_next` only looks at
-    /// `pending` rows, so a `running` job with a null runner would be stranded and its pipeline would never finish. The
-    /// two steps are not in one transaction, so the release comes first: a failed delete just leaves the jobs
-    /// claimable, while after the delete the release would match nothing.
+    /// Claimed jobs go back to pending first: the delete nulls `runner_id` but `claim_next` only picks pending jobs, so
+    /// a running one would be stranded and its pipeline never finish. It's not one transaction, hence this order: if
+    /// the delete fails the jobs are merely claimable again, whereas after it the release would match nothing.
     pub async fn execute(&self, runner_id: Uuid) -> Result<(), DomainError> {
         self.jobs.release_jobs_claimed_by(runner_id).await?;
         self.runners.delete(runner_id).await

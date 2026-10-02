@@ -1,4 +1,4 @@
-// Plain data builders shared by the merge request specs and stories.
+// Data builders shared by the merge request specs and stories.
 import { Label } from '../labels/labels.service';
 import { Milestone } from '../milestones/milestones.service';
 import { RepositoryRole } from '../repositories/repositories.service';
@@ -39,7 +39,7 @@ export function mergeRequestFixture(fields: Pick<MergeRequestSummary, 'title' | 
   };
 }
 
-/** A general comment by default; pass `filePath`, `lineNumber` and `side` for an inline one. */
+/** A general comment; pass filePath, lineNumber and side for an inline one. */
 export function commentFixture(fields: Pick<Comment, 'id' | 'author' | 'body' | 'createdAt'> & Partial<Comment>): Comment {
   return {
     authorId: fields.author?.id ?? 'gone',
@@ -61,7 +61,6 @@ export function eventFixture(fields: Pick<TimelineEvent, 'id' | 'createdAt' | 'k
   return { type: 'event', actor: ALICE, payload: {}, ...fields };
 }
 
-/** Stands in for `RepositoryContextService` with the given role. */
 export function fakeRepositoryContext(role: RepositoryRole | null, path: string[]) {
   return { current: () => ({ repositoryId: 'repo-1', path, role, ancestors: [], groupId: null }) };
 }

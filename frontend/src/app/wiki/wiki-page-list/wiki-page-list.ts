@@ -26,14 +26,14 @@ export class WikiPageList implements OnInit {
   protected state = signal<'loading' | 'loaded' | 'failed'>('loading');
   protected pages = signal<WikiPageSummary[]>([]);
   protected role = computed(() => this.repositoryContext.current()?.role ?? null);
-  // Not `protected` because the spec calls it directly.
+  // Public so the spec can call it.
   canManage = computed(() => this.role() === 'owner' || this.role() === 'maintainer' || this.role() === 'contributor');
 
   protected countLabel = computed(() => (this.pages().length === 1 ? '1 page' : `${this.pages().length} pages`));
   protected rows = computed(() =>
     sortedByTitle(this.pages()).map((page) => ({ page, link: wikiLink(this.path(), page.slug) })),
   );
-  /** The index card's state (a failed load is the alert next to it, not a card state: see the template). */
+  /** The index card's state. A failed load is the alert next to it, not a card state (see the template). */
   protected cardState = computed<ListCardState>(() => (this.state() === 'loading' ? 'loading' : this.pages().length === 0 ? 'empty' : 'ready'));
 
   ngOnInit(): void {

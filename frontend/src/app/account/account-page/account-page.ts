@@ -23,12 +23,12 @@ const SECTIONS: { key: AccountSectionKey; label: string; icon: string }[] = [
 
 const DEFAULT_SECTION: AccountSectionKey = 'profile';
 
-// Loose on purpose (something@something). The server has the last word, and this only catches typos.
+// Loose on purpose (something@something): it only catches typos, the server decides.
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 
 type SaveState = 'saving' | 'saved' | 'error';
 
-/** The section lives in the URL (`?section=<key>`, none for the profile) so each one can be deep-linked. An unknown key falls back to the profile. */
+/** The section lives in the URL (`?section=<key>`, none for the profile) so it can be deep-linked; an unknown key shows the profile. */
 @Component({
   selector: 'fg-account-page',
   standalone: true,
@@ -80,7 +80,7 @@ export class AccountPage implements OnInit {
     this.me.load();
   }
 
-  /** Called on blur (`committed`) rather than on each keystroke, so a half-typed address is never saved. */
+  /** Runs on blur (`committed`), not on each keystroke, so a half-typed address is never saved. */
   updateEmail(value: string): void {
     const email = value.trim();
     if (!email) {
@@ -139,8 +139,7 @@ export class AccountPage implements OnInit {
     this.passwordSaving.set(true);
     this.me.changePassword(this.currentPassword(), this.newPassword()).subscribe({
       next: (res) => {
-        // The change revoked the token this session was using. Keep the session alive with the fresh
-        // token the server returns (an older server returns none, so there is nothing to swap).
+        // The change revoked our token, so swap in the fresh one the server returns (an older server returns none).
         if (res?.token) {
           this.auth.setToken(res.token);
         }
@@ -153,8 +152,7 @@ export class AccountPage implements OnInit {
       },
       error: (err: { status?: number }) => {
         this.passwordSaving.set(false);
-        // The length rule is checked here first, so a 400 (a validation error) means the current
-        // password is wrong. Any other error is not the user's doing.
+        // The length rule is checked before sending, so a 400 can only mean a wrong current password.
         const wrongPassword = err?.status === 400;
         this.passwordResult.set({
           state: 'error',

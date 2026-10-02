@@ -21,9 +21,8 @@ impl DeleteReleaseUseCase {
         }
     }
 
-    /// Assets are listed before the release row is deleted: `ON DELETE CASCADE` removes their rows with it, so this is
-    /// the only chance to know which files to clean up. Once the DB delete succeeds, a file that fails to delete is
-    /// logged, not propagated, since the release is gone either way.
+    /// The assets are listed first because the cascade deletes their rows with the release, and we need their paths to
+    /// remove the files. A file that fails to delete is only logged: the release is gone either way.
     pub async fn execute(&self, release_id: Uuid, repository_id: Uuid) -> Result<(), DomainError> {
         let assets = self.releases.list_assets(release_id).await?;
         self.releases.delete(release_id, repository_id).await?;

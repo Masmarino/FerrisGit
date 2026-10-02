@@ -2,7 +2,7 @@ use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::issue::{Issue, IssueStorePort};
 use uuid::Uuid;
 
-/// The issue, or `NotFound`. Use cases that change an issue call it again afterwards to return the stored result.
+/// The issue, or `NotFound`. Use cases that change an issue call it again afterwards to return the stored state.
 pub(crate) async fn find_issue(
     issues: &dyn IssueStorePort,
     issue_id: Uuid,

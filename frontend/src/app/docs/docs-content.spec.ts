@@ -1,12 +1,12 @@
-// Checks the real documentation in the repository's `docs/` (reached through the `frontend/docs` symlink) against its
-// index, so a page missing from one or the other fails `npm test` rather than a reader.
+// Checks the real docs in the repository's `docs/` (through the `frontend/docs` symlink) against their index, so a page
+// missing from either fails `npm test` rather than a reader.
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { parseDocsPage } from './docs-search.service';
 import { DocsIndex, locateDocsPage } from './docs.service';
 
 const ROOT = resolve(process.cwd(), 'docs');
-// Not documentation: working notes that may sit next to it.
+// Working notes that may sit next to the docs.
 const NOT_SECTIONS = new Set(['superpowers']);
 
 const index: DocsIndex = JSON.parse(readFileSync(join(ROOT, 'index.json'), 'utf8'));
@@ -50,7 +50,7 @@ describe('docs/ content', () => {
       const text = read(file);
       const name = `${section.slug}/${page.slug}.md`;
       expect(text.split(/\r?\n/)[0], name).toBe(`# ${page.title}`);
-      // Code blocks may hold `# comments`: only count headings outside them.
+      // Code blocks can hold `# comments`, so only count headings outside them.
       let fenced = false;
       const titles = text.split(/\r?\n/).filter((line) => {
         if (/^\s*(```|~~~)/.test(line)) {

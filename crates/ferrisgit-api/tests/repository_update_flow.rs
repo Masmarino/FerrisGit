@@ -1,5 +1,5 @@
-// `PATCH /api/repositories/by-id/{id}`: the description and the visibility of a repository can be changed afterwards,
-// by its owner and its Maintainers only, and the public catalog follows at once. The name never changes.
+// `PATCH /api/repositories/by-id/{id}`: description and visibility can be changed later, by the owner and Maintainers
+// only, and the public catalog follows at once. The name never changes.
 
 mod common;
 

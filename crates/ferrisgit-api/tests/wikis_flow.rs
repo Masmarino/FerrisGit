@@ -316,7 +316,7 @@ async fn revisions_list_history_most_recent_first_and_revision_content_returns_h
     let bogus_resp = get(&client, addr, &users.reader_jwt, &format!("/repositories/{repository_id}/wiki/pages/Home/revisions/0000000000000000000000000000000000000000")).await;
     assert_eq!(bogus_resp.status(), 404);
 
-    // 404, not 403/401: never reveal the repository's existence.
+    // 404 rather than 403/401, so the repository's existence isn't revealed.
     let stranger_jwt = {
         create_user(&client, addr, &users.owner_jwt, "stranger").await;
         login(&client, addr, "stranger", "password12345").await
@@ -364,7 +364,7 @@ async fn a_git_push_to_a_nonexistent_wiki_lazily_creates_it_and_the_page_becomes
     assert_eq!(list_resp["pages"][0]["slug"], "Home");
 }
 
-// Lazy creation is write-path only: a read of a never-touched wiki 404s.
+// A wiki is only created on write: reading an untouched one is a 404.
 #[sqlx::test]
 async fn a_git_clone_of_a_nonexistent_wiki_404s(pool: PgPool) {
     let (addr, _repository_id, repo_path_segment, users) =
@@ -377,7 +377,7 @@ async fn a_git_clone_of_a_nonexistent_wiki_404s(pool: PgPool) {
     assert_eq!(resp.status(), 404);
 }
 
-/// Regression: a wiki push must not create a pipeline from the real repository's HEAD.
+/// A wiki push used to create a pipeline from the real repository's HEAD.
 #[sqlx::test]
 async fn a_git_push_to_a_wiki_does_not_trigger_pipeline_creation_for_the_real_repository(
     pool: PgPool,
@@ -401,7 +401,7 @@ async fn a_git_push_to_a_wiki_does_not_trigger_pipeline_creation_for_the_real_re
         "the push adding the CI file to the real repo must succeed"
     );
 
-    // The pipeline is created before the git response is built, so no polling is needed.
+    // The pipeline is created before the git response goes out, so no polling.
     let pipelines_after_real_push: serde_json::Value = get_json(
         &client,
         addr,
@@ -453,7 +453,7 @@ async fn a_git_push_to_a_wiki_does_not_trigger_pipeline_creation_for_the_real_re
     );
 }
 
-/// Regression: a first push to a non-`main` branch left the wiki's pinned HEAD dangling, so the wiki looked empty.
+/// A first push to a branch other than main used to leave the wiki's HEAD dangling, so the wiki looked empty.
 #[sqlx::test]
 async fn a_git_push_to_a_non_main_branch_of_a_brand_new_wiki_still_becomes_visible_via_the_api(
     pool: PgPool,

@@ -108,7 +108,7 @@ async fn canceling_a_kubernetes_pipeline_still_deletes_its_real_pod_after_the_li
     .await
     .expect("the build job's Pod should have been created");
 
-    // The setting flips after the pipeline was tagged `kubernetes`; the pipeline keeps its original engine.
+    // The setting flips after the pipeline was tagged kubernetes; the pipeline keeps its original engine.
     system_settings
         .update(SystemSettingsUpdate {
             execution_engine: Some(ExecutionEngine::DockerRunners),

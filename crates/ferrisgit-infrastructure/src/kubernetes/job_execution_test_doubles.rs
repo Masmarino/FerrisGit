@@ -32,7 +32,7 @@ impl PipelineStorePort for FakePipelines {
     ) -> Result<Vec<Pipeline>, DomainError> {
         unimplemented!()
     }
-    // No-op: the fake has no interior mutability and no test asserts on pipeline status.
+    // The fake has no interior mutability and no test checks pipeline status.
     async fn update_status(&self, _id: Uuid, _status: PipelineStatus) -> Result<(), DomainError> {
         Ok(())
     }

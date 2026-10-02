@@ -14,7 +14,7 @@ pub struct UserRef {
     pub username: String,
 }
 
-/// Ids that no longer resolve are absent from the map (rendered as an unknown user, `null`).
+/// Ids that no longer resolve are left out of the map and render as an unknown user (`null`).
 pub async fn load_user_refs(
     state: &AppState,
     ids: impl IntoIterator<Item = Uuid>,

@@ -112,7 +112,7 @@ export class WorkspacePage implements OnInit {
   });
   protected activeFailed = computed(() => !this.activeLoading() && this.failedTabs().has(this.activeTab()));
 
-  /** A tab's count once known, from its own data or from what "Tous" already loaded. "Favoris" needs its own request. */
+  /** Known from the tab's own data or from what "Tous" loaded. "Favoris" needs its own request. */
   private counts = computed<Record<TabId, number | null>>(() => {
     const loaded = this.loaded();
     const all = loaded.has('all');
@@ -164,7 +164,7 @@ export class WorkspacePage implements OnInit {
     this.reloadLoaded();
   }
 
-  /** After a create or delete, every tab loaded so far is stale (a deleted repository would 404 when opened), so reload each one once. */
+  /** A create or delete makes every loaded tab stale (a deleted repository would 404), so reload each once. */
   protected reloadLoaded(): void {
     const tabs = [...this.loadedTabs];
     this.loadedTabs.clear();

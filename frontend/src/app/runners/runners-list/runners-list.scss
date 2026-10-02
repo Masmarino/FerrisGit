@@ -36,7 +36,7 @@ code {
   }
 }
 
-// Gabarit's `tone` does not reach projected header content: use the warning text colour meant for the page background
+// Gabarit's `tone` doesn't reach projected header content: use the warning text colour meant for the page background
 // (`-bg-text` is for text on a warning tint).
 .runners-list__token-header {
   display: flex;
@@ -71,8 +71,8 @@ code {
   gap: 0.75rem;
 }
 
-// Gabarit gap: `gbt-secret-reveal` has no size or touch rule. On touch, use real 44px sizes rather than a larger hit
-// area, because a mis-tap on the eye button would hide the secret.
+// Gabarit gap: gbt-secret-reveal has no size or touch rule. On touch, use real 44px sizes instead of a larger hit
+// area: a mis-tap on the eye button would hide the secret.
 .runners-list__token-secret ::ng-deep .gbt-secret-reveal__value {
   min-height: 2.25rem;
   padding: 0.4375rem 0.75rem;

@@ -39,7 +39,7 @@ describe('RepositoryGeneralSettings', () => {
   it('loads the repository by id and shows its information in one card', async () => {
     const { fixture, el, repositoriesStub } = setup();
     fixture.detectChanges();
-    await fixture.whenStable(); // ngModel writes its value to the field asynchronously
+    await fixture.whenStable(); // ngModel writes the value to the field asynchronously
     fixture.detectChanges();
 
     expect(repositoriesStub.getById).toHaveBeenCalledWith('repo-1');

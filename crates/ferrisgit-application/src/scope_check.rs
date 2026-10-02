@@ -5,10 +5,9 @@ use ferrisgit_domain::group::GroupStorePort;
 use ferrisgit_domain::repository::Repository;
 use uuid::Uuid;
 
-/// True if a label or milestone scoped to `(scope_repository_id, scope_group_id)` may be attached to something in
-/// `repository`. Exactly one of the two is `Some` (the DB's XOR constraint). A repository scope must match exactly. A
-/// group scope matches when the repository's group is that group or one of its descendants (an ancestor-chain walk, as
-/// in `authz.rs`).
+/// Whether a label or milestone scoped to `(scope_repository_id, scope_group_id)` can be attached to something in
+/// `repository`. Exactly one of the two is `Some`, the DB enforces the XOR. A repository scope must match exactly, a
+/// group scope matches the repository's group or any ancestor of it, same walk as `authz.rs`.
 pub async fn is_in_repository_scope(
     groups: &Arc<dyn GroupStorePort>,
     repository: &Repository,
@@ -83,8 +82,7 @@ mod tests {
     {
         let target_group = Uuid::new_v4();
         let repository_group = Uuid::new_v4();
-        // `repository_group` must be a real descendant of `target_group`, so the test exercises an actual hierarchy
-        // walk.
+        // A real descendant, so the test walks an actual hierarchy.
         let groups: Arc<dyn GroupStorePort> = Arc::new(FakeGroups::new(vec![
             fake_group(target_group, None),
             fake_group(repository_group, Some(target_group)),

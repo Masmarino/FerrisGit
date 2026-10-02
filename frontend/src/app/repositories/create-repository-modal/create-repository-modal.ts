@@ -7,10 +7,7 @@ import { Alert, Button, GbtInput, Icon, Modal, SegmentedControl, Select, SelectO
 
 const NAME_REQUIRED = 'Le nom est requis';
 
-/**
- * The "Nouveau dépôt" dialog. The parent renders it under `@if`, so it is rebuilt each time it opens and
- * never keeps an old draft. A failed creation leaves it open with the draft.
- */
+/** The parent renders this under `@if`, so each opening starts with an empty draft. A failed creation keeps the dialog open. */
 @Component({
   selector: 'fg-create-repository-modal',
   standalone: true,
@@ -28,7 +25,7 @@ export class CreateRepositoryModal implements OnInit {
   close = output<void>();
   created = output<void>();
 
-  // Not `protected` because the spec calls it directly.
+  // Public so the spec can call it.
   name = signal('');
   protected description = signal('');
   error = signal('');

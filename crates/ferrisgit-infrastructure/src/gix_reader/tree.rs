@@ -2,17 +2,16 @@ use std::path::Path;
 
 use super::{
     CommitInfo, GitReadError, GixRepositoryReader, TreeEntryInfo, commit_by_sha, commit_info,
-    id_at_path, newest_first_walk, open,
+    id_at_path, newest_first_walk, open, walked_commit,
 };
 
-/// How many commits `list_tree_at_revision` walks per entry to find the one that last touched it.
-/// Past this window `last_commit` is `None`. There is no full-history fallback, on purpose.
+/// Commits walked per entry to find the one that last touched it. Past this `last_commit` is None, on
+/// purpose: there is no full-history fallback.
 const LAST_COMMIT_SEARCH_WINDOW: usize = 200;
 
 impl GixRepositoryReader {
-    /// Lists the entries of `path` (empty means the repository root) at `revision`, a concrete commit SHA
-    /// already resolved by the caller. `Ok(None)` covers an unresolvable revision, a missing path and a
-    /// path that is a file, not a directory.
+    /// `path` empty means the repo root, `revision` is a commit SHA already resolved by the caller. `Ok(None)` for
+    /// an unresolvable revision, a missing path, or a path that is a file.
     pub fn list_tree_at_revision(
         &self,
         disk_path: &Path,
@@ -22,8 +21,7 @@ impl GixRepositoryReader {
         self.list_tree_at_revision_with_window(disk_path, revision, path, LAST_COMMIT_SEARCH_WINDOW)
     }
 
-    /// `list_tree_at_revision` without the per-entry last-commit lookup: same entries and order, every
-    /// `last_commit` `None`.
+    /// Same entries and order, but every `last_commit` is None (no history walk).
     pub fn list_tree_names_at_revision(
         &self,
         disk_path: &Path,
@@ -33,7 +31,7 @@ impl GixRepositoryReader {
         self.list_tree_at_revision_with_window(disk_path, revision, path, 0)
     }
 
-    /// `list_tree_at_revision` with an explicit search window (0 skips the lookup), so tests can use a small one.
+    /// With an explicit search window (0 skips the lookup), so tests can use a small one.
     pub fn list_tree_at_revision_with_window(
         &self,
         disk_path: &Path,
@@ -88,8 +86,8 @@ impl GixRepositoryReader {
         Ok(Some(entries))
     }
 
-    /// `Ok(None)` covers both a missing file and a revision that doesn't exist or isn't a commit, so a
-    /// malformed sha never surfaces as an error (and a 500) at the API layer.
+    /// `Ok(None)` for a missing file or a revision that doesn't exist or isn't a commit, so a malformed sha
+    /// doesn't turn into a 500.
     pub fn read_file_at_revision(
         &self,
         disk_path: &Path,
@@ -104,9 +102,8 @@ impl GixRepositoryReader {
         Ok(Some(blob.data.clone()))
     }
 
-    /// Size in bytes of the blob at `path` at `revision`, read from the object header without loading
-    /// the content, so oversized blobs can be rejected first. Returns `Ok(None)` in the same cases as
-    /// `read_file_at_revision`.
+    /// Reads only the object header, so oversized blobs can be rejected before loading them. `Ok(None)` in the
+    /// same cases as `read_file_at_revision`.
     pub fn blob_size_at_revision(
         &self,
         disk_path: &Path,
@@ -122,8 +119,7 @@ impl GixRepositoryReader {
     }
 }
 
-/// The id of the file at `path` in the commit `revision`; `None` when the commit or the path is
-/// missing, or the path is a directory.
+/// `None` when the commit or the path is missing, or the path is a directory.
 fn file_blob_id(
     repo: &gix::Repository,
     revision: &str,
@@ -145,8 +141,8 @@ fn file_blob_id(
     Ok(Some(entry.object_id()))
 }
 
-/// The newest commit among the `window` most recent from `start_id` whose tree at `path` differs from
-/// its first parent's (a root commit counts as differing). Short-circuits on the first hit.
+/// Newest commit among the `window` most recent whose tree at `path` differs from its first parent's
+/// (a root commit always differs).
 fn find_last_commit_touching_path(
     repo: &gix::Repository,
     start_id: gix::ObjectId,
@@ -154,10 +150,7 @@ fn find_last_commit_touching_path(
     window: usize,
 ) -> Result<Option<CommitInfo>, GitReadError> {
     for info in newest_first_walk(repo, start_id)?.take(window) {
-        let commit = info
-            .map_err(GitReadError::other)?
-            .object()
-            .map_err(GitReadError::other)?;
+        let commit = walked_commit(info)?;
         let current = id_at_path(&commit.tree().map_err(GitReadError::other)?, path)?;
 
         let parent = match commit.parent_ids().next() {

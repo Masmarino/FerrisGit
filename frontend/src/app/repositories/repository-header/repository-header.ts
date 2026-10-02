@@ -5,10 +5,10 @@ import { RepositoriesService, Repository, StarResponse } from '../repositories.s
 import { BranchSwitcher } from '../branch-switcher/branch-switcher';
 import { READ_ONLY_REPOSITORY } from '../read-only-repository';
 
-/** Id of the clone box on the overview, where the header's `Cloner` action and the `#cloner` fragment lead. */
+/** Id of the clone box on the overview; the "Cloner" action and the `#cloner` fragment lead there. */
 export const CLONE_PANEL_ID = 'cloner';
 
-/** Scrolls the clone panel into view and focuses its copy button. Returns false when the page has none. */
+/** Scrolls to the clone panel and focuses its copy button. False when the page has none. */
 export function revealClonePanel(doc: Document): boolean {
   const panel = doc.getElementById(CLONE_PANEL_ID);
   if (!panel) {
@@ -30,7 +30,7 @@ export function revealClonePanel(doc: Document): boolean {
 export class RepositoryHeader {
   repo = input.required<Repository | null>();
   ref = input.required<string>();
-  /** Emitted on every star change (optimistic, then confirmed or reverted) so the page can show the same count elsewhere. */
+  /** Fires on every star change, optimistic first then confirmed or reverted, so the page can mirror the count. */
   starChange = output<StarResponse>();
 
   private repositories = inject(RepositoriesService);
@@ -42,7 +42,7 @@ export class RepositoryHeader {
   protected starCount = computed(() => this.starOverride()?.starCount ?? this.repo()?.starCount ?? 0);
   protected isStarred = computed(() => this.starOverride()?.isStarred ?? this.repo()?.isStarred ?? false);
   protected starText = computed(() => String(this.starCount()));
-  /** A constant name: `aria-pressed` carries the state (a label that flipped too would announce it twice, in opposite directions). */
+  /** Same label either way: aria-pressed carries the state, a flipping label would announce it twice. */
   protected starLabel = computed(() => `Favoris (${this.starCount()})`);
 
   protected toggleStar(): void {
@@ -64,7 +64,7 @@ export class RepositoryHeader {
     this.starChange.emit(state);
   }
 
-  /** On the overview, reveals the `Cloner` panel. Elsewhere, goes to the root's overview rather than the ref's tree, since the ref may be what does not exist. */
+  /** On the overview, reveals the clone panel. Elsewhere it goes to the root overview, not the ref's tree, since the ref may be what's missing. */
   protected showClonePanel(): void {
     if (revealClonePanel(this.document)) {
       return;

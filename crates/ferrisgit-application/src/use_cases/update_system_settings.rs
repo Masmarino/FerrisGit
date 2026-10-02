@@ -26,7 +26,7 @@ impl UpdateSystemSettingsUseCase {
         &self,
         mut update: SystemSettingsUpdate,
     ) -> Result<SystemSettings, DomainError> {
-        // `None` (the field cleared) means "no retention" / "no ceiling"; a value must be a positive count.
+        // A cleared field means no retention or no ceiling, but a set value has to be positive.
         if let Some(Some(days)) = update.log_retention_days
             && days < 1
         {
@@ -41,7 +41,7 @@ impl UpdateSystemSettingsUseCase {
                 "max_concurrent_jobs must be at least 1".to_string(),
             ));
         }
-        // An empty token would let anyone register a runner by sending nothing.
+        // An empty token would let anyone register a runner.
         if let Some(Some(token)) = &update.runner_registration_token
             && token.trim().is_empty()
         {
@@ -49,8 +49,8 @@ impl UpdateSystemSettingsUseCase {
                 "runner_registration_token must not be empty".to_string(),
             ));
         }
-        // Stored like API and runner tokens (a SHA-256 hash, never the plaintext). Anyone who has this value can
-        // register a runner, which in turn can claim jobs and read every repository's decrypted CI variables.
+        // Hashed like the other tokens. Whoever has it can register a runner, and a runner can read every
+        // repository's decrypted CI variables.
         update.runner_registration_token = update
             .runner_registration_token
             .map(|token| token.map(|t| hash_token(&t)));

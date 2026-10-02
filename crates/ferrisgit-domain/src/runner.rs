@@ -27,8 +27,7 @@ pub trait RunnerRepositoryPort: Send + Sync {
     async fn find_by_token_hash(&self, token_hash: &str) -> Result<Option<Runner>, DomainError>;
     async fn list(&self) -> Result<Vec<Runner>, DomainError>;
     async fn touch_heartbeat(&self, id: Uuid) -> Result<(), DomainError>;
-    /// Permanently revokes a runner: its token stops authenticating anything.
-    /// Deleting a runner that does not exist is not an error.
+    /// Revokes a runner for good: its token stops working. Deleting a missing runner is fine.
     async fn delete(&self, id: Uuid) -> Result<(), DomainError>;
 }
 

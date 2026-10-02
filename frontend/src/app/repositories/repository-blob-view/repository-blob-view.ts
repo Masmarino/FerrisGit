@@ -41,15 +41,15 @@ interface Navigator {
   entries: ReadonlyMap<string, NavigatorEntry>;
 }
 
-/** Id suffix of the "Chargement…" child that gives a folder its chevron until its content loads. */
+/** Id suffix of a fake "Chargement…" child, so a folder shows a chevron before its content loads. */
 const PLACEHOLDER_SUFFIX = '/\u0000chargement';
 
 const LINE_COUNT = new Intl.NumberFormat('fr-FR');
 
-/** Only names and kinds are needed: skip the server's per-entry last-commit lookup. */
+/** The navigator only needs names and kinds, so skip the per-entry last-commit lookup. */
 const NAMES_ONLY = { lastCommit: false } as const;
 
-/** A file, with a navigator built from the folder levels of its path; other folders load when expanded. */
+/** A file plus a navigator built from its path's folders; other folders load when expanded. */
 @Component({
   selector: 'fg-repository-blob-view',
   standalone: true,
@@ -106,7 +106,7 @@ export class RepositoryBlobView implements OnInit {
 
   private codeBody = viewChild<ElementRef<HTMLElement>>('codeBody');
 
-  /** Loaded folder listings, keyed by the folder's path joined with '/' ('' for the root). */
+  /** Folder listings keyed by path joined with '/' ('' for the root). */
   private levels = signal<ReadonlyMap<string, TreeEntry[]>>(new Map());
   protected navigatorLoaded = signal(false);
   protected expandedIds = signal<string[]>([]);
@@ -152,10 +152,10 @@ export class RepositoryBlobView implements OnInit {
     });
   }
 
-  /** A function so a big file is read when the button is pressed, not on every change detection. */
+  /** A function, so a big file is only read when the button is pressed. */
   protected readonly contentToCopy = (): string => this.content() ?? '';
 
-  /** The copy was refused (no clipboard outside secure contexts): select the code so the user can copy it by hand. */
+  /** Copy was refused (no clipboard outside secure contexts): select the code so it can be copied by hand. */
   protected selectCode(): void {
     selectContents(this.codeBody()?.nativeElement.querySelector<HTMLElement>('pre code'));
   }

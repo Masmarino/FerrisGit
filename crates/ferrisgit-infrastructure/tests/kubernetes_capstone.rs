@@ -32,9 +32,9 @@ use std::time::Duration;
 use tokio::time::{sleep, timeout};
 use uuid::Uuid;
 
-/// `ensure_cache_pvcs` always requests `ReadWriteMany`, but kind's default `standard` StorageClass
-/// (local-path) rejects RWX at provisioning, so this test supplies a `no-provisioner` StorageClass and a
-/// pre-created `PersistentVolume` `claimRef`-pinned to the PVC name the production code will create.
+/// `ensure_cache_pvcs` always asks for ReadWriteMany but kind's default StorageClass (local-path) rejects RWX,
+/// so supply a no-provisioner StorageClass and a PersistentVolume pinned (claimRef) to the PVC name
+/// production will create.
 async fn provision_static_rwx_storage(
     client: &kube::Client,
     namespace: &str,
@@ -54,7 +54,7 @@ async fn provision_static_rwx_storage(
     };
     match storage_classes.create(&PostParams::default(), &sc).await {
         Ok(_) => {}
-        Err(kube::Error::Api(err)) if err.code == 409 => {} // created by an earlier test run on this shared cluster — fine, it's idempotent
+        Err(kube::Error::Api(err)) if err.code == 409 => {} // left by an earlier run on this shared cluster, fine
         Err(err) => panic!("failed to create test StorageClass: {err}"),
     }
 

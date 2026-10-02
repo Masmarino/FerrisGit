@@ -28,7 +28,7 @@ export class WikiOutline {
     }
     const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     heading.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-    // Headings are not focusable: -1 lets the next Tab continue from the section just reached.
+    // Headings aren't focusable: -1 lets the next Tab continue from the section just reached.
     heading.setAttribute('tabindex', '-1');
     heading.focus({ preventScroll: true });
   }

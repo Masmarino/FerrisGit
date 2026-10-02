@@ -18,14 +18,14 @@ impl PostgresUserRepository {
     }
 }
 
-/// `WHERE` clause (over `users u`) for an admin who can sign in: no pending invitation and no pending
-/// password reset (both leave the password unusable). A fixed string, never built from input.
+/// WHERE clause over `users u` for an admin who can sign in: no pending invitation or password reset (either
+/// leaves the password unusable). A fixed string, never built from input.
 const ACTIVE_ADMIN: &str = "u.is_admin \
      AND NOT EXISTS (SELECT 1 FROM user_invitations i WHERE i.user_id = u.id) \
      AND NOT EXISTS (SELECT 1 FROM password_reset_tokens r WHERE r.user_id = u.id)";
 
-/// Every group where the user (`$1`) is a direct Maintainer, walked up to its root. Used as the
-/// prefix of the Maintainer-rule queries in `delete`. A fixed string, never built from input.
+/// Prefix of the Maintainer-rule queries in `delete`: every group where `$1` is a direct Maintainer, walked
+/// up to its root. A fixed string, never built from input.
 const MAINTAINED_CHAINS: &str = "WITH RECURSIVE chain(root, id, parent_group_id, name, depth) AS ( \
        SELECT g.id, g.id, g.parent_group_id, g.name, 0 FROM groups g \
        WHERE g.id IN (SELECT m.group_id FROM group_members m WHERE m.user_id = $1 AND m.role = 'maintainer') \
@@ -120,7 +120,7 @@ impl UserRepositoryPort for PostgresUserRepository {
         Ok(())
     }
 
-    /// Counts only admins who can sign in, so an admin with a pending invitation or reset cannot let the real last admin step down.
+    /// Counts only admins who can sign in, so one with a pending invitation or reset can't let the real last admin step down.
     async fn count_admins(&self) -> Result<i64, DomainError> {
         sqlx::query_scalar::<_, i64>(sqlx::AssertSqlSafe(format!(
             "SELECT count(*) FROM users u WHERE {ACTIVE_ADMIN}"
@@ -130,10 +130,9 @@ impl UserRepositoryPort for PostgresUserRepository {
         .map_err(infra)
     }
 
-    /// A demotion locks every active admin row (`FOR UPDATE OF u`) in `id` order. Concurrent demotions
-    /// then run one after the other, and the second re-reads the admin set. The fixed order avoids a
-    /// deadlock, which Postgres would end by aborting one of them with a 500. A promotion takes no lock.
-    /// Demoting a not-yet-usable admin is always allowed.
+    /// A demotion locks every active admin row in id order, so concurrent demotions run one after the other and
+    /// the second re-reads the admin set. The fixed order avoids a deadlock (Postgres would abort one with a 500).
+    /// Promotions take no lock, and demoting an admin who can't sign in yet is always allowed.
     async fn set_admin(&self, user_id: Uuid, is_admin: bool) -> Result<(), DomainError> {
         let mut tx = self.pool.begin().await.map_err(infra)?;
         if !is_admin {
@@ -161,15 +160,11 @@ impl UserRepositoryPort for PostgresUserRepository {
         tx.commit().await.map_err(infra)
     }
 
-    /// Runs in one transaction, and every refusal happens before any write. It first locks the target
-    /// and every active admin row in `id` order, the same order as `set_admin`, so it can't deadlock
-    /// with a demotion. That lock also holds off new rows referencing the target. Then come the admin
-    /// floor and the group Maintainer rule. Every Maintainer grant in the affected chains is locked
-    /// `FOR UPDATE` in (group, user) order. `FOR SHARE` isn't enough: two Maintainers deleted at once
-    /// would each share-lock the other's grant and deadlock on the cascade. Finally, personal
-    /// repositories are deleted (rows only, the caller cleans up the disk), group repositories go to
-    /// `heir_id`, and the user row is deleted, cascading through the foreign keys. The queries are
-    /// checked at runtime, like in `set_admin`, because `ACTIVE_ADMIN` is spliced in.
+    /// One transaction, every refusal before any write. Locks the target and all active admins in id order (same
+    /// as `set_admin`, so no deadlock with a demotion), then the Maintainer grants of the affected chains FOR UPDATE:
+    /// with FOR SHARE, two Maintainers deleted at once would each share-lock the other's grant and deadlock on the
+    /// cascade. Then personal repos are deleted (rows only, the caller cleans up the disk), group repos go to the heir
+    /// and the user row cascades away. Runtime queries, since `ACTIVE_ADMIN` is spliced in.
     async fn delete(&self, user_id: Uuid, heir_id: Uuid) -> Result<Vec<Repository>, DomainError> {
         if heir_id == user_id {
             return Err(DomainError::Validation(
@@ -198,7 +193,7 @@ impl UserRepositoryPort for PostgresUserRepository {
             ));
         }
 
-        // Lock first, then check: the check's own snapshot comes after any change the lock had to wait for.
+        // Lock first, then check: the check's snapshot then comes after any change the lock waited for.
         sqlx::query(sqlx::AssertSqlSafe(format!(
             "{MAINTAINED_CHAINS} SELECT m.group_id FROM group_members m WHERE m.group_id IN (SELECT id FROM chain) AND m.role = 'maintainer' \
              ORDER BY m.group_id, m.user_id FOR UPDATE OF m"
@@ -735,7 +730,7 @@ mod tests {
         ));
     }
 
-    /// Without the row locks both `UPDATE`s would succeed and leave zero admins.
+    /// Without the row locks both UPDATEs would succeed and leave zero admins.
     #[sqlx::test(migrations = "../../migrations")]
     async fn concurrent_demotions_of_the_last_two_admins_leave_exactly_one(pool: PgPool) {
         let repo = std::sync::Arc::new(PostgresUserRepository::new(pool));
@@ -942,7 +937,7 @@ mod tests {
         assert_eq!(repository_ids(&pool).await, vec![roots]);
     }
 
-    /// Defence in depth: with the user as their own heir, group repositories would cascade-delete with the account.
+    /// With the user as their own heir, group repos would cascade-delete with the account.
     #[sqlx::test(migrations = "../../migrations")]
     async fn delete_refuses_the_user_as_their_own_heir_and_changes_nothing(pool: PgPool) {
         let repo = PostgresUserRepository::new(pool.clone());
@@ -1069,7 +1064,7 @@ mod tests {
         }
     }
 
-    /// A group repository's `owner_id` cascades on user deletion; the repository must go to the heir instead.
+    /// A group repo's `owner_id` cascades on user deletion, so the repo must go to the heir instead.
     #[sqlx::test(migrations = "../../migrations")]
     async fn delete_hands_the_group_repositories_the_user_created_to_the_heir(pool: PgPool) {
         let repo = PostgresUserRepository::new(pool.clone());
@@ -1096,7 +1091,7 @@ mod tests {
         );
     }
 
-    /// Content the user wrote but does not own survives, attributed to nobody; what they owned cascades.
+    /// Content the user wrote but doesn't own survives with no author; what they owned cascades.
     #[sqlx::test(migrations = "../../migrations")]
     async fn delete_keeps_what_the_user_wrote_elsewhere_with_its_author_set_to_null(pool: PgPool) {
         let repo = PostgresUserRepository::new(pool.clone());
@@ -1213,7 +1208,7 @@ mod tests {
         sqlx::query_scalar("INSERT INTO users (username, email, password_hash, created_at) VALUES ($1, $2, 'h', $3) RETURNING id").bind(username).bind(email).bind(created_at).fetch_one(pool).await.unwrap()
     }
 
-    // Postgres `lower()` follows the database locale for non-ASCII characters, so these tests only use ASCII case pairs.
+    // Postgres lower() follows the database locale for non-ASCII characters, so these tests stick to ASCII case pairs.
     #[sqlx::test(migrations = "../../migrations")]
     async fn finding_by_username_ignoring_case_matches_any_casing(pool: PgPool) {
         let alice = seed(&pool, "alice", "alice@example.com", Utc::now()).await;

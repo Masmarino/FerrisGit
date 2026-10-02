@@ -1,5 +1,5 @@
-//! Entity builders shared by the use case tests. Each returns a plausible, valid value with fresh random ids; tests
-//! override what they care about with struct update syntax (`User { is_admin: true, ..user("root") }`).
+//! Entity builders for the use case tests: valid values with fresh random ids, overridden with struct update syntax
+//! (`User { is_admin: true, ..user("root") }`).
 
 use std::collections::BTreeMap;
 
@@ -209,7 +209,7 @@ pub(crate) fn milestone() -> Milestone {
     }
 }
 
-/// A published `v1.0.0` release. Stores delete or find a release only if a matching row exists, so tests seed one.
+/// A published `v1.0.0` release. The stores only find or delete an existing row, so tests have to seed one.
 pub(crate) fn release(id: Uuid, repository_id: Uuid) -> Release {
     Release {
         id,
@@ -238,7 +238,7 @@ pub(crate) fn release_asset(release_id: Uuid, disk_path: &str) -> ReleaseAsset {
     }
 }
 
-/// A 64-character lower-case hex string, the shape of every one-time link token.
+/// A 64-char lower-case hex string, the shape of every one-time link token.
 pub(crate) fn is_hex64(token: &str) -> bool {
     token.len() == 64
         && token

@@ -5,7 +5,7 @@
   @if (role()) {
     <a header-actions gbtButton variant="secondary" iconName="user" [routerLink]="membersLink()">Membres</a>
   }
-  <!-- One root per projected block, because a conditional block is only projected through its single root element. -->
+  <!-- One root per projected block: a conditional block is only projected through a single root element. -->
   @if (canWrite()) {
     <span header-actions class="group-detail__write-actions">
       <gbt-button variant="secondary" iconName="folder" text="Nouveau sous-groupe" (clicked)="openCreateGroup()" />
@@ -78,8 +78,8 @@
   </div>
 </gbt-page-layout>
 
-<!-- New subgroup dialog. Closing it drops the draft, a failed creation keeps it open, and `busy` blocks every way of
-     closing it. The form wraps the whole dialog (the submit button is in the footer slot) and is rebuilt each time it opens. -->
+<!-- New subgroup dialog. Closing drops the draft, a failed creation keeps it open, and `busy` blocks every way of closing
+     it. The form wraps the whole dialog because the submit button is in the footer slot; it's rebuilt on each open. -->
 @if (createGroupOpen()) {
   <form (submit)="$event.preventDefault(); createSubgroup()">
     <gbt-modal [isOpen]="true" heading="Nouveau sous-groupe" closeLabel="Fermer" [busy]="creatingGroup()" busyLabel="Création en cours" (closed)="closeCreateGroup()">
@@ -119,7 +119,7 @@
   </form>
 }
 
-<!-- Created each time it opens and destroyed on close, so a closed dialog never keeps a draft. -->
+<!-- Created on open and destroyed on close, so a closed dialog never keeps a draft. -->
 @if (createRepoOpen()) {
   <fg-create-repository-modal [defaultLocation]="fullPath()" (close)="createRepoOpen.set(false)" (created)="onRepoCreated()" />
 }

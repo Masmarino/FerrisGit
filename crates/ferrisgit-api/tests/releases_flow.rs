@@ -77,7 +77,7 @@ async fn releases_are_maintainer_gated_drafts_stay_hidden_and_assets_round_trip(
     let forbidden = post(&client, addr, &carl_jwt, &format!("/repositories/{repo_id}/releases"), &json!({ "tagName": "v1.0.0", "targetCommitSha": commit_sha, "title": "First release", "draft": false })).await;
     assert_eq!(forbidden.status(), reqwest::StatusCode::NOT_FOUND);
 
-    // A tag name containing '/' must never reach `CreateReleaseUseCase`/git: it would break routing for routes that treat `{tag_name}` as one segment.
+    // A '/' in a tag name mustn't reach the use case or git, it would break routes that treat {tag_name} as one segment.
     let invalid_tag = post(&client, addr, &owner_jwt, &format!("/repositories/{repo_id}/releases"), &json!({ "tagName": "release/1.0", "targetCommitSha": commit_sha, "title": "Bad tag", "draft": false })).await;
     assert!(
         invalid_tag.status().is_client_error(),
@@ -202,7 +202,7 @@ async fn releases_are_maintainer_gated_drafts_stay_hidden_and_assets_round_trip(
         reqwest::StatusCode::NOT_FOUND
     );
 
-    // 404, not 403: never reveal a release's existence to someone who cannot manage it.
+    // 404, not 403, so a release's existence isn't revealed to someone who can't manage it.
     let forbidden_update = patch(
         &client,
         addr,
@@ -214,7 +214,7 @@ async fn releases_are_maintainer_gated_drafts_stay_hidden_and_assets_round_trip(
     assert_eq!(forbidden_update.status(), reqwest::StatusCode::NOT_FOUND);
 }
 
-/// The target commit is resolved live from git, so a deleted tag must degrade to `targetCommitSha: null`, not a 500.
+/// The target commit is read live from git, so a deleted tag gives `targetCommitSha: null`, not a 500.
 #[sqlx::test]
 async fn a_release_stays_viewable_with_a_null_target_commit_after_its_git_tag_is_deleted(
     pool: PgPool,
@@ -276,7 +276,7 @@ async fn a_release_stays_viewable_with_a_null_target_commit_after_its_git_tag_is
     assert_eq!(detail["tagName"], "v1.0.0");
 }
 
-/// Regression: deleting a release never touched its git tag, leaving it stuck. Tag deletion is Maintainer+ only and refused while a release references it.
+/// Deleting a release used to leave its git tag stuck. Tag deletion is Maintainer-only and refused while a release references it.
 #[sqlx::test]
 async fn deleting_a_tag_is_maintainer_gated_and_refused_while_a_release_still_uses_it(
     pool: PgPool,

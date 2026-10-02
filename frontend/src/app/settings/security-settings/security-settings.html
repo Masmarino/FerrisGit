@@ -1,6 +1,6 @@
 <gbt-card variant="outlined" icon="lock" heading="Sessions" description="Combien de temps une connexion reste valide avant de devoir se reconnecter.">
   <div class="admin-settings__field admin-settings__jwt" data-field="jwtTtlHours">
-    <!-- Uses (committed) rather than (ngModelChange), which would PUT "2" and then "24". -->
+    <!-- (committed) rather than (ngModelChange), which would PUT "2" and then "24". -->
     <gbt-input type="number" min="1" label="Durée de vie du JWT (heures)" [errorMessage]="jwtError()" [ngModel]="jwtShown()" (committed)="setJwtTtlHours($event)" />
     <div class="admin-settings__field-footer">
       <p class="admin-settings__hint">S'applique aux prochaines connexions ; les sessions ouvertes gardent leur durée.</p>

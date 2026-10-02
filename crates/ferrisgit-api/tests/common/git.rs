@@ -1,5 +1,5 @@
-//! Git subprocesses for the tests. They run on a blocking thread: the in-process server shares the runtime, so a
-//! blocking `git` call would starve the clone or push it is waiting on.
+//! Git subprocesses for the tests, on a blocking thread: the server runs in-process on the same runtime, so a blocking
+//! `git` call would starve the clone or push it's waiting on.
 
 use std::path::Path;
 use std::process::Command;

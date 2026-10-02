@@ -8,8 +8,8 @@ pub enum MergeOutcome {
     Conflicting,
 }
 
-/// Merges `source_branch` into `target_branch`, clean (conflict-free) merges only. On success the target ref has moved
-/// to a new two-parent commit. On `Conflicting` nothing was written.
+/// Merges `source_branch` into `target_branch`, clean merges only. On success the target ref points to a new two-parent
+/// commit, on `Conflicting` nothing was written.
 #[async_trait]
 pub trait MergeExecutorPort: Send + Sync {
     async fn merge(

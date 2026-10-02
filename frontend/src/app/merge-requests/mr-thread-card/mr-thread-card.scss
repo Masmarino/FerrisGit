@@ -11,7 +11,7 @@
   border-radius: 50%;
 }
 
-// On the expanded card: hung from the header, centred on its first 24px line like the avatars.
+// On the expanded card, hung from the header and centred on its first 24px line like the avatars.
 .mr-thread__marker--card {
   top: (24px - rail.$marker-size) * 0.5;
 }
@@ -258,13 +258,12 @@ gbt-card {
   justify-content: flex-end;
 }
 
-// Scoped under the footer so these outrank gbt-textarea's own `.gbt-textarea textarea` rules
-// (same specificity otherwise, and the library's styles load later).
+// Scoped under the footer to outrank gbt-textarea's own rules, which have the same specificity and load later.
 .mr-thread__footer .mr-thread__reply {
   flex: 1 1 16rem;
   min-width: 0;
 
-  // One line tall (rows=1, `autosize` grows it), level with the small buttons: tighter padding than the field's own.
+  // One line tall (autosize grows it) and level with the small buttons, so tighter padding than the field's own.
   ::ng-deep textarea {
     min-height: 30px;
     padding-block: 0.25rem;

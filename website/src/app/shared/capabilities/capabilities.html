@@ -1,0 +1,320 @@
+<div class="bento">
+  <!-- Review: a thread on a line, with a suggestion the author applies in one click. -->
+  <article
+    class="tile tile--review"
+    id="d2"
+    appGlow
+    [class.is-linked]="plan.active() === 2"
+    [appPlanPoint]="2"
+    [appReveal]="0"
+  >
+    <div class="frag frag--review" [class.is-applied]="applied()">
+      <p class="frag__path">
+        <span class="mono">src/webhooks/dispatch.rs:48</span>
+        <span class="chip" [class.chip--ok]="applied()">
+          {{ (applied() ? 'caps.review.resolved' : 'caps.review.openThread') | transloco }}
+        </span>
+      </p>
+      <div class="diff" aria-hidden="true">
+        <p class="diff__line diff__line--del">
+          <span class="diff__ln">48</span>let delay = Duration::from_secs(1);
+        </p>
+        <p class="diff__line diff__line--add">
+          <span class="diff__ln">48</span>let delay = Duration::from_secs(2u64.pow(attempt));
+        </p>
+      </div>
+      <div class="comment">
+        <span class="avatar">CA</span>
+        <div>
+          <p class="comment__meta"><b>camille</b> · 2 min</p>
+          <p class="comment__text">{{ 'caps.review.comment' | transloco }}</p>
+        </div>
+      </div>
+      <div class="suggest">
+        <span class="suggest__label">{{ 'caps.review.suggestion' | transloco }}</span>
+        @if (applied()) {
+          <span class="applied">
+            <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path d="M3 8.5 6.5 12 13 4" />
+            </svg>
+            {{ 'caps.review.applied' | transloco }} <span class="mono">b7e2c91</span>
+          </span>
+          <button type="button" class="frag__reset" (click)="reset()">
+            {{ 'caps.review.reset' | transloco }}
+          </button>
+        } @else {
+          <button type="button" class="frag__button" (click)="apply()">
+            {{ 'caps.review.apply' | transloco }}
+          </button>
+        }
+      </div>
+    </div>
+    <div class="tile__text">
+      <h3>
+        <span class="tile__no" aria-hidden="true">2</span>{{ 'caps.review.title' | transloco }}
+      </h3>
+      <p>{{ 'caps.review.text' | transloco }}</p>
+    </div>
+  </article>
+
+  <!-- Pipeline: the stage stepper of the pipeline page. -->
+  <article
+    class="tile tile--pipeline"
+    id="d6"
+    appGlow
+    [class.is-linked]="plan.active() === 6"
+    [appPlanPoint]="6"
+    [appReveal]="1"
+  >
+    <div class="frag frag--pipeline" aria-hidden="true">
+      <ol class="stepper">
+        <li class="stepper__stage is-done">
+          <span class="stepper__dot"><gbt-job-status status="success" /></span>
+          <span class="stepper__name">build</span>
+        </li>
+        <li class="stepper__stage is-current">
+          <span class="stepper__dot">2</span>
+          <span class="stepper__name">test</span>
+        </li>
+        <li class="stepper__stage">
+          <span class="stepper__dot">3</span>
+          <span class="stepper__name">publish</span>
+        </li>
+      </ol>
+      <div class="jobs">
+        <span class="job" data-state="success"><gbt-job-status status="success" /> compile</span>
+        <span class="job" data-state="success"><gbt-job-status status="success" /> lint</span>
+        <span class="job" data-state="running"><gbt-job-status status="running" /> unit-tests</span>
+        <span class="job" data-state="pending"><gbt-job-status status="pending" /> publish</span>
+      </div>
+    </div>
+    <div class="tile__text">
+      <h3>
+        <span class="tile__no" aria-hidden="true">6</span>{{ 'caps.pipeline.title' | transloco }}
+      </h3>
+      <p>{{ 'caps.pipeline.text' | transloco }}</p>
+    </div>
+  </article>
+
+  <!-- Kanban: two of the four columns of the board. -->
+  <article
+    class="tile tile--kanban"
+    id="d3"
+    appGlow
+    [class.is-linked]="plan.active() === 3"
+    [appPlanPoint]="3"
+    [appReveal]="2"
+  >
+    <div class="frag frag--kanban" aria-hidden="true">
+      <div class="kanban">
+        <div class="kanban__col">
+          <p class="kanban__head">
+            {{ 'caps.kanban.todo' | transloco }} <span class="kanban__count">3</span>
+          </p>
+          <div class="card">
+            <p class="card__title">
+              <span class="mono">#12</span> {{ 'caps.kanban.card1' | transloco }}
+            </p>
+            <p class="card__chips">
+              <span class="chip chip--bug">bug</span>
+              <span class="chip chip--warn">urgent</span>
+              <span class="chip">v1.0</span>
+            </p>
+          </div>
+          <div class="card">
+            <p class="card__title">
+              <span class="mono">#8</span> {{ 'caps.kanban.card2' | transloco }}
+            </p>
+            <p class="card__chips"><span class="chip">epic</span><span class="chip">v1.1</span></p>
+          </div>
+        </div>
+        <div class="kanban__col kanban__col--active">
+          <p class="kanban__head">
+            {{ 'caps.kanban.doing' | transloco }} <span class="kanban__count">1</span>
+          </p>
+          <div class="card">
+            <p class="card__title">
+              <span class="mono">#11</span> {{ 'caps.kanban.card3' | transloco }}
+            </p>
+            <p class="card__chips">
+              <span class="chip chip--indigo">interface</span>
+              <span class="avatar avatar--sm">CA</span>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="tile__text">
+      <h3>
+        <span class="tile__no" aria-hidden="true">3</span>{{ 'caps.kanban.title' | transloco }}
+      </h3>
+      <p>{{ 'caps.kanban.text' | transloco }}</p>
+    </div>
+  </article>
+
+  <!-- Roles: who can do what. -->
+  <article
+    class="tile tile--roles"
+    id="d1"
+    appGlow
+    [class.is-linked]="plan.active() === 1"
+    [appPlanPoint]="1"
+    [appReveal]="3"
+  >
+    <div class="frag frag--roles">
+      <table class="roles">
+        <thead>
+          <tr>
+            <th scope="col">
+              <span class="sr-only">{{ 'caps.roles.action' | transloco }}</span>
+            </th>
+            <th scope="col" [attr.abbr]="'caps.roles.reader' | transloco">
+              {{ 'caps.roles.readerShort' | transloco }}
+            </th>
+            <th scope="col" [attr.abbr]="'caps.roles.contributor' | transloco">
+              {{ 'caps.roles.contributorShort' | transloco }}
+            </th>
+            <th scope="col" [attr.abbr]="'caps.roles.maintainer' | transloco">
+              {{ 'caps.roles.maintainerShort' | transloco }}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of roleRows; track row.id) {
+            <tr>
+              <th scope="row">{{ 'caps.roles.rows.' + row.id | transloco }}</th>
+              <td><span class="roles__mark" [class.is-on]="row.reader"></span></td>
+              <td><span class="roles__mark" [class.is-on]="row.contributor"></span></td>
+              <td><span class="roles__mark is-on"></span></td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+    <div class="tile__text">
+      <h3>
+        <span class="tile__no" aria-hidden="true">1</span>{{ 'caps.roles.title' | transloco }}
+      </h3>
+      <p>{{ 'caps.roles.text' | transloco }}</p>
+    </div>
+  </article>
+
+  <!-- Webhook: the request as it arrives, with the signature header. -->
+  <article
+    class="tile tile--webhook"
+    id="d7"
+    appGlow
+    [class.is-linked]="plan.active() === 7"
+    [appPlanPoint]="7"
+    [appReveal]="4"
+  >
+    <div class="frag frag--webhook" aria-hidden="true">
+      <pre class="http"><span class="http__verb">POST</span> /hooks/ferrisgit HTTP/1.1
+<span class="http__key">X-FerrisGit-Delivery:</span> 7f3c9a1e-…
+<span class="http__key">X-FerrisGit-Signature-256:</span> <span class="http__sig">sha256=9b1e4f…</span>
+<span class="http__key">Content-Type:</span> application/json
+
+{{ '{' }} "event": "merge_request_merged",
+  "repositoryName": "api", … {{ '}' }}</pre>
+    </div>
+    <div class="tile__text">
+      <h3>
+        <span class="tile__no" aria-hidden="true">7</span>{{ 'caps.webhook.title' | transloco }}
+      </h3>
+      <p>{{ 'caps.webhook.text' | transloco }}</p>
+    </div>
+  </article>
+
+  <!-- Catalogue: public repositories, readable without an account. -->
+  <article
+    class="tile tile--catalog"
+    id="d4"
+    appGlow
+    [class.is-linked]="plan.active() === 4"
+    [appPlanPoint]="4"
+    [appReveal]="5"
+  >
+    <div class="frag frag--catalog" aria-hidden="true">
+      <ul class="repos">
+        <li>
+          <p class="repos__name"><span class="repos__owner">acme /</span> api</p>
+          <p class="repos__desc">{{ 'caps.catalog.repo1' | transloco }}</p>
+          <p class="repos__meta">
+            <span class="repos__star">★ 128</span><span class="mono">Rust</span>
+          </p>
+        </li>
+        <li>
+          <p class="repos__name"><span class="repos__owner">acme / design /</span> ui-kit</p>
+          <p class="repos__desc">{{ 'caps.catalog.repo2' | transloco }}</p>
+          <p class="repos__meta">
+            <span class="repos__star">★ 41</span><span class="mono">TypeScript</span>
+          </p>
+        </li>
+      </ul>
+    </div>
+    <div class="tile__text">
+      <h3>
+        <span class="tile__no" aria-hidden="true">4</span>{{ 'caps.catalog.title' | transloco }}
+      </h3>
+      <p>{{ 'caps.catalog.text' | transloco }}</p>
+    </div>
+  </article>
+
+  <!-- MFA: the factors of an account. -->
+  <article class="tile tile--mfa" appGlow [appReveal]="6">
+    <div class="frag frag--mfa" aria-hidden="true">
+      <ul class="factors">
+        <li class="factor is-on">
+          <span class="factor__name">{{ 'caps.mfa.totp' | transloco }}</span>
+          <span class="factor__state">{{ 'caps.mfa.enrolled' | transloco }}</span>
+        </li>
+        <li class="factor is-on">
+          <span class="factor__name">{{ 'caps.mfa.passkey' | transloco }}</span>
+          <span class="factor__state">{{ 'caps.mfa.enrolled' | transloco }}</span>
+        </li>
+        <li class="factor">
+          <span class="factor__name">{{ 'caps.mfa.backup' | transloco }}</span>
+          <span class="factor__state">{{ 'caps.mfa.backupLeft' | transloco }}</span>
+        </li>
+      </ul>
+    </div>
+    <div class="tile__text">
+      <h3>{{ 'caps.mfa.title' | transloco }}</h3>
+      <p>{{ 'caps.mfa.text' | transloco }}</p>
+    </div>
+  </article>
+
+  <!-- Search: the four categories of the top bar. -->
+  <article
+    class="tile tile--search"
+    id="d5"
+    appGlow
+    [class.is-linked]="plan.active() === 5"
+    [appPlanPoint]="5"
+    [appReveal]="7"
+  >
+    <div class="frag frag--search" aria-hidden="true">
+      <p class="search__field">
+        <svg viewBox="0 0 24 24" width="16" height="16">
+          <circle cx="11" cy="11" r="7" />
+          <path d="m20 20-3.5-3.5" />
+        </svg>
+        <span>webhook<span class="search__caret"></span></span>
+      </p>
+      <ul class="search__results">
+        @for (group of searchGroups; track group) {
+          <li>
+            <span class="search__group">{{ 'caps.search.' + group | transloco }}</span>
+            <span class="search__hit">{{ 'caps.search.' + group + 'Hit' | transloco }}</span>
+          </li>
+        }
+      </ul>
+    </div>
+    <div class="tile__text">
+      <h3>
+        <span class="tile__no" aria-hidden="true">5</span>{{ 'caps.search.title' | transloco }}
+      </h3>
+      <p>{{ 'caps.search.text' | transloco }}</p>
+    </div>
+  </article>
+</div>

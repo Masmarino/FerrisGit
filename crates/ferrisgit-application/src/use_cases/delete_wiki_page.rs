@@ -73,8 +73,7 @@ mod tests {
         assert!(matches!(result, Err(DomainError::NotFound(_))));
     }
 
-    /// `DeleteWikiPageUseCase` validates the slug before `find_by_repository_id`. Otherwise an empty `FakeWikis` would
-    /// turn an invalid slug into a `NotFound` and hide missing validation.
+    /// Validation has to come first: with an empty `FakeWikis` a missing check would show up as a plain `NotFound`.
     #[tokio::test]
     async fn rejects_an_invalid_slug_before_looking_up_the_wiki() {
         let use_case = DeleteWikiPageUseCase::new(
@@ -109,8 +108,7 @@ mod tests {
             .await
             .unwrap();
         let writer = Arc::new(FakeWikiWriter::new());
-        // The fake writer enforces the same compare-and-swap as `GitWikiWriter`, so the page must exist first at the
-        // sha passed as `base_sha`.
+        // The fake writer does the same compare-and-swap as the real one, so the page must exist at `base_sha`.
         let saved = writer
             .save_page(
                 "alice/hello.wiki.git",

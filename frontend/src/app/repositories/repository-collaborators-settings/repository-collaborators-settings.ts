@@ -23,9 +23,9 @@ export class RepositoryCollaboratorsSettings implements OnInit {
   protected newCollaboratorUsername = signal('');
   protected newCollaboratorRole = signal<Role>('contributor');
   protected collaboratorPendingRemoval = signal<CollaboratorSummary | null>(null);
-  /** True while the confirmed removal runs: the confirmation stays open and ignores a second click. */
+  /** Keeps the confirmation open and inert while the removal request runs. */
   protected removing = signal(false);
-  /** The role picked in each row while the change saves, keyed by user id. Dropping it on failure makes `NgModel` write the previous role back into the select. */
+  /** Role picked per row (by user id) while it saves. Dropping the entry on failure makes NgModel put the old role back in the select. */
   protected pendingRoles = signal<ReadonlyMap<string, Role>>(new Map());
   protected readonly roleOptions: SelectOption<Role>[] = [
     { value: 'reader', label: 'Lecteur' },
@@ -68,7 +68,7 @@ export class RepositoryCollaboratorsSettings implements OnInit {
         this.list.refresh();
         this.toast.show('Collaborateur retiré.');
       },
-      // The confirmation covers the page, so an error must close it first to be visible.
+      // Close the confirmation first, it covers the page and would hide the error.
       error: () => {
         this.removing.set(false);
         this.collaboratorPendingRemoval.set(null);

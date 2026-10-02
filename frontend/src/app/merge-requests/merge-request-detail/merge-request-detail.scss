@@ -6,8 +6,8 @@
   @include list-page.page-host;
 }
 
-// Flex items, so each segment wraps as a unit and the branch pair can be held to the line's width.
-// The 0.25rem gap stands for the space between segments (same line as the merge request list rows).
+// Flex items so each segment wraps as a unit and the branch pair can be held to the line's width. The
+// 0.25rem gap is the space between segments, as in the list rows.
 .mr-detail__meta {
   display: flex;
   flex-wrap: wrap;
@@ -45,7 +45,7 @@
   margin-bottom: 1rem;
 }
 
-// The tab strip reads as the section switch: a quiet hairline under it (Gabarit draws the full-strength border colour).
+// Quiet hairline under the tabs; Gabarit draws it in the full-strength border colour.
 .mr-detail__tabs ::ng-deep .gbt-tabs__list {
   border-bottom-color: var(--gbt-hairline);
 }
@@ -74,8 +74,8 @@
   text-align: center;
 }
 
-// One outlined `gbt-card` per file: Gabarit draws the box's edge and clips the diff rows to its corners.
-// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+// One outlined gbt-card per file: it draws the edge and clips the diff rows to its corners.
+// Gabarit gap: gbt-card sets its own text styles; inherit the page's instead.
 gbt-card {
   @include card.inherit-text;
 }
@@ -96,8 +96,8 @@ gbt-card {
   font-size: 0.875rem;
 }
 
-// The path reads as code: the directory muted, the file name in the text colour. When the header is
-// too narrow the directory truncates first, so the file name stays readable (full path in the tooltip).
+// Directory muted, file name in the text colour. When space runs out the directory truncates first
+// (full path in the tooltip).
 .mr-diff__path {
   display: flex;
   flex: 0 1 auto;

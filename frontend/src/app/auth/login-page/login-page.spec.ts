@@ -11,7 +11,7 @@ import { authInterceptor } from '../auth.interceptor';
 import { provideFerrisgitAuth } from '../auth-kit';
 import { REQUEST_OPTIONS, fakeAssertion, stubPasskeyBrowser } from '../../shared/webauthn-testing';
 
-// The enrolment draws its QR code with FerrisGit's renderer, which lazily imports `qrcode`. jsdom has no canvas.
+// Enrolment draws its QR code through our renderer, which lazily imports `qrcode`; jsdom has no canvas.
 const toDataURL = vi.hoisted(() => vi.fn());
 vi.mock('qrcode', () => ({ toDataURL }));
 

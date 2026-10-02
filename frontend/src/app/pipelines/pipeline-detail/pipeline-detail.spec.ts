@@ -385,7 +385,7 @@ describe('PipelineDetail', () => {
       requestB.flush(makePipeline({ status: 'running', commitSha: 'from-b' }));
       fixture.detectChanges();
 
-      // A, the older request, resolves after B: its response must be dropped.
+      // A, the older request, resolves after B: its response has to be dropped.
       requestA.flush(makePipeline({ status: 'running', commitSha: 'from-a' }));
       fixture.detectChanges();
 

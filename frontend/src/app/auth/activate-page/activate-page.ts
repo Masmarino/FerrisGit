@@ -5,9 +5,8 @@ import { AuthLogo } from '../auth-logo/auth-logo';
 import { consumeLinkToken } from '../link-token';
 
 /**
- * Owns the `/activate#token=…` URL; Gabarit's activation page asks for the password. A missing or malformed token
- * shows the kit's dead-link view without sending any request. `activated` is left unbound so the user stays on the
- * kit's success view until they choose to sign in.
+ * Owns the `/activate#token=…` URL; Gabarit's page asks for the password. A missing or malformed token shows the kit's
+ * dead-link view without any request. Leaving `activated` unbound keeps the user on the success view until they sign in.
  */
 @Component({
   selector: 'fg-activate-page',
@@ -19,7 +18,7 @@ import { consumeLinkToken } from '../link-token';
       <a gbtButton variant="link" gbtAuthFooterLink routerLink="/login">Se connecter</a>
     </gbt-auth-activate>
   `,
-  // The logo artwork has a transparent margin above the drawing; this pulls it back to the panel's padding.
+  // The logo artwork has a transparent top margin; the offset pulls it back to the panel's padding.
   styles: ':host { --gbt-auth-panel-logo-offset: -0.5rem; }',
 })
 export class ActivatePage {

@@ -11,7 +11,7 @@ import { daysAgo, hoursAgo, inShellContentArea, minutesAgo } from '../../shared/
 const ref = (...path: string[]): SearchRepositoryRef => ({ id: path.join('/'), name: path.at(-1)!, path });
 const FERRISGIT = ref('florian', 'ferrisgit');
 const GABARIT = ref('florian', 'gabarit');
-// A group repository: three path segments.
+// A group repository, so three path segments.
 const RUNNER = ref('plateforme', 'infra', 'runner');
 
 let nextId = 0;

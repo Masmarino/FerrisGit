@@ -6,13 +6,13 @@ import { SettingsEditor } from '../settings-editor';
 
 type TokenAction = 'generate' | 'remove';
 
-/** 256 random bits, in hexadecimal: 64 characters. */
+/** 256 random bits in hexadecimal: 64 characters. */
 function randomToken(): string {
   const bytes = crypto.getRandomValues(new Uint8Array(32));
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
-/** The registration token runners present to `POST /api/runner/register`: the server keeps only its hash. */
+/** The registration token runners present to `POST /api/runner/register`. The server only keeps its hash. */
 @Component({
   selector: 'fg-runner-registration-token',
   standalone: true,
@@ -26,11 +26,11 @@ export class RunnerRegistrationToken {
   protected configured = computed(() => this.editor.saved().runnerRegistrationTokenConfigured);
   /** What the admin is typing as the new token. It never comes back from the server. */
   protected tokenDraft = signal('');
-  /** A token generated here, shown once: the server only keeps its hash. */
+  /** A token generated here, shown once since the server only keeps its hash. */
   protected generatedToken = signal<string | null>(null);
   protected pendingAction = signal<TokenAction | null>(null);
 
-  /** Called on blur. An empty field saves nothing: it is not how the token is removed (see `askRemove`). */
+  /** Called on blur. An empty field saves nothing: that's not how the token is removed (see `askRemove`). */
   protected setToken(value: string): void {
     const token = value.trim();
     if (token !== '') {
@@ -38,7 +38,7 @@ export class RunnerRegistrationToken {
     }
   }
 
-  /** Replacing a token that exists asks first: the old one stops working for new registrations. */
+  /** Replacing an existing token asks first, since the old one stops working for new registrations. */
   protected askGenerate(): void {
     if (this.configured()) {
       this.pendingAction.set('generate');

@@ -98,7 +98,7 @@ mod tests {
         let store = PostgresMetricsSnapshotStore::new(pool);
         let earlier = snapshot(Utc::now() - Duration::minutes(30));
         let later = snapshot(Utc::now());
-        // insert in reverse so the test fails if the query just returns insertion order
+        // Insert in reverse so the test fails if the query just returns insertion order.
         store.save(&later).await.unwrap();
         store.save(&earlier).await.unwrap();
 

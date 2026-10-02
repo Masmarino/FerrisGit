@@ -21,17 +21,14 @@ pub struct DeletedUser {
     pub deleted_repositories: Vec<String>,
 }
 
-/// An admin deletes another user's account and everything the user owns: personal repositories (rows, git storage,
-/// release assets), then through DB cascades their tokens, memberships, factors, links, stars, notifications, and the
-/// issues, comments, reviews and pipelines they authored. What they wrote elsewhere stays, attributed to a deleted
-/// user: merge requests and comments on other people's repositories, releases, group creator. A group repository they
-/// created belongs to the group and is handed to the acting admin (see `UserRepositoryPort::delete`).
-/// Group memberships cascade too, so the deletion is refused while the user is the last Maintainer of a group hierarchy
-/// (like `remove_group_member`, through `group_maintainer_guard`). Admins have no bypass on groups, so nobody could
-/// manage it again.
-/// The account and the personal repositories go in a single store transaction, which first repeats every refusal
-/// atomically. The disk is cleaned after the commit: a leftover directory is harmless, a half-deleted repository is
-/// not.
+/// An admin deletes another user's account and what it owns: personal repositories (rows, git storage, release assets)
+/// and, through cascades, tokens, memberships, factors, stars, notifications and the issues, comments, reviews and
+/// pipelines they authored. What they wrote on other people's repositories stays, attributed to a deleted user. A group
+/// repo they created goes to the acting admin (see `UserRepositoryPort::delete`).
+///
+/// Refused while the user is the last Maintainer of a group hierarchy, as when removing a member: admins have no bypass
+/// on groups, so nobody could manage it again. Account and repositories go in one store transaction that repeats the
+/// refusals atomically; the disk is cleaned after the commit, since a leftover directory is harmless.
 pub struct DeleteUserUseCase {
     users: Arc<dyn UserRepositoryPort>,
     invitations: Arc<dyn UserInvitationPort>,
@@ -60,9 +57,9 @@ impl DeleteUserUseCase {
         }
     }
 
-    /// `Conflict` naming the first hierarchy where `target` is the only Maintainer. Only groups where they hold
-    /// Maintainer directly are checked, each through its own ancestor chain (a descendant's chain contains it). All the
-    /// target's grants are excluded at once. This is the early, readable refusal: the store repeats it atomically.
+    /// `Conflict` naming the first hierarchy where `target` is the only Maintainer. Only direct Maintainer grants are
+    /// checked, each through its ancestor chain (which covers descendants). It's the early, readable refusal; the store
+    /// repeats it atomically.
     async fn ensure_not_last_group_maintainer(&self, target: &User) -> Result<(), DomainError> {
         for writable in self.groups.list_writable_groups(target.id).await? {
             if self
@@ -71,7 +68,7 @@ impl DeleteUserUseCase {
                 .await?
                 != Some(CollaboratorRole::Maintainer)
             {
-                continue; // a descendant, writable only through an ancestor's grant: covered by that ancestor's chain
+                continue; // writable only through an ancestor's grant, which that ancestor's chain covers
             }
             let chain = self.groups.ancestor_chain(writable.group.id).await?;
             if would_leave_chain_without_a_maintainer_without_user(
@@ -90,17 +87,16 @@ impl DeleteUserUseCase {
         Ok(())
     }
 
-    /// `remove_git_storage` runs once per deleted personal repository after the commit (the caller logs a failure,
-    /// which is never a reason to fail). `Validation` for the admin's own account, `NotFound` for an unknown user,
-    /// `Conflict` for the last active admin or last group Maintainer. Every refusal comes before anything is written.
+    /// `remove_git_storage` runs once per deleted personal repository, after the commit. Every refusal (own account,
+    /// unknown user, last active admin, last group Maintainer) comes before anything is written.
     pub async fn execute(
         &self,
         actor_id: Uuid,
         target_user_id: Uuid,
         remove_git_storage: impl Fn(&Repository),
     ) -> Result<DeletedUser, DomainError> {
-        // An admin deleting themselves would end their own session mid-request, and the last-admin floor below would
-        // not catch that while another admin exists.
+        // They'd cut off their own session mid-request, and the last-admin check below lets it through when another
+        // admin exists.
         if target_user_id == actor_id {
             return Err(DomainError::Validation(
                 "you cannot delete your own account".to_string(),
@@ -111,7 +107,7 @@ impl DeleteUserUseCase {
             .find_by_id(target_user_id)
             .await?
             .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
-        // Same early refusal and definition of "active" as demoting (a pending invitation or reset does not count).
+        // Same refusal and same meaning of "active" as when demoting: a pending invitation or reset doesn't count.
         ensure_not_last_active_admin(
             self.users.as_ref(),
             self.invitations.as_ref(),
@@ -123,8 +119,7 @@ impl DeleteUserUseCase {
 
         let deleted = self.users.delete(target.id, actor_id).await?;
 
-        // The rows are committed: from here on nothing may fail the request (the account is gone, so a retry
-        // would find nothing to delete).
+        // Committed. Nothing below can fail the request: a retry would find the account already gone.
         for repository in &deleted {
             remove_git_storage(repository);
             if let Err(error) = self
@@ -340,8 +335,7 @@ mod tests {
         );
     }
 
-    /// A cleanup failure after the commit must not fail the request (a retry would find nothing to delete); every
-    /// repository's git storage is still removed.
+    /// A cleanup failure after the commit mustn't fail the request, and every repo's git storage is still removed.
     #[tokio::test]
     async fn a_release_asset_cleanup_failure_after_the_commit_does_not_fail_the_deletion() {
         let root = user("root", true);
@@ -374,8 +368,7 @@ mod tests {
         assert_eq!(removed.lock().unwrap().len(), 2);
     }
 
-    /// The store refuses after the early checks passed (a concurrent admin deletion made the count stale): nothing
-    /// may have been written.
+    /// The store refuses after the early checks passed (a concurrent deletion made the admin count stale).
     struct StaleFloor(Arc<FakeUsers>);
 
     #[async_trait::async_trait]
@@ -511,7 +504,7 @@ mod tests {
         assert_eq!(f.users.count_admins().await.unwrap(), 1);
     }
 
-    /// The actor id is someone else, so the refusal can only come from the floor, not the self-deletion rule.
+    /// The actor is someone else, so the refusal comes from the last-admin check, not the self-deletion rule.
     #[tokio::test]
     async fn deleting_the_last_active_admin_is_refused_and_deletes_nothing() {
         let root = user("root", true);
@@ -528,7 +521,7 @@ mod tests {
         assert!(f.release_assets.deleted_for_repository().is_empty());
     }
 
-    /// Like `SetAdminUseCase`: carol cannot sign in until she activates, so root is still the last usable admin.
+    /// Carol can't sign in until she activates, so root is still the last usable admin.
     #[tokio::test]
     async fn an_admin_still_pending_activation_does_not_count_toward_the_floor() {
         let root = user("root", true);
@@ -671,7 +664,7 @@ mod tests {
         assert!(f.users.get(alice.id).is_some());
     }
 
-    /// Being Maintainer of both a group and its parent does not make her the "other" Maintainer of either.
+    /// Maintainer of both a group and its parent doesn't make her the "other" Maintainer of either.
     #[tokio::test]
     async fn maintainer_grants_the_user_holds_across_one_chain_do_not_cover_each_other() {
         let root = user("root", true);

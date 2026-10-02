@@ -12,7 +12,7 @@ import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { stubPasskeyBrowser } from '../../shared/webauthn-testing';
 import { expectPanelLayout } from '../auth-story-helpers';
 
-// `provideRouter` and `provideFerrisgitIcons` return EnvironmentProviders, so they go in `applicationConfig`, not `moduleMetadata`.
+// Environment providers only work in `applicationConfig`, not `moduleMetadata`.
 const withApp = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
 
 const OTPAUTH_URL = 'otpauth://totp/FerrisGit:alice?secret=JBSWY3DPEHPK3PXP&issuer=FerrisGit';
@@ -64,7 +64,7 @@ export const Default: Story = {
 export const Loading: Story = {
   decorators: [withServer(NEVER, NEVER)],
   play: async (context) => {
-    // Announced once, and not from inside the busy skeleton (a busy ancestor would keep a live region quiet).
+    // Announced once, and not from inside the busy skeleton: a busy ancestor keeps a live region quiet.
     const status = within(context.canvasElement).getByRole('status');
     await expect(status).toHaveTextContent('Chargement en cours');
     await expect(status.closest('[aria-busy="true"]')).toBeNull();
@@ -149,7 +149,7 @@ export const Enrollment: Story = {
   },
 };
 
-// Stubs WebAuthn support whatever browser runs Storybook, and restores it afterwards.
+// Stubs WebAuthn whatever browser runs Storybook, and restores it afterwards.
 const passkeyBrowser = () => stubPasskeyBrowser({ create: () => new Promise(() => undefined), get: () => new Promise(() => undefined) });
 
 export const EnrollmentWithPasskeys: Story = {

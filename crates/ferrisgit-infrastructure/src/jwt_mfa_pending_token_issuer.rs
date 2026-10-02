@@ -19,14 +19,14 @@ struct Claims {
     exp: i64,
     iat: i64,
     typ: String,
-    /// The user's token epoch when the password step succeeded; the caller rejects the token once it differs.
+    /// User's token epoch at the password step; the caller rejects the token once it differs.
     epoch: i32,
-    /// Makes two tokens minted in the same second differ, so single-use tracking can tell them apart.
+    /// Keeps two tokens minted in the same second distinct, for single-use tracking.
     jti: Uuid,
 }
 
-/// Signs `mfa-pending` tokens with a key derived from `JWT_SECRET` (HKDF-SHA256, its own info string).
-/// Session tokens are signed with the raw secret, so neither kind of token can verify as the other.
+/// Signs mfa-pending tokens with a key derived from `JWT_SECRET` (HKDF-SHA256). Session tokens use the raw
+/// secret, so neither kind verifies as the other.
 pub struct JwtMfaPendingTokenIssuer {
     key: [u8; 32],
 }
@@ -267,8 +267,7 @@ mod tests {
         assert_unauthorized(issuer.verify("a.b.c"));
     }
 
-    // Produced by hkdf 0.12. The key derivation must not change, or pending tokens issued before an upgrade
-    // would stop verifying.
+    // Value from hkdf 0.12. The derivation can't change, or pending tokens issued before an upgrade stop verifying.
     #[test]
     fn the_signing_key_derivation_matches_the_previous_hkdf_version() {
         let issuer = JwtMfaPendingTokenIssuer::new(

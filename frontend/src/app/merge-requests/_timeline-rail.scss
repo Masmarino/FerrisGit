@@ -1,31 +1,31 @@
-// Shared geometry of the merge request timeline rail: a 2px line down the list's left gutter, centred on `$axis`.
-// Each item hangs its avatar or marker on that axis with a ring in the page background, so the line passes behind it.
+// Geometry of the timeline rail: a 2px line down the left gutter, centred on $axis. Each item hangs its
+// avatar or marker on it with a ring in the page background, so the line passes behind.
 
 $gutter: 44px;
-$axis: 16px; // Centre of the rail from the list's left edge, which is also the centre of a 32px avatar.
+$axis: 16px; // Distance from the list's left edge, also the centre of a 32px avatar.
 $line-width: 2px;
 $avatar-size: 32px;
 $marker-size: 24px;
-$ring: 0 0 0 4px var(--bg-panel); // The page background (the app shell and body use --bg-panel).
+$ring: 0 0 0 4px var(--bg-panel); // Page background.
 
-// The rail itself, drawn as a background so the same declaration works on the <ol> and in the Storybook decorator.
+// Drawn as a background so it works on the <ol> and in the Storybook decorator alike.
 @mixin rail {
   padding-left: $gutter;
-  // Longhands: in the shorthand, Sass would read `0 / 2px` as a division.
+  // Longhands, since in the shorthand Sass reads `0 / 2px` as a division.
   background-image: linear-gradient(var(--gbt-hairline), var(--gbt-hairline));
-  // Starts at the first marker's centre rather than above it.
+  // Starts at the first marker's centre, not above it.
   background-position: ($axis - $line-width * 0.5) $axis;
   background-size: $line-width calc(100% - #{$axis});
   background-repeat: no-repeat;
 }
 
-// Left offset that centres an element of `$size` on the rail axis. `$inset` is the item's left border width:
-// positions are measured inside the border, so an element hung from a bordered card has to pull back by it.
+// Left offset that centres an element of $size on the axis. $inset is the item's left border width:
+// positions are measured inside the border, so an element on a bordered card must pull back by it.
 @function rail-left($size, $inset: 0) {
   @return -$gutter + $axis - $size * 0.5 - $inset;
 }
 
-// Hangs an element of `$size` on the rail. `$top` aligns it with the item's first line or its card's header.
+// $top aligns it with the item's first line or its card header.
 @mixin on-rail($size, $top: 0, $inset: 0) {
   position: absolute;
   top: $top;

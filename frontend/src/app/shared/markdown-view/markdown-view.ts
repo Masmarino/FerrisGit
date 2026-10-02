@@ -4,12 +4,12 @@ import { Router } from '@angular/router';
 import { marked, Token } from 'marked';
 import DOMPurify, { Config } from 'dompurify';
 
-// Markdown comes from any collaborator, so it is sanitised harder than DOMPurify's default: no page
-// restyling (<style>, style="…"), no fake UI (forms, buttons, dialogs) and no colliding ids. A
-// dedicated instance keeps these hooks off the global DOMPurify that `shared/code-view` also uses.
+// Markdown comes from any collaborator, so it's sanitised harder than DOMPurify's default: no restyling the page
+// (<style>, style="…"), no fake UI (forms, buttons, dialogs), no colliding ids. A dedicated instance keeps these hooks
+// off the global DOMPurify that code-view also uses.
 const purify = DOMPurify(window);
 
-// Only GFM task-list checkboxes may stay. Any other <input> (password, text, hidden…) is removed.
+// Only GFM task-list checkboxes survive; any other <input> (password, text, hidden…) goes.
 purify.addHook('uponSanitizeElement', (node, data) => {
   if (data.tagName === 'input' && (node as Element).getAttribute('type')?.toLowerCase() !== 'checkbox') {
     node.parentNode?.removeChild(node);
@@ -17,20 +17,20 @@ purify.addHook('uponSanitizeElement', (node, data) => {
 });
 
 purify.addHook('afterSanitizeAttributes', (node) => {
-  // A task-list checkbox is a read-only mark here, not a control.
+  // A task-list checkbox is a mark, not a control.
   if (node.nodeName === 'INPUT') {
     node.setAttribute('disabled', '');
   }
-  // Remote images are allowed (badges, screenshots), but they should not leak the page URL to their host
-  // or load before they scroll into view.
+  // Remote images are fine (badges, screenshots) but mustn't leak the page URL to their host or load before they're
+  // scrolled into view.
   if (node.nodeName === 'IMG') {
     node.setAttribute('referrerpolicy', 'no-referrer');
     node.setAttribute('loading', 'lazy');
   }
 });
 
-// Authors may not borrow the app's global CSS classes (sr-only, skip-link, form errors, tooltips…) to
-// spoof its UI: only the `language-*` classes of fenced code blocks (syntax highlighting) survive.
+// Authors can't borrow the app's global CSS classes (sr-only, skip-link, form errors, tooltips…) to spoof its UI. Only
+// the `language-*` classes of fenced code blocks survive, for syntax highlighting.
 purify.addHook('uponSanitizeAttribute', (_node, data) => {
   if (data.attrName === 'class') {
     const kept = data.attrValue.split(/\s+/).filter((c) => /^language-[\w+#.-]+$/.test(c));
@@ -44,8 +44,8 @@ purify.addHook('uponSanitizeAttribute', (_node, data) => {
 
 const SANITIZE_CONFIG: Config = {
   FORBID_TAGS: ['style', 'form', 'button', 'textarea', 'select', 'option', 'optgroup', 'fieldset', 'dialog'],
-  // `for` / aria IDREFs would point at the page's own controls (a <label for> toggling a real switch),
-  // and tabindex could take over the tab order.
+  // `for` and aria IDREFs could point at the page's own controls (a <label for> toggling a real switch), and tabindex
+  // could hijack the tab order.
   FORBID_ATTR: [
     'style',
     'popover',
@@ -58,7 +58,7 @@ const SANITIZE_CONFIG: Config = {
     'aria-labelledby',
     'aria-describedby',
   ],
-  // `id="…"` and `name="…"` become "user-content-…", so markdown cannot clobber or collide with page ids.
+  // `id` and `name` become "user-content-…" so markdown can't clobber the page's ids.
   SANITIZE_NAMED_PROPS: true,
 };
 
@@ -72,7 +72,7 @@ export interface MarkdownOutlineEntry {
 
 const ID_PREFIX = 'user-content-';
 
-/** GitHub-like slug (accents kept). `section` when nothing is left, for example a title made only of emoji. */
+/** GitHub-like slug, accents kept. `section` when nothing is left, e.g. a title made only of emoji. */
 export function headingSlug(text: string): string {
   const slug = text
     .toLowerCase()
@@ -84,9 +84,9 @@ export function headingSlug(text: string): string {
 }
 
 /**
- * Gives every rendered h1–h4 a stable `user-content-<slug>` id and returns the h2–h4 outline. Runs
- * after sanitisation so ids are never author-controlled: an author id that would duplicate a heading
- * id is removed. Headings in a quote or `<details>` get an id but no outline entry.
+ * Gives every rendered h1–h4 a stable `user-content-<slug>` id and returns the h2–h4 outline. Runs after sanitising so
+ * ids are never the author's: an author id that would duplicate a heading id is removed. Headings in a quote or
+ * `<details>` get an id but no outline entry.
  */
 function applyHeadingIds(root: HTMLElement): MarkdownOutlineEntry[] {
   const headings = Array.from(root.querySelectorAll<HTMLHeadingElement>('h1, h2, h3, h4'));
@@ -122,7 +122,7 @@ export function decodeFragment(rawFragment: string): string {
   }
 }
 
-/** The element a `#fragment` link points at: the `id` itself, else the `user-content-` id or `<a name>` the sanitiser produced. */
+/** The element a `#fragment` points at: the plain `id`, else the `user-content-` id or `<a name>` the sanitiser made. */
 export function findAnchorTarget(root: HTMLElement, rawFragment: string): HTMLElement | null {
   const fragment = decodeFragment(rawFragment);
   if (!fragment) {
@@ -146,17 +146,14 @@ export function findAnchorTarget(root: HTMLElement, rawFragment: string): HTMLEl
 })
 export class MarkdownView {
   content = input.required<string>();
-  /**
-   * Levels added to every markdown heading (capped at h6), so a `# Titre` nested under the page's own
-   * headings keeps the document outline.
-   */
+  /** Levels added to every markdown heading (up to h6), so a `# Titre` under the page's own headings keeps the outline. */
   headingOffset = input(0);
   /**
-   * Opt-in: links whose path is this prefix or below it (`/docs` → `/docs/ci-cd/reference-yaml#variables`) go
-   * through the router instead of reloading the app. Off by default: a README link is left to the browser.
+   * Links under this prefix (`/docs` → `/docs/ci-cd/reference-yaml#variables`) go through the router instead of
+   * reloading the app. Off by default: a README link is left to the browser.
    */
   routedLinkPrefix = input<string | null>(null);
-  /** The h2–h4 headings, emitted after each render (their ids are on the DOM by then). */
+  /** The h2–h4 headings, emitted after each render once their ids are in the DOM. */
   outline = output<MarkdownOutlineEntry[]>();
 
   private sanitizer = inject(DomSanitizer);
@@ -173,9 +170,8 @@ export class MarkdownView {
   }
 
   /**
-   * In-content `#anchor` links would resolve against the app's `<base href="/">` and load the home
-   * page. Instead, a plain left click scrolls to the target inside this view and moves focus there.
-   * Modified and middle clicks are left to the browser.
+   * In-content `#anchor` links would resolve against `<base href="/">` and load the home page, so a plain left click
+   * scrolls to the target inside this view and focuses it. Modified and middle clicks are left to the browser.
    */
   protected onClick(event: MouseEvent): void {
     if (event.defaultPrevented || event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey || event.altKey) {
@@ -199,7 +195,7 @@ export class MarkdownView {
     }
     const reduceMotion = typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches;
     target.scrollIntoView?.({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
-    // Headings are not focusable: -1 lets the next Tab continue from the section just reached.
+    // Headings aren't focusable; -1 lets the next Tab carry on from the section just reached.
     if (target.tabIndex < 0) {
       target.setAttribute('tabindex', '-1');
     }
@@ -218,8 +214,8 @@ export class MarkdownView {
     return rest !== null && (rest === '' || /^[/#?]/.test(rest)) ? href : null;
   }
 
-  // `marked.parse` is synchronous unless an async extension is used (none is), so the cast is safe.
-  // `walkTokens` passed per call applies to this call only.
+  // marked.parse is synchronous unless an async extension is registered (none is), so the cast is safe. A `walkTokens`
+  // passed per call only applies to that call.
   protected renderedHtml = computed<SafeHtml>(() => {
     const offset = this.headingOffset();
     const walkTokens =

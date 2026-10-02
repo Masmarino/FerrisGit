@@ -211,7 +211,7 @@ mod tests {
         let listed = store.list_ci_variables(repository_id).await.unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].key, "API_KEY");
-        // `CiVariable` has no value field at all, so this holds at compile time, not just at runtime.
+        // `CiVariable` has no value field at all, so this holds at compile time too.
     }
 
     #[sqlx::test(migrations = "../../migrations")]

@@ -5,9 +5,9 @@ use ferrisgit_domain::error::DomainError;
 
 use crate::email_templates::EmailContent;
 
-/// Sends the notification e-mails. Every user-facing action uses `send_in_background`: the mail leaves on its own task,
-/// so a slow or unreachable SMTP server never delays the action. A mail that cannot be delivered (no SMTP configured,
-/// server down) is logged and never fails it. `send_best_effort` does the same without the extra task.
+/// Sends the notification mails. User-facing actions use `send_in_background`, which delivers on its own task so a slow
+/// or unreachable SMTP server never holds up the action. A mail that can't be delivered, with no SMTP configured or the
+/// server down, is logged and never fails anything. `send_best_effort` does the same without the extra task.
 #[derive(Clone)]
 pub struct Mailer {
     email: Arc<dyn EmailPort>,
@@ -31,8 +31,7 @@ impl Mailer {
         }
     }
 
-    /// Returns at once: the delivery (and its logging) happens on a spawned task. Callers normally drop the handle, and
-    /// tests await it to know the delivery attempt is over.
+    /// Returns at once, delivery and logging happen on a spawned task. Callers drop the handle, tests await it.
     pub fn send_in_background(
         &self,
         to: String,

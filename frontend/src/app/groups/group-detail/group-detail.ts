@@ -91,7 +91,7 @@ export class GroupDetail implements OnInit {
   });
   protected membersLink = computed(() => ['/groups', this.groupId(), 'members']);
 
-  // A maintainer of a group maintains its whole subtree: the subgroups' rows get the same role.
+  // A group's maintainer maintains its whole subtree, so the subgroup rows get the same role.
   protected workspaceGroups = computed<WorkspaceGroupItem[]>(() => {
     const role = this.role();
     return this.children().map((g) => ({

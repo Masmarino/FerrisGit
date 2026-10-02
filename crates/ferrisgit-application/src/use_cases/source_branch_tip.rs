@@ -1,7 +1,7 @@
 use ferrisgit_domain::branch::BranchReaderPort;
 use ferrisgit_domain::error::DomainError;
 
-/// The commit a merge request's source branch points at right now. Reviews and approvals are pinned to it.
+/// Where the source branch points now. Reviews and approvals are tied to this commit.
 pub(crate) async fn source_branch_tip(
     branch_reader: &dyn BranchReaderPort,
     repository_disk_path: &str,

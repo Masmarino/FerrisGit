@@ -3,7 +3,7 @@
 @use '../../shared/layout/list-page';
 @use '../../shared/layout/card';
 
-// A wiki page and its history, in the wiki shell's main and aside columns; revisions hang on the merge request timeline's rail.
+// A wiki page and its history, in the wiki shell's main and aside columns. Revisions hang on the merge request timeline's rail.
 
 :host {
   display: block;
@@ -13,8 +13,8 @@
   min-width: 0;
 }
 
-// The page and history cards are size containers. `gbt-card` is not one, so its host (or the article
-// around it) declares it for the `@container wiki-page-card` rules below.
+// The page and history cards are size containers. `gbt-card` isn't one, so its host (or the article around it)
+// declares it for the `@container wiki-page-card` rules below.
 .wiki-page-detail__card {
   container: wiki-page-card / inline-size;
   min-width: 0;
@@ -231,8 +231,8 @@ $history-line-start: $history-pad + $history-avatar-top + rail.$avatar-size * 0.
   }
 }
 
-// gbt-panel draws the hairline between two consecutive panels (`gbt-panel + gbt-panel`); the outline's
-// panel is wrapped in its own element, so the panel after it gets the same separation here.
+// gbt-panel draws the hairline between two consecutive panels (`gbt-panel + gbt-panel`). The outline's panel is
+// wrapped in its own element, so the panel after it gets the same separation here.
 .wiki-page-detail__aside > fg-wiki-outline + gbt-panel {
   margin-top: 1rem;
   padding-top: 1rem;

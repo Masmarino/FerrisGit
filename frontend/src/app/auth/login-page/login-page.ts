@@ -17,8 +17,8 @@ import { safeReturnUrl } from '../login-link';
       <a gbtButton variant="link" size="small" iconName="book-open" routerLink="/docs">Documentation</a>
     </footer>
   `,
-  // The logo artwork has a transparent margin above the drawing; the offset pulls it back to the panel's padding.
-  // The documentation link sits in the panel page's bottom padding, so it never covers the form however tall it grows.
+  // The logo artwork has a transparent top margin; the offset pulls it back to the panel's padding. The docs link sits
+  // in the panel's bottom padding, so it never covers the form however tall it grows.
   styles: `
     :host {
       --gbt-auth-panel-logo-offset: -0.5rem;

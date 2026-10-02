@@ -67,8 +67,7 @@ impl AssignIssueUseCase {
                 .find_by_id(existing.repository_id)
                 .await?
                 .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
-            // The assignee must be able to work on the issue: Contributor or more, whether the role is direct or
-            // inherited from a group.
+            // Assignee needs at least Contributor, direct or inherited from a group.
             let can_contribute = effective_repository_role(
                 self.collaborators.as_ref(),
                 self.groups.as_ref(),
@@ -280,7 +279,7 @@ mod tests {
         assert!(matches!(result, Err(DomainError::Validation(_))));
     }
 
-    /// A repository in `child`, below `root`; `member` holds `role` on `root` only.
+    /// A repo in `child` (below `root`); `member` holds `role` on `root` only.
     async fn assign_in_group_repository(role: CollaboratorRole) -> Result<Issue, DomainError> {
         let creator = user("creator");
         let member = user("member");

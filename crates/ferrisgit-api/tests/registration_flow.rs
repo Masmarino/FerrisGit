@@ -1,5 +1,5 @@
-// Free registration: a fresh registration gets no session, only the `mfaToken` leading to the mandatory TOTP setup.
-// `mfa_enforced` stays true.
+// Free registration: a new account gets no session, only the `mfaToken` for the mandatory TOTP setup. `mfa_enforced`
+// stays true.
 
 mod common;
 
@@ -170,8 +170,8 @@ async fn registering_while_disabled_is_a_400_and_creates_no_user(pool: PgPool) {
     assert_eq!(server.login("alice", PASSWORD).await.status(), 401);
 }
 
-/// A disabled instance answers the same whatever is submitted: it must not become an account-probing oracle
-/// (a 409 for a taken name or e-mail, a different 400 for invalid input) while registration is off.
+/// With registration off the answer is the same whatever is submitted, so it can't be used to probe accounts (a 409
+/// for a taken name or e-mail, a different 400 for invalid input).
 #[sqlx::test]
 async fn a_disabled_instance_answers_the_same_whatever_is_submitted(pool: PgPool) {
     let server = spawn_server(pool).await;
@@ -187,7 +187,7 @@ async fn a_disabled_instance_answers_the_same_whatever_is_submitted(pool: PgPool
     assert_eq!(res.status(), 200);
     let before = server.user_count().await;
 
-    // Ten cases at most (the register throttle is 10 attempts per IP), so no 429 can hide a difference.
+    // Ten cases at most (the register throttle is 10 per IP), so a 429 can't hide a difference.
     for (username, email, password, why) in [
         ("alice", "fresh@example.com", PASSWORD, "taken username"),
         (
@@ -489,7 +489,7 @@ async fn registration_is_throttled_per_ip_on_the_eleventh_attempt(pool: PgPool) 
     let admin = server.admin_session().await;
     server.enable_registration(&admin).await;
 
-    // Invalid attempts count too: the gate is the connection, not the outcome.
+    // Invalid attempts count too, the limit is per connection.
     for attempt in 1..=10 {
         assert_eq!(
             server

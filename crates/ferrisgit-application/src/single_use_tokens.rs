@@ -1,5 +1,5 @@
-//! Remembers which short-lived tokens have already been spent. In memory and per instance, like a
-//! login throttle: a restart forgets, which only matters for the few minutes a token lives.
+//! Remembers which short-lived tokens were already spent. In memory and per instance, like a login throttle: a restart
+//! forgets, which only matters for the few minutes a token lives.
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
@@ -16,7 +16,7 @@ pub struct SingleUseTokens {
 }
 
 impl SingleUseTokens {
-    /// `lifetime` must outlast the tokens being tracked, or a spent one could be replayed once it is forgotten.
+    /// `lifetime` has to outlast the tokens tracked, or a spent one could be replayed once forgotten.
     pub fn new(lifetime: Duration) -> Self {
         Self {
             lifetime,
@@ -24,8 +24,8 @@ impl SingleUseTokens {
         }
     }
 
-    /// `true` the first time a token is seen. `false` for a replay, or when the table is full of tokens
-    /// still inside their lifetime (better to make someone log in again than to forget one).
+    /// `true` the first time a token is seen. `false` for a replay, or when the table is full of tokens still in their
+    /// lifetime: better to make someone log in again than to forget one.
     pub fn consume(&self, token: &str) -> bool {
         let digest = fingerprint(token);
         let mut spent = self
@@ -45,8 +45,8 @@ impl SingleUseTokens {
         true
     }
 
-    /// Read-only: whether `token` was already spent (and not yet forgotten). Lets a caller refuse a
-    /// spent token up front, before doing work that a later `consume` could only reject too late.
+    /// Whether the token was already spent and not yet forgotten, without consuming it. Lets a caller refuse up front
+    /// instead of after work a later `consume` could only reject too late.
     pub fn is_spent(&self, token: &str) -> bool {
         self.spent
             .lock()
@@ -55,7 +55,7 @@ impl SingleUseTokens {
     }
 }
 
-/// Only the digest is kept, so a memory dump of the table does not hold live tokens.
+/// Only the digest is kept, so a memory dump of the table doesn't contain live tokens.
 fn fingerprint(token: &str) -> [u8; 32] {
     Sha256::digest(token.as_bytes()).into()
 }

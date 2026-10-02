@@ -10,7 +10,7 @@ import { atPhoneWidth, inDarkTheme, inShellContentArea, withFerrisgitIcons } fro
 
 const withDocsService = applicationConfig({ providers: [provideRouter([{ path: '**', children: [] }]), provideLocationMocks(), { provide: DocsService, useValue: fakeDocsService() }] });
 
-/** Types a query and waits for the results panel, which Gabarit positions over the page. */
+/** Types a query and waits for the results panel, which Gabarit floats over the page. */
 async function searchFor(canvasElement: HTMLElement, query: string) {
   await userEvent.type(canvasElement.querySelector('input')!, query);
   const options = await waitFor(() => {
@@ -28,7 +28,7 @@ const meta: Meta<DocsSearch> = {
   component: DocsSearch,
   tags: ['autodocs'],
   parameters: { layout: 'fullscreen' },
-  // The width of a docs nav column.
+  // Width of a docs nav column.
   decorators: [withFerrisgitIcons, withDocsService, inShellContentArea],
   render: () => ({ template: `<div style="max-width: 240px;"><fg-docs-search /></div>` }),
 };

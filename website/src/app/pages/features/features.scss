@@ -1,0 +1,244 @@
+@use '../../../breakpoints' as bp;
+
+:host {
+  display: block;
+}
+
+.page-head__note {
+  max-width: 52ch;
+  margin: 0;
+  color: var(--text-3);
+  font-size: var(--t-15);
+  line-height: 1.5;
+}
+
+// Tabs: a bar sticky under the header. Without JavaScript the bar is hidden and the panels follow one another.
+.tabs__bar {
+  position: sticky;
+  top: var(--header-h);
+  z-index: 5;
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  border-block: 1px solid var(--line);
+  backdrop-filter: blur(12px);
+}
+
+:host-context(html:not(.js)) .tabs__bar {
+  display: none;
+}
+
+.tabs__list {
+  display: flex;
+  gap: 0.25rem;
+  padding-block: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.tabs__tab {
+  position: relative;
+  flex: none;
+  min-height: 2.5rem;
+  padding: 0 0.875rem;
+  color: var(--text-2);
+  font: 600 var(--t-14) var(--sans);
+  white-space: nowrap;
+  background: transparent;
+  border: 0;
+  border-radius: var(--r-control);
+  transition:
+    color var(--dur-1) var(--ease),
+    background-color var(--dur-1) var(--ease);
+
+  &:hover {
+    color: var(--text);
+    background: var(--bg-hover);
+  }
+
+  &.is-active {
+    color: var(--text);
+    background: var(--surface-3);
+  }
+
+  &.is-linked {
+    color: var(--brand-text);
+    box-shadow: inset 0 0 0 1px var(--brand);
+  }
+}
+
+.tabs__panel {
+  padding-block: var(--s-8) 0;
+}
+
+:host-context(html.js) .tabs__panel:not(.is-active) {
+  display: none;
+}
+
+:host-context(html:not(.js)) .tabs__panel + .tabs__panel {
+  margin-top: var(--s-8);
+  border-top: 1px solid var(--line);
+}
+
+.tabs__panel:focus-visible {
+  outline-offset: -3px;
+}
+
+.feature__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-6);
+  align-items: center;
+}
+
+.feature__text {
+  min-width: 0;
+
+  h2 {
+    margin-bottom: var(--s-4);
+  }
+
+  .lead {
+    margin-bottom: var(--s-5);
+    font-size: var(--t-17);
+  }
+
+  .check-list {
+    margin-bottom: 0;
+  }
+}
+
+.feature__media,
+.feature__code {
+  min-width: 0;
+}
+
+@media (min-width: bp.$lg) {
+  .feature__grid {
+    grid-template-columns: minmax(0, 5fr) minmax(0, 7fr);
+    gap: var(--s-8);
+  }
+
+  .feature__code {
+    grid-column: 1 / -1;
+  }
+}
+
+// After the first tab change, the new panel's text slides in and its window fades in.
+@keyframes tabs-slide {
+  from {
+    opacity: 0;
+    transform: translate3d(12px, 0, 0);
+  }
+
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes tabs-fade {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.tabs--animated .tabs__panel.is-active {
+  .feature__text {
+    animation: tabs-slide var(--dur-2) var(--ease-out) both;
+  }
+
+  .feature__media {
+    animation: tabs-fade var(--dur-3) var(--ease) both;
+  }
+}
+
+// The plan section hands over to the tiles, which bring their own top padding.
+.made {
+  padding-bottom: 0;
+}
+
+// The other domains: tiles of unequal size.
+.more {
+  padding-top: var(--section);
+
+  > h2 {
+    margin-bottom: var(--s-6);
+  }
+}
+
+.more__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--s-4);
+  align-items: stretch;
+}
+
+.more__body {
+  min-width: 0;
+  padding: var(--s-5);
+
+  h3 {
+    margin-bottom: 0.5rem;
+    font-size: var(--t-20);
+  }
+
+  .check-list {
+    margin-bottom: 0;
+    font-size: var(--t-15);
+  }
+}
+
+.more__lead {
+  margin-bottom: var(--s-4);
+  color: var(--text-2);
+}
+
+@media (min-width: bp.$lg) {
+  .more__grid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+  }
+
+  .more__card--accounts {
+    grid-column: 1 / span 7;
+  }
+
+  .more__card--webhooks {
+    grid-column: 8 / span 5;
+  }
+
+  .more__card--wikis {
+    grid-column: 1 / span 4;
+  }
+
+  .more__card--tech {
+    grid-column: 5 / span 8;
+  }
+}
+
+// What does not exist yet, in a dashed frame.
+.missing {
+  padding-block: var(--section);
+}
+
+.missing__box {
+  max-width: 52rem;
+  padding: clamp(1.5rem, 1rem + 2vw, 2.5rem);
+  border: 1px dashed var(--line-strong);
+  border-radius: var(--r-tile);
+
+  h2 {
+    margin-bottom: 0.75rem;
+  }
+}
+
+.missing__intro {
+  margin-bottom: var(--s-5);
+  color: var(--text-2);
+}
+
+.closing {
+  padding-top: 0;
+}

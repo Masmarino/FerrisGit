@@ -30,7 +30,7 @@ impl PasswordResetPort for PostgresPasswordResetStore {
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<(), DomainError> {
-        // One statement, so two concurrent admin resets for a user cannot leave two live links (`user_id` is UNIQUE).
+        // One statement, so two concurrent admin resets can't leave two live links (`user_id` is UNIQUE).
         sqlx::query(
             "INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3) \
              ON CONFLICT (user_id) DO UPDATE SET token_hash = EXCLUDED.token_hash, expires_at = EXCLUDED.expires_at, created_at = now()",
@@ -45,8 +45,8 @@ impl PasswordResetPort for PostgresPasswordResetStore {
     }
 
     async fn consume(&self, token_hash: &str) -> Result<Option<PasswordReset>, DomainError> {
-        // Delete and return in one statement, so only one of several concurrent consumers gets the row. An
-        // expired link never matches. It stays until the next admin reset replaces it, or the user is deleted.
+        // Delete and return in one statement, so only one concurrent consumer gets the row. An expired link never
+        // matches; it stays until the next reset replaces it or the user is deleted.
         let row = sqlx::query_as::<_, PasswordResetRow>("DELETE FROM password_reset_tokens WHERE token_hash = $1 AND expires_at > now() RETURNING user_id, expires_at")
             .bind(token_hash)
             .fetch_optional(&self.pool)
@@ -64,7 +64,7 @@ impl PasswordResetPort for PostgresPasswordResetStore {
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<bool, DomainError> {
-        // One statement: a row issued meanwhile for this user (a newer admin reset) wins, and this insert is a no-op.
+        // One statement: a row issued meanwhile (a newer admin reset) wins and this insert is a no-op.
         let result = sqlx::query("INSERT INTO password_reset_tokens (user_id, token_hash, expires_at) VALUES ($1, $2, $3) ON CONFLICT DO NOTHING")
             .bind(user_id)
             .bind(token_hash)
@@ -277,7 +277,7 @@ mod tests {
         );
     }
 
-    /// The race `restore` exists for: a newer admin reset landed between the consume and the failed password write.
+    /// The race `restore` exists for: a newer admin reset landing between the consume and the failed password write.
     #[sqlx::test(migrations = "../../migrations")]
     async fn restore_never_overwrites_a_link_issued_meanwhile(pool: PgPool) {
         let user = seed_user(&pool, "alice").await;

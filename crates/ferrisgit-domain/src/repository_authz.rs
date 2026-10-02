@@ -6,15 +6,15 @@ use crate::group_membership::GroupMembershipPort;
 use crate::repository::Repository;
 use crate::repository_collaborator::{CollaboratorRole, RepositoryCollaboratorStorePort};
 
-/// The max role `user_id` effectively holds on `repo`, independent of any `Public` read-only bypass (callers apply it
-/// before calling, each in its own terms: a `CollaboratorRole` ceiling for the API, `GitAccess` for git).
+/// The highest role `user_id` effectively holds on `repo`, ignoring the public read-only bypass, which callers apply
+/// first in their own terms (a role ceiling for the API, `GitAccess` for git).
 ///
-/// For a personal repo, the owner gets the top role and anyone else their direct collaborator role. For a group repo,
-/// it is the higher of the caller's role in the group's ancestor chain and any direct collaborator grant. There is no
-/// owner bypass there, since `owner_id` only records who created it.
+/// On a personal repo the owner gets the top role and everyone else their collaborator role. On a group repo it's the
+/// higher of the user's role up the group chain and any direct collaborator grant. `owner_id` is just the creator there,
+/// not a role.
 ///
-/// This is the one policy shared by `ferrisgit-api::authz::require_role_by_id` and `authenticate_git_request`.
-/// `authz_parity_flow.rs` checks that both callers behave the same.
+/// One policy shared by the API's `require_role_by_id` and `authenticate_git_request`, kept in step by
+/// `authz_parity_flow.rs`.
 pub async fn effective_repository_role(
     collaborators: &dyn RepositoryCollaboratorStorePort,
     groups: &dyn GroupStorePort,

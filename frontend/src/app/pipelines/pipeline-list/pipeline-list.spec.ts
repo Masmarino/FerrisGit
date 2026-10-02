@@ -74,7 +74,7 @@ describe('PipelineList', () => {
     expect(alerts[0].querySelector('.gbt-empty-state')!.getAttribute('data-tone')).toBe('error');
     expect(card.querySelector('[aria-live]')).toBeNull();
     expect(TestBed.inject(GbtToastService).toasts()).toEqual([]);
-    // "Actualiser" in the header is the retry: none in the card.
+    // "Actualiser" in the header is the retry, so none in the card.
     expect(card.querySelector('button')).toBeNull();
   };
   const rows = (el: HTMLElement) => Array.from(el.querySelectorAll<HTMLElement>('.pipeline-list__items > li'));
@@ -249,7 +249,7 @@ describe('PipelineList', () => {
       const leading = rows(el).map((row) => row.querySelector('[row-leading]')!);
       expect(rows(el).map((row) => row.querySelector('.gbt-list-row__leading')!.getAttribute('data-tone'))).toEqual(['error', 'info', 'success', 'neutral', 'neutral']);
       expect(leading.every((icon) => icon.querySelector('gbt-icon'))).toBe(true);
-      // The badge carries the status text; the icon repeats it only as a tooltip.
+      // The badge carries the status text, the icon only repeats it as a tooltip.
       expect(leading.every((icon) => icon.getAttribute('aria-hidden') === 'true')).toBe(true);
       expect(leading.map((icon) => icon.getAttribute('title'))).toEqual(['Échoué', 'En cours', 'Réussi', 'En attente', 'Annulé']);
 
@@ -407,7 +407,7 @@ describe('PipelineList', () => {
       const { fixture, el } = loaded([
         pipeline({ id: 'p1', commitSha: 'aaaaaaaaaa', commitMessage: null, createdAt: '2026-01-01T00:00:00Z' }),
         pipeline({ id: 'p2', commitSha: 'bbbbbbbbbb', commitMessage: null, createdAt: '2026-01-02T00:00:00Z' }),
-        // "bbbb" is inside the SHA, not at its start, so it doesn't match.
+        // "bbbb" is inside the SHA, not at its start, so no match.
         pipeline({ id: 'p3', commitSha: 'ccbbbbcccc', commitMessage: null, createdAt: '2026-01-03T00:00:00Z' }),
       ]);
 

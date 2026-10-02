@@ -297,8 +297,8 @@ async fn starting_a_registration_for_an_unknown_user_is_not_found() {
 
 #[tokio::test]
 async fn a_second_registration_challenge_excludes_the_stored_credentials() {
-    // The soft authenticator ignores excludeCredentials, so the test checks the challenge itself. Id uniqueness at
-    // insert is covered by the Conflict test below.
+    // The soft authenticator ignores excludeCredentials, so look at the challenge itself. The Conflict test below
+    // covers duplicate ids at insert.
     let f = fixture();
     let first = register(&f, f.florian, &mut authenticator(), "MacBook").await;
     let second = register(&f, f.florian, &mut authenticator(), "Clé USB").await;
@@ -344,7 +344,7 @@ async fn a_credential_id_that_already_exists_is_a_conflict_and_nothing_is_overwr
     let credential = authenticator()
         .do_registration(origin(), challenge)
         .unwrap();
-    // Another user (or a racing request) got this credential id stored first.
+    // Someone else (another user or a racing request) stored this credential id first.
     let taken = StoredPasskey {
         id: Uuid::new_v4(),
         user_id: f.marie,
@@ -633,7 +633,7 @@ async fn a_replayed_assertion_is_refused() {
             .finish_authentication(f.florian, challenge_id, &credential)
             .await
     ));
-    // Same assertion against a fresh challenge: it is signed over the old one.
+    // Replayed against a fresh challenge, it still fails: it was signed over the old one.
     let (fresh_id, _) = f.service.start_authentication(f.florian).await.unwrap();
     assert!(is_invalid_code(
         f.service
@@ -722,7 +722,7 @@ async fn an_assertion_from_an_authenticator_the_user_has_not_registered_is_refus
     let mut stranger = authenticator();
     let stranger_credential = register(&f, f.marie, &mut stranger, "Marie's key").await;
     let (challenge_id, mut challenge) = f.service.start_authentication(f.florian).await.unwrap();
-    // A malicious client points the authenticator at its own credential and signs Florian's challenge.
+    // A malicious client signs Florian's challenge with its own credential.
     challenge.public_key.allow_credentials[0].id = stranger_credential.credential_id.clone().into();
     let credential = stranger.do_authentication(origin(), challenge).unwrap();
 
@@ -740,7 +740,7 @@ async fn an_assertion_with_a_counter_regression_is_refused_and_persists_nothing(
     let f = fixture();
     let mut macbook = authenticator();
     let registered = register(&f, f.florian, &mut macbook, "MacBook").await;
-    // The stored passkey remembers a counter far ahead of what the authenticator reports: a cloned key.
+    // The stored counter is far ahead of what the authenticator reports, like a cloned key.
     let mut json: serde_json::Value = serde_json::from_str(&registered.passkey_json).unwrap();
     json["cred"]["counter"] = serde_json::json!(1_000);
     let ahead = json.to_string();
@@ -801,7 +801,7 @@ async fn a_deleted_passkey_can_no_longer_authenticate_and_can_be_registered_agai
 
 #[test]
 fn the_ceremony_store_used_by_the_fixture_starts_empty() {
-    // Checks the fixture itself: a shared, pre-populated store would make the single-use tests meaningless.
+    // Guards the fixture: a store shared between tests would make the single-use tests meaningless.
     let f = fixture();
     assert!(f.ceremonies.take(Uuid::new_v4(), f.florian).is_none());
 }
@@ -877,7 +877,7 @@ async fn an_assertion_from_another_origin_is_refused_and_persists_nothing() {
 
 #[tokio::test]
 async fn a_subdomain_origin_is_refused_for_registration_and_for_assertions() {
-    // A real https deployment (the soft client only accepts plain http on localhost itself).
+    // Real https deployment, the soft client itself only does plain http on localhost.
     let f = fixture_with(
         build_webauthn("https://example.com").map(Arc::new),
         PasskeyCeremonies::new(),
@@ -929,7 +929,7 @@ async fn an_assertion_older_than_the_persisted_counter_is_refused_even_when_its_
     let f = fixture();
     let mut macbook = authenticator();
     register(&f, f.florian, &mut macbook, "MacBook").await;
-    // Two ceremonies are live at once, both started while the persisted counter is still 0.
+    // Two ceremonies live at once, both started while the saved counter is still 0.
     let (first_id, first) = f.service.start_authentication(f.florian).await.unwrap();
     let (second_id, second) = f.service.start_authentication(f.florian).await.unwrap();
     let older = macbook.do_authentication(origin(), first).unwrap(); // reports counter N + 1
@@ -956,7 +956,7 @@ async fn an_assertion_older_than_the_persisted_counter_is_refused_even_when_its_
 
 #[tokio::test]
 async fn a_fresh_passkey_with_a_stored_counter_of_zero_accepts_its_first_assertion() {
-    // The rule only refuses `reported <= stored` when at least one of them is non-zero; a new key starts at 0.
+    // 0 against 0 is fine: the rejection only applies when one of the counters is non-zero, and a new key starts at 0.
     let f = fixture();
     let mut macbook = authenticator();
     register(&f, f.florian, &mut macbook, "MacBook").await;
@@ -995,7 +995,7 @@ async fn a_user_cannot_hold_more_than_twenty_passkeys() {
     let credential = authenticator()
         .do_registration(origin(), challenge)
         .unwrap();
-    // A parallel registration got the twentieth slot between this start and finish.
+    // A parallel registration takes the twentieth slot between start and finish.
     f.passkeys.seed(f.florian, "the twentieth");
 
     let at_finish = f

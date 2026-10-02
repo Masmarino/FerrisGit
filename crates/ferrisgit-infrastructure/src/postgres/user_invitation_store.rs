@@ -30,7 +30,7 @@ impl UserInvitationPort for PostgresUserInvitationStore {
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<(), DomainError> {
-        // One statement, so two concurrent replacements for a user cannot leave two rows (`user_id` is UNIQUE).
+        // One statement, so two concurrent replacements can't leave two rows (`user_id` is UNIQUE).
         sqlx::query(
             "INSERT INTO user_invitations (user_id, token_hash, expires_at) VALUES ($1, $2, $3) \
              ON CONFLICT (user_id) DO UPDATE SET token_hash = EXCLUDED.token_hash, expires_at = EXCLUDED.expires_at, created_at = now()",
@@ -50,7 +50,7 @@ impl UserInvitationPort for PostgresUserInvitationStore {
         token_hash: &str,
         expires_at: DateTime<Utc>,
     ) -> Result<bool, DomainError> {
-        // Conditional on the row still existing (one statement): an activation that consumed it first leaves 0 rows.
+        // Conditional on the row still existing, in one statement: an activation that consumed it first leaves 0 rows.
         let result = sqlx::query("UPDATE user_invitations SET token_hash = $2, expires_at = $3, created_at = now() WHERE user_id = $1")
             .bind(user_id)
             .bind(token_hash)
@@ -62,8 +62,8 @@ impl UserInvitationPort for PostgresUserInvitationStore {
     }
 
     async fn consume(&self, token_hash: &str) -> Result<Option<Invitation>, DomainError> {
-        // Delete and return in one statement, so only one of several concurrent consumers gets the row. An
-        // expired invitation never matches. It stays until replaced, so the admin list keeps showing "invited".
+        // Delete and return in one statement, so only one concurrent consumer gets the row. An expired invitation
+        // never matches; it stays until replaced, so the admin list keeps showing "invited".
         let row = sqlx::query_as::<_, InvitationRow>("DELETE FROM user_invitations WHERE token_hash = $1 AND expires_at > now() RETURNING user_id, expires_at")
             .bind(token_hash)
             .fetch_optional(&self.pool)

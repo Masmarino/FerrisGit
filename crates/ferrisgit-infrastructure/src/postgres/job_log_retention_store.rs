@@ -7,7 +7,7 @@ use sqlx::PgPool;
 use std::collections::HashMap;
 use uuid::Uuid;
 
-/// Runtime queries (no `!` macro), like the other stores added after the initial schema: they need no `.sqlx` entry.
+/// Runtime queries, so no .sqlx entry is needed.
 pub struct PostgresJobLogRetentionStore {
     pool: PgPool,
 }
@@ -20,8 +20,8 @@ impl PostgresJobLogRetentionStore {
 
 #[async_trait]
 impl JobLogRetentionPort for PostgresJobLogRetentionStore {
-    /// One statement: the CTE picks a bounded batch through `jobs_logs_to_purge_idx`, empties it, and records the purge
-    /// in the same transaction. A job whose log is already empty never matches, so it is never marked as purged.
+    /// One statement: the CTE picks a bounded batch through `jobs_logs_to_purge_idx`, empties it and records the
+    /// purge in the same transaction. A job whose log is already empty never matches, so it's never marked as purged.
     async fn purge_logs_finished_before(
         &self,
         cutoff: DateTime<Utc>,
@@ -151,7 +151,7 @@ mod tests {
         assert_eq!(log_of(&pool, recent).await, "recent log");
         assert_eq!(log_of(&pool, running).await, "live log");
         assert_eq!(log_of(&pool, pending).await, "queued");
-        // The job itself, its status and its finish time survive.
+        // The job, its status and its finish time survive.
         let (status, finished): (String, Option<DateTime<Utc>>) =
             sqlx::query_as("SELECT status, finished_at FROM jobs WHERE id = $1")
                 .bind(old_ok)

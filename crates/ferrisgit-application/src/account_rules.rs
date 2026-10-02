@@ -1,4 +1,4 @@
-//! Account rules shared by free registration and admin invitation, so the two entry points never disagree.
+//! Account rules shared by self-registration and admin invitation, so the two paths can't disagree.
 
 use std::sync::Arc;
 
@@ -10,18 +10,16 @@ use rand::Rng;
 
 pub const MIN_PASSWORD_LEN: usize = 8;
 pub const INVITATION_TTL_HOURS: i64 = 24;
-/// Much shorter than an invitation: this link sets the password of an account that is already active, so a leaked link
-/// is worth more.
+/// Much shorter than an invitation: this link sets the password of an active account, so a leaked one is worth more.
 pub const PASSWORD_RESET_TTL_HOURS: i64 = 1;
 
 const USERNAME_MIN_LEN: usize = 3;
 const USERNAME_MAX_LEN: usize = 32;
 
-/// Names a user must not take: every top-level SPA route (a user page lives at `/<username>`, so a user called
-/// `login` would shadow the login page) plus infrastructure names. `reserved_names_cover_every_frontend_route` fails
-/// until new routes in `app.routes.ts` are added here.
+/// Names nobody can take: every top-level SPA route (a user page lives at `/<username>`, so a user called `login` would
+/// shadow the login page) plus infrastructure names. `reserved_names_cover_every_frontend_route` fails until new routes
+/// from `app.routes.ts` are added here.
 const RESERVED_USERNAMES: &[&str] = &[
-    // Top-level SPA routes.
     "login",
     "register",
     "activate",
@@ -50,9 +48,8 @@ const RESERVED_USERNAMES: &[&str] = &[
     "wiki",
 ];
 
-/// Trims and lower-cases, then requires 3-32 characters, a leading ASCII letter, only `[a-z0-9_-]` (no `.`: an
-/// `x.git` username would make the git-vs-SPA fallback treat the user's pages as git requests) and a non-reserved
-/// name.
+/// Trims and lower-cases, then requires 3-32 chars, a leading ASCII letter, only `[a-z0-9_-]` and a non-reserved name.
+/// No `.`: a username like `x.git` would make the git-vs-SPA fallback treat the user's pages as git requests.
 pub fn normalize_username(raw: &str) -> Result<String, DomainError> {
     let username = raw.trim().to_lowercase();
     if !username
@@ -98,20 +95,20 @@ pub fn normalize_email(raw: &str) -> Result<String, DomainError> {
     Ok(email.to_string())
 }
 
-/// Only its `token_hash::hash_token` is ever stored. Also used by the admin password reset links.
+/// Only its `token_hash::hash_token` is stored. Admin password reset links use it too.
 pub fn generate_invitation_token() -> String {
     let mut bytes = [0u8; 32];
     rand::rng().fill_bytes(&mut bytes);
     hex::encode(bytes)
 }
 
-/// Checked before any hashing so garbage sent to the public activation and password-reset endpoints costs nothing.
+/// Checked before any hashing so garbage sent to the public activation and reset endpoints costs nothing.
 pub fn is_invitation_token_shaped(token: &str) -> bool {
     token.len() == 64 && token.bytes().all(|b| b.is_ascii_hexdigit())
 }
 
-/// Argon2 is slow by design. On the async runtime, a burst of unauthenticated requests would block the workers that
-/// also serve the API and git, so it runs on the blocking pool.
+/// Argon2 is slow on purpose. On the async runtime a burst of unauthenticated requests would block the workers that
+/// also serve the API and git, hence the blocking pool.
 pub(crate) async fn hash_blocking(
     hasher: &Arc<dyn PasswordHasherPort>,
     secret: String,
@@ -122,7 +119,7 @@ pub(crate) async fn hash_blocking(
         .map_err(|e| DomainError::Infrastructure(e.to_string()))?
 }
 
-/// Not taken (case-insensitive), not the name of a root group (both live at `/<name>`), e-mail not in use.
+/// Username not taken (case-insensitive), not the name of a root group (both live at `/<name>`), email not in use.
 pub(crate) async fn ensure_account_available(
     users: &Arc<dyn UserRepositoryPort>,
     groups: &Arc<dyn GroupStorePort>,
@@ -328,7 +325,7 @@ mod tests {
         }
     }
 
-    /// `/docs` is the product documentation (static files and SPA pages): no account may take the name.
+    /// `/docs` serves the product documentation, so no account may take the name.
     #[test]
     fn the_documentation_is_reserved() {
         for name in ["docs", "Docs", " DOCS "] {
@@ -339,15 +336,14 @@ mod tests {
         }
     }
 
-    /// The reserved-name check must run on the lower-cased name so no Unicode case fold can smuggle a reserved name
-    /// past it.
+    /// The reserved-name check has to run on the lower-cased name, or a Unicode case fold could smuggle a reserved one in.
     #[test]
     fn a_unicode_fold_cannot_smuggle_a_reserved_name_through() {
-        // U+212A KELVIN SIGN lower-cases to ASCII `k`: `wi<K>i` folds to the reserved `wiki`.
+        // U+212A (Kelvin sign) lower-cases to ASCII `k`, so `wi<K>i` would fold to the reserved `wiki`.
         assert!(is_validation(normalize_username("wi\u{212A}i")));
-        // U+0130 (dotted capital I) lower-cases to `i` + U+0307 (combining dot): not in the charset.
+        // U+0130 (dotted capital I) lower-cases to `i` plus a combining dot, which isn't in the charset.
         assert!(is_validation(normalize_username("ADM\u{130}N")));
-        // U+0131 (dotless i) is not ASCII and stays that way.
+        // U+0131 (dotless i) isn't ASCII and stays that way.
         assert!(is_validation(normalize_username("adm\u{131}n")));
         assert!(is_validation(normalize_username("ａｄｍｉｎ")));
     }

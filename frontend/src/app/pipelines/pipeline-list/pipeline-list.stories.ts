@@ -111,7 +111,7 @@ function assertPageLayout(canvas: HTMLElement): number {
     if (rect(link).right > rect(row.querySelector('.gbt-list-row__title')!).right + 0.5) throw new Error('title link spills out of its column');
     const sha = row.querySelector('.pipeline-list__sha')!;
     if (rect(sha).right > rect(row.querySelector('.gbt-list-row__meta')!).right + 0.5) throw new Error('SHA chip spills out of the meta line');
-    // In a phone-width card the badge is visually hidden; the title takes the width.
+    // In a phone-width card the badge is visually hidden and the title takes the width.
     const badge = row.querySelector('.gbt-list-row__trailing fg-status-badge')!;
     const trailing = row.querySelector('.gbt-list-row__trailing')!;
     if (rect(trailing).width > 1) {
@@ -197,7 +197,7 @@ export const ManyPipelines: Story = {
   },
 };
 
-/** The push contained a pipeline file that does not parse: failed from the start, no duration, and the reason is in the detail. */
+/** The push held a pipeline file that doesn't parse: failed from the start, no duration, the reason is in the detail. */
 export const InvalidPipelineFile: Story = {
   decorators: [
     withData({

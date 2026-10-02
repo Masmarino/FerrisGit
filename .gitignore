@@ -3,6 +3,9 @@
 /frontend/node_modules
 /frontend/dist
 /frontend/.angular
+/website/node_modules
+/website/dist
+/website/.angular
 /data
 .env
 /kubeconfig.yaml

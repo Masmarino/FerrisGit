@@ -11,8 +11,8 @@ body {
   color: var(--text-primary);
 }
 
-// Gabarit gap: `gbt-alert`'s actions slot is `flex: none`, so two buttons wider than a phone overflow instead of
-// wrapping. A `small` button in it is also only 28px high, too small to tap comfortably on a phone.
+// Gabarit gap: `gbt-alert`'s actions slot is `flex: none`, so two wide buttons overflow on a phone instead of wrapping.
+// A `small` button in it is also only 28px high, too small to tap.
 .gbt-alert__actions {
   flex: 0 1 auto;
   max-width: 100%;
@@ -24,9 +24,9 @@ body {
   }
 }
 
-// Gabarit gap: `gbt-card` is not a size container and has no narrow layout. Settings sections make their cards one
-// (`container: settings-card`). In a narrow card the heading glyph is hidden and the padding tightens. The host element
-// in each selector beats Gabarit's scoped rules. Delete this when `gbt-card` has a compact layout of its own.
+// Gabarit gap: `gbt-card` isn't a size container and has no narrow layout. Settings sections make their cards one
+// (`container: settings-card`), and here a narrow card drops the heading glyph and tightens its padding. The host
+// element in the selectors beats Gabarit's scoped rules. Delete this once `gbt-card` has a compact layout.
 @container settings-card (max-width: 519px) {
   gbt-card > .gbt-card__header:not([data-tone]) > .gbt-card__icon {
     display: none;
@@ -37,23 +37,22 @@ body {
   }
 }
 
-// Gabarit gap: `gbt-list-row` colours its info glyph with `--color-info-bg-text` (near white in dark); keep the medium blue.
+// Gabarit gap: `gbt-list-row` draws its info glyph near-white in dark mode; keep the medium blue.
 .gbt-list-row__leading[data-tone='info'] {
   --color-info-bg-text: color-mix(in srgb, var(--color-info-vivid-base) 72%, var(--text-primary));
 }
 
-// Gabarit gap: a modal's `[modal-footer]` buttons stay 32-35px high on a phone while `gbt-confirm-danger-modal`'s grow to
-// 44px on a coarse pointer.
+// Gabarit gap: a modal's `[modal-footer]` buttons stay 32-35px high on a phone, while `gbt-confirm-danger-modal`'s
+// grow to 44px on a coarse pointer.
 @media (pointer: coarse) {
   .gbt-modal__footer .gbt-button {
     min-height: 44px;
   }
 }
 
-// The shell's breadcrumb already shows the page title. The page heading stays in the DOM, so assistive technology
-// still gets its one `h1`, but it is not drawn. The header then keeps only what the breadcrumb does not say (badges,
-// meta, actions) and disappears when it has none. Gabarit gap: `gbt-page-header` cannot hide its heading. The doubled
-// class beats Gabarit's scoped rules on specificity.
+// The breadcrumb already shows the page title, so the heading is hidden visually but stays as the page's one h1 for
+// screen readers. The header keeps only what the breadcrumb doesn't say (badges, meta, actions) and vanishes when it
+// has none. Gabarit gap: `gbt-page-header` can't hide its heading. The doubled class beats its scoped rules.
 gbt-page-header .gbt-page-header__title.gbt-page-header__title {
   position: absolute;
   width: 1px;

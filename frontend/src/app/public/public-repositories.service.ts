@@ -31,10 +31,10 @@ export interface PublicCatalogPage {
 
 export const PUBLIC_CATALOG_PAGE_SIZE = 20;
 
-/** Longer search texts are cut, in the quick search and in the catalog's own field. */
+/** Longer search texts get cut, in the quick search and in the catalog's own field. */
 export const PUBLIC_CATALOG_MAX_QUERY_LENGTH = 100;
 
-/** What the reused repository pages read, so this service can stand in for `RepositoriesService` on the public routes. */
+/** What the reused repository pages read, so this service can stand in for `RepositoriesService` on public routes. */
 export type RepositoryReads = Pick<
   RepositoriesService,
   'getById' | 'treeAt' | 'blobAt' | 'readmeAt' | 'listContributors' | 'getLanguages' | 'commitsById' | 'resolve' | 'cloneUrl'

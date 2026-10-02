@@ -11,13 +11,11 @@ use crate::error::DomainError;
 pub struct CommentAnchor {
     pub file_path: String,
     pub line_number: i32,
-    /// `None` covers exactly `line_number`; `Some(n)` covers the inclusive range `line_number..=n` on the same side
-    /// (multi-line comments, suggestions).
+    /// `None` covers only `line_number`, `Some(n)` the inclusive range up to line `n` on the same side.
     pub end_line: Option<i32>,
     pub side: DiffSide,
-    /// The anchor's literal content when created, captured server-side and never trusted from a client. A range is
-    /// every line concatenated (each keeps its trailing newline). Comparing it with the current diff is how
-    /// "outdated" is computed (`find_line`/`find_lines`).
+    /// The anchored text as it was at creation, captured server-side and never taken from the client. A range is all its
+    /// lines concatenated, newlines included. Comparing it with the current diff is how "outdated" is computed.
     pub anchor_content: String,
 }
 
@@ -25,7 +23,7 @@ pub struct CommentAnchor {
 pub struct MergeRequestComment {
     pub id: Uuid,
     pub merge_request_id: Uuid,
-    /// `None` once the author's account was deleted: the comment outlives them.
+    /// `None` once the author's account is deleted: the comment outlives them.
     pub author_id: Option<Uuid>,
     pub body: String,
     pub created_at: DateTime<Utc>,
@@ -34,14 +32,12 @@ pub struct MergeRequestComment {
     pub line_number: Option<i32>,
     pub side: Option<DiffSide>,
     pub anchor_content: Option<String>,
-    /// Only meaningful on a thread root: a reply's value is never read. Independent of `outdated`, since resolving is a
-    /// human choice and staleness is derived from the diff.
+    /// Only read on a thread root. Independent of `outdated`: resolving is a human choice, staleness comes from the diff.
     pub resolved: bool,
     pub end_line: Option<i32>,
-    /// `None` unless the comment is a suggestion. A reply never carries one (`AddMergeRequestCommentUseCase` discards
-    /// it).
+    /// `None` unless the comment is a suggestion. Replies never carry one, the use case drops it.
     pub suggested_content: Option<String>,
-    /// Set once when a suggestion is first applied, never unset.
+    /// Set when a suggestion is first applied, never cleared.
     pub applied_at: Option<DateTime<Utc>>,
     pub applied_commit_sha: Option<String>,
 }
@@ -51,9 +47,9 @@ pub struct NewMergeRequestComment {
     pub author_id: Uuid,
     pub body: String,
     pub reply_to_id: Option<Uuid>,
-    /// `None` for a general comment or a reply (a reply's anchor is copied from its thread root).
+    /// `None` for a general comment or a reply, whose anchor is copied from its thread root.
     pub anchor: Option<CommentAnchor>,
-    /// `None` unless a brand-new suggestion; ignored on a reply.
+    /// Only for a brand-new suggestion, ignored on a reply.
     pub suggested_content: Option<String>,
 }
 
@@ -67,22 +63,22 @@ pub trait MergeRequestCommentPort: Send + Sync {
         &self,
         merge_request_id: Uuid,
     ) -> Result<Vec<MergeRequestComment>, DomainError>;
-    /// `NotFound` if no such comment. Callers check the comment belongs to the merge request and is a thread root:
-    /// this port is pure persistence, not policy.
+    /// `NotFound` if there is no such comment. Pure persistence: callers check it belongs to the merge request and is a
+    /// thread root.
     async fn set_comment_resolved(
         &self,
         comment_id: Uuid,
         resolved: bool,
     ) -> Result<(), DomainError>;
-    /// `NotFound` if no such comment. Callers check it belongs to the merge request, is a root carrying a suggestion,
-    /// and is not already applied.
+    /// `NotFound` if there is no such comment. Callers check it belongs to the merge request, is a root with a suggestion
+    /// and isn't applied yet.
     async fn mark_comment_applied(
         &self,
         comment_id: Uuid,
         commit_sha: &str,
     ) -> Result<MergeRequestComment, DomainError>;
-    /// Comments per merge request (general, inline, replies) for a page of merge requests. Those without comments may
-    /// be absent (read as 0). The default reports none so test doubles need not implement it.
+    /// Comment counts (general, inline and replies) for a page of merge requests. Those without comments may be missing,
+    /// read them as 0. The default returns nothing so test doubles needn't implement it.
     async fn comment_counts(
         &self,
         _merge_request_ids: &[Uuid],

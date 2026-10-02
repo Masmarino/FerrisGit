@@ -25,10 +25,10 @@ use tower_http::trace::TraceLayer;
 
 use crate::state::AppState;
 
-/// The JWT lives in `localStorage`, so an XSS bug could read it. The CSP locks down `object-src`, `base-uri` and
-/// `frame-ancestors` to narrow that. `script-src` stays at the `default-src` `'self'` fallback. `style-src
-/// 'unsafe-inline'` is needed because Angular injects component styles as `<style>` tags. `X-Frame-Options`
-/// duplicates `frame-ancestors` for browsers that predate CSP.
+/// The JWT lives in localStorage, so an XSS bug could read it; the CSP limits the damage by locking down
+/// object-src, base-uri and frame-ancestors. script-src falls back to default-src 'self'. style-src needs
+/// 'unsafe-inline' because Angular injects component styles as <style> tags. X-Frame-Options repeats
+/// frame-ancestors for browsers without CSP.
 fn security_headers() -> [(HeaderName, HeaderValue); 4] {
     [
         (
@@ -52,11 +52,11 @@ fn security_headers() -> [(HeaderName, HeaderValue); 4] {
     ]
 }
 
-/// Git smart-HTTP and the SPA share the root URL namespace and can only be told apart by a `.git`-suffixed path
-/// segment. A wildcard axum route would take priority over the SPA fallback and intercept its URLs.
+/// Git smart-HTTP and the SPA share the root URL space and only a `.git` path segment tells them apart. A wildcard
+/// route would win over the SPA fallback and swallow its URLs, hence the manual dispatch in the fallback.
 pub fn build_router(state: AppState, static_dir: &Path) -> Router {
-    // `/docs` and `/docs/<section>` are folders of the documentation assets but also SPA routes: without a redirect to
-    // `/docs/`, they fall through to the shell like any other route (they hold no index.html).
+    // No trailing-slash redirect: /docs and /docs/<section> are asset folders but also SPA routes, and with no
+    // index.html in them they have to fall through to the shell.
     let spa_fallback = ServeDir::new(static_dir)
         .redirect_to_trailing_slash(false)
         .not_found_service(ServeFile::new(static_dir.join("index.html")));
@@ -71,12 +71,12 @@ pub fn build_router(state: AppState, static_dir: &Path) -> Router {
                 if routes::git_http::is_git_request_path(req.uri().path()) {
                     routes::git_http::git_smart_http(state, req).await
                 } else {
-                    // The documentation files (`/docs/index.json`, `/docs/<section>/<page>.md`) have no content hash either.
+                    // The docs files have no content hash either.
                     let is_docs_asset = req.uri().path().starts_with("/docs/");
                     match spa_fallback.oneshot(req).await {
                         Ok(mut res) => {
-                            // The app shell has no content hash in its name. Without a Cache-Control header, heuristic caching can keep
-                            // serving a stale shell that references bundles from a previous deploy.
+                            // The shell has no content hash in its name. Without Cache-Control, heuristic caching can keep
+                            // serving an old shell that points at bundles from a previous deploy.
                             let is_html = res
                                 .headers()
                                 .get(axum::http::header::CONTENT_TYPE)
@@ -103,13 +103,13 @@ pub fn build_router(state: AppState, static_dir: &Path) -> Router {
             state.clone(),
             routes::public::robots_tag,
         ))
-        // Merged after the layer on purpose: `robots_tag` reads the settings from the database on every response, and the
-        // probes must not depend on it (liveness would fail during a database outage).
+        // Merged after the layer on purpose: robots_tag hits the database on every response, and liveness shouldn't
+        // fail during a database outage.
         .merge(probe_routes())
         .with_state(state)
 }
 
-/// What the Kubernetes probes call: `/healthz` says the process runs, `/readyz` that the database answers.
+/// Kubernetes probes: `/healthz` says the process runs, `/readyz` that the database answers.
 fn probe_routes() -> Router<AppState> {
     Router::new()
         .route("/healthz", get(routes::health))

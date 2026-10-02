@@ -17,7 +17,7 @@ describe('RepositoryPipelineSettings', () => {
     fixture.detectChanges();
 
     expect(repositorySettingsStub.get).toHaveBeenCalledWith('repo-1');
-    // The value is bound via [ngModel] into gbt-input's own <input>, so assert on the loaded signal, not the DOM text.
+    // The value goes through [ngModel] into gbt-input's <input>, so assert on the loaded signal, not DOM text.
     expect(component['settings']()?.pipelineFilePath).toBe('.ferrisgit-ci.yml');
   });
 
@@ -257,7 +257,7 @@ describe('RepositoryPipelineSettings', () => {
       const failed = el.querySelector('gbt-alert .gbt-alert');
       expect(text(failed)).toContain("Les réglages du pipeline n'ont pas pu être chargés");
       expect(failed?.getAttribute('data-variant')).toBe('error');
-      // The error toast announces the failure, so the inline block stays silent (one live region, not two).
+      // The toast announces the failure, so the inline block stays silent.
       expect(failed?.getAttribute('role')).toBeNull();
       expect(failed?.getAttribute('aria-live')).toBeNull();
       expect(failed?.querySelector('button')?.textContent?.trim()).toBe('Réessayer');

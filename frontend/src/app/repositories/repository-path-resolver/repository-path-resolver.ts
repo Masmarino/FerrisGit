@@ -87,16 +87,15 @@ export class RepositoryPathResolver implements OnInit, OnDestroy {
   protected view = signal<View>({ kind: 'loading' });
 
   ngOnInit(): void {
-    // `route.url` is a `BehaviorSubject` that replays its value synchronously, so this subscription covers the
-    // initial load and every in-place navigation. Also resolving `route.snapshot.url` would fire a duplicate request.
+    // route.url replays its current value on subscribe, so this covers the first load and every later
+    // navigation. Resolving route.snapshot.url as well would fire the request twice.
     this.route.url
       .pipe(
-        // `switchMap` cancels a stale `resolve()` so a slow earlier response can never overwrite a later view.
+        // switchMap drops a slow earlier response so it can't overwrite a later view.
         switchMap((urlSegments) => {
           const { pathSegments, subPageSegments } = this.parseUrl(urlSegments);
-          // Moving between a pipeline's summary and one of its jobs keeps the `fg-pipeline-detail` shell alive
-          // (sidebar, polling): it reacts to a changing `jobId`, so skip the loading reset. Every other view reads
-          // its inputs in `ngOnInit` and needs the reset to be recreated.
+          // Going from a pipeline to one of its jobs keeps the pipeline-detail shell (sidebar, polling) alive,
+          // and it reacts to a changing jobId. Every other view reads its inputs once, so it needs the reset.
           const previous = this.view();
           if (
             previous.kind === 'pipelineDetail' &&
@@ -119,7 +118,7 @@ export class RepositoryPathResolver implements OnInit, OnDestroy {
           return this.repositories.resolve(pathSegments).pipe(
             map((resolved) => this.toView(resolved, subPageSegments, pathSegments)),
             catchError(() => {
-              // The repository or group itself does not exist, so no sidebar is valid any more. Clear any previous context.
+              // Nothing to resolve, so the previous repository's sidebar no longer applies.
               this.context.leave();
               return of<View>({ kind: 'notFound' });
             }),
@@ -141,8 +140,7 @@ export class RepositoryPathResolver implements OnInit, OnDestroy {
     this.context.leave();
   }
 
-  // The `repositories/**` route also consumes the literal `repositories` prefix in `ActivatedRoute.url`:
-  // drop it before `resolve()` and before the `path` passed to children.
+  // The `repositories/**` route keeps the literal "repositories" prefix in the url: drop it.
   private parseUrl(urlSegments: UrlSegment[]): { pathSegments: string[]; subPageSegments: string[] } {
     const segments = urlSegments.map((s) => s.path).slice(1);
     const markerIndex = segments.indexOf('-');

@@ -27,7 +27,7 @@ export class RepositoryPipelineSettings implements OnInit {
   ];
 
   protected settings = signal<RepositorySettingsModel | null>(null);
-  /** The saved state, the clicked one while saving, and the previous one again when the save fails. */
+  /** Saved value, then the clicked one while saving, back to the previous if the save fails. */
   protected ciEnabledShown = linkedSignal(() => this.settings()?.ciEnabled ?? false);
   protected loadState = signal<'loading' | 'loaded' | 'failed'>('loading');
   protected saveStates = signal<Partial<Record<Field, SaveState>>>({});
@@ -66,7 +66,7 @@ export class RepositoryPipelineSettings implements OnInit {
     this.setPipelineEnabled(!this.ciEnabledShown());
   }
 
-  /** Called on blur, not on every keystroke (see `Input.committed`). */
+  /** Called on blur, not on every keystroke. */
   updatePipelineFilePath(path: string): void {
     const trimmed = path.trim();
     if (!trimmed) {

@@ -9,12 +9,12 @@ $header-gap: 0.5rem;
   display: block;
 }
 
-// A navigator wide enough for a few folder levels before names truncate.
+// Wide enough for a few folder levels before names truncate.
 .repository-blob-view__layout {
   --gbt-page-nav-width: 280px;
 }
 
-// Gabarit gap: the card sets its own text styles on its root, so every card here inherits the page's instead.
+// Gabarit gap: gbt-card sets its own text styles; inherit the page's instead.
 gbt-card {
   @include card.inherit-text;
 }
@@ -121,7 +121,7 @@ gbt-card {
   }
 }
 
-// Up to 768px the navigator is a closed "Fichiers" disclosure above the file. Wider, it gets a column of its own.
+// Up to 768px the navigator is a closed "Fichiers" disclosure above the file, wider it's a column.
 // Both follow the layout's container query, not the viewport.
 
 .repository-blob-view__nav {
@@ -188,8 +188,8 @@ gbt-card {
   display: block;
 }
 
-// In the disclosure the button already says "Fichiers", so the panel heading only names the section for
-// assistive technology (aria-labelledby still reads a heading with display: none).
+// The disclosure button already says "Fichiers", so the heading is only for aria-labelledby, which still
+// reads a display: none heading.
 .repository-blob-view__navigator ::ng-deep .gbt-panel__header {
   display: none;
 }
@@ -240,7 +240,7 @@ gbt-card {
   }
 }
 
-// Tree rows: a little tighter than Gabarit's default, and the chevron aligned on the row's icon.
+// Tighter tree rows than Gabarit's default, with the chevron aligned on the row icon.
 .repository-blob-view__navigator ::ng-deep {
   .gbt-tree__item {
     height: 30px;

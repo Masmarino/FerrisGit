@@ -4,7 +4,7 @@
 $marker-size: 10px;
 $event-line: 1.25rem;
 
-// Header and layout share the page's 1440px frame, so the h1 lines up with the main column and the aside.
+// Header and layout share the 1440px frame so the h1 lines up with the main column and the aside.
 :host {
   @include list-page.page-host;
 }
@@ -25,7 +25,7 @@ $event-line: 1.25rem;
   min-width: 0;
 }
 
-// Gabarit sets its own text colour on the card root; hand it back to the page.
+// Gabarit sets its own text colour on the card root; give it back to the page.
 gbt-card {
   min-width: 0;
 
@@ -113,7 +113,7 @@ gbt-card {
   max-width: 100%;
 }
 
-// The link is the badge's box, so it truncates in a narrow row; the badge has no hover state, so the link draws its border.
+// The link is the badge's box so it truncates in a narrow row; the badge has no hover state, so the link draws the border.
 .home-page__meta .home-page__repo {
   display: inline-flex;
   min-width: 0;

@@ -51,7 +51,7 @@
                     par <span class="issue-list__author">{{ author.username }}</span>
                   }
                 </span>
-                <!-- Each separator belongs to the segment after it, so a wrapped line does not end on a dangling "·". -->
+                <!-- Each separator belongs to the segment after it, so a wrapped line never ends on a dangling "·". -->
                 @if (row.issue.closedAt; as closedAt) {
                   <span>
                     <span aria-hidden="true"> · </span>fermé
@@ -141,9 +141,9 @@
   }
 </gbt-page-layout>
 
-<!-- Closing it drops the draft, and a failed creation keeps it open with the draft. The form is rebuilt each time it opens. -->
+<!-- Rebuilt on every opening: closing drops the draft, a failed creation keeps the dialog open with it. -->
 @if (createOpen()) {
-  <!-- The form wraps the whole dialog because the submit button sits in the footer slot, outside the body. -->
+  <!-- The form wraps the whole dialog because the submit button is in the footer slot, outside the body. -->
   <form (submit)="$event.preventDefault(); createIssue()">
     <gbt-modal [isOpen]="true" heading="Nouveau ticket" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="closeCreate()">
       <div class="issue-list__create-form">

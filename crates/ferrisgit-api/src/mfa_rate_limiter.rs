@@ -6,11 +6,11 @@ use uuid::Uuid;
 
 const MAX_ATTEMPTS: u32 = 10;
 const WINDOW: Duration = Duration::from_secs(5 * 60);
-/// Cap on tracked users (see `LoginRateLimiter`). On overflow, expired windows are dropped first.
+/// Cap on tracked users, like in `LoginRateLimiter`. On overflow, expired windows go first.
 const MAX_TRACKED: usize = 50_000;
 
-/// Keyed by user, not IP: a TOTP code has only a million values, so the budget follows the account, whoever holds
-/// its `mfa-pending` token. Every call counts, a successful one included, and nothing is refunded.
+/// Keyed by user, not IP: a TOTP code has only a million values, so the budget follows the account whoever holds
+/// the `mfa-pending` token. Every call counts, successes included, and nothing is refunded.
 pub struct MfaRateLimiter {
     window: Duration,
     attempts: Mutex<HashMap<Uuid, (u32, Instant)>>,
@@ -30,7 +30,7 @@ impl MfaRateLimiter {
         }
     }
 
-    /// Only for tests, which need to check what a refused call consumed without racing a wall-clock window.
+    /// For tests, which need to see what a refused call consumed without racing the clock.
     pub fn reset(&self, user_id: Uuid) {
         self.attempts
             .lock()

@@ -75,7 +75,7 @@ export class WikiPageDetail implements OnInit {
   protected page = signal<WikiPageDetailResponse | null>(null);
   protected revisions = signal<WikiRevision[]>([]);
   protected revisionsState = signal<'loading' | 'loaded' | 'failed'>('loading');
-  // Not `protected` because the spec calls it directly.
+  // Public so the spec can call it.
   selectedRevisionContent = signal<string | null>(null);
   protected selectedRevisionSha = signal<string | null>(null);
   protected loadingRevisionSha = signal<string | null>(null);
@@ -134,8 +134,8 @@ export class WikiPageDetail implements OnInit {
 
   ngOnInit(): void {
     this.pageTitle.set(this.showHistory() ? this.historyTitle() : this.title());
-    // Page mode needs the history too (byline, "Historique" panel): one extra request, and the
-    // page still shows without them if it fails. In history mode it is the page's content.
+    // Page mode needs the history too (byline, "Historique" panel): one extra request, and the page still shows without
+    // them if it fails. In history mode it is the page's content.
     this.wiki.revisions(this.repositoryId(), this.slug()).subscribe({
       next: (revisions) => {
         this.revisions.set(revisions);
@@ -163,7 +163,7 @@ export class WikiPageDetail implements OnInit {
     });
   }
 
-  /** The rendered headings, for the outline. The first time, a `#user-content-…` in the URL scrolls to its heading (the router has no anchor scrolling). Later renders do not move the reader. */
+  /** The rendered headings, for the outline. The first time, a `#user-content-…` in the URL scrolls to its heading (the router has no anchor scrolling). Later renders don't move the reader. */
   protected onOutline(entries: MarkdownOutlineEntry[]): void {
     this.outline.set(entries);
     if (this.fragmentHandled) {

@@ -17,7 +17,7 @@ import {
   withRouterAndIcons,
 } from '../repository-story-fixtures';
 
-/** Real-layout check jsdom cannot make: with `table-layout: fixed` the header cells set the column widths and must take part in the layout (hidden ones gave three equal thirds). */
+/** Needs real layout, which jsdom lacks. With table-layout: fixed the header cells set the column widths, so hiding them gave three equal thirds. */
 async function expectFileColumns({ canvasElement }: { canvasElement: HTMLElement }) {
   const table = await waitFor(() => {
     const found = canvasElement.querySelector<HTMLTableElement>('.repository-tree-view__table');

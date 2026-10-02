@@ -9,7 +9,7 @@ const DIRECTION_OPTIONS: SegmentedControlOption<'asc' | 'desc'>[] = [
 ];
 
 /**
- * The aside panels ("Recherche", "Trier") bound to a `fg-workspace-grid`'s own search and sort:
+ * Search and sort panels for a workspace grid, meant for the page aside:
  *   <fg-workspace-grid #grid … /> <div page-aside><fg-workspace-grid-filters [grid]="grid" /></div>
  */
 @Component({

@@ -20,8 +20,8 @@ use crate::error::ApiError;
 use crate::routes::user_ref::{UserRef, load_user_refs};
 use crate::state::AppState;
 
-/// Commit messages are resolved from git for at most this many (the newest) pipelines: each one opens the
-/// repository, so an unbounded list would make the request cost grow with history. Older ones get `null`.
+/// Commit messages are read from git for only this many (the newest) pipelines, since each opens the repository
+/// and the cost would grow with history. Older ones get `null`.
 const COMMIT_MESSAGE_LIST_LIMIT: usize = 50;
 
 async fn find_accessible_pipeline(
@@ -49,13 +49,13 @@ struct PipelineResponse {
     finished_at: Option<DateTime<Utc>>,
     triggered_by: Option<UserRef>,
     commit_message: Option<String>,
-    /// Why the pipeline file could not be used. Only set on a failed pipeline without jobs.
+    /// Why the pipeline file couldn't be used. Only set on a failed pipeline with no jobs.
     error: Option<String>,
 }
 
 impl PipelineResponse {
-    /// Every handler returning pipelines goes through here so they all carry the same fields. A commit that cannot
-    /// be resolved never fails the request.
+    /// Every handler that returns pipelines builds them here, so the fields stay the same. A commit we can't
+    /// resolve doesn't fail the request.
     async fn build_many(
         state: &AppState,
         disk_path: &str,
@@ -128,7 +128,7 @@ struct JobResponse {
     needs: Vec<String>,
     tags: Vec<String>,
     logs: String,
-    /// Set when the log retention emptied this job's log, so the interface can tell it from a log that was never written.
+    /// Set when the log retention emptied this log, so the UI can tell it from one that was never written.
     logs_purged_at: Option<DateTime<Utc>>,
     created_at: DateTime<Utc>,
     started_at: Option<DateTime<Utc>>,

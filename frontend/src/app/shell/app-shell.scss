@@ -4,8 +4,7 @@
   width: auto;
   margin-bottom: 1rem;
 
-  // `display: block` above would otherwise beat the browser's `[hidden]` rule (same specificity, author stylesheet wins),
-  // and the collapsed toggle would stop hiding the logo.
+  // The `display: block` above would beat the browser's `[hidden]` rule and the collapsed toggle couldn't hide the logo.
   &[hidden] {
     display: none;
   }
@@ -18,7 +17,7 @@
   flex-direction: column;
   gap: 0.25rem;
 }
-// Nested inside Gabarit's flex <header>: grows into the remaining width so the grid below works.
+// Sits inside Gabarit's flex <header> and takes the remaining width so the grid works.
 .app-shell__header {
   flex: 1;
   min-width: 0;
@@ -27,8 +26,8 @@
   align-items: center;
   gap: 1rem;
 
-  // An `auto` track never shrinks below its min-content width, so below ~768px the grid would overflow the header.
-  // `minmax(0, 1fr)` lets the search column give up space.
+  // An `auto` track never shrinks below its content, so the grid would overflow the header on a phone. `minmax(0, 1fr)`
+  // lets the search column give way.
   @media (max-width: 768px) {
     grid-template-columns: auto minmax(0, 1fr) auto;
   }

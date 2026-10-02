@@ -77,7 +77,7 @@ interface UserRow {
   expiry: RowDate | null;
   canResend: boolean;
   canReset: boolean;
-  /** Not offered for the signed-in administrator's own account (the server refuses it). */
+  /** Not offered for your own account, the server refuses it. */
   canResetPassword: boolean;
   adminAction: { label: string; icon: string };
   menuLabel: string;
@@ -87,9 +87,8 @@ interface UserRow {
 }
 
 /**
- * Resetting the signed-in administrator's own two-factor authentication ends their session (the server
- * invalidates every session of the account), so the page warns beforehand and signs them out afterwards.
- * Their own password is never offered for a reset (the server refuses it).
+ * Resetting your own two-factor ends your session (the server invalidates every session of the account), so the page
+ * warns first and signs you out afterwards. Your own password is never offered for reset, the server refuses it.
  */
 @Component({
   selector: 'fg-admin-users',
@@ -146,7 +145,7 @@ export class AdminUsers implements OnInit {
     locale: 'fr',
   });
 
-  /** Shown from the first paint so the layout does not shift when the list arrives. */
+  /** Shown from the first paint so the layout doesn't shift when the list arrives. */
   protected toolbarShown = computed(() => this.loadState() !== 'loaded' || this.list().length > 0);
   protected toolbarActive = computed(() => this.loadState() === 'loaded');
 
@@ -250,7 +249,7 @@ export class AdminUsers implements OnInit {
         this.loadState.set('loaded');
       },
       error: () => {
-        // A failed reload keeps the list on screen and shows a toast. A failed first load shows the card's alert instead.
+        // A failed reload keeps the list and shows a toast; a failed first load shows the card's alert.
         if (this.loadState() !== 'loaded') {
           this.loadState.set('failed');
           return;
@@ -271,7 +270,7 @@ export class AdminUsers implements OnInit {
 
   protected closeInvite(): void {
     this.inviteOpen.set(false);
-    // The dialog returns focus to its opener. If that was the empty state's button, which is gone by now, the header button gets it.
+    // The dialog gives focus back to its opener. If that was the empty state's button, now gone, the header button gets it.
     afterNextRender(
       () => {
         const active = document.activeElement;
@@ -323,11 +322,11 @@ export class AdminUsers implements OnInit {
 
   private showMailFailure(failure: MailFailure): void {
     this.mailFailure.set(failure);
-    // The alert sits above the list, possibly far from the row, so it takes the focus and gets read out.
+    // The alert sits above the list, maybe far from the row, so it takes focus and gets read out.
     afterNextRender(() => this.mailFailedAlert()?.focus(), { injector: this.injector });
   }
 
-  /** Restores focus after render, since the menu closed or was replaced by the spinner and took the focus with it. */
+  /** Puts focus back after render: the menu closed or became the spinner, and took the focus with it. */
   private focusRowAction(userId: string): void {
     afterNextRender(
       () => {
@@ -419,7 +418,7 @@ export class AdminUsers implements OnInit {
           this.toast.show(passwordResetToast(target.email));
           this.focusRowAction(target.id);
         } else {
-          // The reset went through and the old password no longer works, so this link is the user's only way back in.
+          // The old password no longer works, so this link is the user's only way back in.
           this.showMailFailure({ kind: 'password-reset', username: target.username, url: result.resetUrl, emailError: result.emailError });
         }
       },
@@ -490,7 +489,7 @@ export class AdminUsers implements OnInit {
         this.demoting.set(false);
         this.demoteTarget.set(null);
         if (self) {
-          // Drop the shell's admin section immediately instead of waiting for the `/auth/me` refresh.
+          // Drop the shell's admin section now instead of waiting for the `/auth/me` refresh.
           this.me.isAdmin.set(false);
           this.me.load();
           this.toast.show(SELF_DEMOTED_TOAST);

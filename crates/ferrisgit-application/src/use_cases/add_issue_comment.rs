@@ -119,8 +119,7 @@ mod tests {
     use ferrisgit_domain::user::User;
     use ferrisgit_domain::webhook_event::WebhookEvent;
 
-    /// An issue written by `author`, assigned to `assignee`, in a repository owned by somebody else. `commenter` is a
-    /// fourth, unrelated user.
+    /// An issue by `author`, assigned to `assignee`, in somebody else's repo. `commenter` is a fourth, unrelated user.
     struct Fixture {
         use_case: AddIssueCommentUseCase,
         issue: Issue,

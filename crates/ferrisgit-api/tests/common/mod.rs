@@ -1,6 +1,6 @@
-// Shared harness of the flow tests. `spawn_app` starts a server with MFA off for the tests that are not about MFA;
-// `spawn_server` enforces MFA with a recording mailer, and `Device` is a real software authenticator that verifies the
-// origin and signs like a browser. `http` and `git` hold the bare-REST and git helpers.
+// Shared harness of the flow tests. `spawn_app` starts a server with MFA off for the tests that aren't about MFA;
+// `spawn_server` enforces MFA with a recording mailer, and `Device` is a real software authenticator that checks the
+// origin and signs like a browser. `http` and `git` hold the plain REST and git helpers.
 
 #![allow(dead_code, unused_imports)]
 
@@ -823,4 +823,32 @@ pub async fn assert_error(res: reqwest::Response, status: u16, message: &str) {
     assert_eq!(res.status().as_u16(), status);
     let body: Value = res.json().await.unwrap();
     assert_eq!(body, json!({ "error": message }));
+}
+
+/// The token of an activation or reset link, which carries it in the URL fragment (`#token=...`).
+pub fn token_of(link: &str) -> String {
+    link.split_once("token=").unwrap().1.to_string()
+}
+
+/// Calls `check` every 500 ms until it returns a value, and fails the test with `description` after `timeout`.
+pub async fn poll_until<F, Fut>(
+    mut check: F,
+    timeout: std::time::Duration,
+    description: &str,
+) -> Value
+where
+    F: FnMut() -> Fut,
+    Fut: std::future::Future<Output = Option<Value>>,
+{
+    let deadline = tokio::time::Instant::now() + timeout;
+    loop {
+        if let Some(value) = check().await {
+            return value;
+        }
+        assert!(
+            tokio::time::Instant::now() < deadline,
+            "timed out waiting for: {description}"
+        );
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
 }

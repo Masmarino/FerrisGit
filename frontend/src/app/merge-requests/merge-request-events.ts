@@ -6,7 +6,7 @@ export interface LabelRef {
   color?: string;
 }
 
-/** One piece of an event sentence, so the system note can render values distinctly while `describeEvent` produces the same plain sentence from them. */
+/** A piece of an event sentence: the system note styles values apart, `describeEvent` joins them into plain text. */
 export type EventSegment = { kind: 'text'; text: string } | { kind: 'labels'; labels: LabelRef[] } | { kind: 'quote'; text: string } | { kind: 'sha'; sha: string };
 
 export type EventTone = 'neutral' | 'success' | 'error';

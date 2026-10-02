@@ -1,4 +1,4 @@
-// Storybook helpers for the public sign-in pages, which sit inside Gabarit's `gbt-auth-panel`. The app does not import them.
+// Storybook-only helpers for the sign-in pages, which sit inside Gabarit's `gbt-auth-panel`.
 import { waitFor } from 'storybook/test';
 
 const rect = (el: Element) => el.getBoundingClientRect();

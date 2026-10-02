@@ -112,8 +112,7 @@ pub struct NewIssueComment {
 
 #[async_trait]
 pub trait IssueStorePort: Send + Sync {
-    /// Allocates the next sequential `number` for `new_issue.repository_id` and creates
-    /// the issue. Callers never choose `number` themselves.
+    /// Allocates the next sequential `number` for the repository and creates the issue. Callers never pick the number.
     async fn create(&self, new_issue: NewIssue) -> Result<Issue, DomainError>;
     async fn find_by_id(&self, id: Uuid) -> Result<Option<Issue>, DomainError>;
     async fn find_by_number(
@@ -122,9 +121,7 @@ pub trait IssueStorePort: Send + Sync {
         number: i32,
     ) -> Result<Option<Issue>, DomainError>;
     async fn list_for_repository(&self, repository_id: Uuid) -> Result<Vec<Issue>, DomainError>;
-    /// Issues in `repository_id`, optionally narrowed to those carrying at least one of
-    /// `label_ids` and/or belonging to `milestone_id`. `None` for either filter means
-    /// "don't narrow by that dimension".
+    /// Optionally narrowed to issues carrying at least one of the labels and/or in the milestone. `None` skips that filter.
     async fn list_for_repository_filtered(
         &self,
         repository_id: Uuid,
@@ -150,7 +147,7 @@ pub trait IssueStorePort: Send + Sync {
         limit: i64,
     ) -> Result<Vec<Issue>, DomainError>;
 
-    /// Open issues (`status != Done`) assigned to `user_id`, restricted to `repository_ids`, most recent first.
+    /// Open issues assigned to the user, most recent first.
     async fn list_assigned_to(
         &self,
         user_id: Uuid,
@@ -158,7 +155,7 @@ pub trait IssueStorePort: Send + Sync {
         limit: i64,
     ) -> Result<Vec<Issue>, DomainError>;
 
-    /// Open issues (`status != Done`) authored by `user_id`, restricted to `repository_ids`, most recent first.
+    /// Open issues authored by the user, most recent first.
     async fn list_authored_by(
         &self,
         user_id: Uuid,

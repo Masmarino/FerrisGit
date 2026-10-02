@@ -1,6 +1,5 @@
-//! Subject, text and HTML builders for outbound notifications. Styles are inline and the layout uses `<table>`, since
-//! mail clients do not reliably support stylesheets, `flex` or `grid`. The logo is referenced as `cid:{LOGO_CID}` and
-//! `SmtpEmailSender` attaches the image under that same id.
+//! Subject, text and HTML for outbound notifications. Styles are inline and the layout is a `<table>` because mail
+//! clients handle stylesheets, `flex` and `grid` badly. The logo is `cid:{LOGO_CID}`, which `SmtpEmailSender` attaches.
 
 pub struct EmailContent {
     pub subject: String,
@@ -8,14 +7,14 @@ pub struct EmailContent {
     pub html: String,
 }
 
-/// `SmtpEmailSender` attaches the actual image bytes tagged with this same id.
+/// Content id the mailer attaches the logo image under.
 pub const LOGO_CID: &str = "ferrisgit-logo";
 
 const PRIMARY: &str = "#0d1ed3";
 const TEXT_PRIMARY: &str = "#1f2937";
 const TEXT_SECONDARY: &str = "#6b7280";
 
-/// Escapes text for an HTML body or a double-quoted attribute. Usernames and URLs are user-influenced.
+/// Escapes text for an HTML body or a quoted attribute. Usernames and URLs are user-influenced.
 fn esc(value: &str) -> String {
     value
         .replace('&', "&amp;")
@@ -80,7 +79,7 @@ fn greeting(username: &str) -> String {
     )
 }
 
-/// The amber box that closes the security notifications. `html` is trusted markup, escaped by the caller.
+/// The amber box closing the security notifications. `html` is trusted markup, the caller escapes it.
 fn warning(html: &str) -> String {
     format!(
         r#"<p style="margin:0; padding:12px 16px; background-color:#fef3c7; border-radius:8px; color:#92400e;">{html}</p>"#
@@ -188,9 +187,8 @@ pub fn mfa_reset(username: &str) -> EmailContent {
     }
 }
 
-/// Sent when an admin resets someone's password. The current password is already disabled and the sessions closed, and
-/// the link (valid 1 hour) lets the user choose a new one. It carries the same warning callout as the other security
-/// notifications, since the user did not ask for this.
+/// Sent when an admin resets someone's password: the old one no longer works, sessions are closed, and the link (valid
+/// 1 hour) lets them pick a new one. Has the same warning box as the other security mails, since the user didn't ask.
 pub fn password_reset(username: &str, reset_url: &str) -> EmailContent {
     let text = format!(
         "Bonjour {username},\n\n\

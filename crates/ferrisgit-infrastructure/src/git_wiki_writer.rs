@@ -1,7 +1,7 @@
 use std::path::{Path, PathBuf};
 
 use crate::error::infra;
-use crate::git_cli::{self, is_plausible_commit_sha};
+use crate::git_cli::{self, identity_env, is_plausible_commit_sha};
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::wiki_page::{WikiRevision, WikiWriterPort};
@@ -31,6 +31,12 @@ async fn run_git(
     ))
 }
 
+/// Logs a failed git step and returns the opaque error callers get.
+fn git_step_failed(wiki_disk_path: &str, stderr: &str, log: &str, public: &str) -> DomainError {
+    tracing::warn!(wiki_disk_path, stderr, "{log}");
+    DomainError::Infrastructure(public.to_string())
+}
+
 async fn run_git_with_stdin(
     repo_path: &Path,
     args: &[&str],
@@ -44,8 +50,7 @@ async fn run_git_with_stdin(
     ))
 }
 
-/// Builds the `git mktree` stdin with `slug`'s entry replaced or added. Entries are sorted by name
-/// here instead of relying on mktree to normalize them.
+/// mktree stdin with `slug`'s entry replaced or added, sorted by name here rather than left to mktree.
 fn build_tree_input(existing_ls_tree_output: &str, slug: &str, new_blob_sha: &str) -> String {
     let file_name = format!("{slug}.md");
     let mut lines: Vec<String> = existing_ls_tree_output
@@ -65,32 +70,28 @@ impl WikiWriterPort for GitWikiWriter {
     async fn ensure_wiki_repo_exists(&self, wiki_disk_path: &str) -> Result<(), DomainError> {
         let repo_path = self.storage_root.join(wiki_disk_path);
         if repo_path.join("HEAD").exists() {
-            // cheap check that saves spawning three `git` processes on every page save
+            // Cheap check that saves spawning three git processes on every page save.
             return Ok(());
         }
         tokio::fs::create_dir_all(&repo_path).await.map_err(infra)?;
 
         let (ok, _, stderr) = run_git(&repo_path, &["init", "--bare"], &[]).await?;
         if !ok {
-            tracing::warn!(
+            return Err(git_step_failed(
                 wiki_disk_path,
-                stderr,
-                "git init --bare failed for wiki repo"
-            );
-            return Err(DomainError::Infrastructure(
-                "failed to initialize wiki repository".to_string(),
+                &stderr,
+                "git init --bare failed for wiki repo",
+                "failed to initialize wiki repository",
             ));
         }
         let (ok, _, stderr) =
             run_git(&repo_path, &["config", "http.receivepack", "true"], &[]).await?;
         if !ok {
-            tracing::warn!(
+            return Err(git_step_failed(
                 wiki_disk_path,
-                stderr,
-                "git config http.receivepack failed for wiki repo"
-            );
-            return Err(DomainError::Infrastructure(
-                "failed to initialize wiki repository".to_string(),
+                &stderr,
+                "git config http.receivepack failed for wiki repo",
+                "failed to initialize wiki repository",
             ));
         }
         let (ok, _, stderr) = run_git(
@@ -104,23 +105,20 @@ impl WikiWriterPort for GitWikiWriter {
         )
         .await?;
         if !ok {
-            tracing::warn!(
+            return Err(git_step_failed(
                 wiki_disk_path,
-                stderr,
-                "git symbolic-ref HEAD failed for wiki repo"
-            );
-            return Err(DomainError::Infrastructure(
-                "failed to initialize wiki repository".to_string(),
+                &stderr,
+                "git symbolic-ref HEAD failed for wiki repo",
+                "failed to initialize wiki repository",
             ));
         }
         Ok(())
     }
 
-    /// Does nothing on a healthy wiki. If the very first write was a raw push to a branch other than
-    /// `main`, `HEAD` stays a dangling symref to `refs/heads/main` and `head_id()` fails, so the wiki
-    /// looks empty. The fix renames the only real branch to `refs/heads/main` instead of moving `HEAD`,
-    /// because `save_page` and `delete_page` always write `refs/heads/main` directly. It only acts when
-    /// there is exactly one branch, since with several it's unclear which one should be `main`.
+    /// A raw push to a branch other than `main` as the very first write leaves HEAD dangling (it points at
+    /// refs/heads/main), so `head_id()` fails and the wiki looks empty. Rename the only branch to main rather
+    /// than moving HEAD, since save_page and delete_page write refs/heads/main directly. With several branches
+    /// it's unclear which should be main, so do nothing.
     async fn heal_dangling_head(&self, wiki_disk_path: &str) -> Result<(), DomainError> {
         let repo_path = self.storage_root.join(wiki_disk_path);
         let main_ref = format!("refs/heads/{DEFAULT_BRANCH}");
@@ -147,19 +145,16 @@ impl WikiWriterPort for GitWikiWriter {
         )
         .await?;
         if !ok {
-            tracing::warn!(
+            return Err(git_step_failed(
                 wiki_disk_path,
-                stderr,
-                "git for-each-ref failed while checking for a dangling wiki HEAD"
-            );
-            return Err(DomainError::Infrastructure(
-                "failed to inspect wiki repository".to_string(),
+                &stderr,
+                "git for-each-ref failed while checking for a dangling wiki HEAD",
+                "failed to inspect wiki repository",
             ));
         }
         let branches: Vec<&str> = branches_listing.lines().filter(|l| !l.is_empty()).collect();
         if branches.len() != 1 || branches[0] == main_ref {
-            // Only heal a single branch that isn't already `main`. With zero there is nothing to heal, and
-            // with several it's ambiguous.
+            // Nothing to heal with no branch or with main alone, and with several we can't tell which should be main.
             return Ok(());
         }
         let only_branch = branches[0];
@@ -178,7 +173,7 @@ impl WikiWriterPort for GitWikiWriter {
             ));
         }
 
-        // Create-only CAS: if two healers race, one wins and the other's `update-ref` fails harmlessly.
+        // Create-only CAS: if two healers race, the loser's update-ref fails harmlessly.
         let (ok, _, stderr) =
             run_git(&repo_path, &["update-ref", &main_ref, &target_sha, ""], &[]).await?;
         if !ok {
@@ -201,7 +196,7 @@ impl WikiWriterPort for GitWikiWriter {
         )
         .await?;
         if !ok {
-            // A stale extra branch ref is harmless; just log it.
+            // A leftover branch ref is harmless, just log it.
             tracing::warn!(
                 wiki_disk_path,
                 stderr,
@@ -238,13 +233,11 @@ impl WikiWriterPort for GitWikiWriter {
         )
         .await?;
         if !ok {
-            tracing::warn!(
+            return Err(git_step_failed(
                 wiki_disk_path,
-                stderr,
-                "git hash-object failed for wiki page save"
-            );
-            return Err(DomainError::Infrastructure(
-                "failed to save wiki page".to_string(),
+                &stderr,
+                "git hash-object failed for wiki page save",
+                "failed to save wiki page",
             ));
         }
 
@@ -268,13 +261,11 @@ impl WikiWriterPort for GitWikiWriter {
         let (ok, tree_sha, stderr) =
             run_git_with_stdin(&repo_path, &["mktree"], tree_input.as_bytes()).await?;
         if !ok {
-            tracing::warn!(
+            return Err(git_step_failed(
                 wiki_disk_path,
-                stderr,
-                "git mktree failed for wiki page save"
-            );
-            return Err(DomainError::Infrastructure(
-                "failed to save wiki page".to_string(),
+                &stderr,
+                "git mktree failed for wiki page save",
+                "failed to save wiki page",
             ));
         }
 
@@ -283,26 +274,19 @@ impl WikiWriterPort for GitWikiWriter {
             commit_args.push("-p");
             commit_args.push(sha);
         }
-        let envs = [
-            ("GIT_AUTHOR_NAME", author_name),
-            ("GIT_AUTHOR_EMAIL", author_email),
-            ("GIT_COMMITTER_NAME", author_name),
-            ("GIT_COMMITTER_EMAIL", author_email),
-        ];
+        let envs = identity_env(author_name, author_email);
         let (ok, commit_sha, stderr) = run_git(&repo_path, &commit_args, &envs).await?;
         if !ok {
-            tracing::warn!(
+            return Err(git_step_failed(
                 wiki_disk_path,
-                stderr,
-                "git commit-tree failed for wiki page save"
-            );
-            return Err(DomainError::Infrastructure(
-                "failed to save wiki page".to_string(),
+                &stderr,
+                "git commit-tree failed for wiki page save",
+                "failed to save wiki page",
             ));
         }
 
-        // The atomic ref update is the conflict check. An empty old-value means the ref must not exist
-        // yet. Otherwise its current value must equal `base_sha`.
+        // The atomic ref update is the conflict check: an empty old-value means the ref must not exist yet,
+        // otherwise it must still equal base_sha.
         let branch_ref = format!("refs/heads/{DEFAULT_BRANCH}");
         let old_value = base_sha.unwrap_or("");
         let (ok, _, stderr) = run_git(
@@ -371,8 +355,7 @@ impl WikiWriterPort for GitWikiWriter {
         if !found {
             return Err(DomainError::NotFound(format!("wiki page '{slug}'")));
         }
-        // The remaining lines keep their sorted order. An empty tree needs truly empty stdin, because
-        // `mktree` rejects a lone newline (a blank line) outside `--batch` mode.
+        // An empty tree needs truly empty stdin: mktree rejects a lone newline outside --batch mode.
         let mut tree_input = tree_lines.join("\n");
         if !tree_lines.is_empty() {
             tree_input.push('\n');
@@ -380,22 +363,15 @@ impl WikiWriterPort for GitWikiWriter {
         let (ok, tree_sha, stderr) =
             run_git_with_stdin(&repo_path, &["mktree"], tree_input.as_bytes()).await?;
         if !ok {
-            tracing::warn!(
+            return Err(git_step_failed(
                 wiki_disk_path,
-                stderr,
-                "git mktree failed for wiki page delete"
-            );
-            return Err(DomainError::Infrastructure(
-                "failed to delete wiki page".to_string(),
+                &stderr,
+                "git mktree failed for wiki page delete",
+                "failed to delete wiki page",
             ));
         }
 
-        let envs = [
-            ("GIT_AUTHOR_NAME", author_name),
-            ("GIT_AUTHOR_EMAIL", author_email),
-            ("GIT_COMMITTER_NAME", author_name),
-            ("GIT_COMMITTER_EMAIL", author_email),
-        ];
+        let envs = identity_env(author_name, author_email);
         let (ok, commit_sha, stderr) = run_git(
             &repo_path,
             &["commit-tree", &tree_sha, "-p", base_sha, "-m", message],
@@ -403,13 +379,11 @@ impl WikiWriterPort for GitWikiWriter {
         )
         .await?;
         if !ok {
-            tracing::warn!(
+            return Err(git_step_failed(
                 wiki_disk_path,
-                stderr,
-                "git commit-tree failed for wiki page delete"
-            );
-            return Err(DomainError::Infrastructure(
-                "failed to delete wiki page".to_string(),
+                &stderr,
+                "git commit-tree failed for wiki page delete",
+                "failed to delete wiki page",
             ));
         }
 
@@ -443,7 +417,7 @@ mod tests {
         tempfile::tempdir().unwrap()
     }
 
-    /// A working checkout holding one committed `Home.md`, as a user's clone would before a raw push.
+    /// A checkout with one committed `Home.md`, like a user's clone before a raw push.
     fn checkout_with_home_page(content: &str) -> tempfile::TempDir {
         let work_dir = tempfile::tempdir().unwrap();
         git(work_dir.path(), &["init", "-q"]);
@@ -453,7 +427,7 @@ mod tests {
         work_dir
     }
 
-    /// Pushes the checkout's `HEAD` straight into the bare wiki repo, bypassing `save_page`.
+    /// Pushes straight into the bare wiki repo, bypassing save_page.
     fn push_raw(work_dir: &Path, repo_path: &Path, branch: &str) {
         let target = format!("HEAD:refs/heads/{branch}");
         git(
@@ -473,7 +447,7 @@ mod tests {
         writer
             .ensure_wiki_repo_exists("a/b.wiki.git")
             .await
-            .unwrap(); // must not error the second time
+            .unwrap();
         assert!(root.path().join("a/b.wiki.git/HEAD").exists());
     }
 
@@ -659,7 +633,7 @@ mod tests {
         );
     }
 
-    /// Regression: deleting a wiki's only page must leave a valid empty tree, not fail `git mktree`.
+    /// Regression: deleting the only page must leave a valid empty tree, not fail git mktree.
     #[tokio::test]
     async fn deleting_a_wikis_only_page_leaves_a_valid_empty_tree() {
         let root = temp_storage_root();
@@ -737,7 +711,7 @@ mod tests {
         );
     }
 
-    /// Regression: `base_sha: "--help"` made `git ls-tree` print help and corrupted the tree (500 instead of 400).
+    /// Regression: base_sha "--help" made git ls-tree print help and corrupted the tree (a 500 instead of a 400).
     #[tokio::test]
     async fn saving_with_a_base_sha_that_looks_like_a_flag_is_rejected_as_validation_not_a_500() {
         let root = temp_storage_root();
@@ -846,7 +820,7 @@ mod tests {
         );
     }
 
-    /// Regression: a raw push to a non-`main` first branch left `HEAD` dangling. Healing must rename that branch to `main`.
+    /// Regression: a raw push to a non-main first branch left HEAD dangling. Healing renames that branch to main.
     #[tokio::test]
     async fn heal_dangling_head_renames_the_orphaned_branch_onto_main_after_a_raw_push() {
         let root = temp_storage_root();
@@ -857,7 +831,7 @@ mod tests {
             .unwrap();
         let repo_path = root.path().join("a/b.wiki.git");
 
-        // A real git client pushes straight to `master`, bypassing `save_page`.
+        // What a real git client does: push straight to master.
         let work_dir = checkout_with_home_page("# Pushed from git");
         push_raw(work_dir.path(), &repo_path, "master");
 

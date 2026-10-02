@@ -102,7 +102,7 @@ spec:
               value: "0.0.0.0:8080"
             - name: RUST_LOG
               value: {{ .Values.ferrisgit.rustLog | quote }}
-            # The root filesystem is read-only; the image's home (/app) is not writable.
+            # Read-only root filesystem, and the image's home (/app) isn't writable.
             - name: HOME
               value: /tmp
             {{- with .Values.ferrisgit.extraEnv }}
@@ -116,9 +116,9 @@ spec:
               mountPath: /data
             - name: tmp
               mountPath: /tmp
-          # Migrations run before the port opens, hence up to 5 minutes for the first answer; then liveness takes over.
-          # /healthz says the process runs, /readyz that the database answers (within 2 seconds). A database outage takes
-          # the pod out of the Service without restarting it.
+          # Migrations run before the port opens, so the first answer can take up to 5 minutes; after that liveness takes
+          # over. /healthz means the process is up, /readyz that the database answers (within 2 seconds), so a database
+          # outage takes the pod out of the Service without restarting it.
           startupProbe:
             httpGet:
               path: /healthz

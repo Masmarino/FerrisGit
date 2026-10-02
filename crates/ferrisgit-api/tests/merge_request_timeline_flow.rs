@@ -423,7 +423,7 @@ async fn the_timeline_merges_comments_threads_and_recorded_activity_in_order(poo
     );
 }
 
-/// The live diff only feeds excerpts and the outdated flag, so the timeline must still answer when it cannot be computed (source branch deleted).
+/// The live diff only feeds excerpts and the outdated flag, so the timeline still answers when it can't be computed (source branch deleted).
 #[sqlx::test]
 async fn the_timeline_still_answers_when_the_source_branch_is_gone(pool: PgPool) {
     sqlx::migrate!("../../migrations").run(&pool).await.unwrap();

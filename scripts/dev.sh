@@ -1,14 +1,14 @@
 #!/usr/bin/env bash
-# Runs the backend and the frontend locally, with hot reload. PostgreSQL comes from docker compose (published on 5435)
-# and is left running when the script stops: `docker compose stop postgres` stops it.
-# The backend is a local `cargo run` on :8080 and the frontend the Angular dev server on :4201, which forwards /api and
-# /health to :8080 (frontend/proxy.conf.json). Do not run the full compose stack at the same time: it also uses :8080.
+# Runs the backend and the frontend locally, with hot reload. PostgreSQL comes from docker compose (published on 5435) and
+# keeps running when the script stops: `docker compose stop postgres` stops it.
+# The backend is a local cargo run on :8080, the frontend the Angular dev server on :4201, which proxies /api and /health
+# to :8080 (frontend/proxy.conf.json). Don't run the full compose stack at the same time, it uses :8080 too.
 set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-# Compose reads .env itself; source it here too so the local backend uses the same credentials.
+# Compose reads .env on its own; source it here too so the local backend shares the credentials.
 if [ -f .env ]; then
   set -a
   # shellcheck disable=SC1091

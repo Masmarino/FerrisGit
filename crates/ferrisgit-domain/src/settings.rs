@@ -42,8 +42,8 @@ pub struct SystemSettings {
     pub max_push_size_mb: i32,
 }
 
-/// `None` leaves a field unchanged. Clearing an `Option<T>` field (like `k8s_namespace`) needs `Some(None)`, hence the
-/// doubly-wrapped fields.
+/// `None` leaves a field alone. Clearing an optional field like `k8s_namespace` takes `Some(None)`, hence the nested
+/// options.
 #[derive(Debug, Default)]
 pub struct SystemSettingsUpdate {
     pub execution_engine: Option<ExecutionEngine>,
@@ -107,8 +107,7 @@ pub trait RepositorySettingsStorePort: Send + Sync {
     async fn set_ci_variable(&self, new_variable: NewCiVariable)
     -> Result<CiVariable, DomainError>;
     async fn delete_ci_variable(&self, id: Uuid, repository_id: Uuid) -> Result<(), DomainError>;
-    /// Decrypts every CI variable of a repository for injection into a job's environment: the only place plaintext
-    /// values are reconstructed.
+    /// Decrypts a repository's CI variables to inject into a job's environment. The only place plaintext is rebuilt.
     async fn resolve_ci_variables_plaintext(
         &self,
         repository_id: Uuid,

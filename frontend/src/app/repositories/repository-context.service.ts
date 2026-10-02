@@ -2,7 +2,6 @@ import { inject, Injectable, signal } from '@angular/core';
 import { RepositoriesService, RepositoryRole } from './repositories.service';
 import { PageTitleService } from '../shell/page-title.service';
 
-/** A group above the repository, as a breadcrumb step. */
 export interface RepositoryAncestor {
   label: string;
   link: string[];
@@ -11,11 +10,11 @@ export interface RepositoryAncestor {
 export interface RepositoryContext {
   repositoryId: string;
   path: string[];
-  /** `null` until the role fetch resolves. Templates treat it as no elevated permissions, so a role-gated item does not flash into view. */
+  /** `null` until the role loads; templates treat that as no elevated permissions, so gated items never flash in. */
   role: RepositoryRole | null;
-  /** Groups above and including the repository's own group, root-first; empty for a personal repository. */
+  /** Root-first, including the repository's own group; empty for a personal repository. */
   ancestors: RepositoryAncestor[];
-  /** The repository's own direct group id (`null` for a personal repository), to fetch the breadcrumb switcher's siblings. */
+  /** Direct parent group, used to fetch the breadcrumb switcher's siblings. */
   groupId: string | null;
 }
 
@@ -30,7 +29,7 @@ export class RepositoryContextService {
     if (this.current()?.repositoryId === repositoryId) {
       return;
     }
-    // A stale subpage title must not show in the new repository's breadcrumb before its own page sets one.
+    // Otherwise the previous repository's subpage title lingers in the breadcrumb.
     this.pageTitle.set('');
     this.current.set({ repositoryId, path, role: null, ancestors, groupId });
     this.repositories.getById(repositoryId).subscribe({
@@ -39,7 +38,7 @@ export class RepositoryContextService {
           this.current.update((ctx) => (ctx ? { ...ctx, role: repo.role } : ctx));
         }
       },
-      // Without an error callback, RxJS reports the failure as uncaught. `role` just stays `null`.
+      // No handler would make RxJS report an uncaught error. The role just stays null.
       error: () => {},
     });
   }

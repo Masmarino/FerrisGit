@@ -61,7 +61,7 @@ async function expectSmtpLayout(canvasElement: HTMLElement) {
   await expect(Math.round(host.height), 'host and port inputs one height').toBe(Math.round(port.height));
   await expect(Math.round(host.top), 'host and port inputs on one line').toBe(Math.round(port.top));
   for (const card of Array.from(canvasElement.querySelectorAll('gbt-card .smtp-settings__actions'))) {
-    // The card's body wrapper is `display: contents`: the box is `.gbt-card`, whose content edge is inside its border and padding.
+    // The card's body wrapper is `display: contents`, so the box is `.gbt-card`, whose content edge is inside its border and padding.
     const inner = card.closest('.gbt-card')!;
     const style = getComputedStyle(inner);
     const edge = inner.getBoundingClientRect().right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight);

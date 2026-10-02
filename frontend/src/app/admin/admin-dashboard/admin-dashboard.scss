@@ -16,9 +16,8 @@
   min-width: 0;
 }
 
-// Gabarit gap (`gbt-stat-grid`): each row is as tall as its own tiles and placeholders have no hint, so the page jumped
-// when the figures arrived. Here rows take the tallest tile's height, and placeholders the height of a tile with its hint
-// (105px, exact from 600px up).
+// Unlike Gabarit's gbt-stat-grid, rows take the tallest tile's height and placeholders the height of a tile with its
+// hint (105px from 600px up). Otherwise the page jumps when the figures arrive.
 gbt-stat-grid ::ng-deep .gbt-stat-grid {
   grid-auto-rows: 1fr;
 }

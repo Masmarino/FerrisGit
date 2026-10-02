@@ -20,8 +20,7 @@ pub struct ClaimedJob {
     pub masked_values: Vec<String>,
 }
 
-/// Nothing tells this runner to stop mid-execution, so a canceled job still runs to completion and reports what it
-/// observed.
+/// The runner can't stop a job mid-run, so a canceled job still runs to the end and reports what happened.
 #[derive(Debug, Clone, Copy, Serialize)]
 #[serde(rename_all = "lowercase")]
 pub enum JobResultStatus {
@@ -88,11 +87,9 @@ impl RunnerClient {
     }
 }
 
-/// Authenticated git clone URL, with the runner token as Basic Auth (the smart-HTTP route accepts runner tokens like
-/// user tokens). The username is never checked, so any placeholder works.
-///
-/// `git clone` persists this URL into `.git/config`, so `executor::strip_git_metadata` deletes `.git` before the
-/// container starts.
+/// Clone URL with the runner token as Basic Auth, which the smart-HTTP route accepts like a user token. The username is
+/// never checked. `git clone` writes the URL into `.git/config`, so `executor::strip_git_metadata` deletes `.git`
+/// before the container starts.
 pub fn build_clone_url(server_url: &str, token: &str, owner: &str, repo: &str) -> String {
     let (scheme, host) = server_url.split_once("://").unwrap_or(("http", server_url));
     format!("{scheme}://runner:{token}@{host}/{owner}/{repo}.git")

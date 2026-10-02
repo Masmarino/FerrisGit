@@ -9,13 +9,13 @@ use ferrisgit_domain::user::{User, UserRepositoryPort};
 use ferrisgit_domain::webauthn::WebauthnCredentialPort;
 use uuid::Uuid;
 
-/// Instance-scale data: everyone in one page, hard-capped so a runaway table can never turn into a huge response.
+/// Everyone in one page, capped so a runaway table can't turn into a huge response.
 const LIST_LIMIT: i64 = 1000;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum UserState {
     Active,
-    /// Invited and not activated yet. An expired invitation stays here until it is resent or activated.
+    /// Invited, not activated yet. An expired invitation stays here until resent or activated.
     Invited {
         expires_at: DateTime<Utc>,
     },
@@ -25,12 +25,11 @@ pub enum UserState {
 pub struct UserListing {
     pub user: User,
     pub state: UserState,
-    /// A confirmed TOTP credential exists (an enrolment that was started but never confirmed does not count), or the
-    /// user has at least one passkey.
+    /// A confirmed TOTP credential (a started but unconfirmed enrolment doesn't count) or at least one passkey.
     pub mfa_enabled: bool,
 }
 
-/// The admin Users page: every account with its activation state and MFA status, in creation order.
+/// Every account with its activation state and MFA status, in creation order, for the admin Users page.
 pub struct ListUsersUseCase {
     users: Arc<dyn UserRepositoryPort>,
     invitations: Arc<dyn UserInvitationPort>,
@@ -58,7 +57,7 @@ impl ListUsersUseCase {
         let ids: Vec<Uuid> = users.iter().map(|u| u.id).collect();
         let expiries: HashMap<Uuid, DateTime<Utc>> =
             self.invitations.expiries(&ids).await?.into_iter().collect();
-        // Two batched queries for the whole page (no per-row work): a confirmed TOTP, or at least one passkey.
+        // Two batched queries for the whole page, nothing per row.
         let mut mfa_enabled: HashSet<Uuid> = self
             .totp
             .confirmed_user_ids(&ids)
