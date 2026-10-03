@@ -34,3 +34,24 @@ pub trait UserInvitationPort: Send + Sync {
     /// Pending invitations for these users, expired ones included, as (user, expiry).
     async fn expiries(&self, user_ids: &[Uuid]) -> Result<Vec<(Uuid, DateTime<Utc>)>, DomainError>;
 }
+
+/// An account nobody has activated yet: it still has a pending invitation.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct PendingAccount {
+    pub user_id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub created_at: DateTime<Utc>,
+    /// When the link in the last mail expires. From then on the account is due a reminder.
+    pub link_expires_at: DateTime<Utc>,
+}
+
+/// What the clean-up of unactivated accounts needs: who is still waiting, and a way to remove them.
+#[async_trait]
+pub trait PendingAccountPort: Send + Sync {
+    /// Every account with a pending invitation (expired or not), oldest first.
+    async fn list(&self) -> Result<Vec<PendingAccount>, DomainError>;
+    /// Deletes the account and, with it, its invitation. Returns `false` if it was activated since `list`: the
+    /// invitation is what marks an account as not activated, so an active account is never touched.
+    async fn delete(&self, user_id: Uuid) -> Result<bool, DomainError>;
+}

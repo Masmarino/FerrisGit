@@ -10,6 +10,10 @@ use rand::Rng;
 
 pub const MIN_PASSWORD_LEN: usize = 8;
 pub const INVITATION_TTL_HOURS: i64 = 24;
+
+/// An account nobody activated is deleted this long after it was created. Until then a reminder with a fresh link goes
+/// out whenever the previous link has expired, so once a day.
+pub const PENDING_ACCOUNT_RETENTION_DAYS: i64 = 7;
 /// Much shorter than an invitation: this link sets the password of an active account, so a leaked one is worth more.
 pub const PASSWORD_RESET_TTL_HOURS: i64 = 1;
 

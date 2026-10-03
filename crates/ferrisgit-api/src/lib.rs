@@ -8,6 +8,7 @@ pub mod git_auth;
 pub mod log_retention_sweep;
 pub mod login_rate_limiter;
 pub mod mfa_rate_limiter;
+pub mod pending_account_sweep;
 pub mod routes;
 pub mod state;
 

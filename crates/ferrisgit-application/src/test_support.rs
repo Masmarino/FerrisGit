@@ -12,14 +12,16 @@ use ferrisgit_domain::api_token::{ApiToken, ApiTokenRepositoryPort, NewApiToken}
 use ferrisgit_domain::audit::{EventPublisherPort, SecurityEvent};
 use ferrisgit_domain::branch::{BranchInfo, BranchReaderPort};
 use ferrisgit_domain::diff::{DiffReaderPort, FileDiff};
-use ferrisgit_domain::email::{SmtpSecurity, SmtpSettings, SmtpSettingsPort};
+use ferrisgit_domain::email::{EmailPort, SmtpSecurity, SmtpSettings, SmtpSettingsPort};
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::group::{Group, GroupMember, GroupStorePort, GroupWithPath, NewGroup};
 use ferrisgit_domain::group_membership::GroupMembershipPort;
 use ferrisgit_domain::health::{
     DatabaseHealth, HealthCheckPort, StorageHealth, StorageHealthCheckPort,
 };
-use ferrisgit_domain::invitation::{Invitation, UserInvitationPort};
+use ferrisgit_domain::invitation::{
+    Invitation, PendingAccount, PendingAccountPort, UserInvitationPort,
+};
 use ferrisgit_domain::issue::{
     Issue, IssueComment, IssueKind, IssueStatus, IssueStorePort, NewIssue, NewIssueComment,
 };
@@ -3917,6 +3919,131 @@ impl SmtpSettingsPort for FakeSmtpSettings {
     async fn save(&self, settings: &SmtpSettings) -> Result<(), DomainError> {
         *self.0.lock().unwrap() = Some(settings.clone());
         Ok(())
+    }
+}
+
+/// A mail port that records what it was asked to send, and can be told to refuse everything.
+#[derive(Default)]
+pub struct FakeEmail {
+    sent: Mutex<Vec<(String, String, String)>>,
+    fail: std::sync::atomic::AtomicBool,
+}
+
+impl FakeEmail {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn refuse_everything(&self) {
+        self.fail.store(true, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    pub fn recover(&self) {
+        self.fail.store(false, std::sync::atomic::Ordering::SeqCst);
+    }
+
+    /// `(to, subject, text body)` of everything delivered.
+    pub fn sent(&self) -> Vec<(String, String, String)> {
+        self.sent.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl EmailPort for FakeEmail {
+    async fn send(
+        &self,
+        to: &str,
+        subject: &str,
+        text_body: &str,
+        _html_body: &str,
+    ) -> Result<(), DomainError> {
+        if self.fail.load(std::sync::atomic::Ordering::SeqCst) {
+            return Err(DomainError::Infrastructure("smtp down".to_string()));
+        }
+        self.sent.lock().unwrap().push((
+            to.to_string(),
+            subject.to_string(),
+            text_body.to_string(),
+        ));
+        Ok(())
+    }
+}
+
+/// The accounts waiting for their activation. Like the real store it joins the accounts to their invitations: one
+/// without an invitation row is active and is not listed, and the link expiry is the invitation's.
+pub struct FakePendingAccounts {
+    accounts: Mutex<Vec<PendingAccount>>,
+    invitations: Arc<FakeInvitations>,
+    deleted: Mutex<Vec<Uuid>>,
+    refuse_delete_of: Mutex<Vec<Uuid>>,
+    activated_before_delete: Mutex<Vec<Uuid>>,
+}
+
+impl FakePendingAccounts {
+    pub fn new(accounts: Vec<PendingAccount>, invitations: Arc<FakeInvitations>) -> Self {
+        Self {
+            accounts: Mutex::new(accounts),
+            invitations,
+            deleted: Mutex::new(Vec::new()),
+            refuse_delete_of: Mutex::new(Vec::new()),
+            activated_before_delete: Mutex::new(Vec::new()),
+        }
+    }
+
+    /// Deleting this account fails, as a database error would.
+    pub fn refuse_to_delete(&self, user_id: Uuid) {
+        self.refuse_delete_of.lock().unwrap().push(user_id);
+    }
+
+    /// The account gets activated between `list` and `delete`.
+    pub fn activate_before_delete(&self, user_id: Uuid) {
+        self.activated_before_delete.lock().unwrap().push(user_id);
+    }
+
+    pub fn deleted(&self) -> Vec<Uuid> {
+        self.deleted.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl PendingAccountPort for FakePendingAccounts {
+    async fn list(&self) -> Result<Vec<PendingAccount>, DomainError> {
+        let mut pending: Vec<PendingAccount> = self
+            .accounts
+            .lock()
+            .unwrap()
+            .iter()
+            .filter_map(|account| {
+                let (_, link_expires_at) = self.invitations.row_of(account.user_id)?;
+                Some(PendingAccount {
+                    link_expires_at,
+                    ..account.clone()
+                })
+            })
+            .collect();
+        pending.sort_by_key(|account| account.created_at);
+        Ok(pending)
+    }
+
+    async fn delete(&self, user_id: Uuid) -> Result<bool, DomainError> {
+        if self.refuse_delete_of.lock().unwrap().contains(&user_id) {
+            return Err(DomainError::Infrastructure("cannot delete".to_string()));
+        }
+        if self
+            .activated_before_delete
+            .lock()
+            .unwrap()
+            .contains(&user_id)
+        {
+            return Ok(false);
+        }
+        self.accounts
+            .lock()
+            .unwrap()
+            .retain(|a| a.user_id != user_id);
+        self.invitations.remove(user_id);
+        self.deleted.lock().unwrap().push(user_id);
+        Ok(true)
     }
 }
 

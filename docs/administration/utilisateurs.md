@@ -34,13 +34,26 @@ Le nom d'utilisateur et l'adresse doivent être libres (sans tenir compte de la 
 
 FerrisGit crée le compte **sans mot de passe utilisable** et envoie à l'adresse un e-mail contenant un lien d'activation, de la forme `PUBLIC_URL/activate#token=…`. Ce lien est **valable 24 heures** et ne sert qu'une fois. La personne y choisit son mot de passe (8 caractères au minimum), puis se connecte et configure la double authentification, comme tout le monde.
 
-Le compte apparaît tout de suite dans la liste avec l'état **Invitation en attente**. Il ne peut pas se connecter avant l'activation.
+Le compte apparaît tout de suite dans la liste avec l'état **Invitation en attente**. Il ne peut pas se connecter avant l'activation. Un compte qui n'est jamais activé est nettoyé automatiquement (voir [Comptes jamais activés](#comptes-jamais-actives)).
 
 **Quand l'e-mail n'a pas pu partir** (serveur SMTP non configuré, injoignable, adresse refusée), le compte est créé quand même, et une alerte **Le mail n'a pas pu être envoyé** donne le motif et le lien d'activation à copier. Transmettez-le vous-même à la personne. Le lien n'est affiché que cette fois : **Renvoyer l'invitation** en génère un nouveau. Voir [Réglages de l'instance](/docs/administration/reglages) pour configurer l'envoi.
 
 ### Renvoyer une invitation
 
 Pour un compte en attente (y compris expiré), **Renvoyer l'invitation** génère un nouveau lien valable 24 heures et l'envoie par e-mail ; l'ancien lien cesse de fonctionner. Sur un compte déjà actif, l'action n'existe pas (l'API répond « user is already active »).
+
+### Comptes jamais activés
+
+Que le compte vienne d'une invitation ou d'une inscription libre, FerrisGit ne laisse pas traîner un compte que personne n'active :
+
+- **Rappel quotidien.** Dès que le lien du dernier e-mail a expiré (24 heures après son envoi), un e-mail de rappel contient un nouveau lien et la date de suppression. Le précédent cesse de fonctionner. Un rappel part donc environ une fois par jour, tant que le compte n'est pas activé.
+- **Suppression à 7 jours.** Le compte est supprimé 7 jours après sa création, sans dernier e-mail. Son nom d'utilisateur et son adresse sont de nouveau libres. Renvoyer une invitation ne prolonge pas ce délai : seule l'activation y met fin.
+- **Fréquence.** Le serveur examine ces comptes au démarrage puis toutes les heures, donc un rappel peut arriver jusqu'à une heure après l'expiration du lien. Si l'envoi échoue (SMTP en panne), le lien en place n'est pas touché et l'envoi est retenté à la vérification suivante.
+
+- **Sans envoi d'e-mails configuré**, il n'y a pas de rappel (vous transmettez les liens vous-même), mais la suppression à 7 jours s'applique quand même.
+- **Dès le démarrage.** Les comptes déjà en attente sont concernés : au premier passage, ceux qui ont été créés il y a plus de 7 jours sont supprimés.
+
+Un compte déjà activé n'est jamais concerné, même s'il n'a jamais configuré la double authentification. Ces suppressions n'ont pas de réglage : la durée de 7 jours et le rythme sont fixes.
 
 ### Directement, avec un mot de passe (API seulement)
 

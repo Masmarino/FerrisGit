@@ -78,6 +78,7 @@ pub mod set_issue_labels;
 pub mod set_merge_request_labels;
 pub mod smtp_settings;
 pub mod submit_merge_request_review;
+pub mod sweep_pending_accounts;
 pub mod update_email;
 pub mod update_issue;
 pub mod update_label;
