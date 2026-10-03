@@ -84,7 +84,7 @@ Servez toujours FerrisGit en HTTPS en production. Sans lui, mots de passe, codes
 
 ## Inscription libre
 
-Si vous l'activez, n'importe qui peut demander un compte. Il ne devient utilisable qu'après avoir suivi le lien envoyé à son adresse e-mail, ce qui vérifie l'adresse sans filtrer les personnes : toute adresse que quelqu'un lit peut ouvrir un compte. Le compte n'a aucun droit particulier, mais il peut créer des dépôts et, si vous avez des runners, déclencher des pipelines qui s'exécutent sur votre infrastructure. Gardez-la désactivée (c'est le défaut) sauf si c'est le but de l'instance.
+Si vous l'activez, n'importe qui peut demander un compte. Il ne devient utilisable qu'après avoir suivi le lien envoyé à son adresse e-mail, ce qui vérifie l'adresse sans filtrer les personnes : toute adresse que quelqu'un lit peut ouvrir un compte. Un compte jamais activé est supprimé 7 jours après sa création, ce qui limite la durée pendant laquelle quelqu'un peut réserver le nom ou l'adresse d'un tiers ; cette personne reçoit au plus un e-mail de rappel par jour pendant ce temps. Le compte n'a aucun droit particulier, mais il peut créer des dépôts et, si vous avez des runners, déclencher des pipelines qui s'exécutent sur votre infrastructure. Gardez-la désactivée (c'est le défaut) sauf si c'est le but de l'instance.
 
 ## Signaler une vulnérabilité
 

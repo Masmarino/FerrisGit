@@ -13,6 +13,7 @@ pub mod metrics_snapshot_store;
 pub mod milestone_store;
 pub mod notification_store;
 pub mod password_reset_store;
+pub mod pending_account_store;
 pub mod pipeline_store;
 pub mod public_catalog_store;
 pub mod public_pages_settings_store;

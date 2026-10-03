@@ -52,7 +52,7 @@ export class RegisterPage {
     this.registration() === 'open' ? 'Rejoignez FerrisGit pour héberger vos dépôts, tickets et demandes de fusion.' : '',
   );
   protected readonly sentMessage = computed(
-    () => `Un lien de confirmation a été envoyé à ${this.sentTo()}. Il est valable 24 heures : suivez-le pour choisir votre mot de passe.`,
+    () => `Un lien de confirmation a été envoyé à ${this.sentTo()}. Il est valable 24 heures : suivez-le pour choisir votre mot de passe. Sans activation, le compte est supprimé au bout de 7 jours.`,
   );
 
   constructor() {

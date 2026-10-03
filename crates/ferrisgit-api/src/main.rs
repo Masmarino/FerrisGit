@@ -3,7 +3,9 @@ use std::path::PathBuf;
 
 use tokio::sync::watch;
 
-use ferrisgit_api::{build_router, config::Config, log_retention_sweep, state::AppState};
+use ferrisgit_api::{
+    build_router, config::Config, log_retention_sweep, pending_account_sweep, state::AppState,
+};
 use ferrisgit_application::use_cases::bootstrap_admin::BootstrapAdminUseCase;
 
 /// Runs for the life of the process. A failed tick is logged and the loop carries on.
@@ -70,6 +72,11 @@ async fn main() {
         log_retention_sweep::SWEEP_EVERY,
         shutdown_rx.clone(),
     );
+    let pending_account_sweep = pending_account_sweep::spawn(
+        state.sweep_pending_accounts(),
+        pending_account_sweep::SWEEP_EVERY,
+        shutdown_rx.clone(),
+    );
 
     BootstrapAdminUseCase::new(state.users.clone(), state.hasher.clone())
         .execute(
@@ -125,4 +132,5 @@ async fn main() {
         } => tracing::warn!("closing with connections still open"),
     }
     log_retention_sweep.await.ok();
+    pending_account_sweep.await.ok();
 }

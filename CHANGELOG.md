@@ -6,6 +6,16 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ## [0.1.2] - 2026-10-03
 
+### Added
+
+- Accounts nobody activated are cleaned up, whether they came from an invitation or from a registration. When the link
+  of the last mail has expired, a reminder with a fresh link and the deletion date is sent, which makes one a day, and
+  the account is deleted 7 days after it was created, freeing its username and address. Activating is the only thing
+  that stops it, and a resent invitation does not extend the delay. The server checks every hour; a reminder that
+  cannot be sent leaves the stored link untouched and is retried. Without mail configured there are no reminders but
+  the deletion still applies, and accounts already waiting when the server starts are covered too: those created more
+  than 7 days ago are deleted at the first check.
+
 ### Changed
 
 - Free registration now confirms the e-mail address. `POST /api/auth/register` takes a username and an address only,

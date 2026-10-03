@@ -246,7 +246,7 @@ Il n'y a pas de mot de passe dans la requête : il se choisit à l'activation. U
 
 Les noms suivants sont réservés : `login`, `register`, `activate`, `reset-password`, `home`, `repositories`, `groups`, `account`, `search`, `runners`, `admin`, `api`, `assets`, `static`, `settings`, `health`, `git`, `explore`, `help`, `about`, `me`, `new`, `notifications`, `users`, `wiki`.
 
-Réponse 204, sans corps ni session. L'e-mail « Confirmez votre inscription à FerrisGit » contient un lien `PUBLIC_URL/activate#token=…`, valable 24 heures et à usage unique. L'envoi est attendu : la réponse n'est un 204 que si le message est parti.
+Réponse 204, sans corps ni session. L'e-mail « Confirmez votre inscription à FerrisGit » contient un lien `PUBLIC_URL/activate#token=…`, valable 24 heures et à usage unique. L'envoi est attendu : la réponse n'est un 204 que si le message est parti. Un compte qui n'est pas activé reçoit ensuite un rappel avec un nouveau lien chaque jour, et il est supprimé 7 jours après sa création (voir l'administration des utilisateurs).
 
 Le même nom et la même adresse que ceux d'un compte pas encore activé ne sont pas un conflit : un nouveau lien est envoyé et l'ancien cesse de fonctionner, pour qu'un message perdu ne bloque pas le nom. Dès que le compte est activé, ou si seul le nom ou seule l'adresse correspond à un autre compte, la réponse est un 409.
 

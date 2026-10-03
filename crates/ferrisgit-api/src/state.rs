@@ -17,6 +17,7 @@ use ferrisgit_application::use_cases::record_metrics_snapshot::RecordMetricsSnap
 use ferrisgit_application::use_cases::report_job_result::{
     AppendJobLogsUseCase, ReportJobResultUseCase,
 };
+use ferrisgit_application::use_cases::sweep_pending_accounts::SweepPendingAccountsUseCase;
 use ferrisgit_domain::api_token::ApiTokenRepositoryPort;
 use ferrisgit_domain::apply_suggestion_executor::ApplySuggestionExecutorPort;
 use ferrisgit_domain::audit::EventPublisherPort;
@@ -26,7 +27,7 @@ use ferrisgit_domain::email::SmtpSettingsPort;
 use ferrisgit_domain::group::GroupStorePort;
 use ferrisgit_domain::group_membership::GroupMembershipPort;
 use ferrisgit_domain::health::{HealthCheckPort, StorageHealthCheckPort};
-use ferrisgit_domain::invitation::UserInvitationPort;
+use ferrisgit_domain::invitation::{PendingAccountPort, UserInvitationPort};
 use ferrisgit_domain::issue::IssueStorePort;
 use ferrisgit_domain::issue_comment::IssueCommentPort;
 use ferrisgit_domain::job::{JobLogRetentionPort, JobStorePort};
@@ -96,6 +97,7 @@ use ferrisgit_infrastructure::postgres::metrics_snapshot_store::PostgresMetricsS
 use ferrisgit_infrastructure::postgres::milestone_store::PostgresMilestoneStore;
 use ferrisgit_infrastructure::postgres::notification_store::PostgresNotificationStore;
 use ferrisgit_infrastructure::postgres::password_reset_store::PostgresPasswordResetStore;
+use ferrisgit_infrastructure::postgres::pending_account_store::PostgresPendingAccountStore;
 use ferrisgit_infrastructure::postgres::pipeline_store::PostgresPipelineStore;
 use ferrisgit_infrastructure::postgres::public_catalog_store::PostgresPublicCatalogStore;
 use ferrisgit_infrastructure::postgres::public_pages_settings_store::PostgresPublicPagesSettingsStore;
@@ -219,9 +221,22 @@ pub struct AppState {
     /// Built up front because the hourly timer in `main.rs` runs it outside any request.
     pub record_metrics_snapshot: Arc<RecordMetricsSnapshotUseCase>,
     pub purge_expired_job_logs: Arc<PurgeExpiredJobLogsUseCase>,
+    pub pending_accounts: Arc<dyn PendingAccountPort>,
 }
 
 impl AppState {
+    /// The clean-up of unactivated accounts, with the mailer the state has now. `main.rs` builds it once for the background
+    /// task; it is not kept in the state because tests swap the mailer after the state is built.
+    pub fn sweep_pending_accounts(&self) -> Arc<SweepPendingAccountsUseCase> {
+        Arc::new(SweepPendingAccountsUseCase::new(
+            self.pending_accounts.clone(),
+            self.invitations.clone(),
+            self.mailer.clone(),
+            self.smtp_settings.clone(),
+            self.config.public_url.clone(),
+        ))
+    }
+
     pub async fn new(pool: PgPool, config: Config) -> Self {
         let storage_root = PathBuf::from(&config.storage_root);
         let config = Arc::new(config);
@@ -490,6 +505,7 @@ impl AppState {
             started_at,
             record_metrics_snapshot,
             purge_expired_job_logs,
+            pending_accounts: Arc::new(PostgresPendingAccountStore::new(pool.clone())),
         }
     }
 }

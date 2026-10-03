@@ -20,7 +20,7 @@ Si un administrateur l'a activée, vous demandez vous-même votre compte. Elle e
 | Nom d'utilisateur | 3 à 32 caractères, lettres, chiffres, `-` et `_`, en commençant par une lettre. Enregistré en minuscules. Certains noms sont réservés (`admin`, `api`, `login`, `groups`...). |
 | Adresse e-mail | Une adresse valide (un seul `@`, un domaine avec un point, 254 caractères au plus). Elle doit être unique sur l'instance. C'est elle qui reçoit le lien : sans lui, le compte reste inutilisable. |
 
-Tant que le lien n'a pas servi, le compte ne peut pas se connecter, et le nom comme l'adresse restent réservés. Si l'e-mail n'arrive pas, inscrivez-vous de nouveau avec exactement les mêmes informations : vous recevez un nouveau lien, et l'ancien cesse de fonctionner. Chaque lien ne sert qu'une fois.
+Tant que le lien n'a pas servi, le compte ne peut pas se connecter, et le nom comme l'adresse restent réservés. Chaque jour, un e-mail de rappel contient un nouveau lien (l'ancien cesse alors de fonctionner), et **le compte est supprimé 7 jours après sa création** s'il n'a pas été activé : son nom et son adresse sont alors de nouveau libres. Si l'e-mail n'arrive pas, vous pouvez aussi vous inscrire de nouveau avec exactement les mêmes informations pour recevoir un nouveau lien. Chaque lien ne sert qu'une fois.
 
 Le nom d'utilisateur ne peut pas être modifié ensuite. Il fait partie de l'adresse de vos dépôts personnels, et il est refusé s'il est déjà pris, y compris par un groupe de premier niveau du même nom.
 
@@ -28,7 +28,7 @@ Le nom d'utilisateur ne peut pas être modifié ensuite. Il fait partie de l'adr
 
 Un administrateur crée votre compte depuis **Admin**, **Utilisateurs** ([la procédure côté administrateur](/docs/administration/utilisateurs)). Vous recevez un e-mail intitulé « Votre compte FerrisGit » avec votre nom d'utilisateur et un lien d'activation.
 
-1. Ouvrez le lien dans les **24 heures**. Passé ce délai, demandez à l'administrateur de vous renvoyer une invitation.
+1. Ouvrez le lien dans les **24 heures**. Passé ce délai, un rappel avec un nouveau lien vous est envoyé chaque jour, jusqu'à la suppression du compte, **7 jours après sa création**. L'administrateur peut aussi vous renvoyer une invitation.
 2. Sur la page **Activez votre compte**, choisissez votre mot de passe (8 caractères au minimum) et confirmez-le.
 3. Connectez-vous avec votre nom d'utilisateur et ce mot de passe. La double authentification se configure à ce moment.
 
