@@ -1,10 +1,11 @@
-use k8s_openapi::api::core::v1::Namespace;
+use k8s_openapi::api::core::v1::{Namespace, ServiceAccount};
 use kube::api::{DeleteParams, PostParams};
 use kube::config::{AuthInfo, KubeConfigOptions, Kubeconfig};
 use kube::{Api, Client, Config};
 use std::process::Command;
 use std::process::Stdio;
 use std::sync::OnceLock;
+use std::time::Duration;
 use tokio::io::AsyncWriteExt;
 use tokio::process::Command as TokioCommand;
 use tokio::sync::Mutex;
@@ -69,11 +70,30 @@ impl TestNamespace {
             .create(&PostParams::default(), &ns)
             .await
             .expect("failed to create test namespace");
+        wait_for_default_service_account(client, &name).await;
         Self {
             name,
             client: client.clone(),
         }
     }
+}
+
+/// Kubernetes creates the `default` ServiceAccount a moment after the namespace, and a pod created before
+/// that is refused with a 403. Slow CI runners hit this window.
+async fn wait_for_default_service_account(client: &Client, namespace: &str) {
+    let accounts: Api<ServiceAccount> = Api::namespaced(client.clone(), namespace);
+    for _ in 0..300 {
+        if accounts
+            .get_opt("default")
+            .await
+            .expect("failed to look up the default ServiceAccount")
+            .is_some()
+        {
+            return;
+        }
+        tokio::time::sleep(Duration::from_millis(100)).await;
+    }
+    panic!("the default ServiceAccount of {namespace} did not appear within 30 s");
 }
 
 impl Drop for TestNamespace {
