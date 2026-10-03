@@ -1,0 +1,84 @@
+<gbt-auth-panel [heading]="heading()" [intro]="intro()">
+  <picture auth-logo fgAuthLogo></picture>
+
+  @switch (registration()) {
+    @case ('loading') {
+      <span class="sr-only" role="status">Chargement en cours</span>
+      <div class="loading" aria-hidden="true">
+        <gbt-skeleton width="9rem" height="1.5rem" />
+        <gbt-skeleton width="100%" height="var(--gbt-control-height-md)" />
+        <gbt-skeleton width="100%" height="var(--gbt-control-height-md)" />
+        <gbt-skeleton width="100%" height="2.75rem" />
+      </div>
+    }
+    @case ('closed') {
+      <gbt-empty-state
+        class="gbt-auth-panel__status"
+        icon="lock"
+        [headingLevel]="1"
+        headingFocusable
+        heading="Les inscriptions sont fermées"
+        message="Cette instance n'accepte pas les inscriptions libres. Demandez une invitation à un administrateur : vous recevrez un lien par e-mail pour activer votre compte."
+      >
+        <gbt-button class="gbt-auth-panel__submit" block size="large" text="Se connecter" (clicked)="toSignIn()" />
+      </gbt-empty-state>
+    }
+    @case ('sent') {
+      <gbt-empty-state
+        class="gbt-auth-panel__status gbt-auth-panel__status--success"
+        icon="circle-check"
+        [headingLevel]="1"
+        headingFocusable
+        heading="Consultez votre boîte mail"
+        [message]="sentMessage()"
+      >
+        <p class="resend-hint">Rien reçu au bout de quelques minutes ? Inscrivez-vous de nouveau avec les mêmes informations pour recevoir un nouveau lien.</p>
+        <gbt-button class="gbt-auth-panel__submit" block size="large" text="Se connecter" (clicked)="toSignIn()" />
+      </gbt-empty-state>
+    }
+    @default {
+      <form class="gbt-auth-panel__form" (ngSubmit)="submit()" novalidate>
+        @if (formError()) {
+          <gbt-alert variant="error" appearance="subtle" iconAlign="start">{{ formError() }}</gbt-alert>
+        }
+
+        <gbt-input
+          [id]="usernameId"
+          name="username"
+          autocomplete="username"
+          label="Nom d'utilisateur"
+          [hint]="usernameHint"
+          [errorMessage]="usernameError()"
+          [ngModel]="username()"
+          (ngModelChange)="onUsernameChange($event)"
+        />
+
+        <gbt-input
+          [id]="emailId"
+          type="email"
+          name="email"
+          autocomplete="email"
+          label="Adresse e-mail"
+          hint="Nous vous y envoyons un lien pour confirmer l'adresse et choisir votre mot de passe."
+          [errorMessage]="emailError()"
+          [ngModel]="email()"
+          (ngModelChange)="onEmailChange($event)"
+        />
+
+        <gbt-button
+          class="gbt-auth-panel__submit"
+          block
+          type="submit"
+          size="large"
+          text="Créer mon compte"
+          [loading]="submitting()"
+          loadingLabel="Création du compte en cours"
+        />
+      </form>
+
+      <gbt-auth-footer text="Vous avez déjà un compte ?">
+        <a gbtButton variant="link" gbtAuthFooterLink routerLink="/login">Se connecter</a>
+      </gbt-auth-footer>
+    }
+  }
+</gbt-auth-panel>

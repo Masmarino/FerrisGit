@@ -93,7 +93,9 @@ La valeur est lue au démarrage du serveur et mise à jour quand vous l'enregist
 
 Interrupteur, **désactivé par défaut**. Désactivé, seuls les administrateurs créent des comptes, par invitation (voir [Utilisateurs et invitations](/docs/administration/utilisateurs)) ; la page `/register` répond « Les inscriptions sont fermées ».
 
-Activé, toute personne qui peut joindre l'instance peut créer un compte sur `/register` en choisissant un nom d'utilisateur, une adresse e-mail et un mot de passe. Le compte est créé tout de suite, **sans vérification de l'adresse e-mail**, et n'est pas administrateur. Il passe obligatoirement par la configuration de la double authentification à sa première connexion. N'activez ce réglage que sur une instance que vous acceptez d'ouvrir. L'inscription est limitée à 10 tentatives par adresse IP et par période de 5 minutes.
+Activé, toute personne qui peut joindre l'instance peut demander un compte sur `/register` en indiquant un nom d'utilisateur et une adresse e-mail. Le compte est créé **inactif** : la personne reçoit un lien d'activation à cette adresse (valable 24 heures), y choisit son mot de passe, puis passe obligatoirement par la configuration de la double authentification à sa première connexion. L'adresse est donc vérifiée, et le compte n'est pas administrateur. N'activez ce réglage que sur une instance que vous acceptez d'ouvrir. L'inscription est limitée à 10 tentatives par adresse IP et par période de 5 minutes.
+
+Elle **demande que l'envoi d'e-mails soit configuré** (voir la section SMTP ci-dessus) : sans SMTP, l'interrupteur peut être activé mais la page `/register` n'est pas proposée, et la route répond 503 « registration needs e-mail to be configured ». Un compte inscrit mais jamais activé garde son nom et son adresse ; la personne peut s'inscrire de nouveau avec les mêmes informations pour recevoir un nouveau lien, et vous pouvez aussi le renvoyer depuis **Admin**, **Utilisateurs**.
 
 ### Pages publiques : Pages publiques
 

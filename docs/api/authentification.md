@@ -20,7 +20,7 @@ La réponse de l'étape 1 indique le chemin à suivre :
 
 Le jeton MFA vit 5 minutes. Il n'est consommé que par un succès : une mauvaise réponse ne le brûle pas, mais elle compte dans la limite de 10 tentatives par 5 minutes et par compte. Un jeton déjà utilisé, expiré, falsifié ou rendu caduc par un changement de mot de passe répond toujours la même erreur : `401 invalid or expired token`.
 
-L'enrôlement obligatoire suit les mêmes règles pour un compte qui vient de s'inscrire ou d'être activé : la réponse est un jeton MFA avec `mfaSetupRequired: true`.
+L'enrôlement obligatoire suit les mêmes règles pour un compte qui vient d'être activé (par invitation ou après une inscription) : la première connexion renvoie un jeton MFA avec `mfaSetupRequired: true`.
 
 > **Note** : un script ne peut pas utiliser une passkey, qui exige un navigateur ou une clé matérielle. Pour l'automatisation, enrôlez un TOTP et calculez le code avec un outil compatible (`oathtool`, par exemple).
 
@@ -229,35 +229,38 @@ Réponse 200 :
 { "registrationEnabled": false, "passkeysAvailable": true, "publicPagesEnabled": true }
 ```
 
-`registrationEnabled` : l'inscription libre est ouverte (désactivée par défaut). `passkeysAvailable` : les passkeys fonctionnent sur cette instance. `publicPagesEnabled` : les pages publiques sont activées.
+`registrationEnabled` : l'inscription libre est ouverte (désactivée par défaut) et l'instance sait envoyer des e-mails. Sans SMTP configuré, la valeur reste `false` même si l'interrupteur est activé. `passkeysAvailable` : les passkeys fonctionnent sur cette instance. `publicPagesEnabled` : les pages publiques sont activées.
 
 ### `POST /api/auth/register`
 
-Crée un compte quand l'inscription libre est activée. Route anonyme, limitée à 10 requêtes par 5 minutes et par adresse IP. Le compte n'est jamais administrateur.
+Demande un compte quand l'inscription libre est activée. Route anonyme, limitée à 10 requêtes par 5 minutes et par adresse IP. Le compte n'est jamais administrateur. Il est créé **inactif** : son mot de passe est inutilisable tant que son titulaire n'a pas suivi le lien envoyé à l'adresse indiquée (voir `POST /api/auth/activate`), ce qui prouve qu'il lit cette adresse.
 
 Corps :
 
 | Champ | Type | Obligatoire | Description |
 |---|---|---|---|
 | `username` | texte | oui | 3 à 32 caractères, en minuscules après normalisation, commençant par une lettre, avec uniquement `a-z`, `0-9`, `-` et `_`. |
-| `email` | texte | oui | Adresse e-mail valide. |
-| `password` | texte | oui | 8 caractères au minimum. |
+| `email` | texte | oui | Adresse e-mail valide. Le lien d'activation y est envoyé. |
+
+Il n'y a pas de mot de passe dans la requête : il se choisit à l'activation. Un champ `password` éventuel est ignoré.
 
 Les noms suivants sont réservés : `login`, `register`, `activate`, `reset-password`, `home`, `repositories`, `groups`, `account`, `search`, `runners`, `admin`, `api`, `assets`, `static`, `settings`, `health`, `git`, `explore`, `help`, `about`, `me`, `new`, `notifications`, `users`, `wiki`.
 
-Réponse 200 : la même forme que `login`, sans session : `token` vaut `null`, `mfaToken` est présent et `mfaSetupRequired` vaut `true`. Poursuivez par l'enrôlement d'un premier facteur.
+Réponse 204, sans corps ni session. L'e-mail « Confirmez votre inscription à FerrisGit » contient un lien `PUBLIC_URL/activate#token=…`, valable 24 heures et à usage unique. L'envoi est attendu : la réponse n'est un 204 que si le message est parti.
 
-Erreurs : 400 `registration is disabled` (cette réponse ne dépend pas de ce que vous envoyez), 400 sur une règle non respectée (message précis), 409 `username already taken`, 409 `username collides with an existing root group`, 409 `email already in use`, 429 `too many registration attempts, try again later`.
+Le même nom et la même adresse que ceux d'un compte pas encore activé ne sont pas un conflit : un nouveau lien est envoyé et l'ancien cesse de fonctionner, pour qu'un message perdu ne bloque pas le nom. Dès que le compte est activé, ou si seul le nom ou seule l'adresse correspond à un autre compte, la réponse est un 409.
+
+Erreurs : 400 `registration is disabled` (cette réponse ne dépend pas de ce que vous envoyez), 400 sur une règle non respectée (message précis), 409 `username already taken`, 409 `username collides with an existing root group`, 409 `email already in use`, 429 `too many registration attempts, try again later`, 503 `registration needs e-mail to be configured` (aucun SMTP n'est configuré), 503 `the confirmation e-mail could not be sent, try again later` (le serveur SMTP n'a pas accepté le message ; le détail n'est volontairement pas renvoyé, et le même appel peut être refait).
 
 ### `POST /api/auth/activate`
 
-Active un compte créé par un administrateur et définit son mot de passe. Route anonyme, limitée à 10 requêtes par 5 minutes et par IP (budget partagé avec `reset-password`).
+Active un compte créé par un administrateur ou par une inscription libre, et définit son mot de passe. Route anonyme, limitée à 10 requêtes par 5 minutes et par IP (budget partagé avec `reset-password`).
 
 Corps :
 
 | Champ | Type | Obligatoire | Description |
 |---|---|---|---|
-| `token` | texte | oui | Le jeton du lien d'invitation : 64 caractères hexadécimaux, placé dans le fragment `#token=` de l'URL `/activate`. |
+| `token` | texte | oui | Le jeton du lien reçu par e-mail (invitation ou confirmation d'inscription) : 64 caractères hexadécimaux, placé dans le fragment `#token=` de l'URL `/activate`. |
 | `password` | texte | oui | 8 caractères au minimum. |
 
 Le lien est valable 24 heures. Réponse 204, sans session : connectez-vous ensuite, et enrôlez un second facteur à la première connexion.

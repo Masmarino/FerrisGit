@@ -7,7 +7,7 @@ use axum::{Json, Router};
 use ferrisgit_application::email_templates;
 use ferrisgit_application::use_cases::admin_reset_password::ConsumePasswordResetUseCase;
 use ferrisgit_application::use_cases::change_password::ChangePasswordUseCase;
-use ferrisgit_application::use_cases::invitations::ActivateAccountUseCase;
+use ferrisgit_application::use_cases::invitations::{ActivateAccountUseCase, InvitedUser};
 use ferrisgit_application::use_cases::login::LoginUseCase;
 use ferrisgit_application::use_cases::register_user::RegisterUserUseCase;
 use ferrisgit_application::use_cases::update_email::UpdateEmailUseCase;
@@ -55,7 +55,6 @@ struct LoginRequest {
 struct RegisterRequest {
     username: String,
     email: String,
-    password: String,
 }
 
 #[derive(Deserialize)]
@@ -159,8 +158,7 @@ async fn login(
     login_outcome(&state, user_id).await.map(Json)
 }
 
-/// Shared by login and registration, so a fresh registration lands in the MFA setup like a first login. With
-/// `mfa_enforced` off (tests only) it's a plain session.
+/// With `mfa_enforced` off (tests only) it's a plain session.
 async fn login_outcome(state: &AppState, user_id: Uuid) -> Result<LoginResponse, ApiError> {
     if !state.mfa_enforced {
         let token = issue_session(state, user_id).await?;
@@ -177,7 +175,9 @@ async fn login_outcome(state: &AppState, user_id: Uuid) -> Result<LoginResponse,
 
 async fn auth_config(State(state): State<AppState>) -> Result<Json<AuthConfigResponse>, ApiError> {
     Ok(Json(AuthConfigResponse {
-        registration_enabled: state.registration_settings.is_enabled().await?,
+        // Without mail nobody could receive their activation link, so the sign-up page isn't offered.
+        registration_enabled: state.registration_settings.is_enabled().await?
+            && state.smtp_settings.get().await?.is_some(),
         passkeys_available: state.passkeys.available(),
         public_pages_enabled: state
             .public_pages_settings
@@ -187,14 +187,16 @@ async fn auth_config(State(state): State<AppState>) -> Result<Json<AuthConfigRes
     }))
 }
 
-/// Answers like login: no session, just the `mfaToken` for the mandatory MFA setup. 409 for a taken username or
-/// e-mail (the per-IP throttle limits probing).
+/// 204 with no session: the account stays unusable until its owner follows the link mailed to the address they gave
+/// and picks a password. 409 for a taken username or e-mail (the per-IP throttle limits probing), and the same name
+/// and address as an account nobody has activated yet gets a fresh link instead. 503 when mail isn't configured or
+/// the message can't be sent, without saying why: this route is open to anyone.
 async fn register(
     MaybeConnectInfo(connect_info): MaybeConnectInfo,
     headers: HeaderMap,
     State(state): State<AppState>,
     Json(req): Json<RegisterRequest>,
-) -> Result<Json<LoginResponse>, ApiError> {
+) -> Result<StatusCode, ApiError> {
     if !state
         .register_rate_limiter
         .check(client_ip(&state, connect_info, &headers))
@@ -209,11 +211,27 @@ async fn register(
         state.hasher.clone(),
         state.groups.clone(),
         state.registration_settings.clone(),
+        state.invitations.clone(),
+        state.smtp_settings.clone(),
     );
-    let user = use_case
-        .execute(req.username, req.email, req.password)
-        .await?;
-    login_outcome(&state, user.id).await.map(Json)
+    let InvitedUser { user, token } = use_case.execute(req.username, req.email).await?;
+    // The token is in the URL fragment, which browsers never send, so it stays out of access logs.
+    let activation_url = format!("{}/activate#token={}", state.config.public_url, token);
+    state
+        .mailer
+        .send(
+            &user.email,
+            email_templates::registration_confirmation(&user.username, &activation_url),
+        )
+        .await
+        .map_err(|error| {
+            // The account stays pending: registering again with the same name and address sends a new link.
+            tracing::warn!(user_id = %user.id, %error, "could not send the registration e-mail");
+            DomainError::ServiceUnavailable(
+                "the confirmation e-mail could not be sent, try again later".to_string(),
+            )
+        })?;
+    Ok(StatusCode::NO_CONTENT)
 }
 
 /// 204 with no session. One generic 400 for an unknown, expired or used token and for a password that breaks the

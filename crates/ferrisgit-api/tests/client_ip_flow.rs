@@ -26,7 +26,12 @@ impl Server {
 
     async fn register(&self, forwarded_for: Option<&str>) -> u16 {
         // Registration is off in these tests, so the answer is a plain 400. Only 400 vs 429 matters here.
-        self.post("/auth/register", json!({ "username": "alice", "email": "alice@example.com", "password": "password12345" }), forwarded_for).await
+        self.post(
+            "/auth/register",
+            json!({ "username": "alice", "email": "alice@example.com" }),
+            forwarded_for,
+        )
+        .await
     }
 
     async fn login(&self, forwarded_for: Option<&str>) -> u16 {

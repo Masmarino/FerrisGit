@@ -245,39 +245,28 @@ describe('AuthService', () => {
       expect(result).toEqual({ registrationEnabled: true, passkeysAvailable: false });
     });
 
-    it('register posts the three fields and, like login, keeps the token unset on an MFA step', () => {
+    it('register posts the username and address only, completes, and issues no session', () => {
       const service = TestBed.inject(AuthService);
       const http = TestBed.inject(HttpTestingController);
-      let response: LoginResponse | undefined;
+      let done = false;
 
-      service.register('alice', 'alice@example.com', 'a-long-password').subscribe((res) => (response = res));
+      service.register('alice', 'alice@example.com').subscribe(() => (done = true));
       const request = http.expectOne('/api/auth/register');
       expect(request.request.method).toBe('POST');
-      expect(request.request.body).toEqual({ username: 'alice', email: 'alice@example.com', password: 'a-long-password' });
-      request.flush({ token: null, mfaToken: 'pending', mfaSetupRequired: true, mfaHasTotp: false, mfaHasPasskey: false });
+      expect(request.request.body).toEqual({ username: 'alice', email: 'alice@example.com' });
+      request.flush(null, { status: 204, statusText: 'No Content' });
 
-      expect(response?.mfaToken).toBe('pending');
+      expect(done).toBe(true);
       expect(service.isAuthenticated()).toBe(false);
       expect(localStorage.getItem('ferrisgit_token')).toBeNull();
     });
 
-    it('register stores the token when the server issued a session (an instance that does not enforce MFA)', () => {
-      const service = TestBed.inject(AuthService);
-      const http = TestBed.inject(HttpTestingController);
-
-      service.register('alice', 'alice@example.com', 'a-long-password').subscribe();
-      http.expectOne('/api/auth/register').flush({ token: 'session-jwt' });
-
-      expect(service.token()).toBe('session-jwt');
-      expect(localStorage.getItem('ferrisgit_token')).toBe('session-jwt');
-    });
-
-    it('register leaves the token unset and fails when the server refuses', () => {
+    it('register fails and leaves the token unset when the server refuses', () => {
       const service = TestBed.inject(AuthService);
       const http = TestBed.inject(HttpTestingController);
       let failed = false;
 
-      service.register('alice', 'alice@example.com', 'a-long-password').subscribe({ error: () => (failed = true) });
+      service.register('alice', 'alice@example.com').subscribe({ error: () => (failed = true) });
       http.expectOne('/api/auth/register').flush({ error: 'username already taken' }, { status: 409, statusText: 'Conflict' });
 
       expect(failed).toBe(true);

@@ -34,7 +34,7 @@ impl std::fmt::Debug for InvitedUser {
 }
 
 /// Stores a new activation token, replacing any previous one, and returns the plaintext.
-async fn issue_invitation(
+pub(crate) async fn issue_invitation(
     invitations: &Arc<dyn UserInvitationPort>,
     user_id: Uuid,
 ) -> Result<String, DomainError> {
@@ -47,6 +47,20 @@ async fn issue_invitation(
         )
         .await?;
     Ok(token)
+}
+
+/// Gives the user's pending invitation a new token and returns it, or `None` if the account is already active. `renew`
+/// only writes while that row still exists, so an activation that landed after the caller's lookup doesn't get revived.
+pub(crate) async fn renew_invitation(
+    invitations: &Arc<dyn UserInvitationPort>,
+    user_id: Uuid,
+) -> Result<Option<String>, DomainError> {
+    let token = generate_invitation_token();
+    let expires_at = Utc::now() + Duration::hours(INVITATION_TTL_HOURS);
+    let renewed = invitations
+        .renew(user_id, &hash_token(&token), expires_at)
+        .await?;
+    Ok(renewed.then_some(token))
 }
 
 /// An admin creates an account for someone else. Its password is unusable (hash of a random, discarded secret) until
@@ -118,19 +132,10 @@ impl ResendInvitationUseCase {
             .find_by_id(user_id)
             .await?
             .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
-        // A pending invitation row, expired or not, is what marks an account as not activated. `renew` only writes
-        // if that row still exists, so an activation that landed after the lookup doesn't get a new invitation.
-        let token = generate_invitation_token();
-        let expires_at = Utc::now() + Duration::hours(INVITATION_TTL_HOURS);
-        if !self
-            .invitations
-            .renew(user_id, &hash_token(&token), expires_at)
+        // A pending invitation row, expired or not, is what marks an account as not activated.
+        let token = renew_invitation(&self.invitations, user_id)
             .await?
-        {
-            return Err(DomainError::Validation(
-                "user is already active".to_string(),
-            ));
-        }
+            .ok_or_else(|| DomainError::Validation("user is already active".to_string()))?;
         Ok(InvitedUser { user, token })
     }
 }

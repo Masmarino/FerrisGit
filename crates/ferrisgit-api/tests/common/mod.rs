@@ -825,6 +825,27 @@ pub async fn assert_error(res: reqwest::Response, status: u16, message: &str) {
     assert_eq!(body, json!({ "error": message }));
 }
 
+/// The activation link in a mail body. The token is in the URL fragment (never sent to a server, so absent from
+/// access logs), not in the query string.
+pub fn activation_link(html: &str) -> String {
+    let prefix = format!("{ORIGIN}/activate#token=");
+    let start = html
+        .find(&prefix)
+        .unwrap_or_else(|| panic!("no activation link in the mail: {html}"));
+    let token: String = html[start + prefix.len()..]
+        .chars()
+        .take_while(char::is_ascii_alphanumeric)
+        .collect();
+    assert_eq!(token.len(), 64, "the token is 64 hex characters: {token}");
+    assert!(token.chars().all(|c| c.is_ascii_hexdigit()), "{token}");
+    let link = format!("{prefix}{token}");
+    assert!(
+        !link.contains('?'),
+        "the token must not be in a query string: {link}"
+    );
+    link
+}
+
 /// The token of an activation or reset link, which carries it in the URL fragment (`#token=...`).
 pub fn token_of(link: &str) -> String {
     link.split_once("token=").unwrap().1.to_string()

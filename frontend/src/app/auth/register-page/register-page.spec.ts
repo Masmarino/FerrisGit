@@ -7,9 +7,6 @@ import { RouterTestingHarness } from '@angular/router/testing';
 import { RegisterPage } from './register-page';
 import { provideFerrisgitAuth } from '../auth-kit';
 
-// Enrolment draws its QR code through our renderer, which lazily imports `qrcode`; jsdom has no canvas.
-vi.mock('qrcode', () => ({ toDataURL: vi.fn().mockResolvedValue('data:image/png;base64,QR') }));
-
 @Component({ standalone: true, template: '<p>page</p>' })
 class Elsewhere {}
 
@@ -20,7 +17,7 @@ const text = (el: Element | null | undefined) => el?.textContent?.replace(/\s+/g
 const settle = () => new Promise<void>((resolve) => setTimeout(resolve, 10));
 
 describe('RegisterPage', () => {
-  async function setup(config: { registrationEnabled: boolean; passkeysAvailable: boolean } = { registrationEnabled: true, passkeysAvailable: false }) {
+  async function setup(config: { registrationEnabled: boolean; passkeysAvailable: boolean } | 'fails' = { registrationEnabled: true, passkeysAvailable: false }) {
     TestBed.configureTestingModule({
       providers: [
         provideHttpClient(),
@@ -42,7 +39,11 @@ describe('RegisterPage', () => {
       await settle();
       harness.detectChanges();
     };
-    http.expectOne(CONFIG).flush(config);
+    if (config === 'fails') {
+      http.expectOne(CONFIG).flush(null, { status: 500, statusText: 'Server Error' });
+    } else {
+      http.expectOne(CONFIG).flush(config);
+    }
     await refresh();
     return { harness, http, router: TestBed.inject(Router), el, refresh };
   }
@@ -56,121 +57,160 @@ describe('RegisterPage', () => {
     input.value = value;
     input.dispatchEvent(new Event('input'));
   };
+  const submit = (ctx: Ctx) => ctx.el().querySelector('form')!.dispatchEvent(new Event('submit'));
   const button = (el: HTMLElement, label: string) => Array.from(el.querySelectorAll<HTMLButtonElement>('button')).find((b) => text(b) === label);
 
+  async function fill(ctx: Ctx, username = 'Alice', email = 'alice@example.com') {
+    type(field(ctx.el(), "Nom d'utilisateur")!, username);
+    type(field(ctx.el(), 'Adresse e-mail')!, email);
+    await ctx.refresh();
+  }
+
   async function register(ctx: Ctx) {
-    type(field(ctx.el(), "Nom d'utilisateur")!, 'Alice');
-    type(field(ctx.el(), 'Adresse e-mail')!, 'alice@example.com');
-    type(field(ctx.el(), 'Mot de passe')!, 'a-long-password');
-    ctx.el().querySelector('form')!.dispatchEvent(new Event('submit'));
+    await fill(ctx);
+    submit(ctx);
     const request = ctx.http.expectOne(REGISTER);
-    expect(request.request.body).toEqual({ username: 'Alice', email: 'alice@example.com', password: 'a-long-password' });
+    expect(request.request.body).toEqual({ username: 'Alice', email: 'alice@example.com' });
     return request;
   }
 
-  let previousToken: string | null;
-  beforeEach(() => {
-    previousToken = localStorage.getItem(TOKEN_KEY);
-    localStorage.removeItem(TOKEN_KEY);
-  });
-  afterEach(() => {
-    if (previousToken === null) {
-      localStorage.removeItem(TOKEN_KEY);
-    } else {
-      localStorage.setItem(TOKEN_KEY, previousToken);
-    }
-  });
+  afterEach(() => localStorage.clear());
 
-  it('is the kit registration form, in French, with the FerrisGit logo', async () => {
-    const { el } = await setup();
-
-    expect(el().querySelector('gbt-auth-register')).toBeTruthy();
-    expect(text(el().querySelector('h1'))).toBe('Créer un compte');
-    expect(text(el().querySelector('.gbt-auth-panel__intro'))).toBe('Rejoignez FerrisGit pour héberger vos dépôts, tickets et demandes de fusion.');
-    expect(field(el(), 'Adresse e-mail')?.type).toBe('email');
-    expect(button(el(), 'Créer mon compte')).toBeTruthy();
-    const img = el().querySelector<HTMLImageElement>('.gbt-auth-panel__logo > picture img')!;
-    expect(img.getAttribute('alt')).toBe('FerrisGit');
-    expect(el().querySelector('.gbt-auth-panel__logo > picture source')?.getAttribute('srcset')).toBe('Logo_horizontal_dark.png');
-    expect(getComputedStyle(el()).getPropertyValue('--gbt-auth-panel-logo-offset').trim()).toBe('-0.5rem');
-  });
-
-  it('links to the sign-in page under the form: "Vous avez déjà un compte ? Se connecter"', async () => {
-    const { el, router, refresh } = await setup();
-    const link = el().querySelector<HTMLAnchorElement>('gbt-auth-footer a')!;
-
-    expect(text(el().querySelector('gbt-auth-footer span'))).toBe('Vous avez déjà un compte ?');
-    expect(text(link)).toBe('Se connecter');
-    expect(link.getAttribute('href')).toBe('/login');
-    link.click();
-    await refresh();
-
-    expect(router.url).toBe('/login');
-  });
-
-  it('goes to the repositories when the server opened a session right away', async () => {
+  it('asks for a username and an address, and for no password', async () => {
     const ctx = await setup();
 
-    (await register(ctx)).flush({ token: 'abc' });
-    await ctx.refresh();
-
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('abc');
-    expect(ctx.router.url).toBe('/repositories');
+    expect(text(ctx.el().querySelector('h1'))).toBe('Créer un compte');
+    expect(field(ctx.el(), "Nom d'utilisateur")).not.toBeNull();
+    expect(field(ctx.el(), 'Adresse e-mail')).not.toBeNull();
+    expect(ctx.el().querySelector('input[type="password"]')).toBeNull();
+    expect(text(ctx.el())).toContain("Nous vous y envoyons un lien pour confirmer l'adresse et choisir votre mot de passe.");
+    expect(button(ctx.el(), 'Créer mon compte')).toBeTruthy();
   });
 
-  it('goes to the repositories only once the enrolment is done and its backup codes acknowledged', async () => {
+  it('links to the sign-in page', async () => {
     const ctx = await setup();
-    (await register(ctx)).flush({ token: null, mfaToken: 'pending', mfaSetupRequired: true });
-    await ctx.refresh();
-    expect(text(ctx.el().querySelector('h1'))).toBe('Double authentification');
 
-    button(ctx.el(), 'Commencer')!.click();
-    ctx.http.expectOne('/api/auth/mfa/setup/totp/enroll').flush({ secret: 'JBSWY3DP', otpauthUrl: 'otpauth://totp/FerrisGit:alice?secret=JBSWY3DP' });
-    await ctx.refresh();
-    type(field(ctx.el(), 'Code à 6 chiffres')!, '123456');
-    ctx.el().querySelector('gbt-mfa-enrollment form')!.dispatchEvent(new Event('submit'));
-    const confirm = ctx.http.expectOne('/api/auth/mfa/setup/totp/confirm');
-    expect(confirm.request.body).toEqual({ mfaToken: 'pending', code: '123456' });
-    confirm.flush({ token: 'session-jwt', backupCodes: ['a'.repeat(32)] });
-    await ctx.refresh();
-
-    expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
-    expect(ctx.router.url).toBe('/register');
-
-    ctx.el().querySelector<HTMLInputElement>('gbt-backup-codes input[type="checkbox"]')!.click();
-    await ctx.refresh();
-    button(ctx.el(), 'Continuer')!.click();
-    await ctx.refresh();
-
-    expect(localStorage.getItem(TOKEN_KEY)).toBe('session-jwt');
-    expect(ctx.router.url).toBe('/repositories');
+    const link = Array.from(ctx.el().querySelectorAll('a')).find((a) => text(a) === 'Se connecter');
+    expect(link?.getAttribute('href')).toBe('/login');
   });
 
-  it('sends "Se connecter" of the closed registration to the sign-in page', async () => {
-    const { el, router, refresh } = await setup({ registrationEnabled: false, passkeysAvailable: false });
-    expect(text(el().querySelector('h1'))).toBe('Les inscriptions sont fermées');
+  it('shows the closed view, without a form, when registration is off', async () => {
+    const ctx = await setup({ registrationEnabled: false, passkeysAvailable: false });
 
-    button(el(), 'Se connecter')!.click();
-    await refresh();
-
-    expect(router.url).toBe('/login');
-  });
-
-  it('sends "Se connecter" of the created account (enrolment left) to the sign-in page', async () => {
-    const ctx = await setup();
-    (await register(ctx)).flush({ token: null, mfaToken: 'pending', mfaSetupRequired: true });
+    expect(text(ctx.el().querySelector('h1'))).toBe('Les inscriptions sont fermées');
+    expect(ctx.el().querySelector('form')).toBeNull();
     await ctx.refresh();
-
-    button(ctx.el(), 'Retour')!.click();
-    await ctx.refresh();
-    expect(text(ctx.el().querySelector('h1'))).toBe('Votre compte est créé');
-    expect(text(ctx.el().querySelector('.gbt-auth-register__created-name'))).toBe("Votre nom d'utilisateur : alice");
-    expect(ctx.router.url).toBe('/register');
-
     button(ctx.el(), 'Se connecter')!.click();
     await ctx.refresh();
-
     expect(ctx.router.url).toBe('/login');
+  });
+
+  it('still shows the form when the config cannot be read: the server decides at submit', async () => {
+    const ctx = await setup('fails');
+
+    expect(ctx.el().querySelector('form')).not.toBeNull();
+  });
+
+  it('checks both fields before sending anything', async () => {
+    const ctx = await setup();
+    await fill(ctx, 'ab', 'not-an-email');
+
+    submit(ctx);
+    await ctx.refresh();
+
+    ctx.http.expectNone(REGISTER);
+    expect(text(ctx.el())).toContain('Commencez par une lettre');
+    expect(text(ctx.el())).toContain('Saisissez une adresse e-mail valide');
+  });
+
+  it('sends the trimmed fields and asks to check the mailbox, without any session', async () => {
+    const ctx = await setup();
+    await fill(ctx, '  Alice ', ' alice@example.com ');
+
+    submit(ctx);
+    const request = ctx.http.expectOne(REGISTER);
+    expect(request.request.body).toEqual({ username: 'Alice', email: 'alice@example.com' });
+    request.flush(null, { status: 204, statusText: 'No Content' });
+    await ctx.refresh();
+
+    expect(text(ctx.el().querySelector('h1'))).toBe('Consultez votre boîte mail');
+    expect(text(ctx.el())).toContain('alice@example.com');
+    expect(text(ctx.el())).toContain('24 heures');
+    expect(ctx.el().querySelector('form')).toBeNull();
     expect(localStorage.getItem(TOKEN_KEY)).toBeNull();
+    expect(ctx.router.url).toBe('/register');
+  });
+
+  it('tells the user to register again if nothing arrives, and offers the sign-in page', async () => {
+    const ctx = await setup();
+    (await register(ctx)).flush(null, { status: 204, statusText: 'No Content' });
+    await ctx.refresh();
+
+    expect(text(ctx.el())).toContain('Inscrivez-vous de nouveau');
+    button(ctx.el(), 'Se connecter')!.click();
+    await ctx.refresh();
+    expect(ctx.router.url).toBe('/login');
+  });
+
+  it('sends one request at a time', async () => {
+    const ctx = await setup();
+    await fill(ctx);
+
+    submit(ctx);
+    submit(ctx);
+
+    ctx.http.expectOne(REGISTER).flush(null, { status: 204, statusText: 'No Content' });
+  });
+
+  it('keeps the draft and says so when the name or address is taken', async () => {
+    const ctx = await setup();
+    (await register(ctx)).flush({ error: 'username already taken' }, { status: 409, statusText: 'Conflict' });
+    await ctx.refresh();
+
+    expect(text(ctx.el())).toContain("Ce nom d'utilisateur ou cette adresse e-mail est déjà utilisé");
+    expect(field(ctx.el(), "Nom d'utilisateur")?.value).toBe('Alice');
+    expect(field(ctx.el(), 'Adresse e-mail')?.value).toBe('alice@example.com');
+  });
+
+  it('puts a reserved name on its field', async () => {
+    const ctx = await setup();
+    (await register(ctx)).flush({ error: 'username is reserved' }, { status: 400, statusText: 'Bad Request' });
+    await ctx.refresh();
+
+    expect(text(ctx.el())).toContain("Ce nom d'utilisateur n'est pas disponible");
+  });
+
+  it('asks to try again later when too many attempts were made', async () => {
+    const ctx = await setup();
+    (await register(ctx)).flush({ error: 'too many registration attempts, try again later' }, { status: 429, statusText: 'Too Many Requests' });
+    await ctx.refresh();
+
+    expect(text(ctx.el())).toContain('Trop de tentatives');
+    expect(ctx.el().querySelector('form')).not.toBeNull();
+  });
+
+  it('says the confirmation mail could not be sent on a 503, and keeps the form for another try', async () => {
+    const ctx = await setup();
+    (await register(ctx)).flush({ error: 'the confirmation e-mail could not be sent, try again later' }, { status: 503, statusText: 'Service Unavailable' });
+    await ctx.refresh();
+
+    expect(text(ctx.el())).toContain("Le message de confirmation n'a pas pu être envoyé");
+    expect(ctx.el().querySelector('form')).not.toBeNull();
+  });
+
+  it('falls back to the closed view when the server says registration is disabled', async () => {
+    const ctx = await setup();
+    (await register(ctx)).flush({ error: 'registration is disabled' }, { status: 400, statusText: 'Bad Request' });
+    await ctx.refresh();
+
+    expect(text(ctx.el().querySelector('h1'))).toBe('Les inscriptions sont fermées');
+  });
+
+  it('shows a generic failure for anything else', async () => {
+    const ctx = await setup();
+    (await register(ctx)).flush(null, { status: 500, statusText: 'Server Error' });
+    await ctx.refresh();
+
+    expect(text(ctx.el())).toContain("L'inscription a échoué, réessayez.");
   });
 });

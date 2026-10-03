@@ -2,7 +2,7 @@
 
 mod common;
 
-use common::{ADMIN_PASSWORD, RecordingEmail, token_of, totp_code};
+use common::{ADMIN_PASSWORD, RecordingEmail, activation_link, token_of, totp_code};
 
 use serde_json::{Value, json};
 use sqlx::PgPool;
@@ -10,7 +10,6 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 const NEW_PASSWORD: &str = "a-brand-new-password";
-const PUBLIC_URL: &str = common::ORIGIN;
 
 struct Server {
     addr: SocketAddr,
@@ -133,26 +132,6 @@ impl Server {
             .await
             .unwrap()
     }
-}
-
-/// The token is in the URL fragment (never sent to a server, so absent from access logs), not in the query string.
-fn activation_link(html: &str) -> String {
-    let prefix = format!("{PUBLIC_URL}/activate#token=");
-    let start = html
-        .find(&prefix)
-        .unwrap_or_else(|| panic!("no activation link in the mail: {html}"));
-    let token: String = html[start + prefix.len()..]
-        .chars()
-        .take_while(char::is_ascii_alphanumeric)
-        .collect();
-    assert_eq!(token.len(), 64, "the token is 64 hex characters: {token}");
-    assert!(token.chars().all(|c| c.is_ascii_hexdigit()), "{token}");
-    let link = format!("{prefix}{token}");
-    assert!(
-        !link.contains('?'),
-        "the token must not be in a query string: {link}"
-    );
-    link
 }
 
 async fn spawn_server(pool: PgPool) -> Server {

@@ -75,7 +75,7 @@ export const InvalidLink: Story = {
   play: async (context) => {
     const canvas = within(context.canvasElement);
     await expect(await canvas.findByRole('heading', { name: 'Ce lien ne fonctionne pas' })).toBeVisible();
-    await expect(canvas.getByText(/Ce lien d'invitation est invalide ou a expiré/)).toBeVisible();
+    await expect(canvas.getByText(/Ce lien est invalide ou a expiré/)).toBeVisible();
     await expect(canvas.queryByLabelText('Nouveau mot de passe')).toBeNull();
     await expectLayout(context);
   },
