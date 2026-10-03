@@ -12,6 +12,7 @@ use ferrisgit_domain::api_token::{ApiToken, ApiTokenRepositoryPort, NewApiToken}
 use ferrisgit_domain::audit::{EventPublisherPort, SecurityEvent};
 use ferrisgit_domain::branch::{BranchInfo, BranchReaderPort};
 use ferrisgit_domain::diff::{DiffReaderPort, FileDiff};
+use ferrisgit_domain::email::{SmtpSecurity, SmtpSettings, SmtpSettingsPort};
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::group::{Group, GroupMember, GroupStorePort, GroupWithPath, NewGroup};
 use ferrisgit_domain::group_membership::GroupMembershipPort;
@@ -3882,6 +3883,39 @@ impl RegistrationSettingsPort for FakeRegistration {
 
     async fn set_enabled(&self, enabled: bool) -> Result<(), DomainError> {
         *self.0.lock().unwrap() = enabled;
+        Ok(())
+    }
+}
+
+/// Mail settings that are either there or never were configured.
+pub struct FakeSmtpSettings(Mutex<Option<SmtpSettings>>);
+
+impl FakeSmtpSettings {
+    pub fn configured() -> Self {
+        Self(Mutex::new(Some(SmtpSettings {
+            host: "smtp.example.com".to_string(),
+            port: 587,
+            security: SmtpSecurity::StartTls,
+            username: String::new(),
+            password: None,
+            from_address: "noreply@example.com".to_string(),
+            from_name: "FerrisGit".to_string(),
+        })))
+    }
+
+    pub fn unconfigured() -> Self {
+        Self(Mutex::new(None))
+    }
+}
+
+#[async_trait]
+impl SmtpSettingsPort for FakeSmtpSettings {
+    async fn get(&self) -> Result<Option<SmtpSettings>, DomainError> {
+        Ok(self.0.lock().unwrap().clone())
+    }
+
+    async fn save(&self, settings: &SmtpSettings) -> Result<(), DomainError> {
+        *self.0.lock().unwrap() = Some(settings.clone());
         Ok(())
     }
 }

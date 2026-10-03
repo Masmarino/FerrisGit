@@ -113,6 +113,33 @@ pub fn account_created(username: &str, activation_url: &str) -> EmailContent {
     }
 }
 
+/// Sent when someone registers themselves: the link proves they own the address and lets them pick a password.
+pub fn registration_confirmation(username: &str, activation_url: &str) -> EmailContent {
+    let text = format!(
+        "Bonjour {username},\n\n\
+         Quelqu'un a demandé un compte FerrisGit avec cette adresse et le nom d'utilisateur : {username}\n\n\
+         Pour confirmer votre adresse et choisir votre mot de passe, cliquez sur le lien suivant dans les 24 heures :\n\n\
+         {activation_url}\n\n\
+         Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : aucun compte ne sera utilisable. \
+         Passé ce délai, le lien expirera et vous pourrez vous inscrire de nouveau pour en recevoir un autre."
+    );
+    let body_html = format!(
+        r#"{greeting}
+<p style="margin:0 0 16px;">Quelqu'un a demandé un compte FerrisGit avec cette adresse. Votre nom d'utilisateur : <strong>{username}</strong></p>
+<p style="margin:0 0 16px;">Pour confirmer votre adresse et choisir votre mot de passe, cliquez sur le bouton ci-dessous.</p>
+{button}
+<p style="margin:16px 0 0; font-size:13px; color:{TEXT_SECONDARY};">Ce lien expire dans 24 heures. Passé ce délai, vous pourrez vous inscrire de nouveau pour en recevoir un autre. Si vous n'êtes pas à l'origine de cette demande, ignorez ce message : aucun compte ne sera utilisable.</p>"#,
+        greeting = greeting(username),
+        username = esc(username),
+        button = button(activation_url, "Confirmer mon inscription"),
+    );
+    EmailContent {
+        subject: "Confirmez votre inscription à FerrisGit".to_string(),
+        text,
+        html: shell("Confirmez votre inscription à FerrisGit", &body_html),
+    }
+}
+
 pub fn password_changed(username: &str) -> EmailContent {
     let text = format!(
         "Bonjour {username},\n\n\
@@ -273,9 +300,36 @@ mod tests {
     }
 
     #[test]
+    fn registration_confirmation_includes_the_link_and_the_username_and_says_it_lasts_a_day() {
+        let c = registration_confirmation("bob", "https://git.example.com/activate#token=abc");
+        assert_eq!(c.subject, "Confirmez votre inscription à FerrisGit");
+        assert!(
+            c.text
+                .contains("https://git.example.com/activate#token=abc")
+        );
+        assert!(
+            c.html
+                .contains("https://git.example.com/activate#token=abc")
+        );
+        assert!(c.text.contains("le nom d'utilisateur : bob"), "{}", c.text);
+        assert!(c.html.contains("<strong>bob</strong>"), "{}", c.html);
+        assert!(c.text.contains("24 heures") && c.html.contains("24 heures"));
+    }
+
+    #[test]
+    fn registration_confirmation_tells_a_stranger_to_ignore_it_and_escapes_the_username() {
+        let c = registration_confirmation("<b>x</b>", "https://x/y");
+        assert!(c.text.contains("ignorez ce message"), "{}", c.text);
+        assert!(c.html.contains("ignorez ce message"));
+        assert!(!c.html.contains("<b>x</b>"));
+        assert!(c.html.contains("&lt;b&gt;x&lt;/b&gt;"));
+    }
+
+    #[test]
     fn every_html_body_shares_the_shell_with_the_inline_logo_and_the_footer() {
         for c in [
             account_created("a", "https://x/y"),
+            registration_confirmation("a", "https://x/y"),
             password_changed("a"),
             mfa_enrolled("a", "TOTP"),
             mfa_reset("a"),

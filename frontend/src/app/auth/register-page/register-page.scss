@@ -1,0 +1,16 @@
+// The logo artwork has a transparent top margin; the offset pulls it back to the panel's padding.
+:host {
+  --gbt-auth-panel-logo-offset: -0.5rem;
+}
+
+.loading {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.resend-hint {
+  margin: 0.75rem 0 1.25rem;
+  color: var(--text-secondary);
+  font-size: 0.875rem;
+}

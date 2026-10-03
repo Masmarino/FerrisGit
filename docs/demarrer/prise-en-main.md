@@ -8,17 +8,19 @@ Il y a deux façons, selon la configuration de l'instance.
 
 ### Inscription libre
 
-Si un administrateur l'a activée, vous créez vous-même votre compte. Elle est désactivée par défaut. Quand elle est fermée, la page **Créer un compte** l'indique (« Les inscriptions sont fermées ») et vous renvoie vers une invitation.
+Si un administrateur l'a activée, vous demandez vous-même votre compte. Elle est désactivée par défaut, et elle n'est proposée que si l'instance sait envoyer des e-mails. Quand elle est fermée, la page **Créer un compte** l'indique (« Les inscriptions sont fermées ») et vous renvoie vers une invitation.
 
 1. Ouvrez la page de connexion et choisissez **Créer un compte**.
-2. Renseignez le nom d'utilisateur, l'adresse e-mail et le mot de passe.
-3. Validez avec **Créer mon compte**. Vous enchaînez directement sur la configuration de la double authentification (voir plus bas).
+2. Renseignez le nom d'utilisateur et l'adresse e-mail, puis validez avec **Créer mon compte**. L'écran **Consultez votre boîte mail** confirme l'envoi.
+3. Ouvrez l'e-mail « Confirmez votre inscription à FerrisGit » et suivez le lien dans les **24 heures**. Sur la page **Activez votre compte**, choisissez votre mot de passe (8 caractères au minimum) et confirmez-le.
+4. Connectez-vous avec votre nom d'utilisateur et ce mot de passe. La double authentification se configure à ce moment (voir plus bas).
 
 | Champ | Règle |
 |---|---|
 | Nom d'utilisateur | 3 à 32 caractères, lettres, chiffres, `-` et `_`, en commençant par une lettre. Enregistré en minuscules. Certains noms sont réservés (`admin`, `api`, `login`, `groups`...). |
-| Adresse e-mail | Une adresse valide (un seul `@`, un domaine avec un point, 254 caractères au plus). Elle doit être unique sur l'instance. |
-| Mot de passe | 8 caractères au minimum. |
+| Adresse e-mail | Une adresse valide (un seul `@`, un domaine avec un point, 254 caractères au plus). Elle doit être unique sur l'instance. C'est elle qui reçoit le lien : sans lui, le compte reste inutilisable. |
+
+Tant que le lien n'a pas servi, le compte ne peut pas se connecter, et le nom comme l'adresse restent réservés. Si l'e-mail n'arrive pas, inscrivez-vous de nouveau avec exactement les mêmes informations : vous recevez un nouveau lien, et l'ancien cesse de fonctionner. Chaque lien ne sert qu'une fois.
 
 Le nom d'utilisateur ne peut pas être modifié ensuite. Il fait partie de l'adresse de vos dépôts personnels, et il est refusé s'il est déjà pris, y compris par un groupe de premier niveau du même nom.
 

@@ -8,9 +8,10 @@ const TOKEN_KEY = 'ferrisgit_token';
 /**
  * The auth kit's port. For a local account the password step returns no session (`token` is null, `mfaToken` names the
  * next MFA step), and neither does the first enrolment: the kit calls `setToken` once the backup codes are acknowledged.
+ * Not `register`: the kit's version signs the new user in, ours mails a link instead (see RegisterPage).
  */
 @Injectable({ providedIn: 'root' })
-export class AuthService implements AuthPort {
+export class AuthService implements Omit<AuthPort, 'register'> {
   private http = inject(HttpClient);
   private tokenSignal = signal<string | null>(localStorage.getItem(TOKEN_KEY));
   readonly isAuthenticated = computed(() => this.tokenSignal() !== null);
@@ -23,8 +24,9 @@ export class AuthService implements AuthPort {
     return this.http.get<AuthConfig>('/api/auth/config');
   }
 
-  register(username: string, email: string, password: string): Observable<LoginResponse> {
-    return this.http.post<LoginResponse>('/api/auth/register', { username, email, password }).pipe(tap((res) => this.storeSession(res)));
+  /** No session: the server mails a link to choose a password, and the account is unusable until then. */
+  register(username: string, email: string): Observable<void> {
+    return this.http.post<void>('/api/auth/register', { username, email });
   }
 
   activate(token: string, password: string): Observable<void> {

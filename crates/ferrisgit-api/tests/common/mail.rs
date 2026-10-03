@@ -39,6 +39,11 @@ impl RecordingEmail {
         *self.failure.lock().unwrap() = Some(message.to_string());
     }
 
+    /// Makes later deliveries work again, as an SMTP server that came back.
+    pub fn recover(&self) {
+        *self.failure.lock().unwrap() = None;
+    }
+
     pub fn attempts(&self) -> usize {
         self.attempts.load(Ordering::SeqCst)
     }

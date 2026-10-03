@@ -4,6 +4,20 @@ Every notable change to FerrisGit. The format follows [Keep a Changelog](https:/
 versions follow [SemVer](https://semver.org/). Each section is the text of the GitHub release of the same number: see
 "Publishing a version" below.
 
+## [0.1.2] - 2026-10-03
+
+### Changed
+
+- Free registration now confirms the e-mail address. `POST /api/auth/register` takes a username and an address only,
+  creates the account inactive (its password is unusable) and mails a link, valid for 24 hours and single use, to choose
+  a password through `POST /api/auth/activate`. It answers `204` with no session, so nobody can register with an address
+  they do not read. The sign-up page asks for the two fields and shows "Consultez votre boîte mail".
+- Registering again with the name and address of an account nobody has activated sends a new link and invalidates the
+  previous one, instead of answering `409`, so that a lost message does not lock the name.
+- Registration needs mail to be configured. Without SMTP, `GET /api/auth/config` reports `registrationEnabled: false`
+  even when the switch is on, and `POST /api/auth/register` answers `503`. A confirmation message that cannot be sent
+  also answers `503`, without the SMTP error.
+
 ## [0.1.1] - 2026-10-02
 
 ### Added
@@ -109,5 +123,6 @@ pages switches in `system_settings`). See "Upgrades" in the README.
 The CI/CD workflow builds and publishes the image, then creates the GitHub release `vX.Y.Z` with the text of the matching
 section. If the section is missing, only the release job fails (the image is not affected): add it, then rerun the job.
 
+[0.1.2]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.0

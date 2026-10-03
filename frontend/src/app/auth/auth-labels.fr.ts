@@ -178,7 +178,7 @@ export const FR_AUTH_LABELS = {
     successHeading: 'Votre compte est activé',
     successMessage: 'Vous pouvez maintenant vous connecter. Nous vous guiderons ensuite pour protéger votre compte avec la double authentification.',
     invalidHeading: 'Ce lien ne fonctionne pas',
-    invalidMessage: "Ce lien d'invitation est invalide ou a expiré. Demandez à un administrateur de vous en envoyer un nouveau.",
+    invalidMessage: "Ce lien est invalide ou a expiré. Si vous vous êtes inscrit vous-même, inscrivez-vous de nouveau avec les mêmes informations pour en recevoir un nouveau. Sinon, demandez à un administrateur de vous renvoyer une invitation.",
     signIn: 'Se connecter',
     passwordEmpty: 'Saisissez un mot de passe',
     passwordTooShort: (min) => `Au moins ${min} caractères`,

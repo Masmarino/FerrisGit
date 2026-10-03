@@ -1,20 +1,24 @@
-// Free registration: a new account gets no session, only the `mfaToken` for the mandatory TOTP setup. `mfa_enforced`
-// stays true.
+// Free registration: the account is created inactive and its owner gets a link by e-mail to confirm the address and
+// pick a password. Nobody is signed in by registering, and `mfa_enforced` stays true: the first sign-in goes through
+// the mandatory MFA setup.
 
 mod common;
 
-use common::{ADMIN_PASSWORD, totp_code};
+use common::{ADMIN_PASSWORD, RecordingEmail, activation_link, token_of, totp_code};
 
 use serde_json::{Value, json};
 use sqlx::PgPool;
 use std::net::SocketAddr;
+use std::sync::Arc;
 
 const PASSWORD: &str = "correct-horse-battery";
+const SUBJECT: &str = "Confirmez votre inscription à FerrisGit";
 
 struct Server {
     addr: SocketAddr,
     pool: PgPool,
     client: reqwest::Client,
+    mailer: Arc<RecordingEmail>,
 }
 
 impl Server {
@@ -31,10 +35,10 @@ impl Server {
             .unwrap()
     }
 
-    async fn register(&self, username: &str, email: &str, password: &str) -> reqwest::Response {
+    async fn register(&self, username: &str, email: &str) -> reqwest::Response {
         self.post(
             "/auth/register",
-            json!({ "username": username, "email": email, "password": password }),
+            json!({ "username": username, "email": email }),
         )
         .await
     }
@@ -43,6 +47,14 @@ impl Server {
         self.post(
             "/auth/login",
             json!({ "username": username, "password": password }),
+        )
+        .await
+    }
+
+    async fn activate(&self, token: &str, password: &str) -> reqwest::Response {
+        self.post(
+            "/auth/activate",
+            json!({ "token": token, "password": password }),
         )
         .await
     }
@@ -105,11 +117,35 @@ impl Server {
             .unwrap()
     }
 
-    async fn enable_registration(&self, admin_session: &str) {
+    async fn configure_smtp(&self, admin_session: &str) {
+        let res = self
+            .client
+            .put(self.url("/admin/settings/smtp"))
+            .bearer_auth(admin_session)
+            .json(&json!({
+                "host": "smtp.example.com",
+                "port": 587,
+                "security": "starttls",
+                "fromAddress": "noreply@example.com",
+                "fromName": "FerrisGit"
+            }))
+            .send()
+            .await
+            .unwrap();
+        assert_eq!(res.status(), 200);
+    }
+
+    async fn switch_registration_on(&self, admin_session: &str) {
         let res = self
             .put_settings(admin_session, json!({ "registrationEnabled": true }))
             .await;
         assert_eq!(res.status(), 200);
+    }
+
+    /// Registration on, with mail configured: what an instance needs before anyone can sign up.
+    async fn enable_registration(&self, admin_session: &str) {
+        self.configure_smtp(admin_session).await;
+        self.switch_registration_on(admin_session).await;
     }
 
     async fn user_count(&self) -> i64 {
@@ -117,6 +153,14 @@ impl Server {
             .fetch_one(&self.pool)
             .await
             .unwrap()
+    }
+
+    /// The token of the most recent confirmation mail.
+    fn latest_token(&self) -> String {
+        let mails = self.mailer.attempted_with_subject(SUBJECT);
+        token_of(&activation_link(
+            &mails.last().expect("no confirmation mail").html,
+        ))
     }
 }
 
@@ -126,6 +170,7 @@ async fn spawn_server(pool: PgPool) -> Server {
         addr: started.addr,
         pool: started.pool,
         client: started.client,
+        mailer: started.mailer,
     }
 }
 
@@ -157,17 +202,52 @@ async fn registration_is_disabled_by_default_and_the_admin_switch_turns_it_on_an
 }
 
 #[sqlx::test]
+async fn the_sign_up_page_is_not_offered_while_mail_is_not_configured(pool: PgPool) {
+    let server = spawn_server(pool).await;
+    let admin = server.admin_session().await;
+
+    server.switch_registration_on(&admin).await;
+    assert_eq!(
+        server.get_config().await["registrationEnabled"],
+        json!(false),
+        "the switch is on but nobody could receive a link"
+    );
+
+    server.configure_smtp(&admin).await;
+    assert_eq!(
+        server.get_config().await["registrationEnabled"],
+        json!(true)
+    );
+}
+
+#[sqlx::test]
+async fn registering_without_configured_mail_is_a_503_and_creates_no_user(pool: PgPool) {
+    let server = spawn_server(pool).await;
+    let admin = server.admin_session().await;
+    server.switch_registration_on(&admin).await;
+    let before = server.user_count().await;
+
+    let res = server.register("alice", "alice@example.com").await;
+
+    assert_eq!(res.status(), 503);
+    assert_eq!(
+        res.json::<Value>().await.unwrap(),
+        json!({ "error": "registration needs e-mail to be configured" })
+    );
+    assert_eq!(server.user_count().await, before);
+    assert_eq!(server.mailer.attempts(), 0);
+}
+
+#[sqlx::test]
 async fn registering_while_disabled_is_a_400_and_creates_no_user(pool: PgPool) {
     let server = spawn_server(pool).await;
     let before = server.user_count().await;
 
-    let res = server
-        .register("alice", "alice@example.com", PASSWORD)
-        .await;
+    let res = server.register("alice", "alice@example.com").await;
 
     assert_eq!(res.status(), 400);
     assert_eq!(server.user_count().await, before);
-    assert_eq!(server.login("alice", PASSWORD).await.status(), 401);
+    assert_eq!(server.mailer.attempts(), 0);
 }
 
 /// With registration off the answer is the same whatever is submitted, so it can't be used to probe accounts (a 409
@@ -188,28 +268,17 @@ async fn a_disabled_instance_answers_the_same_whatever_is_submitted(pool: PgPool
     let before = server.user_count().await;
 
     // Ten cases at most (the register throttle is 10 per IP), so a 429 can't hide a difference.
-    for (username, email, password, why) in [
-        ("alice", "fresh@example.com", PASSWORD, "taken username"),
-        (
-            "ALICE",
-            "fresh@example.com",
-            PASSWORD,
-            "taken username, other casing",
-        ),
-        ("bob", "alice@example.com", PASSWORD, "taken e-mail"),
-        (
-            "bob",
-            "ALICE@example.com",
-            PASSWORD,
-            "taken e-mail, other casing",
-        ),
-        ("ab", "bob@example.com", PASSWORD, "invalid username"),
-        ("login", "bob@example.com", PASSWORD, "reserved username"),
-        ("bob", "not-an-email", PASSWORD, "invalid e-mail"),
-        ("bob", "bob@example.com", "short", "invalid password"),
-        ("bob", "bob@example.com", PASSWORD, "valid and free"),
+    for (username, email, why) in [
+        ("alice", "fresh@example.com", "taken username"),
+        ("ALICE", "fresh@example.com", "taken username, other casing"),
+        ("bob", "alice@example.com", "taken e-mail"),
+        ("bob", "ALICE@example.com", "taken e-mail, other casing"),
+        ("ab", "bob@example.com", "invalid username"),
+        ("login", "bob@example.com", "reserved username"),
+        ("bob", "not-an-email", "invalid e-mail"),
+        ("bob", "bob@example.com", "valid and free"),
     ] {
-        let res = server.register(username, email, password).await;
+        let res = server.register(username, email).await;
         assert_eq!(res.status(), 400, "{why}");
         assert_eq!(
             res.json::<Value>().await.unwrap(),
@@ -221,33 +290,27 @@ async fn a_disabled_instance_answers_the_same_whatever_is_submitted(pool: PgPool
 }
 
 #[sqlx::test]
-async fn registration_hands_out_the_login_response_and_no_session(pool: PgPool) {
+async fn registering_creates_an_inactive_account_and_mails_the_activation_link(pool: PgPool) {
     let server = spawn_server(pool).await;
     let admin = server.admin_session().await;
     server.enable_registration(&admin).await;
 
-    let res = server
-        .register("Alice_1", "Alice@Example.com", PASSWORD)
-        .await;
+    let res = server.register("Alice_1", "Alice@Example.com").await;
 
-    assert_eq!(res.status(), 200);
-    let text = res.text().await.unwrap();
+    assert_eq!(res.status(), 204);
     assert!(
-        !text.contains(PASSWORD),
-        "the password must never be echoed: {text}"
+        res.text().await.unwrap().is_empty(),
+        "no session and no token in the response"
     );
-    let body: Value = serde_json::from_str(&text).unwrap();
+    let mails = server.mailer.delivered();
+    assert_eq!(mails.len(), 1);
+    assert_eq!(mails[0].to, "Alice@Example.com");
+    assert_eq!(mails[0].subject, SUBJECT);
     assert!(
-        body["token"].is_null(),
-        "a registration must not give a session: {body}"
+        !activation_link(&mails[0].html).contains('?'),
+        "the token is in the URL fragment"
     );
-    assert!(
-        body["mfaToken"].as_str().is_some_and(|t| !t.is_empty()),
-        "an mfaToken is expected: {body}"
-    );
-    assert_eq!(body["mfaSetupRequired"], json!(true));
-    assert_eq!(body["mfaHasTotp"], json!(false));
-    assert_eq!(body["mfaHasPasskey"], json!(false));
+    assert!(mails[0].text.contains("alice_1"));
 
     let row: (String, String, bool) = sqlx::query_as(
         "SELECT username, email, is_admin FROM users WHERE lower(username) = 'alice_1'",
@@ -261,59 +324,69 @@ async fn registration_hands_out_the_login_response_and_no_session(pool: PgPool) 
         "the e-mail keeps the case that was typed"
     );
     assert!(!row.2, "a registered user is never an admin");
+    let pending: i64 = sqlx::query_scalar(
+        "SELECT count(*) FROM user_invitations i JOIN users u ON u.id = i.user_id WHERE u.username = 'alice_1'",
+    )
+    .fetch_one(&server.pool)
+    .await
+    .unwrap();
+    assert_eq!(pending, 1, "the account waits for its activation");
 }
 
 #[sqlx::test]
-async fn a_registered_user_signs_in_with_the_casing_typed_at_sign_up(pool: PgPool) {
+async fn nobody_can_sign_in_to_a_registered_account_before_activating_it(pool: PgPool) {
+    let server = spawn_server(pool).await;
+    let admin = server.admin_session().await;
+    server.enable_registration(&admin).await;
+    assert_eq!(
+        server.register("alice", "alice@example.com").await.status(),
+        204
+    );
+
+    for password in [PASSWORD, "", "hashed:", "alice"] {
+        assert_eq!(
+            server.login("alice", password).await.status(),
+            401,
+            "password {password:?}"
+        );
+    }
+}
+
+#[sqlx::test]
+async fn a_registered_user_activates_signs_in_and_completes_the_mfa_setup(pool: PgPool) {
     let server = spawn_server(pool).await;
     let admin = server.admin_session().await;
     server.enable_registration(&admin).await;
     assert_eq!(
         server
-            .register("Alice_1", "alice@example.com", PASSWORD)
+            .register("Alice_1", "alice@example.com")
             .await
             .status(),
-        200
+        204
     );
+
+    let activated = server.activate(&server.latest_token(), PASSWORD).await;
+    assert_eq!(activated.status(), 204);
 
     for typed in ["Alice_1", "ALICE_1", "alice_1", "  Alice_1 "] {
         let res = server.login(typed, PASSWORD).await;
         assert_eq!(res.status(), 200, "signing in as {typed:?}");
         let body: Value = res.json().await.unwrap();
         assert!(body["token"].is_null());
-        assert!(
-            body["mfaToken"].as_str().is_some_and(|t| !t.is_empty()),
-            "{body}"
-        );
+        assert_eq!(body["mfaSetupRequired"], json!(true), "{body}");
     }
     assert_eq!(
         server.login("Alice_1", "not-the-password").await.status(),
         401
     );
-}
-
-#[sqlx::test]
-async fn a_registered_user_completes_the_mfa_setup_and_reaches_me(pool: PgPool) {
-    let server = spawn_server(pool).await;
-    let admin = server.admin_session().await;
-    server.enable_registration(&admin).await;
 
     let body: Value = server
-        .register("alice", "alice@example.com", PASSWORD)
+        .login("alice_1", PASSWORD)
         .await
         .json()
         .await
         .unwrap();
     let mfa_token = body["mfaToken"].as_str().unwrap();
-    let me = server
-        .client
-        .get(server.url("/auth/me"))
-        .bearer_auth(mfa_token)
-        .send()
-        .await
-        .unwrap();
-    assert_eq!(me.status(), 401);
-
     let enrol = server
         .post(
             "/auth/mfa/setup/totp/enroll",
@@ -335,92 +408,124 @@ async fn a_registered_user_completes_the_mfa_setup_and_reaches_me(pool: PgPool) 
     let confirmed: Value = confirm.json().await.unwrap();
     assert_eq!(confirmed["backupCodes"].as_array().unwrap().len(), 10);
 
-    let session = confirmed["token"].as_str().unwrap();
     let me = server
         .client
         .get(server.url("/auth/me"))
-        .bearer_auth(session)
+        .bearer_auth(confirmed["token"].as_str().unwrap())
         .send()
         .await
         .unwrap();
     assert_eq!(me.status(), 200);
     let me: Value = me.json().await.unwrap();
-    assert_eq!(me["username"], "alice");
+    assert_eq!(me["username"], "alice_1");
     assert_eq!(me["email"], "alice@example.com");
     assert_eq!(me["isAdmin"], json!(false));
-
-    assert_eq!(
-        server.login("alice", "not-the-password").await.status(),
-        401
-    );
-    let next: Value = server.login("alice", PASSWORD).await.json().await.unwrap();
-    assert!(next["token"].is_null());
-    assert_eq!(
-        next["mfaSetupRequired"],
-        json!(false),
-        "the factor is enrolled: the next login is a challenge"
-    );
-    assert_eq!(next["mfaHasTotp"], json!(true));
 }
 
 #[sqlx::test]
-async fn a_taken_username_or_email_is_a_409_whatever_the_casing(pool: PgPool) {
+async fn an_activation_link_works_once(pool: PgPool) {
+    let server = spawn_server(pool).await;
+    let admin = server.admin_session().await;
+    server.enable_registration(&admin).await;
+    server.register("alice", "alice@example.com").await;
+    let token = server.latest_token();
+
+    assert_eq!(server.activate(&token, PASSWORD).await.status(), 204);
+
+    assert_eq!(
+        server.activate(&token, "another-password-1").await.status(),
+        400
+    );
+    assert_eq!(
+        server.login("alice", PASSWORD).await.status(),
+        200,
+        "the second attempt did not change the password"
+    );
+}
+
+#[sqlx::test]
+async fn registering_again_with_the_same_name_and_address_sends_a_new_link_and_kills_the_old_one(
+    pool: PgPool,
+) {
+    let server = spawn_server(pool).await;
+    let admin = server.admin_session().await;
+    server.enable_registration(&admin).await;
+    server.register("alice", "alice@example.com").await;
+    let first = server.latest_token();
+
+    let again = server.register("ALICE", "Alice@Example.com").await;
+
+    assert_eq!(again.status(), 204, "a lost mail must not lock the name");
+    assert_eq!(server.mailer.attempted_with_subject(SUBJECT).len(), 2);
+    assert_eq!(server.user_count().await, 2, "the admin and one alice");
+    let second = server.latest_token();
+    assert_ne!(first, second);
+    assert_eq!(
+        server.activate(&first, PASSWORD).await.status(),
+        400,
+        "the previous link stops working"
+    );
+    assert_eq!(server.activate(&second, PASSWORD).await.status(), 204);
+}
+
+#[sqlx::test]
+async fn a_name_or_address_that_belongs_to_someone_else_is_a_409(pool: PgPool) {
     let server = spawn_server(pool).await;
     let admin = server.admin_session().await;
     server.enable_registration(&admin).await;
     assert_eq!(
-        server
-            .register("alice", "alice@example.com", PASSWORD)
-            .await
-            .status(),
-        200
+        server.register("alice", "alice@example.com").await.status(),
+        204
+    );
+    let mails_before = server.mailer.attempts();
+
+    for (username, email, status, why) in [
+        (
+            "alice",
+            "other@example.com",
+            409,
+            "same username, new address",
+        ),
+        (
+            "ALICE",
+            "other@example.com",
+            409,
+            "same username, other casing",
+        ),
+        (
+            "bob",
+            "alice@example.com",
+            409,
+            "same address, new username",
+        ),
+        (
+            "bob",
+            "ALICE@Example.COM",
+            409,
+            "same address, other casing",
+        ),
+        ("Admin", "other@example.com", 400, "`admin` is reserved"),
+    ] {
+        assert_eq!(
+            server.register(username, email).await.status(),
+            status,
+            "{why}"
+        );
+    }
+    assert_eq!(server.user_count().await, 2, "only the admin and alice");
+    assert_eq!(
+        server.mailer.attempts(),
+        mails_before,
+        "refused registrations send nothing, so nobody can be spammed through them"
     );
 
+    // Once alice has activated, her own name and address are a plain conflict, not a resend.
+    server.activate(&server.latest_token(), PASSWORD).await;
     assert_eq!(
-        server
-            .register("alice", "other@example.com", PASSWORD)
-            .await
-            .status(),
-        409,
-        "same username"
+        server.register("alice", "alice@example.com").await.status(),
+        409
     );
-    assert_eq!(
-        server
-            .register("ALICE", "other@example.com", PASSWORD)
-            .await
-            .status(),
-        409,
-        "same username, other casing"
-    );
-    assert_eq!(
-        server
-            .register("Admin", "other@example.com", PASSWORD)
-            .await
-            .status(),
-        400,
-        "`admin` is a reserved name anyway"
-    );
-    assert_eq!(
-        server
-            .register("bob", "alice@example.com", PASSWORD)
-            .await
-            .status(),
-        409,
-        "same e-mail"
-    );
-    assert_eq!(
-        server
-            .register("bob", "ALICE@Example.COM", PASSWORD)
-            .await
-            .status(),
-        409,
-        "same e-mail, other casing"
-    );
-    assert_eq!(
-        server.user_count().await,
-        2,
-        "only the admin and alice exist"
-    );
+    assert_eq!(server.mailer.attempts(), mails_before);
 }
 
 #[sqlx::test]
@@ -430,57 +535,63 @@ async fn invalid_input_is_a_400_and_creates_nothing(pool: PgPool) {
     server.enable_registration(&admin).await;
     let before = server.user_count().await;
 
-    for (username, email, password, why) in [
-        ("ab", "a@example.com", PASSWORD, "username too short"),
-        (
-            "1alice",
-            "a@example.com",
-            PASSWORD,
-            "username starting with a digit",
-        ),
-        ("ali ce", "a@example.com", PASSWORD, "username with a space"),
-        (
-            "alice.git",
-            "a@example.com",
-            PASSWORD,
-            "username with a dot",
-        ),
-        ("alice", "not-an-email", PASSWORD, "invalid e-mail"),
-        (
-            "alice",
-            "a@example.com",
-            "short",
-            "password shorter than 8 characters",
-        ),
-        ("alice", "a@example.com", "", "empty password"),
-        (
-            "login",
-            "a@example.com",
-            PASSWORD,
-            "reserved name (SPA route)",
-        ),
+    for (username, email, why) in [
+        ("ab", "a@example.com", "username too short"),
+        ("1alice", "a@example.com", "username starting with a digit"),
+        ("ali ce", "a@example.com", "username with a space"),
+        ("alice.git", "a@example.com", "username with a dot"),
+        ("alice", "not-an-email", "invalid e-mail"),
+        ("alice", "", "empty e-mail"),
+        ("login", "a@example.com", "reserved name (SPA route)"),
         (
             "API",
             "a@example.com",
-            PASSWORD,
             "reserved name (infrastructure), any casing",
         ),
         (
             "register",
             "a@example.com",
-            PASSWORD,
             "reserved name (this very route)",
         ),
     ] {
-        let res = server.register(username, email, password).await;
+        let res = server.register(username, email).await;
         assert_eq!(res.status(), 400, "{why}");
-        let text = res.text().await.unwrap();
-        assert!(
-            !text.contains(PASSWORD),
-            "{why}: the password must not be echoed in an error: {text}"
-        );
     }
     assert_eq!(server.user_count().await, before);
+    assert_eq!(server.mailer.attempts(), 0);
+}
+
+#[sqlx::test]
+async fn a_mail_that_cannot_be_sent_is_a_generic_503_and_the_account_can_be_retried(pool: PgPool) {
+    let server = spawn_server(pool).await;
+    let admin = server.admin_session().await;
+    server.enable_registration(&admin).await;
+    server.mailer.fail_with("550 relay refused for secret-host");
+
+    let res = server.register("alice", "alice@example.com").await;
+
+    assert_eq!(res.status(), 503);
+    let text = res.text().await.unwrap();
+    assert!(
+        !text.contains("secret-host") && !text.contains("550"),
+        "the SMTP error must not reach an anonymous caller: {text}"
+    );
+    assert!(text.contains("could not be sent"), "{text}");
+
+    // The account was created before the send failed, so the same registration resends instead of conflicting.
+    server.mailer.recover();
+    assert_eq!(
+        server.register("alice", "alice@example.com").await.status(),
+        204
+    );
+    assert_eq!(server.mailer.delivered().len(), 1);
+    assert_eq!(
+        server
+            .activate(&server.latest_token(), PASSWORD)
+            .await
+            .status(),
+        204
+    );
 }
 
 #[sqlx::test]
@@ -492,27 +603,18 @@ async fn registration_is_throttled_per_ip_on_the_eleventh_attempt(pool: PgPool) 
     // Invalid attempts count too, the limit is per connection.
     for attempt in 1..=10 {
         assert_eq!(
-            server
-                .register("ab", "a@example.com", PASSWORD)
-                .await
-                .status(),
+            server.register("ab", "a@example.com").await.status(),
             400,
             "attempt {attempt}"
         );
     }
     assert_eq!(
-        server
-            .register("ab", "a@example.com", PASSWORD)
-            .await
-            .status(),
+        server.register("ab", "a@example.com").await.status(),
         429,
         "the 11th attempt is throttled"
     );
     assert_eq!(
-        server
-            .register("alice", "alice@example.com", PASSWORD)
-            .await
-            .status(),
+        server.register("alice", "alice@example.com").await.status(),
         429,
         "a valid registration is throttled too"
     );
@@ -521,6 +623,7 @@ async fn registration_is_throttled_per_ip_on_the_eleventh_attempt(pool: PgPool) 
         1,
         "nobody was created through the throttled attempts"
     );
+    assert_eq!(server.mailer.attempts(), 0);
 }
 
 #[sqlx::test]
@@ -530,7 +633,7 @@ async fn the_register_and_activate_routes_refuse_a_body_over_16_kib(pool: PgPool
     server.enable_registration(&admin).await;
     let huge = "x".repeat(20 * 1024);
 
-    let res = server.register("alice", "alice@example.com", &huge).await;
+    let res = server.register("alice", &huge).await;
     assert_eq!(res.status(), 413);
     let res = server
         .post("/auth/activate", json!({ "token": "t", "password": huge }))
@@ -608,12 +711,18 @@ async fn only_an_admin_can_read_or_change_the_switch(pool: PgPool) {
     let server = spawn_server(pool).await;
     let admin = server.admin_session().await;
     server.enable_registration(&admin).await;
-    let body: Value = server
-        .register("alice", "alice@example.com", PASSWORD)
-        .await
-        .json()
-        .await
-        .unwrap();
+    assert_eq!(
+        server.register("alice", "alice@example.com").await.status(),
+        204
+    );
+    assert_eq!(
+        server
+            .activate(&server.latest_token(), PASSWORD)
+            .await
+            .status(),
+        204
+    );
+    let body: Value = server.login("alice", PASSWORD).await.json().await.unwrap();
     let mfa_token = body["mfaToken"].as_str().unwrap();
     let secret = server
         .post(

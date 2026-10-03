@@ -48,7 +48,7 @@ L'interface n'a pas de formulaire de création directe. L'API le permet : `POST 
 
 ### Inscription libre
 
-Si vous activez l'inscription libre dans les réglages, chacun peut créer son compte sur `/register`. Voir [Réglages de l'instance](/docs/administration/reglages).
+Si vous activez l'inscription libre dans les réglages, chacun peut demander son compte sur `/register` avec un nom et une adresse. Il reçoit un lien d'activation par e-mail, comme pour une invitation, et choisit son mot de passe à ce moment : l'adresse est donc vérifiée. Le compte apparaît dans la liste avec l'état **Invitation en attente** jusqu'à l'activation, et **Renvoyer l'invitation** fonctionne comme pour une invitation. Voir [Réglages de l'instance](/docs/administration/reglages).
 
 ## Réinitialiser le mot de passe
 

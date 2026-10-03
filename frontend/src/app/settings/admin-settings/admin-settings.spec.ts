@@ -832,7 +832,8 @@ describe('AdminSettings', () => {
 
   describe('registration', () => {
     const toggle = (root: HTMLElement) => root.querySelector<HTMLInputElement>('[data-field="registrationEnabled"] input[role="switch"]')!;
-    const HELP = 'Quand elle est active, toute personne qui peut joindre cette instance peut créer un compte. Chaque compte doit configurer la double authentification.';
+    const HELP =
+      "Quand elle est active, toute personne qui peut joindre cette instance peut demander un compte : elle reçoit par e-mail un lien pour confirmer son adresse et choisir son mot de passe, puis configure la double authentification. Demande que l'envoi d'e-mails soit configuré, sinon la page d'inscription n'est pas proposée.";
 
     it('is a card "Inscription" with the switch, off by default, and its consequence spelt out', async () => {
       const { el } = await setup(SECURITY_URL);

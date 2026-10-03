@@ -13,7 +13,7 @@
   <div class="admin-settings__field admin-settings__switch" data-field="registrationEnabled">
     <gbt-switch label="Autoriser l'inscription libre" [ngModel]="registrationShown()" (ngModelChange)="setRegistrationEnabled($event)" />
     <div class="admin-settings__field-footer">
-      <p class="admin-settings__hint">Quand elle est active, toute personne qui peut joindre cette instance peut créer un compte. Chaque compte doit configurer la double authentification.</p>
+      <p class="admin-settings__hint">Quand elle est active, toute personne qui peut joindre cette instance peut demander un compte : elle reçoit par e-mail un lien pour confirmer son adresse et choisir son mot de passe, puis configure la double authentification. Demande que l'envoi d'e-mails soit configuré, sinon la page d'inscription n'est pas proposée.</p>
       <fg-field-save-state field="registrationEnabled" />
     </div>
   </div>
