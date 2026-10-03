@@ -47,6 +47,28 @@ describe('LanguageSwitcher', () => {
     expect(links.filter((link) => link.getAttribute('aria-current') === 'true')).toHaveLength(1)
     expect(element.querySelector('[aria-current="true"]')?.textContent?.trim()).toBe('Français')
     expect(element.querySelector('summary')?.textContent).toContain('FR')
+    expect(element.querySelector('summary')?.textContent).toContain('Langue')
+  })
+
+  it('gives each link its code in mono, which is not spoken', async () => {
+    const element = await render('/fr')
+
+    expect(
+      Array.from(element.querySelectorAll('a')).map((link) => link.getAttribute('data-code')),
+    ).toEqual(['EN', 'FR', 'IT', 'ES', 'DE'])
+  })
+
+  it('closes on Escape and returns the focus to the button', async () => {
+    const element = await render('/fr')
+    document.body.appendChild(element)
+    const details = element.querySelector('details')!
+    details.open = true
+
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }))
+
+    expect(details.open).toBe(false)
+    expect(document.activeElement).toBe(element.querySelector('summary'))
+    element.remove()
   })
 
   it('keeps the home page as the home page', async () => {

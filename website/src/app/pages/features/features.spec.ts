@@ -72,7 +72,6 @@ describe('Features tabs', () => {
     expect(root.querySelector('#tab-mrs')?.getAttribute('aria-selected')).toBe('true')
     expect(root.querySelector('#panel-mrs')?.classList.contains('is-active')).toBe(true)
     expect(root.querySelector('#panel-repos')?.classList.contains('is-active')).toBe(false)
-    expect(root.querySelector('.tabs')?.classList.contains('tabs--animated')).toBe(true)
   })
 
   it('moves between tabs with the arrows, Home and End, and focuses the new tab', async () => {

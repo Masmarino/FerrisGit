@@ -1,5 +1,5 @@
-// Generates the template of the architecture plan, the isometric drawing of a FerrisGit instance on the home and
-// Features pages, as one inline SVG. The geometry is computed here from world coordinates; the labels are Transloco
+// Generates the template of the architecture plan, the isometric drawing of a FerrisGit instance on the home page, as
+// one inline SVG. The geometry is computed here from world coordinates; the labels are Transloco
 // bindings, so they are real text in the prerendered pages, in every language.
 //
 //     npm run plan
@@ -366,7 +366,7 @@ push(text(jobsAt[0] + 12, jobsAt[1] + 4, t('plan.flow.jobs'), 5, 'tx acct'))
 const pollAt = P(37, 25, 0)
 push(text(pollAt[0] + 10, pollAt[1] + 6, t('plan.flow.poll'), 5, 'tx note'))
 
-// The seven numbered circles, which link to the tiles of the home page or the sections of the Features page:
+// The seven numbered circles, which link to the numbered tiles of the home page:
 // 1 repositories, 2 merge requests, 3 issues, 4 public pages, 5 search, 6 pipelines, 7 webhooks.
 ;[
   [1, P(48.5, 12.5, 1.2), [22, 6]],

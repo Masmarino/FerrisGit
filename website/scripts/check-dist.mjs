@@ -21,8 +21,8 @@ function read(file) {
 
 const count = (html, pattern) => (html.match(pattern) ?? []).length
 
-// The architecture plan, on the home and Features pages: one labelled image with real text, seven numbered circles
-// and the flow of a push. `fragments` are the sections its circles link to.
+// The architecture plan, on the home page: one labelled image with real text, seven numbered circles and the flow of a
+// push. `fragments` are the tiles its circles link to.
 function checkPlan(file, html, fragments) {
   if (!html.includes('<app-architecture-plan')) fail(`${file}: the architecture plan is missing`)
   const plan = html.match(/<svg[^>]*\bclass="plan"[^>]*>/)?.[0] ?? ''
@@ -98,41 +98,25 @@ for (const [id, path] of Object.entries(site.pages)) {
         fail(`${file}: the six screenshots should link to the whole screen`)
       if (!/<img[^>]*screens\/repository-detail-light\.webp/.test(html))
         fail(`${file}: the screenshots are not the tight crops`)
-      if (count(html, /class="tile more__card/g) !== 4) fail(`${file}: expected 4 cards`)
-      checkPlan(file, html, [
-        'feature-repos',
-        'feature-mrs',
-        'feature-issues',
-        'feature-public',
-        'feature-ci',
-        'feature-webhooks',
-      ])
+      if (count(html, /class="spec__row more__item"/g) !== 4) fail(`${file}: expected 4 more rows`)
+      if (html.includes('<app-architecture-plan'))
+        fail(`${file}: the plan belongs to the home page only`)
     }
     if (id === 'home') {
-      // The hero scene is prerendered in its final state (merged).
-      if (count(html, /<app-hero-scene/g) !== 1) fail(`${file}: hero scene missing`)
-      if (!/<app-hero-scene[^>]*data-step="6"/.test(html))
-        fail(`${file}: the hero scene should be prerendered merged (step 6)`)
+      // The hero claims a memory figure and prints the command output that backs it.
+      if (!html.includes('docker stats --no-stream'))
+        fail(`${file}: the measured output is missing`)
+      if (!/class="proof__terminal"[\s\S]*?\d+(?:\.\d+)?MiB/.test(html))
+        fail(`${file}: the measured output has no memory figure`)
       if (!html.includes('docker compose up -d --build')) fail(`${file}: hero command missing`)
-      if (count(html, /<gbt-copy-button/g) < 4) fail(`${file}: copy buttons missing`)
-      if (count(html, /class="fact"/g) !== 6) fail(`${file}: six facts expected`)
+      if (count(html, /<gbt-copy-button/g) < 1) fail(`${file}: the copy button is missing`)
+      if (count(html, /class="spec__row why__row"/g) !== 4)
+        fail(`${file}: four situations expected`)
+      if (count(html, /class="spec__row limits__item"/g) !== 4)
+        fail(`${file}: four limits expected`)
       if (count(html, /class="tile tile--/g) !== 8) fail(`${file}: eight tiles expected`)
-      if (count(html, /<app-pipeline-sim/g) !== 1) fail(`${file}: pipeline demo missing`)
-      if (!/class="sim__job"[^>]*data-state="success"/.test(html))
-        fail(`${file}: the pipeline demo should be prerendered finished`)
-      if (count(html, /<app-install/g) !== 1) fail(`${file}: install tabs missing`)
-      if (count(html, /class="install__panel[ "]/g) !== 3)
-        fail(`${file}: three install panels expected`)
-      if (count(html, /class="sec__row"/g) !== 7) fail(`${file}: seven security facts expected`)
       if (count(html, /class="strip__item"/g) !== 5) fail(`${file}: five roadmap versions expected`)
-      for (const section of [
-        'product',
-        'ci',
-        'self-hosting',
-        'architecture',
-        'security',
-        'roadmap',
-      ]) {
+      for (const section of ['why', 'product', 'architecture', 'roadmap']) {
         if (!html.includes(`id="${section}"`)) fail(`${file}: section #${section} is missing`)
       }
       checkPlan(file, html, ['d1', 'd2', 'd3', 'd4', 'd5', 'd6', 'd7'])
@@ -140,11 +124,27 @@ for (const [id, path] of Object.entries(site.pages)) {
         fail(`${file}: license mention missing`)
       if (!html.includes('application/ld+json')) fail(`${file}: no JSON-LD`)
     }
-    if (id === 'roadmap' && count(html, /<section[^>]*class="group/g) !== 8) {
+    if (id === 'ci') {
+      if (count(html, /<app-pipeline-sim/g) !== 1) fail(`${file}: pipeline demo missing`)
+      if (!/class="sim__job"[^>]*data-state="success"/.test(html))
+        fail(`${file}: the pipeline demo should be prerendered finished`)
+      if (count(html, /class="spec__row"/g) !== 3) fail(`${file}: three CI facts expected`)
+    }
+    if (id === 'install') {
+      if (count(html, /<app-install[ >]/g) !== 1) fail(`${file}: install tabs missing`)
+      if (count(html, /class="install__panel[ "]/g) !== 3)
+        fail(`${file}: three install panels expected`)
+      if (count(html, /<gbt-copy-button/g) < 3) fail(`${file}: copy buttons missing`)
+    }
+    if (id === 'security' && count(html, /class="spec__row sec__row"/g) !== 7) {
+      fail(`${file}: seven security facts expected`)
+    }
+    if (id === 'roadmap' && count(html, /<section[^>]*class="section group/g) !== 8) {
       fail(`${file}: expected 8 roadmap groups`)
     }
+    // Example hosts and the local address of printed command output are text, not resources.
     if (
-      /https?:\/\/(?!www\.ferrisgit\.pro|app\.ferrisgit\.pro|github\.com\/Masmarino|schema\.org|www\.w3\.org|www\.sitemaps\.org|git\.example\.com)[^"'\s<)]+/.test(
+      /https?:\/\/(?!www\.ferrisgit\.pro|app\.ferrisgit\.pro|github\.com\/Masmarino|schema\.org|www\.w3\.org|www\.sitemaps\.org|git\.example\.com|localhost:\d+\/)[^"'\s<)]+/.test(
         html.replace(/<svg[\s\S]*?<\/svg>/g, ''),
       )
     ) {
@@ -187,7 +187,10 @@ for (const name of ['repository', 'merge-request', 'pipeline', 'issues', 'explor
 }
 
 const FONTS = [
-  'fonts/instrument-sans-var.woff2',
+  'fonts/ibm-plex-sans-400.woff2',
+  'fonts/ibm-plex-sans-500.woff2',
+  'fonts/ibm-plex-sans-600.woff2',
+  'fonts/ibm-plex-sans-condensed-600.woff2',
   'fonts/ibm-plex-mono-400.woff2',
   'fonts/ibm-plex-mono-500.woff2',
 ]
@@ -199,8 +202,8 @@ for (const file of [
 ]) {
   read(file)
 }
-for (const file of ['fonts/OFL-instrument-sans.txt', 'fonts/OFL-ibm-plex-mono.txt']) read(file)
-// The three self-hosted fonts stay under 130 kB together.
+read('fonts/OFL-ibm-plex.txt')
+// The self-hosted fonts stay under 130 kB together.
 const fontBytes = FONTS.reduce((sum, file) => {
   const path = join(dist, file)
   return sum + (existsSync(path) ? statSync(path).size : 0)

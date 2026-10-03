@@ -1,0 +1,32 @@
+<app-page-head [section]="'nav.ci' | transloco">
+  <h1>{{ 'home.ci.title' | transloco }}</h1>
+  <p class="lead" [innerHTML]="'home.ci.text' | transloco | inlineCode"></p>
+</app-page-head>
+
+<section class="section section--first" id="demo" aria-label="{{ 'home.ci.title' | transloco }}">
+  <div class="container">
+    <app-pipeline-sim />
+  </div>
+</section>
+
+<section class="section" id="how" aria-label="{{ 'home.ci.engines.title' | transloco }}">
+  <div class="container">
+    <div class="section__body">
+      <dl class="spec" data-rule appReveal appRevealMode="mark">
+        @for (fact of facts; track fact; let i = $index) {
+          <div class="spec__row" [appReveal]="i">
+            <dt>{{ 'home.ci.' + fact + '.title' | transloco }}</dt>
+            <dd [innerHTML]="'home.ci.' + fact + '.text' | transloco | inlineCode"></dd>
+          </div>
+        }
+      </dl>
+      <p class="section__more">
+        <a class="text-link" [href]="docs.ciReference" hreflang="fr">{{
+          'home.ci.docs' | transloco
+        }}</a>
+      </p>
+    </div>
+  </div>
+</section>
+
+<app-cta />

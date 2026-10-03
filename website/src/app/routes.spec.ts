@@ -6,7 +6,7 @@ import { LANGS } from './i18n/languages'
 import { TrailingSlashUrlSerializer } from './shared/trailing-slash-url-serializer'
 
 describe('routes', () => {
-  it('prerender one file per language and page, 15 in all, plus the 404 page', async () => {
+  it('prerender one file per language and page, 30 in all, plus the 404 page', async () => {
     const urls: string[] = []
     for (const route of serverRoutes) {
       const { getPrerenderParams } = route as {
@@ -18,11 +18,12 @@ describe('routes', () => {
       }
     }
     const pages = urls.filter((url) => url !== '404' && url !== '**')
-    expect(pages).toHaveLength(15)
+    expect(pages).toHaveLength(30)
     for (const lang of LANGS) {
       expect(pages).toContain(lang)
-      expect(pages).toContain(`${lang}/features`)
-      expect(pages).toContain(`${lang}/roadmap`)
+      for (const page of ['features', 'ci', 'install', 'security', 'roadmap']) {
+        expect(pages).toContain(`${lang}/${page}`)
+      }
     }
     expect(urls).toContain('404')
   })

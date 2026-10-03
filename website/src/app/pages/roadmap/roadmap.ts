@@ -4,7 +4,7 @@ import { Button } from '@masmarino/gabarit'
 import { usePageMeta } from '../../seo/page-meta'
 import { InlineCodePipe } from '../../shared/inline-code.pipe'
 import { ARTIFERRIS_URL, MILESTONES_URL, README_ROADMAP_URL } from '../../shared/links'
-import { Reveal } from '../../shared/motion/reveal.directive'
+import { PageHead } from '../../shared/page-head/page-head'
 
 interface RoadmapGroup {
   id: string
@@ -27,9 +27,11 @@ const GROUPS: RoadmapGroup[] = [
   { id: 'consideration', items: 3, hasIntro: true, status: 'considering' },
 ]
 
+import { Reveal } from '../../shared/motion/reveal.directive'
+
 @Component({
   selector: 'app-roadmap',
-  imports: [TranslocoPipe, Button, InlineCodePipe, Reveal],
+  imports: [Reveal, TranslocoPipe, Button, InlineCodePipe, PageHead],
   templateUrl: './roadmap.html',
   styleUrl: './roadmap.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

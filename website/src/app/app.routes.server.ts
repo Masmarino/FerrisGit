@@ -3,7 +3,7 @@ import { LANGS, PAGES } from './i18n/languages'
 
 const langParams = async () => LANGS.map((lang) => ({ lang }))
 
-// One prerendered file per language and page: /en/, /en/features/, /en/roadmap/, /fr/, ...
+// One prerendered file per language and page: /en/, /en/features/, /en/ci/, /en/install/, /en/security/, /en/roadmap/, /fr/, ...
 const pagePaths = Object.values(PAGES).map((path) => (path ? `:lang/${path}` : ':lang'))
 
 export const serverRoutes: ServerRoute[] = [

@@ -542,7 +542,7 @@ nothing with `frontend/`), prerendered to static files and served by nginx. The 
 - **Generated assets.** These are committed, so a normal build does not regenerate them (commands run from `website/`):
   - `npm run images`: the logos, favicon, Apple touch icon and the social previews, one per language;
   - `npm run plan`: the template of the architecture drawing, `src/app/shared/architecture-plan/architecture-plan.html`;
-  - `python3 scripts/subset-fonts.py`: the subset Instrument Sans and IBM Plex Mono in `public/fonts/`, from the
+  - `python3 scripts/subset-fonts.py`: the subset IBM Plex (Sans, Sans Condensed, Mono) in `public/fonts/`, from the
     `@fontsource` packages (needs `fonttools` and `brotli`);
   - `node scripts/capture-screens.mjs`: the product screenshots in `public/images/screens/`, from the application's
     Storybook; the instructions are at the top of that script.

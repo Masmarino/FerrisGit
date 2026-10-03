@@ -29,8 +29,9 @@ describe('Footer', () => {
     expect(hrefs).toEqual(
       expect.arrayContaining([
         '/fr/features/',
-        '/fr/#ci',
-        '/fr/#self-hosting',
+        '/fr/ci/',
+        '/fr/install/',
+        '/fr/security/',
         '/fr/roadmap/',
         'https://app.ferrisgit.pro',
         'https://app.ferrisgit.pro/docs/administration/installation',

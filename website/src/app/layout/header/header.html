@@ -1,4 +1,4 @@
-<header class="header" [class.is-scrolled]="scrolled()">
+<header class="header on-dark" [class.is-scrolled]="scrolled()">
   <div class="header__inner container">
     <a
       class="header__brand"
@@ -32,12 +32,28 @@
             >
           </li>
           <li>
-            <a [routerLink]="['/', lang()]" fragment="ci">{{ 'nav.ci' | transloco }}</a>
+            <a
+              [routerLink]="['/', lang(), 'ci']"
+              routerLinkActive="is-active"
+              ariaCurrentWhenActive="page"
+              >{{ 'nav.ci' | transloco }}</a
+            >
           </li>
           <li>
-            <a [routerLink]="['/', lang()]" fragment="self-hosting">{{
-              'nav.selfHosting' | transloco
-            }}</a>
+            <a
+              [routerLink]="['/', lang(), 'install']"
+              routerLinkActive="is-active"
+              ariaCurrentWhenActive="page"
+              >{{ 'nav.install' | transloco }}</a
+            >
+          </li>
+          <li>
+            <a
+              [routerLink]="['/', lang(), 'security']"
+              routerLinkActive="is-active"
+              ariaCurrentWhenActive="page"
+              >{{ 'nav.security' | transloco }}</a
+            >
           </li>
           <li>
             <a

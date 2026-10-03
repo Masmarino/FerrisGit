@@ -65,7 +65,7 @@ await square(180, join(root, 'public/apple-touch-icon.png'), {
 const W = 1200
 const H = 630
 const sans = opentype.parse(
-  readFileSync(join(root, 'scripts/assets/fonts/instrument-sans-640.ttf')).buffer,
+  readFileSync(join(root, 'scripts/assets/fonts/ibm-plex-sans-condensed-600.ttf')).buffer,
 )
 const mono = opentype.parse(
   readFileSync(join(root, 'scripts/assets/fonts/ibm-plex-mono-400.ttf')).buffer,
@@ -91,15 +91,15 @@ const line = (font, text, x, baseline, size, fill, tracking = 0) => {
   return `<path d="${data}" fill="${fill}"/>`
 }
 
-// Dark theme colours of the site.
-const paper = '#0b0f1c'
-const ink = '#e9edf7'
-const muted = '#a7b1c9'
+// Dark theme colours of the site, on a plain ground.
+const paper = '#0c1015'
+const ink = '#e7ebf1'
+const muted = '#aab3c0'
 const orange = '#f0622a'
-const face = '#121829'
-const top = '#182036'
+const face = '#141a21'
+const top = '#1a212a'
 const core = '#3a2a2e'
-const slab = '#0e1322'
+const slab = '#10151b'
 
 const template = readFileSync(
   join(root, 'src/app/shared/architecture-plan/architecture-plan.html'),
@@ -163,13 +163,13 @@ function wrap(text, size, maxWidth, tracking) {
   return lines.every((value) => width(value) <= maxWidth) ? lines : null
 }
 
-/** The largest title size that fits on at most three lines: the languages differ a lot in length. */
+/** The largest title size that fits on at most four lines: the languages differ a lot in length. */
 function fitTitle(text) {
-  for (let size = 82; size >= 54; size -= 2) {
-    const lines = wrap(text, size, 520, -0.03)
-    if (lines && lines.length <= 3) return { size, lines }
+  for (let size = 76; size >= 44; size -= 2) {
+    const lines = wrap(text, size, 500, -0.01)
+    if (lines && lines.length <= 4) return { size, lines }
   }
-  throw new Error(`The title does not fit on three lines: ${text}`)
+  throw new Error(`The title does not fit on four lines: ${text}`)
 }
 
 const logo = await fitted(64).png().toBuffer()
@@ -177,7 +177,7 @@ const logo = await fitted(64).png().toBuffer()
 for (const lang of langs) {
   const { size, lines } = fitTitle(readJson(`src/app/i18n/${lang}.json`).home.hero.title)
   const lineHeight = Math.round(size * 1.1)
-  const firstBaseline = 232
+  const firstBaseline = lines.length > 3 ? 196 : 232
   const lastBaseline = firstBaseline + (lines.length - 1) * lineHeight
   const ruleY = lastBaseline + 36
   const tagline = wrap(taglines[lang], 25, 470, 0)
@@ -187,18 +187,15 @@ for (const lang of langs) {
 <svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}">
   <rect width="${W}" height="${H}" fill="${paper}"/>
   <path d="${gridColumns}${gridRows}" stroke="${ink}" stroke-opacity=".05" stroke-width="1" fill="none"/>
-  <radialGradient id="g1" cx="0.15" cy="0.2" r="0.6"><stop offset="0" stop-color="${orange}" stop-opacity=".26"/><stop offset="1" stop-color="${orange}" stop-opacity="0"/></radialGradient>
-  <radialGradient id="g2" cx="0.85" cy="0.3" r="0.6"><stop offset="0" stop-color="#4652c8" stop-opacity=".2"/><stop offset="1" stop-color="#4652c8" stop-opacity="0"/></radialGradient>
-  <rect width="${W}" height="${H}" fill="url(#g1)"/><rect width="${W}" height="${H}" fill="url(#g2)"/>
   <svg x="${planX}" y="${planY}" width="${crop.width * scale}" height="${crop.height * scale}" viewBox="${crop.x} ${crop.y} ${crop.width} ${crop.height}" overflow="hidden">
     <style>${planStyle}</style>
     ${drawing}
   </svg>
-  ${lines.map((text, index) => line(sans, text, 64, firstBaseline + index * lineHeight, size, ink, -0.03)).join('')}
+  ${lines.map((text, index) => line(sans, text, 64, firstBaseline + index * lineHeight, size, ink, -0.01)).join('')}
   <rect x="64" y="${ruleY}" width="120" height="6" fill="${orange}"/>
   ${tagline.map((text, index) => line(sans, text, 64, ruleY + 52 + index * 34, 25, muted)).join('')}
   ${line(mono, 'www.ferrisgit.pro', 64, H - 48, 22, muted)}
-  ${line(sans, 'FerrisGit', 134, 92, 40, ink, -0.02)}
+  ${line(sans, 'FerrisGit', 134, 92, 42, ink, 0)}
 </svg>`
 
   await sharp(Buffer.from(svg))

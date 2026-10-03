@@ -40,8 +40,8 @@
         }
       </div>
       <svg class="sim__links" viewBox="0 0 48 120" width="48" height="120" aria-hidden="true">
-        <path d="M0 24C24 24 24 60 48 60" />
-        <path d="M0 96C24 96 24 60 48 60" />
+        <path pathLength="100" [attr.data-state]="state().format" d="M0 24C24 24 24 60 48 60" />
+        <path pathLength="100" [attr.data-state]="state().clippy" d="M0 96C24 96 24 60 48 60" />
       </svg>
       <div class="sim__stage sim__stage--test">
         <p class="sim__stage-name">test</p>

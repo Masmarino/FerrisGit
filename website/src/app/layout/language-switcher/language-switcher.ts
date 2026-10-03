@@ -27,13 +27,14 @@ import { LANGS, LANG_NAMES, Lang, PAGES, pageIdFromPath } from '../../i18n/langu
   changeDetection: ChangeDetectionStrategy.OnPush,
   host: {
     '(document:click)': 'closeOnOutsideClick($event)',
-    '(document:keydown.escape)': 'close()',
+    '(document:keydown.escape)': 'closeWithEscape()',
   },
 })
 export class LanguageSwitcher {
   private readonly router = inject(Router)
   private readonly isBrowser = isPlatformBrowser(inject(PLATFORM_ID))
   private readonly details = viewChild<ElementRef<HTMLDetailsElement>>('details')
+  private readonly summary = viewChild<ElementRef<HTMLElement>>('summary')
 
   protected readonly langs = LANGS
   protected readonly names = LANG_NAMES
@@ -56,6 +57,14 @@ export class LanguageSwitcher {
   protected close(): void {
     const element = this.details()?.nativeElement
     if (element?.open) element.open = false
+  }
+
+  /** Escape closes the list and brings the focus back to the button, so a keyboard user does not lose their place. */
+  protected closeWithEscape(): void {
+    const element = this.details()?.nativeElement
+    if (!element?.open) return
+    element.open = false
+    this.summary()?.nativeElement.focus()
   }
 
   protected closeOnOutsideClick(event: Event): void {

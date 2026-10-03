@@ -21,13 +21,15 @@ describe('Header', () => {
     const hrefs = Array.from(nav.querySelectorAll('a')).map((link) => link.getAttribute('href'))
     expect(hrefs).toEqual([
       '/fr/features/',
-      '/fr/#ci',
-      '/fr/#self-hosting',
+      '/fr/ci/',
+      '/fr/install/',
+      '/fr/security/',
       '/fr/roadmap/',
       'https://app.ferrisgit.pro/docs',
     ])
     expect(nav.textContent).toContain('Produit')
     expect(nav.textContent).toContain('Feuille de route')
+    expect(nav.textContent).toContain('Sécurité')
     expect(root.querySelector('.header__brand')?.getAttribute('href')).toBe('/fr/')
   })
 

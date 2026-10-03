@@ -34,6 +34,7 @@
       >
         <h3 class="install__panel-title">{{ 'install.tabs.' + tab.id | transloco }}</h3>
         <app-code-block
+          [print]="true"
           [language]="tab.language"
           [label]="'install.labels.' + tab.id | transloco"
           [region]="'install.regions.' + tab.id | transloco"
@@ -57,7 +58,7 @@
     <h3>{{ 'install.then.title' | transloco }}</h3>
     <ol class="install__steps">
       @for (step of steps; track step; let n = $index) {
-        <li>
+        <li [appReveal]="n">
           <span class="install__n">{{ n + 1 }}</span>
           <p [innerHTML]="'install.then.' + step | transloco | inlineCode"></p>
         </li>

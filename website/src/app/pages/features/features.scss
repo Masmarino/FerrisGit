@@ -5,21 +5,21 @@
 }
 
 .page-head__note {
-  max-width: 52ch;
-  margin: 0;
+  max-width: 58ch;
+  margin: var(--s-3) 0 0;
   color: var(--text-3);
-  font-size: var(--t-15);
+  font-size: var(--t-14);
   line-height: 1.5;
 }
 
-// Tabs: a bar sticky under the header. Without JavaScript the bar is hidden and the panels follow one another.
+// Tabs: a bar sticky under the header, underlined like the install tabs. Without JavaScript the bar is hidden and the
+// panels follow one another.
 .tabs__bar {
   position: sticky;
   top: var(--header-h);
   z-index: 5;
-  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  background: var(--bg);
   border-block: 1px solid var(--line);
-  backdrop-filter: blur(12px);
 }
 
 :host-context(html:not(.js)) .tabs__bar {
@@ -28,8 +28,7 @@
 
 .tabs__list {
   display: flex;
-  gap: 0.25rem;
-  padding-block: 0.5rem;
+  gap: var(--s-6);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -37,36 +36,45 @@
 .tabs__tab {
   position: relative;
   flex: none;
-  min-height: 2.5rem;
-  padding: 0 0.875rem;
+  min-height: 3rem;
+  padding: 0;
+  margin-bottom: -1px;
   color: var(--text-2);
-  font: 600 var(--t-14) var(--sans);
+  font: 500 var(--t-15) var(--sans);
   white-space: nowrap;
   background: transparent;
   border: 0;
-  border-radius: var(--r-control);
-  transition:
-    color var(--dur-1) var(--ease),
-    background-color var(--dur-1) var(--ease);
+  border-bottom: 0;
+  transition: color var(--dur-1) var(--ease);
 
   &:hover {
     color: var(--text);
-    background: var(--bg-hover);
+  }
+
+  // The rule under the active tab grows from the left when it is chosen, and shortens when another is.
+  &::after {
+    position: absolute;
+    inset-inline: 0;
+    bottom: 0;
+    height: 2px;
+    content: '';
+    background: var(--text);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform var(--dur-2) var(--ease-out);
   }
 
   &.is-active {
     color: var(--text);
-    background: var(--surface-3);
   }
 
-  &.is-linked {
-    color: var(--brand-text);
-    box-shadow: inset 0 0 0 1px var(--brand);
+  &.is-active::after {
+    transform: scaleX(1);
   }
 }
 
 .tabs__panel {
-  padding-block: var(--s-8) 0;
+  padding-block: var(--s-8) var(--section);
 }
 
 :host-context(html.js) .tabs__panel:not(.is-active) {
@@ -86,19 +94,19 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--s-6);
-  align-items: center;
+  align-items: start;
 }
 
 .feature__text {
   min-width: 0;
 
   h2 {
-    margin-bottom: var(--s-4);
+    margin-bottom: var(--s-3);
   }
 
   .lead {
     margin-bottom: var(--s-5);
-    font-size: var(--t-17);
+    font-size: var(--t-16);
   }
 
   .check-list {
@@ -122,68 +130,21 @@
   }
 }
 
-// After the first tab change, the new panel's text slides in and its window fades in.
-@keyframes tabs-slide {
-  from {
-    opacity: 0;
-    transform: translate3d(12px, 0, 0);
-  }
-
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-
-@keyframes tabs-fade {
-  from {
-    opacity: 0;
-  }
-
-  to {
-    opacity: 1;
-  }
-}
-
-.tabs--animated .tabs__panel.is-active {
-  .feature__text {
-    animation: tabs-slide var(--dur-2) var(--ease-out) both;
-  }
-
-  .feature__media {
-    animation: tabs-fade var(--dur-3) var(--ease) both;
-  }
-}
-
-// The plan section hands over to the tiles, which bring their own top padding.
-.made {
-  padding-bottom: 0;
-}
-
-// The other domains: tiles of unequal size.
+// The other domains, as the rows of a table: the name, then what it does and what it comes with.
 .more {
-  padding-top: var(--section);
-
-  > h2 {
-    margin-bottom: var(--s-6);
-  }
+  border-top: 1px solid var(--line-strong);
 }
 
-.more__grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-4);
-  align-items: stretch;
+.more__item {
+  align-items: start;
+
+  h3 {
+    font-size: var(--t-20);
+  }
 }
 
 .more__body {
   min-width: 0;
-  padding: var(--s-5);
-
-  h3 {
-    margin-bottom: 0.5rem;
-    font-size: var(--t-20);
-  }
 
   .check-list {
     margin-bottom: 0;
@@ -192,53 +153,11 @@
 }
 
 .more__lead {
-  margin-bottom: var(--s-4);
+  margin-bottom: var(--s-3);
   color: var(--text-2);
 }
 
-@media (min-width: bp.$lg) {
-  .more__grid {
-    grid-template-columns: repeat(12, minmax(0, 1fr));
-  }
-
-  .more__card--accounts {
-    grid-column: 1 / span 7;
-  }
-
-  .more__card--webhooks {
-    grid-column: 8 / span 5;
-  }
-
-  .more__card--wikis {
-    grid-column: 1 / span 4;
-  }
-
-  .more__card--tech {
-    grid-column: 5 / span 8;
-  }
-}
-
-// What does not exist yet, in a dashed frame.
-.missing {
-  padding-block: var(--section);
-}
-
-.missing__box {
-  max-width: 52rem;
-  padding: clamp(1.5rem, 1rem + 2vw, 2.5rem);
-  border: 1px dashed var(--line-strong);
-  border-radius: var(--r-tile);
-
-  h2 {
-    margin-bottom: 0.75rem;
-  }
-}
-
-.missing__intro {
-  margin-bottom: var(--s-5);
-  color: var(--text-2);
-}
-
-.closing {
-  padding-top: 0;
+// A panel that comes into view fades in, so a change of tab reads as a change of content.
+.tabs__panel.is-active .feature__grid {
+  animation: fade-in var(--dur-3) var(--ease-out) both;
 }

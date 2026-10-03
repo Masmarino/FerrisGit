@@ -8,6 +8,18 @@
       "title": "Produkt | FerrisGit",
       "description": "Was FerrisGit heute kann: Repositories und Gruppen, Merge Requests, Issues, Wikis, Releases, CI/CD, verpflichtende Mehrfaktor-Authentifizierung, Webhooks und öffentliche Seiten. Und was noch fehlt."
     },
+    "ci": {
+      "title": "Integriertes CI/CD | FerrisGit",
+      "description": "Eine Pipeline bei jedem Push: Jobs in .ferrisgit-ci.yml beschrieben, ausgeführt von Docker-Runnern oder Kubernetes-Pods, mit eindeutigen Parserfehlern, verschlüsselten Variablen und Caches."
+    },
+    "install": {
+      "title": "Installation | FerrisGit",
+      "description": "FerrisGit mit Docker Compose, mit dem Helm-Chart auf Kubernetes oder aus dem Quellcode installieren: Befehle, Voraussetzungen und was beim ersten Start passiert."
+    },
+    "security": {
+      "title": "Sicherheit | FerrisGit",
+      "description": "Verpflichtende Mehrfaktor-Authentifizierung, Passwörter mit Argon2 gehasht, mit AES-256-GCM verschlüsselte Secrets, Tokens für Git, ein Audit-Log und Daten, die auf Ihrem Server bleiben."
+    },
     "roadmap": {
       "title": "Roadmap | FerrisGit",
       "description": "Wohin sich FerrisGit entwickelt, Version für Version von 0.2 bis 0.6: geschützte Branches, fünf Sprachen, eine Analyse-Engine, Quality Gates, Codequalität und Sicherheitsanalyse. Nichts davon existiert bisher."
@@ -22,7 +34,8 @@
     "homeLabel": "FerrisGit, Startseite",
     "product": "Produkt",
     "ci": "CI/CD",
-    "selfHosting": "Self-Hosting",
+    "install": "Installation",
+    "security": "Sicherheit",
     "roadmap": "Roadmap",
     "docs": "Doku",
     "github": "GitHub",
@@ -38,8 +51,8 @@
     "switchToDark": "Zum dunklen Design wechseln"
   },
   "footer": {
-    "tagline": "Eine selbst gehostete Git-Plattform, in Rust geschrieben, die auf deinem eigenen Server läuft.",
-    "product": "Produkt",
+    "tagline": "Eine selbst gehostete Git-Plattform, in Rust geschrieben, die auf dem eigenen Server betrieben wird.",
+    "product": "Website",
     "docs": "Dokumentation",
     "project": "Projekt",
     "links": {
@@ -142,22 +155,6 @@
     "docs": "FerrisGit: eine Seite der integrierten Dokumentation mit dem Navigationsbaum",
     "open": "Vollbild öffnen"
   },
-  "scene": {
-    "title": "Fehlgeschlagene Webhook-Zustellungen wiederholen",
-    "open": "Offen",
-    "merged": "Gemergt",
-    "running": "Läuft",
-    "passed": "Bestanden",
-    "commented": "kommentierte",
-    "suggestion": "Vorgeschlagene Änderung",
-    "apply": "Vorschlag übernehmen",
-    "applied": "Übernommen in",
-    "approved": "hat die Änderungen freigegeben",
-    "mergedBy": "hat den Request gemergt, Merge-Commit",
-    "description": "Darstellung eines Merge Requests in FerrisGit, vom Push bis zum Merge: ein Push über HTTPS erzeugt den Request, eine Reviewerin schlägt eine Änderung an einer Zeile vor, der Autor übernimmt sie mit einem Klick, die Reviewerin gibt frei, der Request wird gemergt. Der Merge startet die Pipeline des Repositorys: format und clippy laufen, dann test, und alle drei sind erfolgreich.",
-    "pipelineOn": "Pipeline auf",
-    "mergeCommit": "Merge-Commit, auf den Standard-Branch gepusht"
-  },
   "ci": {
     "codeLabel": "Beispiel einer .ferrisgit-ci.yml für ein Rust-Projekt: Formatierung, Clippy und Tests",
     "pipeline": {
@@ -180,12 +177,21 @@
     "noteFailing": "clippy ist fehlgeschlagen: test wird übersprungen, ohne zu laufen, weil einer der Jobs, von denen er abhängt, nicht erfolgreich war. Die Pipeline endet als fehlgeschlagen, statt zu warten."
   },
   "caps": {
+    "carousel": {
+      "label": "Ausschnitte der Oberfläche",
+      "track": "Funktionen, horizontal scrollbar",
+      "previous": "Vorherige Funktion",
+      "next": "Nächste Funktion",
+      "slideRole": "Folie",
+      "of": "von",
+      "feature": "Funktion"
+    },
     "review": {
       "title": "Review direkt am Diff",
       "text": "Ein Kommentar bleibt an seiner Zeile. Wer reviewt, kann einen Vorschlag schreiben, den der Autor mit einem Klick als Commit übernimmt. Freigaben werden gezählt, Konflikte erkannt.",
       "openThread": "Offen",
       "resolved": "Erledigt",
-      "comment": "Exponentielles Backoff, damit ein flatternder Endpunkt nicht länger bombardiert wird.",
+      "comment": "Exponentielles Backoff, damit ein instabiler Endpunkt nicht mehr mit Anfragen überhäuft wird.",
       "suggestion": "Vorgeschlagene Änderung",
       "apply": "Vorschlag übernehmen",
       "applied": "Übernommen in",
@@ -193,11 +199,11 @@
     },
     "pipeline": {
       "title": "Eine Pipeline bei jedem Push",
-      "text": "Nach jedem Push liest FerrisGit die Datei auf dem Standard-Branch und erstellt eine Pipeline. Stages sind Barrieren, needs sind Abhängigkeiten; Jobs laufen in Docker-Containern über einen kleinen Runner oder als Kubernetes-Pods."
+      "text": "Nach jedem Push liest FerrisGit die Datei auf dem Standard-Branch und erstellt eine Pipeline. Stages sind Barrieren, needs sind Abhängigkeiten; Jobs laufen in Docker-Containern über einen schlanken Runner oder als Kubernetes-Pods."
     },
     "kanban": {
       "title": "Tickets, als Liste oder Board",
-      "text": "Labels, Meilensteine, Zuständige und vier Zustände. Ziehe eine Karte, um ihren Zustand zu ändern, oder nutze das Kartenmenü per Tastatur.",
+      "text": "Labels, Meilensteine, Zuständige und vier Zustände. Ziehen Sie eine Karte, um ihren Zustand zu ändern, oder nutzen Sie das Kartenmenü per Tastatur.",
       "todo": "Offen",
       "doing": "In Arbeit",
       "card1": "Paginierung überspringt eine Seite beim Filtern nach Label",
@@ -226,7 +232,7 @@
     },
     "catalog": {
       "title": "Öffentliche Seiten, ohne Konto",
-      "text": "Besucher stöbern in Katalog, README, Dateien, Commits und Releases öffentlicher Repositories und klonen sie. Ein Admin-Schalter schaltet die öffentlichen Seiten ab.",
+      "text": "Besucher durchsuchen Katalog, README, Dateien, Commits und Releases öffentlicher Repositories und klonen sie. Ein Admin-Schalter schaltet die öffentlichen Seiten ab.",
       "repo1": "Selbst gehostete Git-Plattform in Rust: Repositories, Tickets, Merge Requests und Pipelines.",
       "repo2": "Angular-Designsystem: Komponenten und Dataviz für selbst gehostete Anwendungen."
     },
@@ -241,7 +247,7 @@
     },
     "search": {
       "title": "Suche von jeder Seite aus",
-      "text": "Repositories, Tickets, Merge Requests und Benutzer, schon beim Tippen. Benachrichtigungen in der Anwendung zeigen, was dich betrifft.",
+      "text": "Repositories, Tickets, Merge Requests und Benutzer, schon beim Tippen. Benachrichtigungen in der Anwendung zeigen, was Sie betrifft.",
       "repos": "Repositories",
       "issues": "Tickets",
       "mrs": "Merge Requests",
@@ -284,66 +290,64 @@
       "title": "Was danach passiert",
       "secrets": "Der Server verweigert den Start, solange ein Secret fehlt oder zu kurz ist: `JWT_SECRET` braucht mindestens 32 Zeichen, `SETTINGS_ENCRYPTION_KEY` genau 32.",
       "start": "Er verbindet sich mit PostgreSQL, wendet seine Migrationen an, legt den ersten Administrator an, wenn die Benutzertabelle leer ist, und lauscht auf Port 8080.",
-      "signin": "Die erste Anmeldung führt dich durch die Einrichtung einer Authenticator-App oder eines Passkeys und zeigt deine zehn Wiederherstellungscodes. Daran führt kein Weg vorbei."
+      "signin": "Die erste Anmeldung führt durch die Einrichtung einer Authenticator-App oder eines Passkeys und zeigt die zehn Wiederherstellungscodes. Es gibt keine Möglichkeit, diesen Schritt zu überspringen."
     },
     "needs": {
-      "title": "Was du brauchst",
+      "title": "Voraussetzungen",
       "docker": "Docker mit dem Compose-Plugin, oder einen Kubernetes-Cluster mit Traefik, einem CNI, das NetworkPolicy durchsetzt, und einer Standard-StorageClass.",
-      "postgres": "PostgreSQL 18: der Compose-Stack und das Chart bringen ihr eigenes mit.",
+      "postgres": "PostgreSQL 18: Der Compose-Stack und das Chart bringen jeweils eine eigene Instanz mit.",
       "https": "Eine Domain und TLS davor, über einen Reverse-Proxy: FerrisGit terminiert HTTPS nicht selbst, und Passkeys funktionieren nur auf einem sicheren Origin."
     }
   },
   "home": {
     "hero": {
-      "title": "Eine Git-Plattform in einer einzigen Rust-Binary.",
-      "subtitle": "Repositories, Merge Requests mit Inline-Review, Tickets, Wikis, Releases, signierte Webhooks und eine CI/CD-Engine. Ein Prozess, ein PostgreSQL, auf deinem eigenen Server.",
+      "title": "Eine schlanke Git-Forge, die auf der vorhandenen Infrastruktur läuft.",
+      "subtitle": "Repositories, Merge Requests, Tickets, Wikis, Releases und CI: eine Rust-Binary und ein PostgreSQL, sonst nichts zu installieren. Im Ruhezustand belegen Server und Datenbank zusammen etwa 70 MiB Speicher.",
       "copy": "Befehl kopieren",
       "copied": "Kopiert",
       "copyFailed": "Kopieren fehlgeschlagen",
-      "assurance": "Eine einzige Binary und eine Datenbank. Kein Konto bei einem Drittanbieter, keine Telemetrie an irgendjemanden.",
-      "planLink": "Sieh dir an, wie es gebaut ist."
+      "assurance": "Kein Konto bei Drittanbietern, keine übermittelte Telemetrie.",
+      "planLink": "Zur Architektur.",
+      "proof": {
+        "caption": "Eine leere Instanz im Ruhezustand: der Stack der Datei docker-compose.yml, Version 0.1.2, gemessen mit Docker auf einem Apple-silicon-Mac (arm64).",
+        "link": "Messmethode",
+        "label": "Terminal-Ausgabe: Speicher von FerrisGit und PostgreSQL"
+      }
     },
-    "facts": {
-      "title": "In Zahlen",
-      "binary": {
-        "value": "1",
-        "label": "Rust-Binary liefert die REST-API, Git über HTTP und die Weboberfläche"
-      },
-      "postgres": {
-        "value": "1",
-        "label": "PostgreSQL 18 hält jeden Datensatz; die Repositories liegen auf der Festplatte"
-      },
-      "crates": {
-        "value": "5",
-        "label": "Cargo-Crates, hexagonal aufgebaut"
-      },
-      "routes": {
-        "value": "173",
-        "label": "REST-Routen unter `/api`, jede dokumentiert"
+    "why": {
+      "title": "Einsatzszenarien",
+      "text": "Vier typische Situationen und die Antwort von FerrisGit darauf.",
+      "small": {
+        "situation": "Sie hosten den Code eines Teams oder eines Vereins und möchten der Forge keine eigene Maschine widmen.",
+        "answer": "Im Ruhezustand belegt der Server wenige MiB Speicher und PostgreSQL etwa sechzig. Der Server antwortet weniger als eine Sekunde nach dem Start. Er läuft neben den Diensten, die bereits auf der Maschine vorhanden sind. Zu sichern sind zwei Dinge: die PostgreSQL-Datenbank und ein Ordner."
       },
       "mfa": {
-        "value": "3",
-        "label": "Anmeldefaktoren (TOTP, Passkeys, Wiederherstellungscodes); MFA ist Pflicht"
+        "situation": "Sie möchten, dass die Zwei-Faktor-Authentifizierung nicht von der Sorgfalt jedes Einzelnen abhängt.",
+        "answer": "Sie ist für jedes Konto Pflicht, ohne Einstellung, die sie abschaltet. Bei der ersten Anmeldung richtet jede Person einen Passkey oder eine Authenticator-App ein und erhält Backup-Codes."
       },
-      "engines": {
-        "value": "2",
-        "label": "Job-Engines: Docker-Runner oder Kubernetes-Pods"
+      "admin": {
+        "situation": "Sie übertragen jemandem die Administration, nicht den Code aller.",
+        "answer": "Administratoren verwalten Konten, Einstellungen und Runner. Sie können die privaten Repositories anderer weder über die Oberfläche noch über Git lesen: Ein Test prüft das."
+      },
+      "ci": {
+        "situation": "Ihre CI soll dort laufen, wo bereits die Mittel für ihre Ausführung vorhanden sind.",
+        "answer": "Ein Job läuft in einem Kubernetes-Pod, den der Server selbst erstellt, oder in einem Docker-Container über einen schlanken Runner. Die Pipeline wird in `.ferrisgit-ci.yml` beschrieben, im Stammverzeichnis des Repositorys."
       }
     },
     "caps": {
-      "title": "Was du bekommst, wie die Oberfläche es zeigt",
-      "text": "Jede Kachel ist ein Stück des echten Produkts. Die Oberfläche ist vorerst auf Französisch; fünf Sprachen sind für 0.2 geplant.",
+      "title": "Produktüberblick",
+      "text": "Ausschnitte der tatsächlichen Oberfläche, keine Mockups. Die Oberfläche ist vorerst auf Französisch; fünf Sprachen sind für 0.2 geplant.",
       "more": "Die vollständige Funktionsliste"
     },
     "ci": {
-      "title": "Aus einem Push wird eine Pipeline",
-      "text": "Beschreibe die Jobs in `.ferrisgit-ci.yml` im Wurzelverzeichnis des Repositorys. Nach jedem erfolgreichen Push liest FerrisGit die Datei auf dem Standard-Branch und erstellt eine Pipeline. Lege den Schalter um, um zu sehen, was der Scheduler tut, wenn ein Job fehlschlägt.",
+      "title": "Vom Push zur Pipeline",
+      "text": "Die Jobs werden in `.ferrisgit-ci.yml` im Wurzelverzeichnis des Repositorys beschrieben. Nach jedem erfolgreichen Push liest FerrisGit die Datei auf dem Standard-Branch und erstellt eine Pipeline. Mit dem Schalter lässt sich beobachten, wie sich der Scheduler verhält, wenn ein Job fehlschlägt.",
       "engines": {
         "title": "Zwei Wege, einen Job auszuführen",
-        "text": "Docker-Runner: eine kleine Binary `ferrisgit-runner` fragt den Server ab und führt jeden Job in einem Container aus. Oder Kubernetes: der Server erzeugt pro Job einen Pod in deinem Cluster."
+        "text": "Docker-Runner: eine schlanke Binary `ferrisgit-runner` fragt den Server ab und führt jeden Job in einem Container aus. Oder Kubernetes: der Server erzeugt pro Job einen Pod in Ihrem Cluster."
       },
       "errors": {
-        "title": "Fehler werden gezeigt",
+        "title": "Eindeutige Fehlermeldungen",
         "text": "Eine vorhandene, aber ungültige Datei erzeugt eine fehlgeschlagene Pipeline mit der Meldung des Parsers, sichtbar in der Oberfläche."
       },
       "vars": {
@@ -353,11 +357,11 @@
       "docs": "Die Referenz zu .ferrisgit-ci.yml (auf Französisch)"
     },
     "install": {
-      "title": "Zwei Minuten bis zum Self-Hosting",
-      "text": "FerrisGit ist ein Container-Image mit PostgreSQL daneben. Probiere es mit Docker Compose, installiere das Helm-Chart auf Kubernetes oder starte es aus dem Quellcode."
+      "title": "Installation",
+      "text": "FerrisGit wird als Container-Image zusammen mit PostgreSQL betrieben. Es gibt drei Installationswege: Docker Compose, das Helm-Chart auf Kubernetes oder den Quellcode."
     },
     "made": {
-      "title": "Wie es gebaut ist",
+      "title": "Architektur",
       "text": "Ein Prozess, fünf Crates, eine hexagonale Architektur: die Domäne weiß nichts von der Datenbank, die Adapter wissen nichts von den Anwendungsfällen.",
       "crates": {
         "domain": "Entitäten, Wertobjekte und die Ports, von denen der Rest abhängt. Keine Ein-/Ausgabe.",
@@ -369,8 +373,8 @@
       "link": "Der Quellcode auf GitHub"
     },
     "security": {
-      "title": "Sicherheit und deine Daten",
-      "text": "Was eine Instanz schützt, genau benannt. Die Daten verlassen deinen Server nie.",
+      "title": "Sicherheit und Ihre Daten",
+      "text": "Die Maßnahmen, die eine Instanz schützen, genau beschrieben. Die Daten verlassen den Server nie.",
       "mfa": {
         "title": "Mehr-Faktor-Authentifizierung ist Pflicht",
         "text": "Ein Konto ohne eingerichteten Faktor muss die Einrichtung durchlaufen, bevor es irgendetwas anderes tun kann. TOTP, Passkeys und Wiederherstellungscodes."
@@ -396,13 +400,19 @@
         "text": "Sitzungen sind JWTs. Jede Antwort trägt eine Content-Security-Policy, `X-Frame-Options: DENY`, und die Anmelderouten sind pro IP ratenbegrenzt."
       },
       "data": {
-        "title": "Deine Daten, auf deinem Server",
-        "text": "PostgreSQL und ein Verzeichnis mit Repositories, beide von dir zu sichern. Das Image läuft als unprivilegierter Benutzer auf einem schreibgeschützten Dateisystem."
+        "title": "Ihre Daten, auf Ihrem Server",
+        "text": "PostgreSQL und ein Verzeichnis mit Repositories, beides von Ihnen zu sichern. Das Image läuft als unprivilegierter Benutzer auf einem schreibgeschützten Dateisystem."
       },
-      "link": "Die Sicherheitsseite der Dokumentation (auf Französisch)"
+      "link": "Die Sicherheitsseite der Dokumentation (auf Französisch)",
+      "headers": {
+        "title": "Was der Server zurücksendet",
+        "text": "Die Sicherheits-Header, wie eine Instanz sie sendet.",
+        "label": "Header einer FerrisGit-Antwort",
+        "caption": "Eine lokale Instanz, Version 0.1.2, abgefragt unter /health. Der Server fügt jeder Antwort die Content-Policy, X-Frame-Options, X-Content-Type-Options und Referrer-Policy hinzu: Seiten, API und Git."
+      }
     },
     "roadmap": {
-      "title": "Wohin es geht",
+      "title": "Ausblick",
       "text": "Fünf Versionen, keine ausgeliefert. Ein Punkt wird erst abgehakt, wenn er ausgeliefert ist.",
       "v02": {
         "tag": "0.2",
@@ -427,9 +437,29 @@
       "link": "Die vollständige Roadmap"
     },
     "cta": {
-      "title": "Ausprobieren, dann selbst betreiben.",
-      "text": "Die öffentliche Instanz zeigt das Produkt. Deine Instanz behält deinen Code.",
+      "title": "FerrisGit evaluieren und die eigene Instanz betreiben.",
+      "text": "Die öffentliche Instanz zeigt das Produkt. Die eigene Instanz behält den Code.",
       "install": "Installationsanleitung"
+    },
+    "limits": {
+      "title": "Was heute fehlt",
+      "text": "Vor dem Einsatz zu beachten.",
+      "ssh": {
+        "title": "Kein SSH",
+        "text": "Git läuft über HTTP(S), mit einem Token. Es gibt keinen SSH-Zugang."
+      },
+      "branches": {
+        "title": "Keine geschützten Branches",
+        "text": "Ein Contributor kann auf jeden Branch pushen. Das ist für 0.2 geplant."
+      },
+      "language": {
+        "title": "Oberfläche nur auf Französisch",
+        "text": "Die fünf Sprachen sind für 0.2 geplant. Die Dokumentation ist auf Französisch."
+      },
+      "analysis": {
+        "title": "Keine Code-Analyse",
+        "text": "Scans nach Geheimnissen, Abhängigkeiten und Qualität stehen auf der Roadmap. Sie sind nicht im Produkt."
+      }
     }
   },
   "features": {
@@ -461,7 +491,7 @@
       },
       "issues": {
         "title": "Issues",
-        "text": "Verfolgen Sie die Arbeit neben dem Code.",
+        "text": "Verfolgen Sie die Arbeit direkt neben dem Code.",
         "bullets": {
           "b1": "Labels und Meilensteine",
           "b2": "Zuständige",
@@ -470,7 +500,7 @@
       },
       "public": {
         "title": "Öffentliche Seiten und Suche",
-        "text": "Öffnen Sie ein Projekt für Menschen ohne Konto.",
+        "text": "Geben Sie Personen ohne Konto Zugriff auf ein Projekt.",
         "bullets": {
           "b1": "Besucher durchsuchen öffentliche Repositories schreibgeschützt: Katalog, README, Dateien, Commits und Releases",
           "b2": "Release-Dateien lassen sich ohne Anmeldung herunterladen",
@@ -490,14 +520,14 @@
         "text": "Eine integrierte Engine, konfiguriert durch eine Datei im Repository.",
         "bullets": {
           "b1": "Pipelines, beschrieben in `.ferrisgit-ci.yml` im Hauptverzeichnis des Repositorys",
-          "b2": "Docker-Runner (eine kleine Binärdatei `ferrisgit-runner`, die den Server abfragt) oder Kubernetes, wo jeder Job als Pod läuft",
+          "b2": "Docker-Runner (eine schlanke Binärdatei `ferrisgit-runner`, die den Server abfragt) oder Kubernetes, wo jeder Job als Pod läuft",
           "b3": "Variablen pro Repository, verschlüsselt gespeichert (nur Docker-Runner)",
           "b4": "Caches pro Job (nur Kubernetes)"
         }
       },
       "webhooks": {
         "title": "Webhooks",
-        "text": "Sagen Sie anderen Werkzeugen Bescheid, wenn etwas passiert.",
+        "text": "Benachrichtigen Sie andere Werkzeuge, wenn ein Ereignis eintritt.",
         "bullets": {
           "b1": "Signierte Anfragen (HMAC-SHA256) für Ereignisse zu Merge Requests, Mitwirkenden, Pipelines und Issues",
           "b2": "Verschlüsselt gespeicherte Secrets",
@@ -515,7 +545,7 @@
       },
       "accounts": {
         "title": "Konten und Administration",
-        "text": "Mehrfaktor-Authentifizierung ist nicht optional.",
+        "text": "Die Mehrfaktor-Authentifizierung ist verpflichtend.",
         "bullets": {
           "b1": "Für jedes Konto verpflichtend: Authenticator-Apps (TOTP), Passkeys (WebAuthn) und einmalig nutzbare Backup-Codes",
           "b2": "Freie Registrierung hinter einem Schalter für Administratoren, oder Konten per E-Mail-Einladung",
@@ -523,8 +553,8 @@
         }
       },
       "tech": {
-        "title": "Unter der Haube",
-        "text": "Was Sie betreiben und was es braucht.",
+        "title": "Technische Grundlagen",
+        "text": "Was Sie betreiben und was dafür erforderlich ist.",
         "bullets": {
           "b1": "Eine Rust-Binärdatei (axum) liefert die REST-API, das Git-Protokoll und die Angular-Webanwendung aus",
           "b2": "PostgreSQL 18 für die Daten; Repository-Inhalte auf der Festplatte des Servers",
@@ -534,7 +564,7 @@
       }
     },
     "missing": {
-      "title": "Was (noch) fehlt",
+      "title": "Noch nicht verfügbar",
       "intro": "All das steht in der Roadmap. Nichts davon gibt es heute.",
       "items": {
         "i1": "Git über SSH und Deploy Keys: Git wird nur über HTTP(S) ausgeliefert",

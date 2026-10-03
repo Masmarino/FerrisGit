@@ -104,8 +104,8 @@
 // The same seven numbers as on the drawing, as links: for the keyboard, for small screens, and for anyone who
 // does not want to aim at a circle.
 .fig__views ol {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
   gap: 0 var(--s-4);
   @include m.reset-list;
 }

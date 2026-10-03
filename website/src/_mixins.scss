@@ -24,3 +24,20 @@
     border-color: color-mix(in srgb, var(--patina) 60%, transparent);
   }
 }
+
+// A rule along the top of a list that is drawn from the left when the list comes into view (the Reveal directive in
+// `mark` mode, with a data-rule attribute on the element). Without scripts it is simply there.
+@mixin drawn-rule($color: var(--line-strong)) {
+  position: relative;
+
+  &::before {
+    position: absolute;
+    inset-inline: 0;
+    top: 0;
+    height: 1px;
+    content: '';
+    background: $color;
+    transform-origin: left;
+    transition: transform var(--dur-4) var(--ease-out);
+  }
+}

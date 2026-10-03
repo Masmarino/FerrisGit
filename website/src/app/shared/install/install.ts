@@ -18,9 +18,11 @@ interface InstallTab {
  * The three ways to run FerrisGit as tabs, with the commands from the docs and a copy button on each. Without scripts
  * the three blocks follow one another; the ARIA tab roles are only added once scripts run.
  */
+import { Reveal } from '../motion/reveal.directive'
+
 @Component({
   selector: 'app-install',
-  imports: [TranslocoPipe, CodeBlock, InlineCodePipe],
+  imports: [Reveal, TranslocoPipe, CodeBlock, InlineCodePipe],
   templateUrl: './install.html',
   styleUrl: './install.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

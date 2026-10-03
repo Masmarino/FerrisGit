@@ -8,14 +8,17 @@
 
 .footer {
   padding-block: var(--s-8) var(--s-6);
-  background: var(--bg-2);
-  border-top: 1px solid var(--line);
 }
 
 .footer__inner {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: var(--s-6) var(--s-7);
+}
+
+// The brand takes the whole width until the columns sit in one row.
+.footer__brand {
+  grid-column: 1 / -1;
 }
 
 .footer__brand {
@@ -34,10 +37,10 @@
 }
 
 .footer__name {
-  font-size: var(--t-17);
-  font-weight: 650;
-  line-height: 1.3;
-  letter-spacing: -0.02em;
+  font-family: var(--display);
+  font-size: var(--t-20);
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .footer__tagline {
@@ -69,7 +72,8 @@
   text-decoration: none;
 
   &:hover {
-    color: var(--brand-text);
+    color: var(--text);
+    text-decoration: underline;
   }
 }
 
@@ -95,12 +99,16 @@
 
 @media (min-width: bp.$sm) {
   .footer__inner {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (min-width: bp.$lg) {
   .footer__inner {
     grid-template-columns: 1.6fr 1fr 1fr 1fr;
+  }
+
+  .footer__brand {
+    grid-column: auto;
   }
 }

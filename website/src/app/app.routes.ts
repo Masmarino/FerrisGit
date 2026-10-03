@@ -17,6 +17,18 @@ export const routes: Routes = [
         loadComponent: () => import('./pages/features/features').then((m) => m.Features),
       },
       {
+        path: 'ci',
+        loadComponent: () => import('./pages/ci/ci').then((m) => m.Ci),
+      },
+      {
+        path: 'install',
+        loadComponent: () => import('./pages/install/install').then((m) => m.InstallPage),
+      },
+      {
+        path: 'security',
+        loadComponent: () => import('./pages/security/security').then((m) => m.Security),
+      },
+      {
         path: 'roadmap',
         loadComponent: () => import('./pages/roadmap/roadmap').then((m) => m.Roadmap),
       },

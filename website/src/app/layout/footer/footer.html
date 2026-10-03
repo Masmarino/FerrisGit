@@ -1,4 +1,4 @@
-<footer class="footer">
+<footer class="footer on-dark">
   <div class="footer__inner container">
     <div class="footer__brand">
       <img src="images/logo-128.png" width="36" height="36" alt="" />
@@ -15,12 +15,13 @@
           <a [routerLink]="['/', lang(), 'features']">{{ 'nav.product' | transloco }}</a>
         </li>
         <li>
-          <a [routerLink]="['/', lang()]" fragment="ci">{{ 'nav.ci' | transloco }}</a>
+          <a [routerLink]="['/', lang(), 'ci']">{{ 'nav.ci' | transloco }}</a>
         </li>
         <li>
-          <a [routerLink]="['/', lang()]" fragment="self-hosting">{{
-            'nav.selfHosting' | transloco
-          }}</a>
+          <a [routerLink]="['/', lang(), 'install']">{{ 'nav.install' | transloco }}</a>
+        </li>
+        <li>
+          <a [routerLink]="['/', lang(), 'security']">{{ 'nav.security' | transloco }}</a>
         </li>
         <li>
           <a [routerLink]="['/', lang(), 'roadmap']">{{ 'nav.roadmap' | transloco }}</a>
@@ -71,11 +72,13 @@
     </nav>
   </div>
 
-  <div class="footer__legal container">
-    <p>
-      <span class="footer__rights">{{ 'footer.rights' | transloco }}</span>
-      {{ 'footer.noLicense' | transloco }}
-    </p>
-    <p>{{ 'footer.noTracking' | transloco }}</p>
+  <div class="container">
+    <div class="footer__legal">
+      <p>
+        <span class="footer__rights">{{ 'footer.rights' | transloco }}</span>
+        {{ 'footer.noLicense' | transloco }}
+      </p>
+      <p>{{ 'footer.noTracking' | transloco }}</p>
+    </div>
   </div>
 </footer>

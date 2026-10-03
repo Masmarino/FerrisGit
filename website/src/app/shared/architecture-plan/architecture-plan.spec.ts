@@ -5,10 +5,9 @@ import { PlanHighlight } from '../plan-highlight'
 import { ArchitecturePlan } from './architecture-plan'
 
 describe('ArchitecturePlan', () => {
-  async function renderPlan(lang: Lang = 'en', page: 'home' | 'features' = 'home') {
+  async function renderPlan(lang: Lang = 'en') {
     await setUpTestApp({ imports: [ArchitecturePlan], lang, routes: [] })
     const fixture = TestBed.createComponent(ArchitecturePlan)
-    fixture.componentRef.setInput('page', page)
     await fixture.whenStable()
     return fixture
   }
@@ -70,16 +69,6 @@ describe('ArchitecturePlan', () => {
     await fixture.whenStable()
     expect(root.querySelectorAll('a.bub.on')).toHaveLength(1)
     expect(root.querySelector('a.bub.on')?.textContent?.trim()).toBe('3')
-  })
-
-  it('leads to the sections of the Product page when it sits there', async () => {
-    const fixture = await renderPlan('fr', 'features')
-    const hrefs = Array.from(
-      (fixture.nativeElement as HTMLElement).querySelectorAll<SVGAElement>('a.bub'),
-    ).map((c) => c.getAttribute('href'))
-    expect(hrefs[0]).toBe('/fr/features/#feature-repos')
-    expect(hrefs[5]).toBe('/fr/features/#feature-ci')
-    expect(hrefs[6]).toBe('/fr/features/#feature-webhooks')
   })
 
   it('carries the flow of a push', async () => {

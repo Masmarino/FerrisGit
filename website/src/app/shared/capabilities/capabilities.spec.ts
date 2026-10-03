@@ -52,4 +52,109 @@ describe('Capabilities', () => {
     expect(root.querySelectorAll('.search__results li')).toHaveLength(3)
     expect(root.querySelectorAll('.factor')).toHaveLength(3)
   })
+
+  describe('as a carousel', () => {
+    it('follows the numbers of the architecture plan, the tile with no number last', async () => {
+      const root: HTMLElement = (await render('fr')).nativeElement
+      const numbers = Array.from(root.querySelectorAll('.carousel__track > .tile')).map(
+        (tile) => tile.querySelector('.tile__no')?.textContent?.trim() ?? null,
+      )
+
+      expect(numbers).toEqual(['1', '2', '3', '4', '5', '6', '7', null])
+    })
+
+    const buttons = (root: HTMLElement, selector: string) =>
+      Array.from(root.querySelectorAll<HTMLButtonElement>(selector))
+
+    it('is a labelled carousel region whose track can be focused and whose tiles are numbered slides', async () => {
+      const root: HTMLElement = (await render('fr')).nativeElement
+      const region = root.querySelector('.carousel')!
+
+      expect(region.getAttribute('role')).toBe('region')
+      expect(region.getAttribute('aria-roledescription')).toBe('carousel')
+      expect(region.getAttribute('aria-label')).toBe("Extraits de l'interface")
+      expect(root.querySelector('.carousel__track')?.getAttribute('tabindex')).toBe('0')
+      const slides = Array.from(root.querySelectorAll('.carousel__track > .tile'))
+      expect(slides.map((slide) => slide.getAttribute('aria-label'))).toEqual(
+        [1, 2, 3, 4, 5, 6, 7, 8].map((n) => `${n} sur 8`),
+      )
+      expect(
+        slides.every((slide) => slide.getAttribute('aria-roledescription') === 'diapositive'),
+      ).toBe(true)
+    })
+
+    it('has one dot per tile, named after the tile, the first one current', async () => {
+      const root: HTMLElement = (await render('fr')).nativeElement
+      const dots = buttons(root, '.carousel__dot')
+
+      expect(dots).toHaveLength(8)
+      expect(dots[0].getAttribute('aria-label')).toBe('Trois rôles, par dépôt ou par groupe')
+      expect(dots.map((dot) => dot.getAttribute('aria-current'))).toEqual([
+        'true',
+        ...Array(7).fill(null),
+      ])
+    })
+
+    it('starts at the first tile, so there is nothing before it', async () => {
+      const root: HTMLElement = (await render('fr')).nativeElement
+
+      expect(buttons(root, '.carousel__nav')[0].disabled).toBe(true)
+      expect(buttons(root, '.carousel__nav')[1].disabled).toBe(false)
+    })
+
+    it('moves to the next and previous tile, and says where it is', async () => {
+      const fixture = await render('fr')
+      const root: HTMLElement = fixture.nativeElement
+      const [previous, next] = buttons(root, '.carousel__nav')
+
+      next.click()
+      await fixture.whenStable()
+      expect(root.querySelector('.carousel__count')?.textContent?.trim()).toBe(
+        'Fonctionnalité 2 sur 8',
+      )
+      expect(buttons(root, '.carousel__dot')[1].getAttribute('aria-current')).toBe('true')
+      expect(previous.disabled).toBe(false)
+
+      previous.click()
+      await fixture.whenStable()
+      expect(root.querySelector('.carousel__count')?.textContent?.trim()).toBe(
+        'Fonctionnalité 1 sur 8',
+      )
+    })
+
+    it('goes straight to the tile of a dot, and stops at the last one', async () => {
+      const fixture = await render('fr')
+      const root: HTMLElement = fixture.nativeElement
+
+      buttons(root, '.carousel__dot')[7].click()
+      await fixture.whenStable()
+
+      expect(root.querySelector('.carousel__count')?.textContent?.trim()).toBe(
+        'Fonctionnalité 8 sur 8',
+      )
+      expect(buttons(root, '.carousel__nav')[1].disabled).toBe(true)
+    })
+
+    it('takes the arrow keys only when the track itself has the focus', async () => {
+      const fixture = await render('fr')
+      const root: HTMLElement = fixture.nativeElement
+      const track = root.querySelector<HTMLElement>('.carousel__track')!
+
+      root
+        .querySelector('.frag__button')!
+        .dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))
+      await fixture.whenStable()
+      expect(root.querySelector('.carousel__count')?.textContent?.trim()).toBe(
+        'Fonctionnalité 1 sur 8',
+      )
+
+      track.dispatchEvent(
+        new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true, cancelable: true }),
+      )
+      await fixture.whenStable()
+      expect(root.querySelector('.carousel__count')?.textContent?.trim()).toBe(
+        'Fonctionnalité 2 sur 8',
+      )
+    })
+  })
 })

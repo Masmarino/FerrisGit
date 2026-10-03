@@ -3,7 +3,6 @@ import {
   Component,
   DestroyRef,
   afterNextRender,
-  computed,
   inject,
   signal,
 } from '@angular/core'
@@ -11,23 +10,18 @@ import { DOCUMENT } from '@angular/common'
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop'
 import { ActivatedRoute, RouterLink } from '@angular/router'
 import { TranslocoPipe } from '@jsverse/transloco'
-import { Button } from '@masmarino/gabarit'
 import { injectActiveLang } from '../../i18n/active-lang'
 import { usePageMeta } from '../../seo/page-meta'
 import { CodeBlock } from '../../shared/code-block/code-block'
-import { Glow } from '../../shared/glow.directive'
+import { Cta } from '../../shared/cta/cta'
 import { InlineCodePipe } from '../../shared/inline-code.pipe'
-import { APP_URL, DOCS } from '../../shared/links'
-import { Reveal } from '../../shared/motion/reveal.directive'
-import { PlanFigure } from '../../shared/plan-figure/plan-figure'
-import { PlanHighlight } from '../../shared/plan-highlight'
-import { PLAN_FRAGMENTS } from '../../shared/plan-links'
+import { PageHead } from '../../shared/page-head/page-head'
 import { ScreenName, Screenshot } from './screenshot/screenshot'
 import { CI_EXAMPLE } from '../../shared/snippets'
 import { tabIndexForKey } from '../../shared/tabs-keyboard'
 import { Window } from '../../shared/window/window'
 
-// Section headings are anchors named feature-<id>; the circles of the plan link to them.
+// Section headings are anchors named feature-<id>; a link to one opens its tab.
 const ANCHOR_PREFIX = 'feature-'
 
 interface FeatureSection {
@@ -38,17 +32,18 @@ interface FeatureSection {
   url?: string
 }
 
+import { Reveal } from '../../shared/motion/reveal.directive'
+
 @Component({
   selector: 'app-features',
   imports: [
+    Reveal,
     RouterLink,
     TranslocoPipe,
-    Button,
     CodeBlock,
-    Glow,
+    Cta,
     InlineCodePipe,
-    PlanFigure,
-    Reveal,
+    PageHead,
     Screenshot,
     Window,
   ],
@@ -58,12 +53,8 @@ interface FeatureSection {
 })
 export class Features {
   private readonly document = inject(DOCUMENT)
-  private readonly plan = inject(PlanHighlight)
 
   protected readonly lang = injectActiveLang()
-
-  protected readonly appUrl = APP_URL
-  protected readonly docs = DOCS
 
   // Domains with a screenshot are tabs; without JavaScript the bar is hidden and the panels follow one another.
   // Texts are under features.sections.<id> and features.tabs.items.<id>.
@@ -100,14 +91,6 @@ export class Features {
   protected readonly active = signal(0)
   /** The tab roles are only added once scripts run; until then the panels are plain sections. */
   protected readonly enhanced = signal(false)
-  /** Panels animate on a tab change, not on first display. */
-  protected readonly animated = signal(false)
-
-  /** The tab of the section the circle being pointed at on the plan leads to, which gets the same mark. */
-  protected readonly linkedTab = computed(() => {
-    const circle = this.plan.active()
-    return circle === null ? null : PLAN_FRAGMENTS.features[circle - 1].replace(ANCHOR_PREFIX, '')
-  })
 
   constructor() {
     usePageMeta('features')
@@ -116,7 +99,7 @@ export class Features {
       this.enhanced.set(true)
       this.openTabOf(this.document.defaultView?.location.hash.replace('#', ''))
     })
-    // The circles of the plan link to a fragment of this page: a change of fragment opens the matching tab.
+    // A link to a fragment of this page opens the matching tab.
     inject(ActivatedRoute)
       .fragment.pipe(takeUntilDestroyed(inject(DestroyRef)))
       .subscribe((fragment) => this.openTabOf(fragment))
@@ -127,7 +110,6 @@ export class Features {
     const target = fragment?.replace(ANCHOR_PREFIX, '')
     const index = this.tabs.findIndex((tab) => tab.id === target)
     if (index >= 0 && index !== this.active()) {
-      this.animated.set(true)
       this.active.set(index)
     }
   }
@@ -138,7 +120,6 @@ export class Features {
 
   protected select(index: number, focus = false): void {
     if (index === this.active()) return
-    this.animated.set(true)
     this.active.set(index)
     if (focus) this.document.getElementById(`tab-${this.tabs[index].id}`)?.focus()
   }

@@ -13,22 +13,14 @@
   isolation: isolate;
 }
 
-// The glass behind the bar fades in once the page has scrolled; only opacity animates. Without JavaScript
-// `is-scrolled` is never set and the bar keeps its glass.
+// A solid bar with a rule under it: nothing shows through, nothing fades.
 .header::before {
   position: absolute;
   inset: 0;
   z-index: -1;
   content: '';
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
-  backdrop-filter: blur(14px) saturate(1.4);
-  -webkit-backdrop-filter: blur(14px) saturate(1.4);
-  transition: opacity var(--dur-2) var(--ease);
-}
-
-:host-context(html.js) .header:not(.is-scrolled)::before {
-  opacity: 0;
 }
 
 .header__inner {
@@ -59,10 +51,10 @@
 }
 
 .header__brand-name {
-  font-size: 1.125rem;
-  font-weight: 650;
+  font-family: var(--display);
+  font-size: 1.25rem;
+  font-weight: 600;
   line-height: 1;
-  letter-spacing: -0.02em;
 }
 
 .header__toggle {
@@ -131,11 +123,11 @@
   border-bottom: 1px solid var(--line);
 
   &:hover {
-    color: var(--brand-text);
+    text-decoration: underline;
   }
 
   &.is-active {
-    font-weight: 650;
+    font-weight: 600;
   }
 }
 
@@ -201,26 +193,43 @@
     margin-inline-start: var(--s-4);
   }
 
-  // Links are quiet pills; the current page is bolder, not boxed.
+  // Plain links on the bar; the page you are on carries a rule under it, the height of the bar's own.
   .header__nav a {
-    min-height: 2.25rem;
+    position: relative;
+    min-height: var(--header-h);
     padding-inline: 0.75rem;
     color: var(--text-2);
     font-size: var(--t-14);
     border: 0;
-    border-radius: var(--r-chip);
-    transition:
-      color var(--dur-1) var(--ease),
-      background-color var(--dur-1) var(--ease);
+    border-radius: 0;
+    transition: color var(--dur-1) var(--ease);
+
+    // On hover the rule grows from the left, the height of the one under the current page.
+    &::after {
+      position: absolute;
+      inset-inline: 0.75rem;
+      bottom: 0;
+      height: 2px;
+      content: '';
+      background: var(--text-3);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform var(--dur-2) var(--ease-out);
+    }
 
     &:hover {
       color: var(--text);
-      background: var(--bg-hover);
+      text-decoration: none;
+    }
+
+    &:hover::after {
+      transform: scaleX(1);
     }
 
     &.is-active {
       color: var(--text);
-      font-weight: 600;
+      font-weight: 500;
+      box-shadow: inset 0 -2px 0 var(--text);
     }
   }
 
@@ -241,5 +250,28 @@
     flex: none;
     order: 0;
     margin-inline-start: var(--s-3);
+  }
+}
+
+// A rule under the bar that fills as the page is read. Scroll-driven, so without script and only where the browser
+// supports it; elsewhere it is not drawn.
+@supports (animation-timeline: scroll()) {
+  .header::after {
+    position: absolute;
+    inset-inline: 0;
+    bottom: -1px;
+    height: 2px;
+    content: '';
+    background: var(--brand);
+    transform: scaleX(0);
+    transform-origin: left;
+    animation: read-progress linear both;
+    animation-timeline: scroll(root block);
+  }
+
+  @keyframes read-progress {
+    to {
+      transform: scaleX(1);
+    }
   }
 }

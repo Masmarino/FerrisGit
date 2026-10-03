@@ -11,6 +11,7 @@ export const DOCS = {
   install: `${DOCS_URL}/administration/installation`,
   kubernetes: `${DOCS_URL}/administration/deploiement-kubernetes`,
   security: `${DOCS_URL}/administration/securite`,
+  resources: `${DOCS_URL}/administration/ressources`,
   ciReference: `${DOCS_URL}/ci-cd/reference-yaml`,
   api: `${DOCS_URL}/api/introduction`,
 } as const

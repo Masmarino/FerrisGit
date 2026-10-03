@@ -92,3 +92,29 @@ code {
     font-style: italic;
   }
 }
+
+// Shell lines wrap, the rest of a line indented under its start. Copying still takes the command as written.
+:host(.is-wrapping) {
+  code {
+    width: auto;
+  }
+
+  ::ng-deep .code__line {
+    padding-inline-start: 2.25rem;
+    text-indent: -1.25rem;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+}
+
+// With `print`, the lines arrive one after the other. They are all in the page from the start: only their opacity and a
+// small shift animate, and the delay is capped so a long file does not take long.
+:host(.is-printing) ::ng-deep .code__line {
+  animation: line-in var(--dur-2) var(--ease-out) both;
+
+  @for $n from 1 through 14 {
+    &:nth-child(#{$n}) {
+      animation-delay: #{$n * 55}ms;
+    }
+  }
+}

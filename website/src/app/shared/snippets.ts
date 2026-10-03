@@ -32,6 +32,15 @@ jobs:
 /** The hero's one-liner: the command that starts the stack (docs/administration/installation.md). */
 export const HERO_COMMAND = 'docker compose up -d --build'
 
+/**
+ * What the hero prints: the command that measures the stack and its output, copied as printed. The figures and the
+ * way they were taken are in docs/administration/ressources.md.
+ */
+export const PROOF_TERMINAL = `$ docker stats --no-stream measure-ferrisgit-server-1 measure-postgres-1
+CONTAINER ID   NAME                         CPU %     MEM USAGE / LIMIT     MEM %     NET I/O           BLOCK I/O         PIDS
+04049f2efe20   measure-ferrisgit-server-1   0.00%     3.262MiB / 7.748GiB   0.04%     16.7kB / 65.4kB   0B / 0B           13
+76c668d0c77c   measure-postgres-1           1.77%     66.21MiB / 7.748GiB   0.83%     66.3kB / 15.1kB   29.2MB / 55.3MB   13`
+
 /** From docs/administration/installation.md. */
 export const COMPOSE_COMMANDS = `git clone https://github.com/Masmarino/FerrisGit.git
 cd FerrisGit
@@ -57,3 +66,19 @@ cd FerrisGit
 cp .env.example .env          # then set real secrets
 ./scripts/dev.sh              # PostgreSQL via Compose, cargo run on :8080, ng serve on :4201
 `
+
+/**
+ * The response of a local instance (version 0.1.2) to the command, copied as printed. The four security headers come from
+ * security_headers() in crates/ferrisgit-api/src/lib.rs, which sets them on every response; x-robots-tag comes from the
+ * public pages setting.
+ */
+export const SECURITY_HEADERS = `$ curl -s -D - -o /dev/null http://localhost:8080/health
+HTTP/1.1 200 OK
+content-type: text/plain; charset=utf-8
+content-security-policy: default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'
+x-frame-options: DENY
+x-content-type-options: nosniff
+referrer-policy: no-referrer
+x-robots-tag: noindex, nofollow
+content-length: 2
+date: Sun, 04 Oct 2026 11:41:43 GMT`

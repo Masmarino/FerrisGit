@@ -20,7 +20,6 @@
   display: flex;
   flex-direction: column;
   gap: var(--s-5);
-  justify-content: space-between;
   min-width: 0;
   padding: var(--s-5);
   background: var(--surface);
@@ -78,9 +77,9 @@
 }
 
 // Stage columns joined by lines, as in the product's pipeline page, centred in the room the code block leaves.
+// The graph sits in the middle of the height the YAML next to it gives the panel.
 .sim__stages {
   display: flex;
-  flex: 1;
   align-items: flex-start;
   justify-content: center;
   margin-block: auto;
@@ -131,6 +130,64 @@
     color: var(--text-3);
     border-style: dashed;
   }
+
+  // A job that runs shows it: a short bar sweeps along its bottom edge. One that succeeds settles with a flash of green.
+  position: relative;
+  overflow: hidden;
+
+  &[data-state='running']::after {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 35%;
+    height: 2px;
+    content: '';
+    background: var(--indigo);
+    animation: job-run 1.1s var(--ease-in-out) infinite;
+  }
+
+  &[data-state='success'] {
+    animation: job-settle var(--dur-4) var(--ease-out);
+  }
+
+  &[data-state='failed'] {
+    animation: job-fail var(--dur-3) var(--ease-out);
+  }
+}
+
+@keyframes job-run {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(300%);
+  }
+}
+
+@keyframes job-settle {
+  from {
+    background: var(--patina-soft);
+    transform: scale(0.985);
+  }
+}
+
+@keyframes job-fail {
+  20% {
+    transform: translateX(-3px);
+  }
+
+  40% {
+    transform: translateX(3px);
+  }
+
+  60% {
+    transform: translateX(-2px);
+  }
+
+  80% {
+    transform: translateX(1px);
+  }
 }
 
 .sim__job-name {
@@ -152,6 +209,36 @@
     fill: none;
     stroke: var(--line-strong);
     stroke-width: 1.5;
+    stroke-dasharray: 100;
+    transition: stroke var(--dur-3) var(--ease);
+  }
+
+  // A link follows the job it leaves: dashes that travel while it runs, a line drawn when it succeeds.
+  path[data-state='running'] {
+    stroke: var(--indigo);
+    stroke-dasharray: 5 5;
+    animation: link-flow 0.7s linear infinite;
+  }
+
+  path[data-state='success'] {
+    stroke: var(--patina);
+    animation: link-draw var(--dur-4) var(--ease-out);
+  }
+
+  path[data-state='failed'] {
+    stroke: var(--del);
+  }
+}
+
+@keyframes link-flow {
+  to {
+    stroke-dashoffset: -10;
+  }
+}
+
+@keyframes link-draw {
+  from {
+    stroke-dashoffset: 100;
   }
 }
 

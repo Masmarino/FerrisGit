@@ -163,6 +163,11 @@
           "description": "Sauvegarder les données et mettre à niveau l'instance."
         },
         {
+          "slug": "ressources",
+          "title": "Ressources",
+          "description": "Ce que consomme FerrisGit, et comment le mesurer."
+        },
+        {
           "slug": "securite",
           "title": "Sécurité",
           "description": "Ce que FerrisGit protège et ce qu'il demande de configurer."

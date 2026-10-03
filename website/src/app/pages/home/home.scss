@@ -1,78 +1,70 @@
 @use '../../../breakpoints' as bp;
-
-// The hero follows the pointer a little (Parallax directive): the mesh the other way, the scene by half.
-$follow: transform 600ms var(--ease-out);
+@use '../../../mixins' as m;
 
 :host {
   display: block;
 }
 
-// Hero: copy on the left, the live scene on the right, on a mesh of the three colours and a faint grid.
+// Hero: the claim on the left, what it means and how to start on the right, and under both the measurement that backs
+// it, wide enough to print every column. A dark band, like the bar above it and the footer.
 .hero {
-  --px: 0px;
-  --py: 0px;
-
   position: relative;
-  padding-block: clamp(3rem, 2rem + 5vw, 6.5rem) clamp(3.5rem, 2.5rem + 5vw, 7rem);
+  padding-block: clamp(2.5rem, 2rem + 4vw, 5rem);
   overflow: hidden;
   isolation: isolate;
 }
 
-.hero__mesh {
-  position: absolute;
-  inset: -20% -10%;
-  z-index: -2;
-  background:
-    radial-gradient(42% 55% at 18% 30%, var(--mesh-a), transparent 70%),
-    radial-gradient(48% 60% at 82% 28%, var(--mesh-b), transparent 70%),
-    radial-gradient(38% 45% at 60% 95%, var(--mesh-c), transparent 70%);
-  filter: blur(8px);
-  transform: translate3d(calc(var(--px) * -1), calc(var(--py) * -1), 0);
-  transition: $follow;
-  pointer-events: none;
-}
-
-// The grid fades out towards the bottom, under a layer of noise.
-.hero__grid {
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  background-image:
-    linear-gradient(var(--grid-ink) 1px, transparent 1px),
-    linear-gradient(90deg, var(--grid-ink) 1px, transparent 1px);
-  background-size: 32px 32px;
-  mask-image: linear-gradient(to bottom, #000 0%, rgba(0, 0, 0, 0.6) 55%, transparent 100%);
-  pointer-events: none;
-
-  &::after {
-    position: absolute;
-    inset: 0;
-    content: '';
-    background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-    opacity: 0.035;
-    mix-blend-mode: overlay;
-  }
+// The content sits over the animated background (app-git-field).
+.hero__inner {
+  position: relative;
+  z-index: 1;
 }
 
 .hero__inner {
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-7) var(--s-8);
-  align-items: center;
+  gap: var(--s-7);
+}
+
+.hero h1 {
+  max-width: 26ch;
+}
+
+@media (min-width: 64rem) {
+  .hero__inner {
+    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
+    grid-template-areas:
+      'title copy'
+      'proof proof';
+    gap: var(--s-8) var(--s-8);
+    align-items: start;
+  }
+
+  .hero h1 {
+    grid-area: title;
+    max-width: none;
+    margin: 0;
+  }
+
+  // The lead starts on the line of the title's cap height, not above it.
+  .hero__copy {
+    padding-top: 0.5rem;
+  }
+
+  .hero__copy {
+    grid-area: copy;
+  }
+
+  .hero__proof {
+    grid-area: proof;
+  }
 }
 
 .hero__copy {
   min-width: 0;
 
-  h1 {
-    max-width: 17ch;
-    margin-bottom: var(--s-5);
-  }
-
   .lead {
-    max-width: 46ch;
-    margin-bottom: var(--s-6);
-    color: var(--text-2);
+    margin-bottom: var(--s-5);
+    font-size: var(--t-16);
   }
 }
 
@@ -91,10 +83,9 @@ $follow: transform 600ms var(--ease-out);
   max-width: 100%;
   min-height: var(--tap);
   padding: 0 0.25rem 0 0.875rem;
-  background: color-mix(in srgb, var(--surface) 70%, transparent);
+  background: var(--surface-2);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-control);
-  backdrop-filter: blur(8px);
 }
 
 .command__text {
@@ -106,11 +97,12 @@ $follow: transform 600ms var(--ease-out);
   white-space: nowrap;
   text-overflow: ellipsis;
   background: none;
+  border: 0;
 }
 
 .command__prompt {
   margin-inline-end: 0.5rem;
-  color: var(--brand-text);
+  color: var(--text-3);
 }
 
 .hero__assurance {
@@ -120,126 +112,37 @@ $follow: transform 600ms var(--ease-out);
 }
 
 .hero__plan-link {
-  display: inline-block;
-  margin-inline-start: 0.25rem;
+  color: var(--indigo);
+}
+
+// What is missing, said plainly and before the roadmap.
+.limits {
+  margin-bottom: var(--s-8);
+}
+
+.roadmap__title {
+  margin-bottom: var(--s-2);
+}
+
+.roadmap__text {
+  max-width: 60ch;
+  margin-bottom: var(--s-5);
   color: var(--text-2);
-  font-weight: 500;
-  text-decoration-color: var(--line-strong);
-  text-underline-offset: 0.25em;
-
-  &:hover {
-    color: var(--brand-text);
-    text-decoration-color: var(--brand);
-  }
 }
 
-.hero__scene {
-  min-width: 0;
-  transform: translate3d(calc(var(--px) * 0.5), calc(var(--py) * 0.5), 0);
-  transition: $follow;
-}
-
-@media (min-width: bp.$lg) {
-  .hero__inner {
-    grid-template-columns: minmax(0, 10fr) minmax(0, 11fr);
-  }
-}
-
-// Facts band: exact figures in mono, their meaning in text.
-.facts {
-  background: var(--bg-2);
-  border-block: 1px solid var(--line);
-}
-
-.facts__list {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1px;
-  margin-block: 0;
-  background: var(--line);
-  border-inline: 1px solid var(--line);
-  padding-inline: 0;
-}
-
-.fact {
-  display: grid;
-  gap: 0.25rem;
-  padding: var(--s-5) var(--s-4);
-  background: var(--bg-2);
-
-  dt {
-    font: 500 var(--t-24) / 1.1 var(--mono);
-    letter-spacing: -0.02em;
-  }
-
-  dd {
-    margin: 0;
-    color: var(--text-2);
-    font-size: var(--t-14);
-    line-height: 1.4;
-  }
-}
-
-@media (min-width: bp.$md) {
-  .facts__list {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: bp.$xl) {
-  .facts__list {
-    grid-template-columns: repeat(6, minmax(0, 1fr));
-  }
-}
-
-.section__more {
-  margin: var(--s-6) 0 0;
-}
-
-.ci-facts {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-5) var(--s-7);
-  margin: var(--s-7) 0 0;
-
-  div {
-    padding-top: var(--s-4);
-    border-top: 1px solid var(--line-strong);
-  }
-
-  dt {
-    margin-bottom: 0.375rem;
-    font-weight: 600;
-  }
-
-  dd {
-    margin: 0;
-    color: var(--text-2);
-    font-size: var(--t-15);
-    line-height: 1.55;
-  }
-}
-
-@media (min-width: bp.$md) {
-  .ci-facts {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-// The five crates in a row under the architecture plan.
+// The five crates, one row each under the architecture plan.
 .crates {
+  @include m.drawn-rule;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0 var(--s-5);
   padding: 0;
-  margin: var(--s-7) 0 0;
+  margin: var(--s-6) 0 0;
   list-style: none;
 
   li {
     display: grid;
-    gap: 0.25rem;
-    padding: var(--s-4) 0;
-    border-top: 1px solid var(--line-strong);
+    gap: 0.25rem var(--s-6);
+    padding-block: var(--s-4);
+    border-bottom: 1px solid var(--line);
   }
 }
 
@@ -256,109 +159,57 @@ $follow: transform 600ms var(--ease-out);
 }
 
 @media (min-width: bp.$md) {
-  .crates {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+  .crates li {
+    grid-template-columns: minmax(0, 14rem) minmax(0, 1fr);
+    align-items: baseline;
   }
 }
 
-@media (min-width: bp.$xl) {
-  .crates {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-  }
-}
-
-// Security: a ruled list, each fact with the mechanism behind it.
-.sec {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: 0 var(--s-7);
-  margin: 0;
-}
-
-.sec__row {
-  display: grid;
-  gap: 0.25rem;
-  padding: var(--s-4) 0;
-  border-top: 1px solid var(--line);
-
-  dt {
-    font-weight: 600;
-  }
-
-  dd {
-    margin: 0;
-    color: var(--text-2);
-    font-size: var(--t-15);
-    line-height: 1.5;
-  }
-}
-
-@media (min-width: bp.$md) {
-  .sec {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .sec__row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-// Roadmap strip: the five planned versions.
+// The planned versions as the rows of a table: the number, what it brings, its status.
 .strip {
+  @include m.drawn-rule;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--s-4);
   padding: 0;
-  margin: 0 0 var(--s-6);
+  margin: 0 0 var(--s-5);
   list-style: none;
 }
 
 .strip__item {
-  position: relative;
   display: grid;
-  gap: 0.375rem;
-  padding: var(--s-4) var(--s-4) var(--s-4) var(--s-5);
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: var(--r-control);
-
-  // A thin rust rule on the leading edge: the line of the timeline, cut into five.
-  &::before {
-    position: absolute;
-    inset-block: var(--s-4);
-    inset-inline-start: -1px;
-    width: 3px;
-    content: '';
-    background: var(--brand);
-    border-radius: 2px;
-  }
+  gap: 0.25rem var(--s-5);
+  padding-block: var(--s-3);
+  border-bottom: 1px solid var(--line);
 }
 
 .strip__tag {
-  color: var(--brand-text);
-  font-size: var(--t-15);
+  color: var(--text);
   font-weight: 500;
 }
 
 .strip__title {
-  font-size: var(--t-15);
-  font-weight: 500;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
 @media (min-width: bp.$md) {
-  .strip {
-    grid-template-columns: repeat(5, minmax(0, 1fr));
-    gap: var(--s-3);
+  .strip__item {
+    grid-template-columns: 4rem minmax(0, 1fr) auto;
+    align-items: baseline;
   }
 }
 
-// Closing block of the page.
-.finale {
-  padding-top: 0;
+// The page opens in sequence: the title, then the text and the actions, then the measurement, which prints its lines
+// (app-terminal). Opacity only; the text is all in the page from the start, so nothing depends on this running.
+.hero h1 {
+  animation: fade-in var(--dur-4) var(--ease-out) both;
 }
 
-.finale__box {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+.hero__copy > * {
+  animation: fade-in var(--dur-4) var(--ease-out) both;
+
+  @for $n from 1 through 4 {
+    &:nth-child(#{$n}) {
+      animation-delay: #{150 + $n * 110}ms;
+    }
+  }
 }
+

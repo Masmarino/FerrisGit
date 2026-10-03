@@ -1,7 +1,7 @@
 import site from '../seo/site.json'
 
 export type Lang = 'en' | 'fr' | 'it' | 'es' | 'de'
-export type PageId = 'home' | 'features' | 'roadmap'
+export type PageId = 'home' | 'features' | 'ci' | 'install' | 'security' | 'roadmap'
 
 // site.json is also read by scripts/build-sitemap.mjs, so the sitemap and the router share one list.
 export const LANGS = site.langs as readonly Lang[]

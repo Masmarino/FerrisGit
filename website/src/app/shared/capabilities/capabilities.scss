@@ -5,12 +5,182 @@
   display: block;
 }
 
-// One column on phones, two from 44rem (review, webhook and catalogue span both), a named grid area per tile from
-// bp.$xl.
-.bento {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
+.carousel {
+  position: relative;
+}
+
+// The tile cut by the edge fades into the page instead of stopping on a hard line, on the side where there is more to
+// see. Drawn over the track, so the track's focus ring is not clipped.
+.carousel__viewport {
+  position: relative;
+
+  &::before,
+  &::after {
+    position: absolute;
+    inset-block: 0 var(--s-2);
+    z-index: 1;
+    width: 3rem;
+    pointer-events: none;
+    content: '';
+    opacity: 0;
+    transition: opacity var(--dur-2) var(--ease);
+  }
+
+  &::before {
+    inset-inline-start: 0;
+    background: linear-gradient(90deg, var(--bg), transparent);
+  }
+
+  &::after {
+    inset-inline-end: 0;
+    background: linear-gradient(270deg, var(--bg), transparent);
+  }
+
+  &.has-before::before,
+  &.has-after::after {
+    opacity: 1;
+  }
+}
+
+// A track of tiles that scrolls sideways and snaps to the start of a tile. Each tile is a little under the width of the
+// track on a phone, and a fixed width from there, so the next one shows at the edge and says there is more.
+.carousel__track {
+  position: relative;
+  display: flex;
   gap: var(--s-4);
+  padding-bottom: var(--s-2);
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+
+  &::-webkit-scrollbar {
+    display: none;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 4px;
+    border-radius: var(--r-tile);
+  }
+
+  .tile {
+    flex: 0 0 min(88%, 33rem);
+    scroll-snap-align: start;
+  }
+}
+
+.carousel__controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--s-3);
+  margin-top: var(--s-4);
+}
+
+.carousel__nav {
+  display: inline-grid;
+  flex: none;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  color: var(--text);
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  transition:
+    background-color var(--dur-1) var(--ease),
+    border-color var(--dur-1) var(--ease);
+
+  svg {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 1.75;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+  }
+
+  &:hover:not(:disabled) {
+    background: var(--surface-2);
+    border-color: var(--text-2);
+  }
+
+  &:disabled {
+    opacity: 0.4;
+    cursor: default;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+  }
+}
+
+.carousel__dots {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  @include m.reset-list;
+
+  li {
+    display: flex;
+  }
+}
+
+// A dot is small to look at and a comfortable target: the padding around it takes the touch.
+.carousel__dot {
+  position: relative;
+  width: 1.5rem;
+  height: 1.5rem;
+  padding: 0;
+  background: none;
+  border: 0;
+
+  &::before {
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    width: 0.5rem;
+    height: 0.5rem;
+    content: '';
+    background: var(--line-strong);
+    border-radius: 50%;
+    transition:
+      width var(--dur-2) var(--ease),
+      background-color var(--dur-1) var(--ease);
+  }
+
+  &.is-current::before {
+    width: 1.25rem;
+    background: var(--brand);
+    border-radius: var(--r-pill);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 1px;
+    border-radius: var(--r-pill);
+  }
+}
+
+// The position, for those who cannot see the dots: spoken when it changes, hidden from view.
+.carousel__count {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .carousel__dot::before {
+    transition: none;
+  }
 }
 
 .tile__text {
@@ -89,7 +259,7 @@
   font-size: 0.6875rem;
   font-weight: 600;
   background: var(--surface-3);
-  border-radius: var(--r-pill);
+  border-radius: var(--r-chip);
 }
 
 .chip--ok {
@@ -675,77 +845,4 @@
   overflow: hidden;
   white-space: nowrap;
   text-overflow: ellipsis;
-}
-
-// Placement of the tiles by width.
-
-@media (min-width: 44rem) {
-  .bento {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .tile--review,
-  .tile--webhook,
-  .tile--catalog {
-    grid-column: span 2;
-  }
-}
-
-@media (min-width: bp.$xl) {
-  .bento {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    grid-template-areas:
-      'review review pipeline kanban'
-      'roles webhook webhook kanban'
-      'catalog catalog mfa search';
-  }
-
-  .tile--review {
-    grid-area: review;
-  }
-
-  .tile--pipeline {
-    grid-area: pipeline;
-  }
-
-  .tile--kanban {
-    grid-area: kanban;
-  }
-
-  .tile--roles {
-    grid-area: roles;
-  }
-
-  .tile--webhook {
-    grid-area: webhook;
-  }
-
-  .tile--catalog {
-    grid-area: catalog;
-  }
-
-  .tile--mfa {
-    grid-area: mfa;
-  }
-
-  .tile--search {
-    grid-area: search;
-  }
-
-  // Wide tiles put the fragment beside the text.
-  .tile--review,
-  .tile--catalog,
-  .tile--webhook {
-    display: grid;
-    grid-template-columns: minmax(0, 7fr) minmax(0, 5fr);
-
-    .frag {
-      border-right: 1px solid var(--line);
-      border-bottom: 0;
-    }
-
-    .tile__text {
-      align-self: center;
-    }
-  }
 }

@@ -14,7 +14,8 @@ export type CodeLanguage = 'bash' | 'yaml'
 /**
  * A highlighted snippet with a title bar and an optional copy button. The HTML comes from highlight.js, which escapes
  * whatever it doesn't wrap, and the snippets are constants of the site, so bypassing the sanitizer is safe here.
- * Every line is wrapped so it can be marked (`markedLines`).
+ * Every line is wrapped so it can be marked (`markedLines`). Shell commands wrap at the edge with a hanging indent, so a
+ * long line is read whole instead of cut; YAML keeps its lines, where the indentation is the meaning.
  */
 @Component({
   selector: 'app-code-block',
@@ -22,6 +23,7 @@ export type CodeLanguage = 'bash' | 'yaml'
   templateUrl: './code-block.html',
   styleUrl: './code-block.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { '[class.is-printing]': 'print()', '[class.is-wrapping]': "language() === 'bash'" },
 })
 export class CodeBlock {
   private readonly sanitizer = inject(DomSanitizer)
@@ -37,6 +39,8 @@ export class CodeBlock {
   readonly failedText = input('')
   /** 1-based numbers of the lines to mark, for example the job a demo makes fail. */
   readonly markedLines = input<readonly number[]>([])
+  /** The lines come in one after the other, like output being printed, each time the block is shown. */
+  readonly print = input(false)
 
   protected readonly html = computed<SafeHtml>(() => {
     const marked = new Set(this.markedLines())

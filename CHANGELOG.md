@@ -8,6 +8,9 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ### Added
 
+- A "Ressources" documentation page with the memory, size and start-up figures of an empty instance, and how to
+  measure them. An instance administrator cannot read other users' private repositories, through the API or through
+  Git: a test now guards the rule.
 - Accounts nobody activated are cleaned up, whether they came from an invitation or from a registration. When the link
   of the last mail has expired, a reminder with a fresh link and the deletion date is sent, which makes one a day, and
   the account is deleted 7 days after it was created, freeing its username and address. Activating is the only thing
