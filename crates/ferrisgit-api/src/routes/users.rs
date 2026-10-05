@@ -3,6 +3,7 @@ use axum::http::StatusCode;
 use axum::routing::{delete, get, post, put};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
+use ferrisgit_application::account_rules::{activation_url, is_placeholder_username};
 use ferrisgit_application::email_templates;
 use ferrisgit_application::use_cases::admin_reset_password::{
     AdminResetPasswordUseCase, IssuedPasswordReset,
@@ -102,7 +103,8 @@ async fn reset_mfa(
 #[serde(rename_all = "camelCase")]
 struct AdminUserRow {
     id: Uuid,
-    username: String,
+    /// `None` while an invitee has not chosen theirs: the placeholder is never shown.
+    username: Option<String>,
     email: String,
     is_admin: bool,
     created_at: DateTime<Utc>,
@@ -119,7 +121,7 @@ impl AdminUserRow {
         };
         Self {
             id: user.id,
-            username: user.username,
+            username: (!is_placeholder_username(&user.username)).then_some(user.username),
             email: user.email,
             is_admin: user.is_admin,
             created_at: user.created_at,
@@ -155,7 +157,6 @@ async fn list(
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct InviteRequest {
-    username: String,
     email: String,
     #[serde(default)]
     is_admin: bool,
@@ -175,13 +176,14 @@ struct InvitationResponse {
 
 /// The mail is awaited so the admin learns whether it went out, but a delivery failure doesn't fail the request.
 /// The token is in the URL fragment, which browsers never send, so it stays out of access logs. Neither it nor
-/// the URL is logged.
+/// the URL is logged. An invitee who still has to choose a name gets the invitation mail and its page; an account
+/// that has one (registered, or invited before names were chosen at activation) the activation mail.
 async fn deliver_invitation(
     state: &AppState,
     invited: InvitedUser,
 ) -> Result<Json<InvitationResponse>, ApiError> {
     let InvitedUser { user, token } = invited;
-    let activation_url = format!("{}/activate#token={}", state.config.public_url, token);
+    let activation_url = activation_url(&state.config.public_url, &user.username, &token);
     let expires_at = state
         .invitations
         .expiries(&[user.id])
@@ -204,17 +206,15 @@ async fn deliver_invitation(
     });
     let user_id = user.id;
     let to = user.email.clone();
-    let username = user.username.clone();
+    let mail = if is_placeholder_username(&user.username) {
+        email_templates::invitation(&activation_url)
+    } else {
+        email_templates::account_created(&user.username, &activation_url)
+    };
     let row = AdminUserRow::new(user, user_state, mfa_enabled);
 
     // Reads first, so a database failure can't show up after the mail already left.
-    let outcome = state
-        .mailer
-        .send(
-            &to,
-            email_templates::account_created(&username, &activation_url),
-        )
-        .await;
+    let outcome = state.mailer.send(&to, mail).await;
 
     Ok(Json(match outcome {
         Ok(()) => InvitationResponse {
@@ -366,9 +366,7 @@ async fn invite(
         state.groups.clone(),
         state.invitations.clone(),
     );
-    let invited = use_case
-        .execute(req.username, req.email, req.is_admin)
-        .await?;
+    let invited = use_case.execute(req.email, req.is_admin).await?;
     deliver_invitation(&state, invited).await
 }
 

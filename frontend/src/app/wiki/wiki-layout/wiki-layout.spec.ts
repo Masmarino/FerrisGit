@@ -2,7 +2,7 @@ import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
-import { GbtInput } from '@masmarino/gabarit';
+import { GbtInput } from '@masmarino/gabarit/input';
 import { of, throwError } from 'rxjs';
 import { WikiLayout } from './wiki-layout';
 import { WikiList, WikiService } from '../wiki.service';

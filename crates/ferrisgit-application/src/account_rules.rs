@@ -27,6 +27,7 @@ const RESERVED_USERNAMES: &[&str] = &[
     "login",
     "register",
     "activate",
+    "invitation",
     "reset-password",
     "home",
     "repositories",
@@ -74,10 +75,40 @@ pub fn normalize_username(raw: &str) -> Result<String, DomainError> {
             "username must start with a letter".to_string(),
         ));
     }
-    if RESERVED_USERNAMES.contains(&username.as_str()) {
+    if RESERVED_USERNAMES.contains(&username.as_str()) || is_placeholder_username(&username) {
         return Err(DomainError::Validation("username is reserved".to_string()));
     }
     Ok(username)
+}
+
+const PLACEHOLDER_USERNAME_PREFIX: &str = "invite-";
+
+/// The name of an account an admin invited by e-mail, until its owner chooses theirs at activation: `invite-` and 12
+/// hex digits. Valid as a username, so the account fits every place a user does, but never accepted as a chosen one.
+pub fn is_placeholder_username(username: &str) -> bool {
+    username
+        .strip_prefix(PLACEHOLDER_USERNAME_PREFIX)
+        .is_some_and(|rest| {
+            rest.len() == 12 && rest.bytes().all(|b| matches!(b, b'0'..=b'9' | b'a'..=b'f'))
+        })
+}
+
+pub(crate) fn placeholder_username() -> String {
+    let mut bytes = [0u8; 6];
+    rand::rng().fill_bytes(&mut bytes);
+    format!("{PLACEHOLDER_USERNAME_PREFIX}{}", hex::encode(bytes))
+}
+
+/// The link of an activation mail. An invited account whose owner still has to choose a name lands on `/invitation`,
+/// which asks for it; one that already has its name (self-registration) on `/activate`. The token is in the fragment,
+/// which browsers never send, so it stays out of access logs.
+pub fn activation_url(public_url: &str, username: &str, token: &str) -> String {
+    let page = if is_placeholder_username(username) {
+        "invitation"
+    } else {
+        "activate"
+    };
+    format!("{public_url}/{page}#token={token}")
 }
 
 pub fn validate_password(password: &str) -> Result<(), DomainError> {
@@ -130,6 +161,18 @@ pub(crate) async fn ensure_account_available(
     username: &str,
     email: &str,
 ) -> Result<(), DomainError> {
+    ensure_username_available(users, groups, username).await?;
+    if users.find_by_email_ignore_case(email).await?.is_some() {
+        return Err(DomainError::Conflict("email already in use".to_string()));
+    }
+    Ok(())
+}
+
+pub(crate) async fn ensure_username_available(
+    users: &Arc<dyn UserRepositoryPort>,
+    groups: &Arc<dyn GroupStorePort>,
+    username: &str,
+) -> Result<(), DomainError> {
     if users
         .find_by_username_ignore_case(username)
         .await?
@@ -142,15 +185,47 @@ pub(crate) async fn ensure_account_available(
             "username collides with an existing root group".to_string(),
         ));
     }
-    if users.find_by_email_ignore_case(email).await?.is_some() {
-        return Err(DomainError::Conflict("email already in use".to_string()));
-    }
     Ok(())
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_placeholder_is_a_valid_username_nobody_can_choose() {
+        let placeholder = placeholder_username();
+
+        assert!(is_placeholder_username(&placeholder), "{placeholder}");
+        assert_eq!(placeholder.len(), "invite-".len() + 12);
+        assert!(is_validation(normalize_username(&placeholder)));
+        assert!(is_validation(normalize_username(
+            &placeholder.to_uppercase()
+        )));
+        for chosen in [
+            "invite-bob",
+            "invite-0123456789ab0",
+            "invite-0123456789aB",
+            "invited",
+        ] {
+            assert!(!is_placeholder_username(chosen), "{chosen}");
+        }
+        assert_eq!(normalize_username("invite-bob").unwrap(), "invite-bob");
+    }
+
+    #[test]
+    fn an_invitation_without_a_chosen_name_links_to_the_page_that_asks_for_it() {
+        let token = "ab".repeat(32);
+
+        assert_eq!(
+            activation_url("https://git.example.com", "invite-0123456789ab", &token),
+            format!("https://git.example.com/invitation#token={token}")
+        );
+        assert_eq!(
+            activation_url("https://git.example.com", "marie", &token),
+            format!("https://git.example.com/activate#token={token}")
+        );
+    }
 
     fn is_validation<T: std::fmt::Debug>(result: Result<T, DomainError>) -> bool {
         matches!(result, Err(DomainError::Validation(_)))

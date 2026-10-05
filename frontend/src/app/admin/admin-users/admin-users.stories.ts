@@ -10,13 +10,14 @@ import { AdminUser, AdminUsersService, InviteResult, PasswordResetResult } from 
 import { AuthService } from '../../auth/auth.service';
 import { MeService } from '../../shell/me.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { daysAgo, hoursAgo, inShellContentArea, minutesAgo, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { fakeToast } from '../../shared/layout/settings-story-helpers';
 
 const inHours = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
 
 const user = (overrides: Partial<AdminUser> & Pick<AdminUser, 'id' | 'username'>): AdminUser => ({
+  named: true,
   email: `${overrides.username}@ferrisgit.dev`,
   isAdmin: false,
   createdAt: daysAgo(10),
@@ -63,7 +64,7 @@ function fakeUsersService(list: AdminUser[], options: FakeOptions = {}): Pick<Ad
   };
   return {
     list: () => of(current),
-    invite: (username, email, isAdmin) => of({ user: user({ id: 'new', username, email, isAdmin, state: 'invited', mfaEnabled: false, invitationExpiresAt: inHours(24) }), emailSent: true }),
+    invite: (email, isAdmin) => of({ user: user({ id: 'new', username: email, named: false, email, isAdmin, state: 'invited', mfaEnabled: false, invitationExpiresAt: inHours(24) }), emailSent: true }),
     resend: (id) => renewed(id, !options.mailFails),
     resetMfa: (id) => {
       if (options.refuseReset) {

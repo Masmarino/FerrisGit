@@ -1,6 +1,9 @@
 import { Component, input } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { GbtInput, Panel, SegmentedControl, SegmentedControlOption, Select, SelectOption } from '@masmarino/gabarit';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { Panel } from '@masmarino/gabarit/panel';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
 import { WorkspaceGrid, WorkspaceSortKey } from './workspace-grid';
 
 const DIRECTION_OPTIONS: SegmentedControlOption<'asc' | 'desc'>[] = [

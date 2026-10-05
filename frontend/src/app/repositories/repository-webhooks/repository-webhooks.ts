@@ -1,24 +1,20 @@
 import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  CheckboxGroup,
-  CheckboxGroupSection,
-  ConfirmDangerModal,
-  Drawer,
-  EmptyState,
-  GbtDateTimePipe,
-  GbtInput,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  ListRow,
-  Skeleton,
-  SkeletonList,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { CheckboxGroup, CheckboxGroupSection } from '@masmarino/gabarit/checkbox-group';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { Drawer } from '@masmarino/gabarit/drawer';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RepositorySettingsService, WebhookDelivery, WebhookSummary, WEBHOOK_EVENT_OPTIONS } from '../repository-settings.service';
 import { createSettingsList } from '../settings-list';
 

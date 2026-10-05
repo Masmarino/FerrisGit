@@ -5,7 +5,7 @@ import { NEVER, Observable, of, throwError } from 'rxjs';
 import { RunnersList } from './runners-list';
 import { RunnerSummary, RunnersService } from '../runners.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { daysAgo, hoursAgo, inShellContentArea, minutesAgo, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectRows, fakeToast } from '../../shared/layout/settings-story-helpers';
 

@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import type { BackupCodesResult, MfaPort, MfaStatus, Passkey, PasskeyChallenge, TotpEnrollment } from '@masmarino/gabarit';
+import type { BackupCodesResult, MfaPort, MfaStatus, Passkey, PasskeyChallenge, TotpEnrollment } from '@masmarino/gabarit/auth';
 import { Observable } from 'rxjs';
 
 /**

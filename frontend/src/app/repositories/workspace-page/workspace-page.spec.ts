@@ -5,7 +5,7 @@ import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { BehaviorSubject } from 'rxjs';
 import { WorkspacePage } from './workspace-page';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { CreateGroupModal } from '../../groups/create-group-modal/create-group-modal';
 import { CreateRepositoryModal } from '../create-repository-modal/create-repository-modal';
 import { repositoryFixture } from '../repository-fixtures';

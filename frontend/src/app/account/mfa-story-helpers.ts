@@ -1,7 +1,7 @@
 // Storybook-only fake server behind the account security stories: password `mot-de-passe-correct`, authenticator code
 // `123456`. Calls answer after a short delay so the spinners show.
 import { HttpErrorResponse } from '@angular/common/http';
-import { MfaSettingsState, type MfaPort, type MfaStatus, type Passkey } from '@masmarino/gabarit';
+import { MfaSettingsState, type MfaPort, type MfaStatus, type Passkey } from '@masmarino/gabarit/auth';
 import { moduleMetadata } from '@storybook/angular-vite';
 import { NEVER, Observable, of, switchMap, throwError, timer } from 'rxjs';
 import { provideFerrisgitAuth } from '../auth/auth-kit';

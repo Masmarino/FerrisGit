@@ -5,18 +5,35 @@
   closeMenuLabel="Fermer le menu de navigation"
   collapseLabel="Réduire la navigation"
   expandLabel="Agrandir la navigation"
+  [versionLabel]="version.version()"
   [collapsed]="sidebarCollapse.collapsed()"
   (collapsedChange)="sidebarCollapse.set($event)"
 >
-  <img class="app-shell__logo" shell-brand [hidden]="sidebarCollapse.collapsed()" src="Logo_horizontal.png" alt="FerrisGit" />
+  <img class="app-shell__logo" shell-brand [hidden]="sidebarCollapse.collapsed()" src="Logo_horizontal_dark.png" alt="FerrisGit" />
+  <img class="app-shell__mark" shell-brand [hidden]="!sidebarCollapse.collapsed()" src="logo-128.png" width="32" height="32" alt="FerrisGit" />
   <ng-container shell-nav>
     @if (repoContext.current(); as ctx) {
       <ul class="app-shell__nav-list">
-        <li>
-          <a routerLink="/repositories" class="gbt-app-shell__link">
+        <!-- Where the rail leads back to, then which repository this is: its groups (links) or its owner in mono, and its
+             name as a title, which is also the switcher to the repositories next to it. On a wide screen this is the only
+             place the repository is named: the bar's breadcrumb stands back (styles.scss). -->
+        <li class="app-shell__context">
+          <a routerLink="/repositories" class="gbt-app-shell__link app-shell__back">
             <gbt-icon name="arrow-left" />
-            <span>Retour</span>
+            <span>Dépôts</span>
           </a>
+          <div class="app-shell__repo" [hidden]="sidebarCollapse.collapsed()">
+            <span class="app-shell__repo-owner">
+              @for (ancestor of ctx.ancestors; track ancestor.link.join('/'); let last = $last) {
+                <a [routerLink]="ancestor.link">{{ ancestor.label }}</a>@if (!last) { / }
+              } @empty {
+                {{ ctx.path[0] }}
+              }
+            </span>
+            <div class="app-shell__repo-name">
+              <ng-container *ngTemplateOutlet="repoSwitcher; context: { $implicit: ctx }" />
+            </div>
+          </div>
         </li>
         <li>
           <a [routerLink]="repoLink(ctx, [])" routerLinkActive ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }" class="gbt-app-shell__link">
@@ -55,7 +72,7 @@
           </a>
         </li>
         @if (ctx.role === 'owner' || ctx.role === 'maintainer') {
-          <li>
+          <li class="app-shell__nav-end">
             <a [routerLink]="repoLink(ctx, ['settings'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
               <gbt-icon name="settings" />
               <span>Réglages</span>
@@ -89,11 +106,20 @@
       </ul>
     }
   </ng-container>
-  <div class="app-shell__header" shell-header [class.app-shell__header--search-open]="mobileSearchOpen()">
+  <div class="app-shell__header" shell-header [class.app-shell__header--rail]="sidebarCollapse.collapsed()">
     <gbt-breadcrumb ariaLabel="Fil d'Ariane" class="app-shell__breadcrumb">
       <!-- A control-flow block only gets projected into a named slot when it has exactly one root element, so every item
            is its own top-level block. `ctx` is hoisted with `@let` so they can still share it. -->
       @let ctx = repoContext.current();
+      @for (crumb of ctx ? [] : trail(); track crumb.label) {
+        <li breadcrumb-ancestor>
+          @if (crumb.link) {
+            <a class="gbt-breadcrumb__item" [routerLink]="crumb.link">{{ crumb.label }}</a>
+          } @else {
+            <span class="gbt-breadcrumb__item app-shell__crumb">{{ crumb.label }}</span>
+          }
+        </li>
+      }
       @for (ancestor of ctx?.ancestors ?? []; track ancestor.link.join('/')) {
         <li breadcrumb-ancestor><a class="gbt-breadcrumb__item" [routerLink]="ancestor.link">{{ ancestor.label }}</a></li>
       }
@@ -122,30 +148,7 @@
         }
       </gbt-menu>
     </ng-template>
-    <gbt-search-bar
-      #searchBar
-      class="app-shell__search"
-      role="search"
-      collapsible="narrow"
-      [(expanded)]="mobileSearchOpen"
-      openLabel="Rechercher"
-      closeLabel="Fermer la recherche"
-      placeholder="Rechercher…"
-      ariaLabel="Rechercher un dépôt, un ticket, une demande de fusion ou un utilisateur"
-      noResultsMessage="Aucun résultat"
-      noResultsHint="Essayez une autre recherche."
-      clearLabel="Effacer la recherche"
-      navigateHint="Naviguer"
-      selectHint="Sélectionner"
-      closeHint="Fermer"
-      [groupedResults]="searchResults()"
-      [displayFn]="searchResultLabel"
-      [resultsAnnouncement]="resultsAnnouncement"
-      (queryChange)="onSearchInput($event)"
-      (clear)="onSearchInput('')"
-      (itemSelected)="onSelectResult($event)"
-      (keydown.enter)="onSearchSubmitEnter()"
-    />
+    <gbt-command-palette-trigger class="app-shell__search" label="Rechercher ou aller à…" [palette]="quickSearch" />
     <div class="app-shell__header-end">
       <fg-notification-bell />
       <gbt-menu [label]="me.username() || 'Compte'" align="end">
@@ -157,4 +160,5 @@
   </div>
   <router-outlet />
 </gbt-app-shell>
+<fg-quick-search #quickSearch (logout)="logout()" />
 <gbt-toaster closeLabel="Fermer" />

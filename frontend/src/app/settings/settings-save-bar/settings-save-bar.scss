@@ -1,0 +1,23 @@
+@use '../../shared/layout/settings-section';
+
+:host {
+  @include settings-section.form-actions;
+}
+
+// A live region that also speaks while nothing is being saved, which `gbt-save-status` can't do (Gabarit gap).
+.settings-save-bar__summary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  flex: 1 1 auto;
+  min-height: 1.25rem;
+  margin: 0;
+  color: var(--text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+
+  gbt-icon {
+    flex: none;
+    font-size: 0.75rem;
+  }
+}

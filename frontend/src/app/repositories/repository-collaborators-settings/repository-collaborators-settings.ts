@@ -1,6 +1,17 @@
 import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Alert, Button, Card, ConfirmDangerModal, EmptyState, GbtDateTimePipe, GbtInput, GbtRelativeTimePipe, ListRow, Select, SelectOption, SkeletonList, UserChip, GbtToastService } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
+import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { CollaboratorSummary, RepositorySettingsService } from '../repository-settings.service';
 import { createSettingsList } from '../settings-list';
 

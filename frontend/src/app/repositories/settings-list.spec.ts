@@ -1,6 +1,6 @@
 import { Component } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Observable, of, throwError } from 'rxjs';
 import { createSettingsList } from './settings-list';
 

@@ -5,7 +5,6 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { RegisterPage } from './register-page';
-import { provideFerrisgitAuth } from '../auth-kit';
 
 @Component({ standalone: true, template: '<p>page</p>' })
 class Elsewhere {}
@@ -27,7 +26,6 @@ describe('RegisterPage', () => {
           { path: 'login', component: Elsewhere },
           { path: 'repositories', component: Elsewhere },
         ]),
-        provideFerrisgitAuth(),
       ],
     });
     const harness = await RouterTestingHarness.create('/register');

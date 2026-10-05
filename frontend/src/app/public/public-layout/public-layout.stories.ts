@@ -4,7 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { applicationConfig } from '@storybook/angular-vite';
 import { expect, waitFor } from 'storybook/test';
-import { Card } from '@masmarino/gabarit';
+import { Card } from '@masmarino/gabarit/card';
 import { PublicLayout } from './public-layout';
 import { AuthService } from '../../auth/auth.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';

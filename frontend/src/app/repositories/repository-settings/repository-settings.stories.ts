@@ -10,7 +10,7 @@ import { RepositoriesService } from '../repositories.service';
 import { repositoryFixture } from '../repository-fixtures';
 import { CollaboratorSummary, RepositorySettingsService, WebhookSummary } from '../repository-settings.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Label, LabelsService } from '../../labels/labels.service';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { atPhoneWidth, daysAgo, hoursAgo, inShellContentArea, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';

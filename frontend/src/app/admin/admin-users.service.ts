@@ -1,10 +1,15 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { Observable } from 'rxjs';
+import { map, Observable } from 'rxjs';
 
 export interface AdminUser {
   id: string;
+  /**
+   * The name to show: the username, or the e-mail address of an invitee who has not chosen one yet (`named` false).
+   * The server sends no name for them, never the placeholder it holds until then.
+   */
   username: string;
+  named: boolean;
   email: string;
   isAdmin: boolean;
   createdAt: string;
@@ -14,6 +19,15 @@ export interface AdminUser {
   mfaEnabled: boolean;
 }
 
+type AdminUserRow = Omit<AdminUser, 'username' | 'named'> & { username: string | null };
+
+const toAdminUser = (row: AdminUserRow): AdminUser => ({ ...row, username: row.username ?? row.email, named: row.username !== null });
+
+const withAdminUser = <T extends { user: AdminUserRow }>(result: T): Omit<T, 'user'> & { user: AdminUser } => ({
+  ...result,
+  user: toAdminUser(result.user),
+});
+
 /** Both fields are absent unless the mail failed to send, in which case the link is the only way to reach the invitee. */
 export interface InviteResult {
   user: AdminUser;
@@ -21,6 +35,8 @@ export interface InviteResult {
   emailError?: string;
   activationUrl?: string;
 }
+
+type InviteResultRow = Omit<InviteResult, 'user'> & { user: AdminUserRow };
 
 /** Like InviteResult without the user row. `emailError` and `resetUrl` are only there when the mail failed. */
 export interface PasswordResetResult {
@@ -49,16 +65,17 @@ export class AdminUsersService {
   }
 
   list(): Observable<AdminUser[]> {
-    return this.http.get<AdminUser[]>('/api/admin/users');
+    return this.http.get<AdminUserRow[]>('/api/admin/users').pipe(map((rows) => rows.map(toAdminUser)));
   }
 
-  invite(username: string, email: string, isAdmin: boolean): Observable<InviteResult> {
-    return this.http.post<InviteResult>('/api/admin/users/invite', { username, email, isAdmin });
+  /** By e-mail only: the invitee chooses their username when activating the account. */
+  invite(email: string, isAdmin: boolean): Observable<InviteResult> {
+    return this.http.post<InviteResultRow>('/api/admin/users/invite', { email, isAdmin }).pipe(map(withAdminUser));
   }
 
   /** New link (the old one stops working), mailed again. 400 if the user is already active. */
   resend(id: string): Observable<InviteResult> {
-    return this.http.post<InviteResult>(`${this.userUrl(id)}/invitation`, {});
+    return this.http.post<InviteResultRow>(`${this.userUrl(id)}/invitation`, {}).pipe(map(withAdminUser));
   }
 
   /** Ends their sessions and wipes their factors, so the next sign-in enrols from scratch. */

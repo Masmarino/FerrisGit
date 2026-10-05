@@ -1,49 +1,54 @@
-<gbt-card variant="outlined" icon="lock" heading="Sessions" description="Combien de temps une connexion reste valide avant de devoir se reconnecter.">
-  <div class="admin-settings__field admin-settings__jwt" data-field="jwtTtlHours">
-    <!-- (committed) rather than (ngModelChange), which would PUT "2" and then "24". -->
-    <gbt-input type="number" min="1" label="Durée de vie du JWT (heures)" [errorMessage]="jwtError()" [ngModel]="jwtShown()" (committed)="setJwtTtlHours($event)" />
-    <div class="admin-settings__field-footer">
-      <p class="admin-settings__hint">S'applique aux prochaines connexions ; les sessions ouvertes gardent leur durée.</p>
-      <fg-field-save-state field="jwtTtlHours" />
-    </div>
-  </div>
-</gbt-card>
-
-<gbt-card variant="outlined" icon="user-plus" heading="Inscription" description="Qui peut créer un compte sur cette instance, en plus des invitations.">
-  <div class="admin-settings__field admin-settings__switch" data-field="registrationEnabled">
-    <gbt-switch label="Autoriser l'inscription libre" [ngModel]="registrationShown()" (ngModelChange)="setRegistrationEnabled($event)" />
-    <div class="admin-settings__field-footer">
-      <p class="admin-settings__hint">Quand elle est active, toute personne qui peut joindre cette instance peut demander un compte : elle reçoit par e-mail un lien pour confirmer son adresse et choisir son mot de passe, puis configure la double authentification. Demande que l'envoi d'e-mails soit configuré, sinon la page d'inscription n'est pas proposée.</p>
-      <fg-field-save-state field="registrationEnabled" />
-    </div>
-  </div>
-</gbt-card>
-
-<gbt-card variant="outlined" icon="globe" heading="Pages publiques" description="Ce que voient les visiteurs qui n'ont pas de compte sur cette instance.">
-  <div class="admin-settings__form">
-    <div class="admin-settings__field admin-settings__switch" data-field="publicPagesEnabled">
-      <gbt-switch label="Pages publiques" [ngModel]="publicPagesShown()" (ngModelChange)="setPublicPagesEnabled($event)" />
+<!-- One form for the whole section: "Enregistrer" sends every change together. -->
+<form ngNoForm class="security-settings" novalidate (submit)="$event.preventDefault(); save()">
+  <gbt-card variant="outlined" icon="lock" heading="Sessions" description="Combien de temps une connexion reste valide avant de devoir se reconnecter.">
+    <div class="admin-settings__field admin-settings__jwt" data-field="jwtTtlHours">
+      <gbt-input type="number" min="1" label="Durée de vie du JWT (heures)" [errorMessage]="jwtError()" [ngModel]="jwt()" (ngModelChange)="jwt.set($event)" />
       <div class="admin-settings__field-footer">
-        <p class="admin-settings__hint">Toute personne peut parcourir les dépôts publics sans compte : catalogue, fichiers, commits et releases. Cela inclut le clonage Git anonyme, wiki compris. Désactivé, ces dépôts ne sont plus lisibles qu'une fois connecté.</p>
-        <fg-field-save-state field="publicPagesEnabled" />
+        <p class="admin-settings__hint">S'applique aux prochaines connexions ; les sessions ouvertes gardent leur durée.</p>
       </div>
     </div>
-    <div class="admin-settings__field admin-settings__switch" data-field="seoIndexingEnabled">
-      <gbt-switch label="Référencement par les moteurs de recherche" [disabled]="!publicPagesShown()" [ngModel]="seoIndexingShown()" (ngModelChange)="setSeoIndexingEnabled($event)" />
+  </gbt-card>
+
+  <gbt-card variant="outlined" icon="user-plus" heading="Inscription" description="Qui peut créer un compte sur cette instance, en plus des invitations.">
+    <div class="admin-settings__field admin-settings__switch" data-field="registrationEnabled">
+      <gbt-switch label="Autoriser l'inscription libre" [ngModel]="registration()" (ngModelChange)="registration.set($event)" />
       <div class="admin-settings__field-footer">
-        <p class="admin-settings__hint">Autorise les moteurs de recherche à indexer les pages publiques. Nécessite les pages publiques.</p>
-        <fg-field-save-state field="seoIndexingEnabled" />
+        <p class="admin-settings__hint">
+          Quand elle est active, toute personne qui peut joindre cette instance peut demander un compte : elle reçoit par e-mail un lien pour confirmer son adresse et choisir son mot de passe, puis configure la double
+          authentification. Demande que l'envoi d'e-mails soit configuré, sinon la page d'inscription n'est pas proposée.
+        </p>
       </div>
     </div>
-  </div>
-</gbt-card>
+  </gbt-card>
 
-<gbt-card variant="outlined" icon="upload" heading="Pushs" description="La taille maximale acceptée pour un push Git, sur tous les dépôts.">
-  <div class="admin-settings__field admin-settings__push-size" data-field="maxPushSizeMb">
-    <gbt-slider label="Taille maximale d'un push (Mio)" [min]="1" [max]="600" [ngModel]="maxPushSizeShown()" (ngModelChange)="onMaxPushSizeInput($event)" [formatValue]="maxPushSizeFormat" />
-    <div class="admin-settings__field-footer">
-      <p class="admin-settings__hint">Un push plus lourd est refusé par le serveur.</p>
-      <fg-field-save-state field="maxPushSizeMb" />
+  <gbt-card variant="outlined" icon="globe" heading="Pages publiques" description="Ce que voient les visiteurs qui n'ont pas de compte sur cette instance.">
+    <div class="admin-settings__form">
+      <div class="admin-settings__field admin-settings__switch" data-field="publicPagesEnabled">
+        <gbt-switch label="Pages publiques" [ngModel]="publicPages()" (ngModelChange)="publicPages.set($event)" />
+        <div class="admin-settings__field-footer">
+          <p class="admin-settings__hint">
+            Toute personne peut parcourir les dépôts publics sans compte : catalogue, fichiers, commits et releases. Cela inclut le clonage Git anonyme, wiki compris. Désactivé, ces dépôts ne sont plus lisibles
+            qu'une fois connecté.
+          </p>
+        </div>
+      </div>
+      <div class="admin-settings__field admin-settings__switch" data-field="seoIndexingEnabled">
+        <gbt-switch label="Référencement par les moteurs de recherche" [disabled]="!publicPages()" [ngModel]="seoIndexing()" (ngModelChange)="seoIndexing.set($event)" />
+        <div class="admin-settings__field-footer">
+          <p class="admin-settings__hint">Autorise les moteurs de recherche à indexer les pages publiques. Nécessite les pages publiques.</p>
+        </div>
+      </div>
     </div>
-  </div>
-</gbt-card>
+  </gbt-card>
+
+  <gbt-card variant="outlined" icon="upload" heading="Pushs" description="La taille maximale acceptée pour un push Git, sur tous les dépôts.">
+    <div class="admin-settings__field admin-settings__push-size" data-field="maxPushSizeMb">
+      <gbt-slider label="Taille maximale d'un push (Mio)" [min]="1" [max]="600" [ngModel]="maxPushSize()" (ngModelChange)="maxPushSize.set($event)" [formatValue]="maxPushSizeFormat" />
+      <div class="admin-settings__field-footer">
+        <p class="admin-settings__hint">Un push plus lourd est refusé par le serveur.</p>
+      </div>
+    </div>
+  </gbt-card>
+
+  <fg-settings-save-bar [dirty]="dirty()" [saving]="saving()" (discard)="discard()" />
+</form>

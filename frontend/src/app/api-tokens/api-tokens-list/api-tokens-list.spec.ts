@@ -2,7 +2,9 @@ import { LOCALE_ID } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Observable, of, Subject, throwError } from 'rxjs';
-import { Icon, GbtToastService, formatDateTime } from '@masmarino/gabarit';
+import { formatDateTime } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { ApiTokensList } from './api-tokens-list';
 import { ApiTokenSummary, TokensService } from '../api-tokens.service';
 

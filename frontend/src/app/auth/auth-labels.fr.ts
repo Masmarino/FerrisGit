@@ -1,6 +1,6 @@
-// French wording for the Gabarit auth kit. `provideFerrisgitAuth()` provides it app-wide so the nested pieces
-// (enrolment, QR, backup codes) are French too.
-import type { AuthLabels } from '@masmarino/gabarit';
+// French wording for the Gabarit auth kit. `provideFerrisgitAuth()` provides it to every page that uses the kit, so the
+// nested pieces (enrolment, QR, backup codes) are French too.
+import type { AuthLabels } from '@masmarino/gabarit/auth';
 
 const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans quelques minutes';
 const PASSKEYS_UNAVAILABLE = "Les clés d'accès ne sont pas disponibles sur ce serveur.";
@@ -167,6 +167,13 @@ export const FR_AUTH_LABELS = {
   activate: {
     heading: 'Activez votre compte',
     intro: 'Choisissez le mot de passe de votre compte. La double authentification sera configurée à votre première connexion.',
+    introWithUsername: "Choisissez votre nom d'utilisateur et votre mot de passe. La double authentification sera configurée à votre première connexion.",
+    username: "Nom d'utilisateur",
+    usernameHint: '3 à 32 caractères, lettres, chiffres, - et _. Enregistré en minuscules.',
+    usernameEmpty: "Saisissez un nom d'utilisateur",
+    usernameInvalid: 'Commencez par une lettre ; 3 à 32 caractères : lettres, chiffres, - et _',
+    usernameReserved: "Ce nom d'utilisateur n'est pas disponible",
+    usernameTaken: "Ce nom d'utilisateur est déjà utilisé",
     password: 'Nouveau mot de passe',
     passwordHint: (min) => `Au moins ${min} caractères.`,
     confirmation: 'Confirmez le mot de passe',

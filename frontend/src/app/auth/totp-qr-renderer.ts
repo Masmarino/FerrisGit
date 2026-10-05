@@ -1,4 +1,4 @@
-import type { TotpQrRenderOptions, TotpQrRenderer } from '@masmarino/gabarit';
+import type { TotpQrRenderOptions, TotpQrRenderer } from '@masmarino/gabarit/mfa-enrollment';
 
 type QrCodeModule = typeof import('qrcode');
 

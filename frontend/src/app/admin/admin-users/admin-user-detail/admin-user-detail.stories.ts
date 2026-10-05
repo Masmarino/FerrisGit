@@ -5,7 +5,7 @@ import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { delay, NEVER, Observable, of, throwError } from 'rxjs';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AdminUserDetail } from './admin-user-detail';
 import { AdminUser, AdminUserRepository, AdminUsersService } from '../../admin-users.service';
 import { MeService } from '../../../shell/me.service';
@@ -16,6 +16,7 @@ import { fakeToast } from '../../../shared/layout/settings-story-helpers';
 const inHours = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
 
 const user = (overrides: Partial<AdminUser> & Pick<AdminUser, 'id' | 'username'>): AdminUser => ({
+  named: true,
   email: `${overrides.username}@ferrisgit.dev`,
   isAdmin: false,
   createdAt: daysAgo(45),

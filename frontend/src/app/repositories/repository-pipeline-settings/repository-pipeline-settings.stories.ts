@@ -4,7 +4,7 @@ import { expect, fireEvent, userEvent, waitFor } from 'storybook/test';
 import { NEVER, of, switchMap, throwError, timer } from 'rxjs';
 import { RepositoryPipelineSettings } from './repository-pipeline-settings';
 import { RepositorySettings, RepositorySettingsService } from '../repository-settings.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectSettingsLayout, fakeToast, inSettingsColumn, rendered } from '../../shared/layout/settings-story-helpers';
 

@@ -1,6 +1,9 @@
 import { Component, computed, DOCUMENT, inject, input, output, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { Badge, Button, PageHeader, Skeleton } from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { RepositoriesService, Repository, StarResponse } from '../repositories.service';
 import { BranchSwitcher } from '../branch-switcher/branch-switcher';
 import { READ_ONLY_REPOSITORY } from '../read-only-repository';

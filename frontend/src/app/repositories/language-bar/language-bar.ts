@@ -1,5 +1,5 @@
 import { Component, inject, input, OnInit, signal } from '@angular/core';
-import { Skeleton } from '@masmarino/gabarit';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { LanguageStat, RepositoriesService } from '../repositories.service';
 
 const LANGUAGE_COLORS = ['#dea584', '#f1e05a', '#3572a5', '#e34c26', '#563d7c', '#00add8', '#701516'];

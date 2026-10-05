@@ -6,7 +6,7 @@ import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { ReleaseDetail } from './release-detail';
 import { ReleaseAsset, ReleaseDetail as ReleaseDetailResponse, ReleasesService } from '../releases.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { daysAgo, hoursAgo, inShellContentArea } from '../../shared/layout/page-story-helpers';
 

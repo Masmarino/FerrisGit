@@ -1,7 +1,8 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { PasskeySettings as GbtPasskeySettings } from '@masmarino/gabarit';
+import { PasskeySettings as GbtPasskeySettings } from '@masmarino/gabarit/passkey-settings';
 import { AuthService } from '../../auth/auth.service';
+import { provideFerrisgitAuth } from '../../auth/auth-kit';
 
 /**
  * Deleting a passkey revokes every session of the account, this one included, with no fresh token. On `sessionRevoked`
@@ -12,6 +13,7 @@ import { AuthService } from '../../auth/auth.service';
   selector: 'fg-passkey-settings',
   standalone: true,
   imports: [GbtPasskeySettings],
+  providers: [provideFerrisgitAuth()],
   template: `<gbt-passkey-settings [locale]="'fr'" (sessionRevoked)="signOut()" />`,
   styles: ':host { display: block; min-width: 0; }',
 })

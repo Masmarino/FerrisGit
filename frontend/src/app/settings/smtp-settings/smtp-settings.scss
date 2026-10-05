@@ -78,10 +78,6 @@
     font-size: 0.75rem;
   }
 
-  &[data-state='saved'] {
-    color: var(--color-success-text);
-  }
-
   &[data-state='dirty'] {
     color: var(--text-primary);
   }

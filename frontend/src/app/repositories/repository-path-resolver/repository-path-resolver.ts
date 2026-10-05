@@ -21,7 +21,8 @@ import { WikiPageEditor } from '../../wiki/wiki-page-editor/wiki-page-editor';
 import { WikiPageDetail } from '../../wiki/wiki-page-detail/wiki-page-detail';
 import { RepositoryTreeView } from '../repository-tree-view/repository-tree-view';
 import { RepositoryBlobView } from '../repository-blob-view/repository-blob-view';
-import { EmptyState, Spinner } from '@masmarino/gabarit';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { Spinner } from '@masmarino/gabarit/spinner';
 
 interface RepositoryViewBase {
   repositoryId: string;

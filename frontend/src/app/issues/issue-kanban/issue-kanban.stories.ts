@@ -8,7 +8,7 @@ import { Issue, IssuesService } from '../issues.service';
 import { Label, LabelsService } from '../../labels/labels.service';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { atPhoneWidth, daysAgo, inShellContentArea } from '../../shared/layout/page-story-helpers';
 import {

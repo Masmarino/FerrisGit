@@ -1,20 +1,30 @@
-import { Component, DestroyRef, inject, linkedSignal, signal, WritableSignal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { debounceTime, Subject } from 'rxjs';
-import { Card, GbtInput, Slider, Switch } from '@masmarino/gabarit';
-import { FieldSaveState } from '../field-save-state';
+import { Card } from '@masmarino/gabarit/card';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { Slider } from '@masmarino/gabarit/slider';
+import { Switch } from '@masmarino/gabarit/switch';
 import { SettingsEditor } from '../settings-editor';
-
-type SwitchField = 'registrationEnabled' | 'publicPagesEnabled' | 'seoIndexingEnabled';
+import { SystemSettingsUpdate } from '../settings.service';
+import { SettingsSaveBar } from '../settings-save-bar/settings-save-bar';
 
 const JWT_ERROR = "Entrez un nombre entier d'heures, 1 ou plus";
 
-/** The "Sécurité" section: sessions, registration, public pages and the push size limit. */
+/** A whole number of hours, 1 or more, as the server requires. `undefined`: invalid. */
+function parseHours(value: string): number | undefined {
+  const trimmed = value.trim();
+  const hours = Number(trimmed);
+  return /^\d+$/.test(trimmed) && Number.isSafeInteger(hours) && hours >= 1 ? hours : undefined;
+}
+
+/**
+ * The "Sécurité" section: sessions, registration, public pages and the push size limit. Nothing is saved until
+ * "Enregistrer", which sends every change in one request, as in the "Exécution" section.
+ */
 @Component({
   selector: 'fg-security-settings',
   standalone: true,
-  imports: [FormsModule, Card, GbtInput, Slider, Switch, FieldSaveState],
+  imports: [FormsModule, Card, GbtInput, Slider, Switch, SettingsSaveBar],
   templateUrl: './security-settings.html',
   styleUrl: './security-settings.scss',
 })
@@ -22,68 +32,75 @@ export class SecuritySettings {
   private editor = inject(SettingsEditor);
 
   protected settings = this.editor.saved;
-  protected jwtError = signal<string | null>(null);
 
-  protected jwtShown = linkedSignal(() => String(this.settings().jwtTtlHours));
-  protected maxPushSizeShown = linkedSignal(() => this.settings().maxPushSizeMb);
-  protected registrationShown = linkedSignal(() => this.settings().registrationEnabled);
-  protected publicPagesShown = linkedSignal(() => this.settings().publicPagesEnabled);
-  protected seoIndexingShown = linkedSignal(() => this.settings().seoIndexingEnabled);
+  // Drafts: each follows the saved value until edited, and again after a save.
+  protected jwt = linkedSignal(() => String(this.settings().jwtTtlHours));
+  protected maxPushSize = linkedSignal(() => this.settings().maxPushSizeMb);
+  protected registration = linkedSignal(() => this.settings().registrationEnabled);
+  protected publicPages = linkedSignal(() => this.settings().publicPagesEnabled);
+  protected seoIndexing = linkedSignal(() => this.settings().seoIndexingEnabled);
 
   protected readonly maxPushSizeFormat = (mb: number): string => `${mb} Mio`;
-  // `gbt-slider` emits `ngModelChange` on every drag tick, unlike GbtInput's `committed`. Debounce so one PUT goes out once dragging settles.
-  private maxPushSizeInput$ = new Subject<number>();
 
-  constructor() {
-    this.maxPushSizeInput$.pipe(debounceTime(400), takeUntilDestroyed(inject(DestroyRef))).subscribe((mb) => this.setMaxPushSizeMb(mb));
-  }
+  protected saving = signal(false);
+  /** Errors show once the admin tried to save, then follow the value. */
+  private submitted = signal(false);
 
-  /** Called on blur (see `GbtInput.committed`). The unchanged-value guard skips the PUT for a blur that edited nothing. */
-  protected setJwtTtlHours(value: string): void {
-    const trimmed = value.trim();
-    const hours = Number(trimmed);
-    if (!/^\d+$/.test(trimmed) || !Number.isSafeInteger(hours) || hours < 1) {
-      this.jwtError.set(JWT_ERROR);
+  private jwtValue = computed(() => parseHours(this.jwt()));
+  protected jwtError = computed(() => (this.submitted() && this.jwtValue() === undefined ? JWT_ERROR : null));
+  private invalid = computed(() => this.jwtValue() === undefined);
+
+  /** What "Enregistrer" sends: the changes, and only those. */
+  private update = computed<SystemSettingsUpdate>(() => {
+    const saved = this.settings();
+    const update: SystemSettingsUpdate = {};
+    const jwt = this.jwtValue();
+    if (jwt !== undefined && jwt !== saved.jwtTtlHours) {
+      update.jwtTtlHours = jwt;
+    }
+    if (this.maxPushSize() !== saved.maxPushSizeMb) {
+      update.maxPushSizeMb = this.maxPushSize();
+    }
+    if (this.registration() !== saved.registrationEnabled) {
+      update.registrationEnabled = this.registration();
+    }
+    if (this.publicPages() !== saved.publicPagesEnabled) {
+      update.publicPagesEnabled = this.publicPages();
+    }
+    if (this.seoIndexing() !== saved.seoIndexingEnabled) {
+      update.seoIndexingEnabled = this.seoIndexing();
+    }
+    return update;
+  });
+
+  /** An invalid value counts too: it is a change, just not one that can be saved yet. */
+  protected dirty = computed(() => Object.keys(this.update()).length > 0 || this.invalid());
+
+  protected save(): void {
+    if (this.saving() || !this.dirty()) {
       return;
     }
-    this.jwtError.set(null);
-    if (hours === this.settings().jwtTtlHours) {
+    this.submitted.set(true);
+    if (this.invalid()) {
       return;
     }
-    this.jwtShown.set(String(hours));
-    this.editor.save('jwtTtlHours', { jwtTtlHours: hours }, () => this.jwtShown.set(String(this.settings().jwtTtlHours)));
+    this.saving.set(true);
+    this.editor.saveSection(this.update(), 'Réglages de sécurité enregistrés', (saved) => {
+      this.saving.set(false);
+      if (saved) {
+        this.submitted.set(false);
+      }
+    });
   }
 
-  protected onMaxPushSizeInput(mb: number): void {
-    this.maxPushSizeShown.set(mb);
-    this.maxPushSizeInput$.next(mb);
-  }
-
-  setMaxPushSizeMb(mb: number): void {
-    if (!Number.isFinite(mb) || mb <= 0 || mb === this.settings().maxPushSizeMb) {
-      return;
-    }
-    this.maxPushSizeShown.set(mb);
-    this.editor.save('maxPushSizeMb', { maxPushSizeMb: mb }, () => this.maxPushSizeShown.set(this.settings().maxPushSizeMb));
-  }
-
-  protected setRegistrationEnabled(enabled: boolean): void {
-    this.setSwitch('registrationEnabled', this.registrationShown, enabled);
-  }
-
-  protected setPublicPagesEnabled(enabled: boolean): void {
-    this.setSwitch('publicPagesEnabled', this.publicPagesShown, enabled);
-  }
-
-  protected setSeoIndexingEnabled(enabled: boolean): void {
-    this.setSwitch('seoIndexingEnabled', this.seoIndexingShown, enabled);
-  }
-
-  private setSwitch(field: SwitchField, shown: WritableSignal<boolean>, enabled: boolean): void {
-    if (enabled === shown()) {
-      return;
-    }
-    shown.set(enabled);
-    this.editor.save(field, { [field]: enabled }, () => shown.set(this.settings()[field]));
+  /** Back to what is saved. */
+  protected discard(): void {
+    const saved = this.settings();
+    this.jwt.set(String(saved.jwtTtlHours));
+    this.maxPushSize.set(saved.maxPushSizeMb);
+    this.registration.set(saved.registrationEnabled);
+    this.publicPages.set(saved.publicPagesEnabled);
+    this.seoIndexing.set(saved.seoIndexingEnabled);
+    this.submitted.set(false);
   }
 }

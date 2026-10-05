@@ -1,28 +1,22 @@
 import { afterNextRender, Component, computed, DOCUMENT, inject, Injector, input, OnInit, signal, TemplateRef, viewChild } from '@angular/core';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
-import {
-  Alert,
-  Badge,
-  Breadcrumb,
-  Button,
-  Card,
-  CardHeader,
-  CopyField,
-  DescriptionList,
-  DescriptionListEntry,
-  EmptyState,
-  formatBytes,
-  GbtDateTimePipe,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  PageLayout,
-  Panel,
-  Skeleton,
-  Spinner,
-  UserChip,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Breadcrumb } from '@masmarino/gabarit/breadcrumb';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { CopyField } from '@masmarino/gabarit/copy-field';
+import { DescriptionList, DescriptionListEntry } from '@masmarino/gabarit/description-list';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { formatBytes, GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Spinner } from '@masmarino/gabarit/spinner';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { CommitInfo, RepositoriesService, Repository, StarResponse, TreeEntry } from '../repositories.service';
 import { CLONE_PANEL_ID, RepositoryHeader, revealClonePanel } from '../repository-header/repository-header';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';

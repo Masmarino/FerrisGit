@@ -3,7 +3,9 @@ import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, provideRouter } from '@angular/router';
 import { Observable, of, Subject, throwError } from 'rxjs';
-import { Avatar, Icon, GbtToastService } from '@masmarino/gabarit';
+import { Avatar } from '@masmarino/gabarit/avatar';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { GroupMembers } from './group-members';
 import { GroupMember, GroupMembership, GroupsService } from '../groups.service';
 

@@ -5,7 +5,7 @@ import { provideLocationMocks } from '@angular/common/testing';
 import { provideRouter, Router, Routes } from '@angular/router';
 import { applicationConfig } from '@storybook/angular-vite';
 import { NEVER, Observable, of, throwError } from 'rxjs';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AuthService } from '../auth/auth.service';
 import { PublicConfigService } from './public-config.service';
 import { PublicCatalogPage, PublicRepositoriesService, PublicRepositorySummary } from './public-repositories.service';

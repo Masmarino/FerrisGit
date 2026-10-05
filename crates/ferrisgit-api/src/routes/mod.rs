@@ -1,8 +1,9 @@
 use std::time::Duration;
 
-use axum::Router;
 use axum::extract::State;
 use axum::http::StatusCode;
+use axum::routing::get;
+use axum::{Json, Router};
 use ferrisgit_domain::health::{ComponentHealth, HealthCheckPort};
 
 use crate::state::AppState;
@@ -99,6 +100,19 @@ pub fn api_router(state: AppState) -> Router<AppState> {
         .merge(search::router())
         .merge(webhooks::router())
         .merge(wikis::router())
+        .route("/version", get(version))
+}
+
+#[derive(serde::Serialize)]
+pub struct VersionResponse {
+    version: &'static str,
+}
+
+/// The running release, shown at the foot of the app's navigation. Public: it says no more than the release notes.
+pub async fn version() -> Json<VersionResponse> {
+    Json(VersionResponse {
+        version: env!("CARGO_PKG_VERSION"),
+    })
 }
 
 #[cfg(test)]

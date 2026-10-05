@@ -139,6 +139,22 @@ export function findAnchorTarget(root: HTMLElement, rawFragment: string): HTMLEl
   return null;
 }
 
+/**
+ * A long code block or a wide table scrolls sideways, which a keyboard can only do once it takes focus (WCAG 2.1.1):
+ * each one becomes a named stop in the tab order. A table keeps its own role and gets only the stop and the name.
+ */
+export function makeScrollableBlocksFocusable(container: HTMLElement): void {
+  for (const pre of Array.from(container.querySelectorAll('pre'))) {
+    pre.setAttribute('tabindex', '0');
+    pre.setAttribute('role', 'region');
+    pre.setAttribute('aria-label', 'Bloc de code');
+  }
+  for (const table of Array.from(container.querySelectorAll('table'))) {
+    table.setAttribute('tabindex', '0');
+    table.setAttribute('aria-label', 'Tableau');
+  }
+}
+
 @Component({
   selector: 'fg-markdown-view',
   standalone: true,
@@ -164,7 +180,9 @@ export class MarkdownView {
     afterRenderEffect({
       write: () => {
         this.renderedHtml();
-        this.outline.emit(applyHeadingIds(this.container().nativeElement));
+        const container = this.container().nativeElement;
+        makeScrollableBlocksFocusable(container);
+        this.outline.emit(applyHeadingIds(container));
       },
     });
   }

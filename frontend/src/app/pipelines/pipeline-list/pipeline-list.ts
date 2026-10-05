@@ -1,27 +1,20 @@
 import { Component, OnInit, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  Badge,
-  Button,
-  createListToolbarState,
-  GbtDateTimePipe,
-  GbtInput,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  ListCard,
-  ListCardState,
-  ListRow,
-  ListToolbarSortOption,
-  PageHeader,
-  PageLayout,
-  Pagination,
-  SegmentedControl,
-  SegmentedControlOption,
-  Select,
-  SelectOption,
-} from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListCard, ListCardState } from '@masmarino/gabarit/list-card';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { createListToolbarState, ListToolbarSortOption } from '@masmarino/gabarit/list-toolbar';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Pagination } from '@masmarino/gabarit/pagination';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { PipelineSummary, PipelinesService } from '../pipelines.service';
 import { formatDuration, isTerminal, pipelineLink } from '../pipeline-helpers';
 import { PageTitleService } from '../../shell/page-title.service';

@@ -7,7 +7,8 @@ import { WORKSPACE_PAGE_SIZE, WorkspaceGrid, WorkspaceGroupItem } from './worksp
 import { WorkspaceGridFilters } from './workspace-grid-filters';
 import { Repository } from '../repositories.service';
 import { repositoryFixture } from '../repository-fixtures';
-import { formatDateTime, formatRelativeTime, GbtToastService } from '@masmarino/gabarit';
+import { formatDateTime, formatRelativeTime } from '@masmarino/gabarit/format';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;
 const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;

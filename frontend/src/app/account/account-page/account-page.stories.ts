@@ -10,7 +10,8 @@ import { AccountPage } from './account-page';
 import { AuthService } from '../../auth/auth.service';
 import { Me, MeService } from '../../shell/me.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { GbtToastService, type Passkey } from '@masmarino/gabarit';
+import { type Passkey } from '@masmarino/gabarit/auth';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { MfaService } from '../../auth/mfa.service';
 import { provideFerrisgitAuth } from '../../auth/auth-kit';
 import { fakeMfaService, withMfa } from '../mfa-story-helpers';
@@ -25,7 +26,7 @@ class Blank {}
 const withRouter = applicationConfig({ providers: [provideRouter([{ path: '**', component: Blank }]), provideLocationMocks()] });
 const startAt = (url: string) => applicationConfig({ providers: [provideAppInitializer(() => inject(Router).navigateByUrl(url))] });
 
-const ME: Me = { id: 'u1', username: 'florian.simon', email: 'florian@exemple.fr', isAdmin: false };
+const ME: Me = { id: 'u1', username: 'florian.simon', email: 'florian@exemple.fr', isAdmin: false, createdAt: '2025-03-12T09:00:00Z' };
 
 // AuthService needs HttpClient and is created eagerly with the page, so use a no-op fake.
 const fakeAuthService: Pick<AuthService, 'logout' | 'setToken' | 'authConfig'> = {
@@ -44,6 +45,7 @@ function fakeMeService(me: Me, overrides: Partial<Pick<MeService, 'updateEmail' 
     username: signal(me.username),
     email,
     isAdmin: signal(me.isAdmin),
+    createdAt: signal(me.createdAt),
     load: () => {},
     updateEmail: (value: string) => {
       email.set(value);

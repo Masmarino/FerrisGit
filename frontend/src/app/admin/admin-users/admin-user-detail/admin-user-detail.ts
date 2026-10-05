@@ -1,31 +1,24 @@
 import { afterNextRender, Component, computed, DestroyRef, ElementRef, inject, Injector, OnInit, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  ConfirmDangerModal,
-  DescriptionList,
-  DescriptionListEntry,
-  EmptyState,
-  formatBytes,
-  GbtDateTimePipe,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  ListCard,
-  ListCardState,
-  ListRow,
-  Menu,
-  MenuItem,
-  PageHeader,
-  PageLayout,
-  Panel,
-  Skeleton,
-  Spinner,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { DescriptionList, DescriptionListEntry } from '@masmarino/gabarit/description-list';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { formatBytes, GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { ListCard, ListCardState } from '@masmarino/gabarit/list-card';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { Menu, MenuItem } from '@masmarino/gabarit/menu';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Spinner } from '@masmarino/gabarit/spinner';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AdminUser, AdminUserRepository, AdminUsersService } from '../../admin-users.service';
 import { MeService } from '../../../shell/me.service';
 import { PageTitleService } from '../../../shell/page-title.service';

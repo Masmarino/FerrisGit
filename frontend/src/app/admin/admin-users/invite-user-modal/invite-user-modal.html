@@ -8,7 +8,7 @@
         @if (r.emailSent) {
           <gbt-alert variant="success">
             <p class="invite-user__sent-title">Invitation envoyée à {{ r.user.email }}</p>
-            <p class="invite-user__sent-help">{{ r.user.username }} y trouvera un lien d'activation valable 24 heures : il choisira son mot de passe, puis configurera la double authentification.</p>
+            <p class="invite-user__sent-help">La personne y trouvera un lien d'activation valable 24 heures : elle choisira son nom d'utilisateur et son mot de passe, puis configurera la double authentification.</p>
           </gbt-alert>
         } @else {
           <fg-link-mail-failed [username]="r.user.username" [emailError]="r.emailError" [url]="r.activationUrl" />
@@ -16,9 +16,7 @@
       </div>
     } @else {
       <div class="invite-user">
-        <p class="invite-user__intro">Le compte est créé sans mot de passe : un e-mail avec un lien d'activation valable 24 heures est envoyé. La personne choisit son mot de passe, puis configure la double authentification.</p>
-
-        <gbt-input name="username" label="Nom d'utilisateur" autocomplete="off" [hint]="usernameHint" [errorMessage]="usernameError()" [ngModel]="username()" (ngModelChange)="onUsernameChange($event)" />
+        <p class="invite-user__intro">Un e-mail avec un lien d'activation valable 24 heures est envoyé à cette adresse. La personne choisit son nom d'utilisateur et son mot de passe, puis configure la double authentification.</p>
 
         <gbt-input name="email" type="email" label="Adresse e-mail" autocomplete="off" [errorMessage]="emailError()" [ngModel]="email()" (ngModelChange)="onEmailChange($event)" />
 

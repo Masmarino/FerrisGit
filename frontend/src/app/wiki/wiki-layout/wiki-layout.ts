@@ -1,7 +1,13 @@
 import { Component, OnInit, computed, inject, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { Alert, Badge, Button, GbtInput, Icon, PageLayout, Skeleton } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { WikiList, WikiPageSummary, WikiService } from '../wiki.service';
 import { sortedByTitle, wikiLink } from '../wiki-links';
 import { RepositoryContextService } from '../../repositories/repository-context.service';

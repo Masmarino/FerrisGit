@@ -2,7 +2,15 @@ import { Component, OnInit, computed, inject, input, output, signal } from '@ang
 import { FormsModule } from '@angular/forms';
 import { ReleasesService, TagSummary } from '../releases.service';
 import { BranchInfo, MergeRequestsService } from '../../merge-requests/merge-requests.service';
-import { Alert, Button, GbtInput, Icon, Modal, Select, SelectOption, Switch, Textarea, GbtToastService } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { Modal } from '@masmarino/gabarit/modal';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
+import { Switch } from '@masmarino/gabarit/switch';
+import { Textarea } from '@masmarino/gabarit/textarea';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 const NEW_TAG_SENTINEL = '__new__';
 

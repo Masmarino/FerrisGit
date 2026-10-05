@@ -1,5 +1,6 @@
 import { Component, ElementRef, afterRenderEffect, computed, input, linkedSignal, output, viewChild } from '@angular/core';
-import { JobStatus, Stepper } from '@masmarino/gabarit';
+import { JobStatus } from '@masmarino/gabarit/job-status';
+import { Stepper } from '@masmarino/gabarit/stepper';
 import { JobSummary } from '../pipelines.service';
 import { STATUS_LABELS, StageGroup, isNearBottom, jobDurationLabel, jobGlyphStatus, stageIndexOf, stageSteps } from '../pipeline-helpers';
 

@@ -2,12 +2,19 @@ import { Component, DestroyRef, OnInit, WritableSignal, computed, inject, signal
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Observable, forkJoin } from 'rxjs';
-import { Button, Icon, PageHeader, PageLayout, Panel, SegmentedControl, SegmentedControlOption, GbtToastService } from '@masmarino/gabarit';
+import { Button } from '@masmarino/gabarit/button';
+import { Icon } from '@masmarino/gabarit/icon';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { GroupMembership, GroupsService } from '../../groups/groups.service';
 import { Repository, RepositoriesService } from '../repositories.service';
 import { CreateGroupModal } from '../../groups/create-group-modal/create-group-modal';
 import { CreateRepositoryModal } from '../create-repository-modal/create-repository-modal';
 import { PageTitleService } from '../../shell/page-title.service';
+import { openWhenAsked } from '../../shared/open-when-asked';
 import { WorkspaceGrid, WorkspaceGroupItem } from '../workspace-grid/workspace-grid';
 import { WorkspaceGridFilters } from '../workspace-grid/workspace-grid-filters';
 
@@ -56,6 +63,11 @@ export class WorkspacePage implements OnInit {
 
   protected createModalOpen = signal(false);
   protected createGroupOpen = signal(false);
+
+  constructor() {
+    openWhenAsked('repository', () => this.createModalOpen.set(true));
+    openWhenAsked('group', () => this.createGroupOpen.set(true));
+  }
   protected activeTab = signal<TabId>('all');
 
   protected allRepos = signal<Repository[]>([]);

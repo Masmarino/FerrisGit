@@ -47,13 +47,12 @@ Erreurs : 400 `password must be at least 8 characters`, 400 `username must be no
 
 ### `POST /api/admin/users/invite`
 
-Crée un compte sans mot de passe utilisable et envoie un lien d'activation valable 24 heures. Le lien est de la forme `<PUBLIC_URL>/activate#token=…`.
+Invite une personne par son adresse e-mail. Le compte est créé sans nom ni mot de passe utilisable, et un lien d'activation valable 24 heures est envoyé. Le lien est de la forme `<PUBLIC_URL>/invitation#token=…` : la personne y choisit son nom d'utilisateur et son mot de passe (voir [`POST /api/auth/activate`](/docs/api/authentification)).
 
 Corps :
 
 | Champ | Type | Obligatoire | Description |
 |---|---|---|---|
-| `username` | texte | oui | 3 à 32 caractères, mis en minuscules, commençant par une lettre, avec `a-z`, `0-9`, `-` et `_`, hors noms réservés. |
 | `email` | texte | oui | Adresse e-mail valide. |
 | `isAdmin` | booléen | non | Crée un administrateur. `false` par défaut. |
 
@@ -61,19 +60,21 @@ Réponse 200 :
 
 ```json
 {
-  "user": { "id": "…", "username": "carol", "email": "carol@example.com", "isAdmin": false, "createdAt": "…", "state": "invited", "invitationExpiresAt": "2026-03-02T10:00:00Z", "mfaEnabled": false },
+  "user": { "id": "…", "username": null, "email": "carol@example.com", "isAdmin": false, "createdAt": "…", "state": "invited", "invitationExpiresAt": "2026-03-02T10:00:00Z", "mfaEnabled": false },
   "emailSent": true
 }
 ```
 
 Si l'e-mail n'a pas pu partir (SMTP absent ou en panne), la route répond quand même 200 avec `emailSent: false`, `emailError` (la raison) et `activationUrl`, que vous transmettez par un autre moyen. Ces deux champs n'existent que dans ce cas. Configurez le SMTP avec `PUT /api/admin/settings/smtp`.
 
-Erreurs : 400 règle non respectée (nom, adresse), 409 `username already taken`, 409 `username collides with an existing root group`, 409 `email already in use`.
+`username` vaut `null` tant que la personne n'a pas choisi son nom, ici comme dans la liste des utilisateurs.
+
+Erreurs : 400 adresse invalide, 409 `email already in use`.
 
 ```bash
 curl -s -X POST "$BASE/api/admin/users/invite" -H "Authorization: Bearer $JWT" \
   -H 'Content-Type: application/json' \
-  -d '{"username":"carol","email":"carol@example.com"}'
+  -d '{"email":"carol@example.com"}'
 ```
 
 ### `POST /api/admin/users/{id}/invitation`

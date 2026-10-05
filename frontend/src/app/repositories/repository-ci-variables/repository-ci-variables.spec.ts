@@ -1,5 +1,5 @@
 import { By } from '@angular/platform-browser';
-import { GbtInput } from '@masmarino/gabarit';
+import { GbtInput } from '@masmarino/gabarit/input';
 import { of, Subject, throwError } from 'rxjs';
 import { RepositoryCiVariables } from './repository-ci-variables';
 import { CiVariableSummary, RepositorySettingsService } from '../repository-settings.service';

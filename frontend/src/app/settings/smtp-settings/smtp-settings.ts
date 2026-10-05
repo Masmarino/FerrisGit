@@ -1,7 +1,14 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Alert, Button, Card, CardHeader, GbtInput, Icon, SegmentedControl, SegmentedControlOption, Skeleton, GbtToastService } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { SettingsService, SmtpSecurity, SmtpSettings as SmtpSettingsData, SmtpSettingsUpdate } from '../settings.service';
 
 const SECURITY_OPTIONS: SegmentedControlOption<SmtpSecurity>[] = [

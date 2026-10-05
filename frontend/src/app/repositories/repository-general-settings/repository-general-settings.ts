@@ -1,18 +1,15 @@
 import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input, linkedSignal, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  Alert,
-  Button,
-  Card,
-  CardHeader,
-  ConfirmDangerModal,
-  GbtToastService,
-  SaveStatus,
-  SegmentedControl,
-  Skeleton,
-  Textarea,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { SaveStatus } from '@masmarino/gabarit/save-status';
+import { SegmentedControl } from '@masmarino/gabarit/segmented-control';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Textarea } from '@masmarino/gabarit/textarea';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Repository, RepositoriesService } from '../repositories.service';
 import { RepositoryVisibility, VISIBILITY_OPTIONS } from '../repository-visibility';
 

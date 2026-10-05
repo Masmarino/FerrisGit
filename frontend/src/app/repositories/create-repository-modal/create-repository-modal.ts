@@ -3,7 +3,16 @@ import { FormsModule } from '@angular/forms';
 import { RepositoriesService } from '../repositories.service';
 import { RepositoryVisibility, VISIBILITY_OPTIONS } from '../repository-visibility';
 import { GroupsService, WritableGroup } from '../../groups/groups.service';
-import { Alert, Button, GbtInput, Icon, Modal, SegmentedControl, Select, SelectOption, Switch, Textarea, GbtToastService } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { Modal } from '@masmarino/gabarit/modal';
+import { SegmentedControl } from '@masmarino/gabarit/segmented-control';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
+import { Switch } from '@masmarino/gabarit/switch';
+import { Textarea } from '@masmarino/gabarit/textarea';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 const NAME_REQUIRED = 'Le nom est requis';
 

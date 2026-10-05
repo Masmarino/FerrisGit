@@ -1,5 +1,6 @@
 import { booleanAttribute, Component, computed, ElementRef, input, output, viewChild } from '@angular/core';
-import { Alert, CopyField } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { CopyField } from '@masmarino/gabarit/copy-field';
 
 export type MailedLinkKind = 'invitation' | 'password-reset';
 

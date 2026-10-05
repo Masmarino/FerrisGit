@@ -135,6 +135,14 @@ async fn users_named(server: &common::Server, username: &str) -> i64 {
         .unwrap()
 }
 
+async fn users_with_address(server: &common::Server, email: &str) -> i64 {
+    sqlx::query_scalar("SELECT count(*) FROM users WHERE email = $1")
+        .bind(email)
+        .fetch_one(&server.pool)
+        .await
+        .unwrap()
+}
+
 #[sqlx::test]
 async fn a_reminder_with_a_new_working_link_follows_the_expiry_of_the_first_link(pool: PgPool) {
     let server = common::spawn_server(pool).await;
@@ -251,7 +259,7 @@ async fn an_account_invited_by_an_admin_is_cleaned_up_the_same_way(pool: PgPool)
         .post_as(
             &admin,
             "/admin/users/invite",
-            json!({ "username": "bob", "email": "bob@example.com", "isAdmin": false }),
+            json!({ "email": "bob@example.com", "isAdmin": false }),
         )
         .await;
     assert_eq!(invited.status(), 200);
@@ -265,13 +273,19 @@ async fn an_account_invited_by_an_admin_is_cleaned_up_the_same_way(pool: PgPool)
         .as_array()
         .unwrap()
         .iter()
-        .find(|u| u["username"] == "bob")
+        .find(|u| u["email"] == "bob@example.com")
         .unwrap();
     assert_eq!(bob["state"], "invited");
+    let reminder = server.mailer.delivered().last().unwrap().html.clone();
+    assert!(
+        reminder.contains("/invitation#token="),
+        "the reminder links to the page that asks for a name: {reminder}"
+    );
+    assert!(!reminder.contains("invite-"), "{reminder}");
 
     let gone = sweep(&server, start + Duration::days(8)).await;
     assert_eq!(gone.deleted, 1);
-    assert_eq!(users_named(&server, "bob").await, 0);
+    assert_eq!(users_with_address(&server, "bob@example.com").await, 0);
 }
 
 #[sqlx::test]
@@ -309,7 +323,7 @@ async fn without_mail_configured_there_are_no_reminders_but_the_account_still_go
         .post_as(
             &admin,
             "/admin/users/invite",
-            json!({ "username": "bob", "email": "bob@example.com", "isAdmin": false }),
+            json!({ "email": "bob@example.com", "isAdmin": false }),
         )
         .await;
     assert_eq!(invited.status(), 200);
@@ -325,5 +339,5 @@ async fn without_mail_configured_there_are_no_reminders_but_the_account_still_go
 
     let gone = sweep(&server, start + Duration::days(8)).await;
     assert_eq!(gone.deleted, 1);
-    assert_eq!(users_named(&server, "bob").await, 0);
+    assert_eq!(users_with_address(&server, "bob@example.com").await, 0);
 }

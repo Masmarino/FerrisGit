@@ -6,7 +6,8 @@ import { ReleaseDetail } from './release-detail';
 import { ReleaseAsset, ReleaseDetail as ReleaseDetailResponse, ReleasesService } from '../releases.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { GbtToastService, formatDateTime, formatRelativeTime } from '@masmarino/gabarit';
+import { formatDateTime, formatRelativeTime } from '@masmarino/gabarit/format';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;
 const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;

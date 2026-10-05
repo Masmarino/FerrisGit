@@ -1,4 +1,4 @@
-import type { SelectOption } from '@masmarino/gabarit';
+import type { SelectOption } from '@masmarino/gabarit/select';
 import type { Issue } from './issues.service';
 
 export interface IssueKindPresentation {

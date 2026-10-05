@@ -1,7 +1,13 @@
 import { Component, OnInit, computed, inject, input, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
-import { Alert, Button, GbtInput, Icon, ListCard, PageHeader, GbtToastService } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListCard } from '@masmarino/gabarit/list-card';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { SaveWikiPageOptions, WikiList, WikiService, WikiPageSummary } from '../wiki.service';
 import { WikiLayout } from '../wiki-layout/wiki-layout';
 import { titleFromSlug, wikiLink } from '../wiki-links';

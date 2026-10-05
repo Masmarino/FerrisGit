@@ -5,7 +5,7 @@ import { of } from 'rxjs';
 import { WorkspaceGrid, WorkspaceGroupItem } from './workspace-grid';
 import { RepositoriesService } from '../repositories.service';
 import { GroupsService } from '../../groups/groups.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { inShellContentArea } from '../../shared/layout/page-story-helpers';
 import { withRouterAndIcons } from '../repository-story-fixtures';
 import { LONG_REPOSITORIES, MANY_REPOSITORIES, REPOSITORIES, expectWorkspaceLayout } from './workspace-story-helpers';

@@ -3,7 +3,7 @@ import { TestBed } from '@angular/core/testing';
 import DOMPurify from 'dompurify';
 import { marked } from 'marked';
 import { Router } from '@angular/router';
-import { decodeFragment, MarkdownOutlineEntry, MarkdownView } from './markdown-view';
+import { decodeFragment, makeScrollableBlocksFocusable, MarkdownOutlineEntry, MarkdownView } from './markdown-view';
 
 describe('MarkdownView', () => {
   function render(content: string, headingOffset?: number) {
@@ -538,5 +538,22 @@ describe('decodeFragment', () => {
     expect(() => decodeFragment('%E0%A4%A')).not.toThrow();
     expect(decodeFragment('%E0%A4%A')).toBe('%E0%A4%A');
     expect(decodeFragment('100%')).toBe('100%');
+  });
+});
+
+describe('makeScrollableBlocksFocusable', () => {
+  it('lets the keyboard reach every code block and table, so a wide one can be scrolled sideways', () => {
+    const container = document.createElement('div');
+    container.innerHTML =
+      '<p>Texte</p><pre><code>cargo build</code></pre><pre><code>cargo test</code></pre><table><tr><td>a</td></tr></table>';
+
+    makeScrollableBlocksFocusable(container);
+
+    const blocks = Array.from(container.querySelectorAll('pre'));
+    expect(blocks.map((pre) => pre.getAttribute('tabindex'))).toEqual(['0', '0']);
+    expect(blocks.map((pre) => pre.getAttribute('aria-label'))).toEqual(['Bloc de code', 'Bloc de code']);
+    expect(container.querySelector('table')?.getAttribute('tabindex')).toBe('0');
+    expect(container.querySelector('table')?.getAttribute('aria-label')).toBe('Tableau');
+    expect(container.querySelector('p')?.hasAttribute('tabindex')).toBe(false);
   });
 });

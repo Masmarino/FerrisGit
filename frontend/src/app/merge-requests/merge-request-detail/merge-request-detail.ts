@@ -9,28 +9,21 @@ import { MergeRequestTimeline } from '../merge-request-timeline/merge-request-ti
 import { MrApprovalsPanel } from '../mr-approvals-panel/mr-approvals-panel';
 import { Label, LabelsService } from '../../labels/labels.service';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
-import {
-  Alert,
-  Badge,
-  BadgeVariant,
-  Button,
-  Card,
-  CardHeader,
-  GbtDateTimePipe,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  PageHeader,
-  PageLayout,
-  Panel,
-  Select,
-  SelectOption,
-  Skeleton,
-  Tab,
-  Tabs,
-  Tag,
-  UserChip,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge, BadgeVariant } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Tab, Tabs } from '@masmarino/gabarit/tabs';
+import { Tag } from '@masmarino/gabarit/tag';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { UserRef } from '../../shared/user-ref';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
 import { mergeRequestEnd } from '../merge-request-presentation';

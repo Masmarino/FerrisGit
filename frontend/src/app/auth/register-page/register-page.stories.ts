@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { NEVER, Observable, of, throwError } from 'rxjs';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { RegisterPage } from './register-page';
-import type { AuthConfig } from '@masmarino/gabarit';
+import type { AuthConfig } from '@masmarino/gabarit/auth';
 import { AuthService } from '../auth.service';
 import { provideFerrisgitAuth } from '../auth-kit';
 import { provideFerrisgitIcons } from '../../shared/register-icons';

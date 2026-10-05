@@ -1,5 +1,6 @@
 import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
-import { Skeleton, UserChip } from '@masmarino/gabarit';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { Contributor, RepositoriesService } from '../repositories.service';
 
 const MAX_VISIBLE_CONTRIBUTORS = 8;

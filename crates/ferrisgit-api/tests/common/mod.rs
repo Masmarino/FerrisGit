@@ -828,7 +828,16 @@ pub async fn assert_error(res: reqwest::Response, status: u16, message: &str) {
 /// The activation link in a mail body. The token is in the URL fragment (never sent to a server, so absent from
 /// access logs), not in the query string.
 pub fn activation_link(html: &str) -> String {
-    let prefix = format!("{ORIGIN}/activate#token=");
+    link_in(html, "activate")
+}
+
+/// The link of an invitation mail: the page where the invitee chooses their username and password.
+pub fn invitation_link(html: &str) -> String {
+    link_in(html, "invitation")
+}
+
+fn link_in(html: &str, page: &str) -> String {
+    let prefix = format!("{ORIGIN}/{page}#token=");
     let start = html
         .find(&prefix)
         .unwrap_or_else(|| panic!("no activation link in the mail: {html}"));

@@ -11,7 +11,7 @@ import { MeService } from './me.service';
 import { SidebarCollapseService } from './sidebar-collapse.service';
 import { AuthService } from '../auth/auth.service';
 import { BreadcrumbSwitcherService } from './breadcrumb-switcher.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 // Catch-all target so navigateByUrl ends in a NavigationEnd; routerLinkActive only updates after a successful navigation.
 @Component({ selector: 'fg-test-empty', template: '', standalone: true })
@@ -56,6 +56,14 @@ describe('AppShell', () => {
     await fixture.whenStable();
     fixture.detectChanges();
   }
+
+  it('shows the running version at the foot of the navigation', () => {
+    const { fixture } = setup();
+    TestBed.inject(HttpTestingController).expectOne('/api/version').flush({ version: '0.1.3' });
+    fixture.detectChanges();
+
+    expect(fixture.nativeElement.querySelector('.gbt-app-shell__version')?.textContent?.trim()).toBe('v0.1.3');
+  });
 
   describe('user menu', () => {
     it('shows the username on the trigger and keeps the menu closed until it is used', () => {
@@ -279,110 +287,41 @@ describe('AppShell', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
   });
 
-  describe('mobile search', () => {
-    const searchBar = (fixture: Fixture): HTMLElement => fixture.nativeElement.querySelector('gbt-search-bar');
-    const toggle = (fixture: Fixture): HTMLButtonElement | null => searchBar(fixture).querySelector('.gbt-sb-toggle');
-    const closeButton = (fixture: Fixture): HTMLButtonElement | null => searchBar(fixture).querySelector('.gbt-sb-trigger__close');
-    const field = (fixture: Fixture): HTMLInputElement => searchBar(fixture).querySelector('input')!;
+  describe('quick search', () => {
     const settle = async (fixture: Fixture): Promise<void> => {
       fixture.detectChanges();
       await fixture.whenStable();
       fixture.detectChanges();
     };
 
-    it('has a toggle that says what it does, up to 768px', () => {
+    it('sits in the header as a button that names itself and its shortcut', () => {
       const { fixture } = setup();
 
-      expect(searchBar(fixture).getAttribute('data-collapsible')).toBe('narrow');
-      expect(toggle(fixture)!.getAttribute('aria-label')).toBe('Rechercher');
-      expect(toggle(fixture)!.getAttribute('aria-expanded')).toBe('false');
-      expect(fixture.nativeElement.querySelector('.app-shell__header--search-open')).toBeNull();
+      const trigger: HTMLButtonElement = fixture.nativeElement.querySelector('.app-shell__header gbt-command-palette-trigger button');
+      expect(trigger.getAttribute('aria-label')).toBe('Rechercher ou aller à…');
+      expect(trigger.getAttribute('aria-keyshortcuts')).toMatch(/^(Meta|Control)\+K$/);
     });
 
-    it('opens the field on the toggle, moves the focus into it and lets the header step aside', async () => {
+    it('signs out from the palette as from the account menu', async () => {
       const { fixture } = setup();
-
-      toggle(fixture)!.click();
+      const logout = vi.spyOn(TestBed.inject(AuthService), 'logout').mockImplementation(() => {});
+      const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockResolvedValue(true);
+      fixture.nativeElement.querySelector('.app-shell__header gbt-command-palette-trigger button').click();
       await settle(fixture);
 
-      expect(fixture.nativeElement.querySelector('.app-shell__header--search-open')).toBeTruthy();
-      expect(searchBar(fixture).hasAttribute('data-expanded')).toBe(true);
-      expect(toggle(fixture)).toBeNull();
-      expect(document.activeElement).toBe(field(fixture));
-      expect(closeButton(fixture)!.getAttribute('aria-label')).toBe('Fermer la recherche');
+      // Outside the header, whose dark theme it would otherwise take on.
+      expect(fixture.nativeElement.querySelector('fg-quick-search [role="dialog"]')).not.toBeNull();
+      expect(fixture.nativeElement.querySelector('.app-shell__header [role="dialog"]')).toBeNull();
+      const field = document.querySelector<HTMLInputElement>('[role="dialog"] input[role="combobox"]')!;
+      field.value = 'déconnexion';
+      field.dispatchEvent(new Event('input'));
+      await settle(fixture);
+      field.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+      await settle(fixture);
+
+      expect(logout).toHaveBeenCalledTimes(1);
+      expect(navigate).toHaveBeenCalledWith('/login');
     });
-
-    it('folds on Escape and gives the focus back to the toggle', async () => {
-      const { fixture } = setup();
-      toggle(fixture)!.click();
-      await settle(fixture);
-
-      field(fixture).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      await settle(fixture);
-
-      expect(fixture.nativeElement.querySelector('.app-shell__header--search-open')).toBeNull();
-      expect(toggle(fixture)!.getAttribute('aria-expanded')).toBe('false');
-      expect(document.activeElement).toBe(toggle(fixture));
-    });
-
-    it('folds on its close button, even with text in the field, and gives the focus back to the toggle', async () => {
-      const { fixture } = setup();
-      toggle(fixture)!.click();
-      await settle(fixture);
-      field(fixture).value = 'widget';
-      field(fixture).dispatchEvent(new Event('input'));
-      await settle(fixture);
-
-      closeButton(fixture)!.click();
-      await settle(fixture);
-
-      expect(fixture.nativeElement.querySelector('.app-shell__header--search-open')).toBeNull();
-      expect(document.activeElement).toBe(toggle(fixture));
-    });
-
-    it('with results open, a single Escape both blurs the field (Gabarit) and folds the bar back (the shell), and gives the focus back to the toggle', async () => {
-      const { fixture } = setup();
-      toggle(fixture)!.click();
-      await settle(fixture);
-      field(fixture).value = 'widget';
-      field(fixture).dispatchEvent(new Event('input'));
-      await settle(fixture);
-      expect(field(fixture).getAttribute('aria-expanded')).toBe('true');
-
-      // A single dispatch: Gabarit's listener blurs the field and hides the results first, then the shell's document
-      // handler returns the focus.
-      field(fixture).dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
-      await settle(fixture);
-
-      expect(fixture.nativeElement.querySelector('.app-shell__header--search-open')).toBeNull();
-      // Gabarit gap: `gbt-search-bar` only refocuses its toggle from its own close button; the shell patches that.
-      expect(document.activeElement).toBe(toggle(fixture));
-    });
-
-    it('does nothing on Escape when the search is already folded', async () => {
-      const { fixture } = setup();
-      document.body.focus();
-
-      document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
-      await settle(fixture);
-
-      expect(document.activeElement).toBe(document.body);
-    });
-
-    it('says the number of results in French', () => {
-      const { component } = setup();
-
-      expect(component.resultsAnnouncement(0)).toBe('0 résultat');
-      expect(component.resultsAnnouncement(1)).toBe('1 résultat');
-      expect(component.resultsAnnouncement(3)).toBe('3 résultats');
-    });
-  });
-
-  it('exposes the search landmark via role="search" on gbt-search-bar', () => {
-    const { fixture } = setup();
-
-    const searchBar: HTMLElement = fixture.nativeElement.querySelector('gbt-search-bar');
-    expect(searchBar.getAttribute('role')).toBe('search');
   });
 
   it('renders a skip-to-content link pointing at the main content landmark', () => {
@@ -457,171 +396,6 @@ describe('AppShell', () => {
     });
   });
 
-  describe('live search', () => {
-    beforeEach(() => {
-      vi.useFakeTimers();
-    });
-
-    afterEach(() => {
-      vi.useRealTimers();
-    });
-
-    it('debounces input and calls /api/search once after 250ms of no typing', () => {
-      const { component } = setup();
-      const httpMock = TestBed.inject(HttpTestingController);
-      // The shell and the bell fire these on load; drain them so verify() only sees search traffic.
-      httpMock.expectOne('/api/auth/me').flush({ username: '', email: '', isAdmin: false });
-      httpMock.expectOne('/api/settings/public').flush({ executionEngine: 'docker-runners' });
-      httpMock.expectOne('/api/notifications/unread-count').flush({ count: 0 });
-
-      component.onSearchInput('w');
-      component.onSearchInput('wi');
-      component.onSearchInput('widget');
-      httpMock.expectNone((req) => req.url === '/api/search');
-
-      vi.advanceTimersByTime(250);
-      const req = httpMock.expectOne((req) => req.url === '/api/search' && req.params.get('q') === 'widget');
-      req.flush({ repositories: [], issues: [], mergeRequests: [], users: [] });
-
-      httpMock.verify();
-    });
-
-    it('recovers from a search HTTP error and stays live for later queries', () => {
-      const { component } = setup();
-      const httpMock = TestBed.inject(HttpTestingController);
-
-      component.onSearchInput('widget');
-      vi.advanceTimersByTime(250);
-      const failingReq = httpMock.expectOne((req) => req.url === '/api/search' && req.params.get('q') === 'widget');
-      failingReq.flush(null, { status: 500, statusText: 'Server Error' });
-
-      expect(component.searchResults()).toEqual([]);
-
-      component.onSearchInput('widget2');
-      vi.advanceTimersByTime(250);
-      const secondReq = httpMock.expectOne((req) => req.url === '/api/search' && req.params.get('q') === 'widget2');
-      secondReq.flush({
-        repositories: [{ id: 'r1', name: 'widget2-parser', description: '', path: ['acme', 'widget2-parser'], visibility: 'private' }],
-        issues: [],
-        mergeRequests: [],
-        users: [],
-      });
-
-      expect(component.searchResults()).toEqual([
-        {
-          label: 'Dépôts',
-          icon: 'folder-git-2',
-          items: [{ kind: 'repository', id: 'r1', label: 'acme/widget2-parser', link: ['/repositories', 'acme', 'widget2-parser'] }],
-        },
-      ]);
-    });
-
-    it('groups results by kind, building a repository-link category', () => {
-      const { component } = setup();
-      const httpMock = TestBed.inject(HttpTestingController);
-
-      component.onSearchInput('widget');
-      vi.advanceTimersByTime(250);
-      const req = httpMock.expectOne((req) => req.url === '/api/search');
-      req.flush({
-        repositories: [{ id: 'r1', name: 'widget-parser', description: '', path: ['acme', 'widget-parser'], visibility: 'private' }],
-        issues: [],
-        mergeRequests: [],
-        users: [],
-      });
-
-      const categories = component.searchResults();
-      expect(categories).toEqual([
-        {
-          label: 'Dépôts',
-          icon: 'folder-git-2',
-          items: [{ kind: 'repository', id: 'r1', label: 'acme/widget-parser', link: ['/repositories', 'acme', 'widget-parser'] }],
-        },
-      ]);
-    });
-
-    it('names the issue and merge request categories "Tickets" and "Demandes de fusion", like the pages', () => {
-      const { component } = setup();
-      const httpMock = TestBed.inject(HttpTestingController);
-
-      component.onSearchInput('widget');
-      vi.advanceTimersByTime(250);
-      httpMock.expectOne((req) => req.url === '/api/search').flush({
-        repositories: [],
-        issues: [{ id: 'i1', number: 3, title: 'Crash', status: 'todo', kind: 'bug', repository: { id: 'r1', name: 'widget', path: ['acme', 'widget'] } }],
-        mergeRequests: [{ id: 'm1', title: 'Fix', status: 'open', sourceBranch: 'fix', targetBranch: 'main', repository: { id: 'r1', name: 'widget', path: ['acme', 'widget'] } }],
-        users: [],
-      });
-
-      expect(component.searchResults().map((c) => c.label)).toEqual(['Tickets', 'Demandes de fusion']);
-    });
-
-    it('navigates to the selected result and clears the query', () => {
-      const { component, fixture } = setup();
-      const router = TestBed.inject(Router);
-      const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
-
-      component.onSelectResult({ kind: 'repository', id: 'r1', label: 'acme/widget-parser', link: ['/repositories', 'acme', 'widget-parser'] });
-      fixture.detectChanges();
-
-      expect(navigateSpy).toHaveBeenCalledWith(['/repositories', 'acme', 'widget-parser']);
-      expect(component.searchQuery()).toBe('');
-    });
-
-    it('does not navigate when selecting a user result (no user-profile route exists)', () => {
-      const { component } = setup();
-      const router = TestBed.inject(Router);
-      const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
-
-      component.onSelectResult({ kind: 'user', id: 'u1', label: 'alice', link: null });
-
-      expect(navigateSpy).not.toHaveBeenCalled();
-      expect(component.searchQuery()).toBe('');
-    });
-
-    it('navigates to the full /search results page on submitEnter with a query', () => {
-      const { component } = setup();
-      const router = TestBed.inject(Router);
-      const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
-
-      component.onSearchInput('widget');
-      component.onSearchSubmitEnter();
-
-      expect(navigateSpy).toHaveBeenCalledWith(['/search'], { queryParams: { q: 'widget' } });
-    });
-
-    it('does not navigate on submitEnter when the query is empty', () => {
-      const { component } = setup();
-      const router = TestBed.inject(Router);
-      const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
-
-      component.onSearchSubmitEnter();
-
-      expect(navigateSpy).not.toHaveBeenCalled();
-    });
-
-    it('does not navigate on submitEnter when results are showing (gbt-search-bar handles Enter itself)', () => {
-      const { component } = setup();
-      const httpMock = TestBed.inject(HttpTestingController);
-      const router = TestBed.inject(Router);
-      const navigateSpy = vi.spyOn(router, 'navigate').mockResolvedValue(true);
-
-      component.onSearchInput('widget');
-      vi.advanceTimersByTime(250);
-      const req = httpMock.expectOne((req) => req.url === '/api/search');
-      req.flush({
-        repositories: [{ id: 'r1', name: 'widget-parser', description: '', path: ['acme', 'widget-parser'], visibility: 'private' }],
-        issues: [],
-        mergeRequests: [],
-        users: [],
-      });
-
-      component.onSearchSubmitEnter();
-
-      expect(navigateSpy).not.toHaveBeenCalled();
-    });
-  });
-
   describe('repository context sidebar', () => {
     it('renders the global nav when no repository context is active', () => {
       const { fixture } = setup();
@@ -635,7 +409,14 @@ describe('AppShell', () => {
       context.current.set({ repositoryId: 'repo-1', path: ['acme', 'widget'], role: 'reader', ancestors: [], groupId: null });
       fixture.detectChanges();
 
-      expect(fixture.nativeElement.textContent).not.toContain('Dépôts');
+      // The global items give way to the repository's: the only way out is the link back to the repositories, and the
+      // rail names the repository, its owner's path above its name.
+      const nav = fixture.nativeElement.querySelector('.app-shell__nav-list') as HTMLElement;
+      expect(nav.textContent).not.toContain('Accueil');
+      const back = Array.from(nav.querySelectorAll('a')).filter((a) => a.getAttribute('href') === '/repositories');
+      expect(back.map((a) => a.textContent?.trim())).toEqual(['Dépôts']);
+      expect(nav.querySelector('.app-shell__repo-owner')?.textContent?.trim()).toBe('acme');
+      expect(nav.querySelector('.app-shell__repo-name')?.textContent?.trim()).toBe('widget');
       expect(fixture.nativeElement.textContent).toContain('Tickets');
       expect(fixture.nativeElement.textContent).toContain('Demandes de fusion');
       expect(fixture.nativeElement.textContent).not.toContain('Issues');
@@ -709,6 +490,29 @@ describe('AppShell', () => {
   });
 
   describe('breadcrumb', () => {
+    it("shows what sits above the page from its route's trail, the page itself being named by its own title", async () => {
+      const { fixture } = setup([
+        {
+          path: 'admin/users/:id',
+          component: EmptyTestComponent,
+          data: { trail: [{ label: 'Administration' }, { label: 'Utilisateurs', link: ['/admin', 'users'] }] },
+        },
+        { path: 'home', component: EmptyTestComponent },
+      ]);
+      const router = TestBed.inject(Router);
+
+      await router.navigateByUrl('/admin/users/u1');
+      fixture.detectChanges();
+      const steps = Array.from(fixture.nativeElement.querySelectorAll('.app-shell__breadcrumb li[breadcrumb-ancestor]')) as HTMLElement[];
+      expect(steps.map((li) => li.textContent?.trim())).toEqual(['Administration', 'Utilisateurs']);
+      expect(steps[0].querySelector('a')).toBeNull();
+      expect(steps[1].querySelector('a')?.getAttribute('href')).toBe('/admin/users');
+
+      await router.navigateByUrl('/home');
+      fixture.detectChanges();
+      expect(fixture.nativeElement.querySelectorAll('.app-shell__breadcrumb li[breadcrumb-ancestor]')).toHaveLength(0);
+    });
+
     // A control-flow block is only projected into a named slot with a single root element, so each item must be a flat
     // sibling in the <ol>.
     it('shows only the page title when no repository context is active', () => {
@@ -861,10 +665,10 @@ describe('AppShell', () => {
       fixture.detectChanges();
 
       const items = fixture.componentInstance.navItems();
-      expect(items.some((i) => i.text === 'Admin')).toBe(false);
+      expect(items.some((i) => i.text === 'Administration')).toBe(false);
     });
 
-    it('renders Admin as an expandable group with Réglages/Utilisateurs/Dashboard/Santé children for an admin', () => {
+    it('renders Administration as an expandable group with Tableau de bord/Utilisateurs/Santé/Réglages children for an admin', () => {
       const { fixture } = setup();
       const httpMock = TestBed.inject(HttpTestingController);
       httpMock.expectOne('/api/auth/me').flush({ username: 'admin', email: 'admin@example.com', isAdmin: true });
@@ -873,12 +677,12 @@ describe('AppShell', () => {
       fixture.detectChanges();
 
       const items = fixture.componentInstance.navItems();
-      const admin = items.find((i) => i.text === 'Admin');
-      expect(admin?.children?.map((c) => c.text)).toEqual(['Réglages', 'Utilisateurs', 'Dashboard', 'Santé']);
-      expect(admin?.children?.map((c) => c.link)).toEqual(['/admin/settings', '/admin/users', '/admin/dashboard', '/admin/health']);
+      const admin = items.find((i) => i.text === 'Administration');
+      expect(admin?.children?.map((c) => c.text)).toEqual(['Tableau de bord', 'Utilisateurs', 'Santé', 'Réglages']);
+      expect(admin?.children?.map((c) => c.link)).toEqual(['/admin/dashboard', '/admin/users', '/admin/health', '/admin/settings']);
     });
 
-    it('is one Gabarit nav group: a toggle named "Admin" whose name does not change with its state, and the four sub links in a panel', () => {
+    it('is one Gabarit nav group: a toggle named "Administration" whose name does not change with its state, and the four sub links in a panel', () => {
       const { fixture } = setup();
       const httpMock = TestBed.inject(HttpTestingController);
       httpMock.expectOne('/api/auth/me').flush({ username: 'admin', email: 'admin@example.com', isAdmin: true });
@@ -887,20 +691,20 @@ describe('AppShell', () => {
       fixture.detectChanges();
 
       const toggle: HTMLButtonElement = fixture.nativeElement.querySelector('gbt-app-shell-nav-group .gbt-app-shell-nav-group__toggle');
-      expect(toggle.textContent?.trim()).toBe('Admin');
+      expect(toggle.textContent?.trim()).toBe('Administration');
       expect(toggle.getAttribute('aria-label')).toBeNull();
       expect(toggle.getAttribute('aria-expanded')).toBe('false');
       const panel: HTMLElement = fixture.nativeElement.querySelector('.gbt-app-shell-nav-group__panel');
       expect(toggle.getAttribute('aria-controls')).toBe(panel.id);
       expect(panel.hasAttribute('hidden')).toBe(true);
       const links = Array.from(panel.querySelectorAll<HTMLAnchorElement>('a'));
-      expect(links.map((a) => a.textContent?.trim())).toEqual(['Réglages', 'Utilisateurs', 'Dashboard', 'Santé']);
-      expect(links.map((a) => a.getAttribute('href'))).toEqual(['/admin/settings', '/admin/users', '/admin/dashboard', '/admin/health']);
+      expect(links.map((a) => a.textContent?.trim())).toEqual(['Tableau de bord', 'Utilisateurs', 'Santé', 'Réglages']);
+      expect(links.map((a) => a.getAttribute('href'))).toEqual(['/admin/dashboard', '/admin/users', '/admin/health', '/admin/settings']);
 
       toggle.click();
       fixture.detectChanges();
 
-      expect(toggle.textContent?.trim()).toBe('Admin');
+      expect(toggle.textContent?.trim()).toBe('Administration');
       expect(toggle.getAttribute('aria-expanded')).toBe('true');
     });
 

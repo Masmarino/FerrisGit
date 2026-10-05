@@ -4,7 +4,7 @@ import { expect, userEvent, waitFor } from 'storybook/test';
 import { NEVER, of, throwError } from 'rxjs';
 import { RepositoryCollaboratorsSettings } from './repository-collaborators-settings';
 import { CollaboratorSummary, RepositorySettingsService } from '../repository-settings.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { daysAgo, hoursAgo, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectRows, expectSettingsLayout, fakeToast, inSettingsColumn, rendered } from '../../shared/layout/settings-story-helpers';
 

@@ -6,6 +6,7 @@ import { AdminUser, AdminUserRepository, AdminUsersService, InviteResult, Passwo
 const USER: AdminUser = {
   id: 'u2',
   username: 'bob',
+  named: true,
   email: 'bob@example.com',
   isAdmin: false,
   createdAt: '2026-09-20T10:00:00Z',
@@ -24,29 +25,33 @@ describe('AdminUsersService', () => {
     TestBed.inject(HttpTestingController).verify();
   });
 
-  it('lists the users', () => {
+  /** What the server sends: no `named`, and no name for an invitee who has not chosen one. */
+  const row = ({ named, ...rest }: AdminUser) => ({ ...rest, username: named ? rest.username : null });
+  const INVITEE: AdminUser = { ...USER, username: 'carol@example.com', named: false, email: 'carol@example.com' };
+
+  it('lists the users, showing an invitee who has not chosen a name by their address', () => {
     const { service, http } = setup();
     let result: unknown;
     service.list().subscribe((users) => (result = users));
-    http.expectOne({ url: '/api/admin/users', method: 'GET' }).flush([USER]);
-    expect(result).toEqual([USER]);
+    http.expectOne({ url: '/api/admin/users', method: 'GET' }).flush([row(USER), row(INVITEE)]);
+    expect(result).toEqual([USER, INVITEE]);
   });
 
-  it('invites a user: username, e-mail and the administrator flag in the body', () => {
+  it('invites by e-mail only, with the administrator flag', () => {
     const { service, http } = setup();
     let result: InviteResult | undefined;
-    service.invite('bob', 'bob@example.com', true).subscribe((r) => (result = r));
+    service.invite('carol@example.com', true).subscribe((r) => (result = r));
     const req = http.expectOne({ url: '/api/admin/users/invite', method: 'POST' });
-    expect(req.request.body).toEqual({ username: 'bob', email: 'bob@example.com', isAdmin: true });
-    req.flush({ user: USER, emailSent: true });
-    expect(result).toEqual({ user: USER, emailSent: true });
+    expect(req.request.body).toEqual({ email: 'carol@example.com', isAdmin: true });
+    req.flush({ user: row(INVITEE), emailSent: true });
+    expect(result).toEqual({ user: INVITEE, emailSent: true });
     expect(result && 'activationUrl' in result).toBe(false);
   });
 
   it('reads the link and the reason the mail was not sent', () => {
     const { service, http } = setup();
     let result: InviteResult | undefined;
-    service.invite('bob', 'bob@example.com', false).subscribe((r) => (result = r));
+    service.invite('bob@example.com', false).subscribe((r) => (result = r));
     http.expectOne('/api/admin/users/invite').flush({ user: USER, emailSent: false, emailError: 'connection refused', activationUrl: 'http://localhost:4200/activate#token=abc' });
     expect(result?.emailSent).toBe(false);
     expect(result?.emailError).toBe('connection refused');

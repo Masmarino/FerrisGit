@@ -1,4 +1,4 @@
-import { formatDateTime, formatRelativeTime } from '@masmarino/gabarit';
+import { formatDateTime, formatRelativeTime } from '@masmarino/gabarit/format';
 
 /** "il y a 3 j" up to a month, then "le 12/08/2026"; the exact time goes in the tooltip. */
 export interface RowDate {

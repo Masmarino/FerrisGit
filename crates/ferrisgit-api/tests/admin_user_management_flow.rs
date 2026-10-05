@@ -577,7 +577,7 @@ async fn an_account_still_pending_activation_cannot_get_a_reset_link(pool: PgPoo
         .client
         .post(server.url("/admin/users/invite"))
         .bearer_auth(&server.admin)
-        .json(&json!({ "username": "bob", "email": "bob@example.com" }))
+        .json(&json!({ "email": "bob@example.com" }))
         .send()
         .await
         .unwrap();
@@ -984,7 +984,7 @@ async fn an_invited_admin_who_never_activated_does_not_count_toward_the_floor(po
         .client
         .post(server.url("/admin/users/invite"))
         .bearer_auth(&server.admin)
-        .json(&json!({ "username": "carol", "email": "carol@example.com", "isAdmin": true }))
+        .json(&json!({ "email": "carol@example.com", "isAdmin": true }))
         .send()
         .await
         .unwrap();

@@ -3,26 +3,20 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { Router, RouterLink } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { catchError, forkJoin, map, of } from 'rxjs';
-import {
-  Alert,
-  Breadcrumb,
-  Button,
-  Card,
-  CardHeader,
-  CopyButton,
-  EmptyState,
-  formatBytes,
-  Icon,
-  PageLayout,
-  Panel,
-  SegmentedControl,
-  SegmentedControlOption,
-  selectContents,
-  Skeleton,
-  Tree,
-  TreeNode,
-  GbtToastService,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Breadcrumb } from '@masmarino/gabarit/breadcrumb';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { CopyButton, selectContents } from '@masmarino/gabarit/copy-button';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { formatBytes } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { Tree, TreeNode } from '@masmarino/gabarit/tree';
 import { RepositoriesService, Repository, TreeEntry } from '../repositories.service';
 import { RepositoryHeader } from '../repository-header/repository-header';
 import { pathBreadcrumb, repositoryLink, sortEntries } from '../repository-links';

@@ -1,15 +1,22 @@
 import { Component, inject } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { AuthFooterLink, AuthLogin, Button } from '@masmarino/gabarit';
+import { AuthFooterLink } from '@masmarino/gabarit/auth';
+import { AuthLogin } from '@masmarino/gabarit/auth-login';
+import { Button } from '@masmarino/gabarit/button';
 import { AuthLogo } from '../auth-logo/auth-logo';
 import { safeReturnUrl } from '../login-link';
+import { GitField } from '@masmarino/gabarit/git-field';
+import { provideFerrisgitAuth } from '../auth-kit';
 
 @Component({
   selector: 'fg-login-page',
   standalone: true,
-  imports: [AuthLogin, AuthLogo, AuthFooterLink, Button, RouterLink],
+  imports: [AuthLogin, AuthLogo, AuthFooterLink, Button, RouterLink, GitField],
+  providers: [provideFerrisgitAuth()],
+  host: { class: 'fg-auth-page' },
   template: `
     <gbt-auth-login (loggedIn)="signedIn()">
+      <gbt-git-field auth-backdrop />
       <picture auth-logo fgAuthLogo></picture>
       <a gbtButton variant="link" gbtAuthFooterLink routerLink="/register">Créer un compte</a>
     </gbt-auth-login>

@@ -7,7 +7,7 @@ import { ReleaseList } from './release-list';
 import { ReleaseSummary, ReleasesService, TagSummary } from '../releases.service';
 import { BranchInfo, MergeRequestsService } from '../../merge-requests/merge-requests.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { daysAgo, hoursAgo, inShellContentArea } from '../../shared/layout/page-story-helpers';
 

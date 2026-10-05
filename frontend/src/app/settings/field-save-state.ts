@@ -1,5 +1,5 @@
 import { Component, inject, input } from '@angular/core';
-import { SaveStatus } from '@masmarino/gabarit';
+import { SaveStatus } from '@masmarino/gabarit/save-status';
 import { SettingsEditor, SettingsField } from './settings-editor';
 
 /** A field's save state. A live region that stays in the DOM, so each change is announced. */

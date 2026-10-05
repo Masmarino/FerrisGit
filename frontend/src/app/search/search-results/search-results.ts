@@ -2,25 +2,20 @@ import { Component, computed, DestroyRef, effect, inject, linkedSignal, OnInit, 
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { catchError, map, Observable, of, startWith, Subject, switchMap } from 'rxjs';
-import {
-  Badge,
-  Button,
-  Card,
-  CardHeader,
-  EmptyState,
-  GbtDateTimePipe,
-  GbtToastService,
-  Icon,
-  ListRow,
-  PageHeader,
-  PageLayout,
-  SegmentedControl,
-  SegmentedControlOption,
-  Skeleton,
-  SkeletonList,
-  UserChip,
-  formatRelativeTime,
-} from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { GbtDateTimePipe, formatRelativeTime } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { SearchIssueResult, SearchMergeRequestResult, SearchRepositoryRef, SearchRepositoryResult, SearchResponse, SearchService, SearchUserResult } from '../search.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { issueKindPresentation } from '../../issues/issue-kind';

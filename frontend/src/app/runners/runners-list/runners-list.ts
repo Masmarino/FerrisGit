@@ -1,30 +1,25 @@
 import { afterNextRender, Component, computed, ElementRef, inject, Injector, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  Alert,
-  Badge,
-  BadgeVariant,
-  Button,
-  Card,
-  CardHeader,
-  EmptyState,
-  GbtInput,
-  GbtToastService,
-  Icon,
-  IconMarker,
-  ListCard,
-  ListRow,
-  Modal,
-  PageHeader,
-  PageLayout,
-  Panel,
-  SecretReveal,
-  SkeletonList,
-  Tag,
-  TagInput,
-  formatDateTime,
-  formatRelativeTime,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge, BadgeVariant } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { formatDateTime, formatRelativeTime } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { IconMarker } from '@masmarino/gabarit/icon-marker';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListCard } from '@masmarino/gabarit/list-card';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { Modal } from '@masmarino/gabarit/modal';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { SecretReveal } from '@masmarino/gabarit/secret-reveal';
+import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
+import { Tag } from '@masmarino/gabarit/tag';
+import { TagInput } from '@masmarino/gabarit/tag-input';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RunnerSummary, RunnersService } from '../runners.service';
 import { PageTitleService } from '../../shell/page-title.service';
 

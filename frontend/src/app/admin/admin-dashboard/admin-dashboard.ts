@@ -1,24 +1,21 @@
 import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { Subscription } from 'rxjs';
-import {
-  Alert,
-  Button,
-  EmptyState,
-  formatBytes,
-  GbtToastService,
-  Icon,
-  LineChart,
-  ListCard,
-  PageHeader,
-  PageLayout,
-  SegmentedControl,
-  SegmentedControlOption,
-  Skeleton,
-  StatGrid,
-  StatTile,
-} from '@masmarino/gabarit';
-import type { ChartSeries } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { formatBytes } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { LineChart } from '@masmarino/gabarit/line-chart';
+import { ListCard } from '@masmarino/gabarit/list-card';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { StatGrid } from '@masmarino/gabarit/stat-grid';
+import { StatTile } from '@masmarino/gabarit/stat-tile';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import type { ChartSeries } from '@masmarino/gabarit/chart';
 import { AdminMetricsService, AdminStats, MetricsSnapshot } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';
 

@@ -5,7 +5,7 @@ import { NEVER, of, throwError } from 'rxjs';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { PipelineList } from './pipeline-list';
 import { PipelineSummary, PipelinesService } from '../pipelines.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { daysAgo, hoursAgo, inShellContentArea, minutesAgo } from '../../shared/layout/page-story-helpers';
 

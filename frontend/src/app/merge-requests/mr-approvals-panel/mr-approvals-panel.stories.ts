@@ -3,7 +3,7 @@ import { componentWrapperDecorator, moduleMetadata } from '@storybook/angular-vi
 import { MrApprovalsPanel } from './mr-approvals-panel';
 import { Review, ReviewSummary } from '../merge-requests.service';
 import { withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
-import { Panel } from '@masmarino/gabarit';
+import { Panel } from '@masmarino/gabarit/panel';
 
 function makeReview(overrides: Partial<Review>): Review {
   return { userId: 'u1', username: 'alice', decision: 'approved', stale: false, createdAt: '2026-09-23T10:00:00Z', ...overrides };

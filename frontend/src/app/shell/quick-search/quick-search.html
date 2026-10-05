@@ -1,0 +1,17 @@
+<gbt-command-palette
+  ariaLabel="Recherche rapide"
+  placeholder="Rechercher ou aller à…"
+  loadingLabel="Recherche en cours…"
+  emptyMessage="Aucun résultat"
+  navigateHint="Naviguer"
+  selectHint="Ouvrir"
+  closeHint="Fermer"
+  closeLabel="Fermer la recherche"
+  [shortcuts]="shortcuts"
+  [groups]="groups()"
+  [loading]="searching()"
+  [resultsAnnouncement]="resultsAnnouncement"
+  [(open)]="open"
+  (queryChange)="onQueryChange($event)"
+  (itemSelected)="onSelect($event)"
+/>

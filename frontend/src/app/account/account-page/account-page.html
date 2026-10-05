@@ -1,5 +1,5 @@
 <gbt-page-header heading="Mon compte">
-  <p header-meta class="account-page__intro">Profil, mot de passe, double authentification et jetons d'accès Git</p>
+  <p header-meta class="account-page__intro">Profil, mot de passe, double authentification et jetons d'accès</p>
 </gbt-page-header>
 
 <gbt-page-layout width="wide" navLabel="Réglages du compte" stickyNav>
@@ -14,15 +14,17 @@
   <div class="account-page__section">
     @switch (activeSection()) {
       @case ('password') {
-        <gbt-card variant="outlined" icon="lock" heading="Mot de passe" description="Choisissez-en un d'au moins 8 caractères, que vous n'utilisez nulle part ailleurs.">
+        <gbt-card variant="outlined" icon="lock" heading="Mot de passe" description="Choisissez-en un d'au moins 8 caractères, que vous n'utilisez nulle part ailleurs. Le changer ferme vos autres sessions.">
           <!-- ngNoForm keeps it a plain form so Enter submits from any field; the fields are standalone ngModels. -->
           <form ngNoForm class="account-page__password-form" (submit)="$event.preventDefault(); changePassword()">
+            <p class="gbt-form-required-note">Les champs marqués d'un astérisque (*) sont obligatoires.</p>
             <!-- Tells password managers which account this is for. -->
             <input class="sr-only" type="text" name="username" autocomplete="username" tabindex="-1" aria-hidden="true" readonly [value]="me.username()" />
 
             <div class="account-page__field account-page__current">
               <gbt-input
                 label="Mot de passe actuel"
+                required
                 type="password"
                 autocomplete="current-password"
                 showPasswordLabel="Afficher le mot de passe"
@@ -36,6 +38,7 @@
               <div class="account-page__field account-page__new">
                 <gbt-input
                   label="Nouveau mot de passe"
+                required
                   type="password"
                   autocomplete="new-password"
                   showPasswordLabel="Afficher le mot de passe"
@@ -52,6 +55,7 @@
               <div class="account-page__field account-page__confirm">
                 <gbt-input
                   label="Confirmer le nouveau mot de passe"
+                required
                   type="password"
                   autocomplete="new-password"
                   showPasswordLabel="Afficher le mot de passe"
@@ -82,6 +86,7 @@
       @case ('security') {
         <fg-passkey-settings />
         <fg-mfa-settings />
+        <fg-session-settings />
       }
       @case ('tokens') {
         <fg-api-tokens-list />
@@ -100,6 +105,9 @@
                     }
                   </div>
                   <p class="account-page__identity-meta">Nom d'utilisateur, non modifiable</p>
+                  @if (me.createdAt(); as createdAt) {
+                    <p class="account-page__identity-meta">Membre depuis le {{ createdAt | gbtDateTime : { locale: 'fr', day: 'numeric', month: 'short', year: 'numeric' } }}</p>
+                  }
                 </div>
               } @else {
                 <div class="account-page__identity-loading" aria-busy="true">

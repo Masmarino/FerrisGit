@@ -1,8 +1,12 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { AuthActivate, AuthFooterLink, Button } from '@masmarino/gabarit';
+import { AuthFooterLink } from '@masmarino/gabarit/auth';
+import { AuthActivate } from '@masmarino/gabarit/auth-activate';
+import { Button } from '@masmarino/gabarit/button';
 import { AuthLogo } from '../auth-logo/auth-logo';
+import { GitField } from '@masmarino/gabarit/git-field';
 import { consumeLinkToken } from '../link-token';
+import { provideFerrisgitAuth } from '../auth-kit';
 
 /**
  * Owns the `/activate#token=…` URL; Gabarit's page asks for the password. A missing or malformed token shows the kit's
@@ -11,9 +15,12 @@ import { consumeLinkToken } from '../link-token';
 @Component({
   selector: 'fg-activate-page',
   standalone: true,
-  imports: [AuthActivate, AuthLogo, AuthFooterLink, Button, RouterLink],
+  imports: [AuthActivate, AuthLogo, AuthFooterLink, Button, RouterLink, GitField],
+  providers: [provideFerrisgitAuth()],
+  host: { class: 'fg-auth-page' },
   template: `
     <gbt-auth-activate [token]="token" (signIn)="toSignIn()">
+      <gbt-git-field auth-backdrop />
       <picture auth-logo fgAuthLogo></picture>
       <a gbtButton variant="link" gbtAuthFooterLink routerLink="/login">Se connecter</a>
     </gbt-auth-activate>

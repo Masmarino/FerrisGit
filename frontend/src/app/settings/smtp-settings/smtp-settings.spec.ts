@@ -2,7 +2,9 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting, TestRequest } from '@angular/common/http/testing';
-import { Icon, SegmentedControl, GbtToastService } from '@masmarino/gabarit';
+import { Icon } from '@masmarino/gabarit/icon';
+import { SegmentedControl } from '@masmarino/gabarit/segmented-control';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { isValidMailbox, SmtpSettings, validateSmtpForm } from './smtp-settings';
 import { SmtpSettings as SmtpSettingsData } from '../settings.service';
 
@@ -319,7 +321,8 @@ describe('SmtpSettings', () => {
       expect(input('Mot de passe').placeholder).toBe('•••••••• (inchangé)');
       expect(input('Hôte').value).toBe('smtp.example.com');
       expect(button('Enregistrer').disabled).toBe(true);
-      expect(text(el.querySelector('.smtp-settings__summary'))).toBe('Réglages enregistrés');
+      // The toast says it: nothing stays beside the button.
+      expect(text(el.querySelector('.smtp-settings__summary'))).toBe('');
     });
 
     it('shows a toast and keeps the fields as typed when the save fails', async () => {

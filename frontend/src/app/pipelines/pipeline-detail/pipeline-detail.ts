@@ -2,7 +2,13 @@ import { Component, OnDestroy, OnInit, computed, inject, input, signal } from '@
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
-import { Alert, Badge, Button, EmptyState, GbtDateTimePipe, GbtRelativeTimePipe, PageHeader, GbtToastService } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { PipelineDetail as PipelineDetailModel, PipelinesService } from '../pipelines.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';

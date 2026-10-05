@@ -2,7 +2,14 @@ import { NgTemplateOutlet } from '@angular/common';
 import { Component, inject, input, linkedSignal, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Observable } from 'rxjs';
-import { Alert, Button, Card, CardHeader, GbtInput, SaveStatus, Skeleton, Switch, GbtToastService } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { SaveStatus } from '@masmarino/gabarit/save-status';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Switch } from '@masmarino/gabarit/switch';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RepositorySettings as RepositorySettingsModel, RepositorySettingsService } from '../repository-settings.service';
 
 type Field = 'ciEnabled' | 'pipelineFilePath' | 'requiredApprovals';

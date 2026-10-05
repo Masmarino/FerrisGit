@@ -4,12 +4,26 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
-import { Avatar, Badge, Button, Card, GbtInput, GbtToastService, Icon, MIN_PASSWORD_LENGTH, NavTab, NavTabs, PageHeader, PageLayout, SaveStatus, Skeleton } from '@masmarino/gabarit';
+import { MIN_PASSWORD_LENGTH } from '@masmarino/gabarit/auth';
+import { Avatar } from '@masmarino/gabarit/avatar';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { NavTab, NavTabs } from '@masmarino/gabarit/nav-tabs';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { SaveStatus } from '@masmarino/gabarit/save-status';
+import { GbtDateTimePipe } from '@masmarino/gabarit/format';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AuthService } from '../../auth/auth.service';
 import { MeService } from '../../shell/me.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { MfaSettings } from '../mfa-settings/mfa-settings';
 import { PasskeySettings } from '../passkey-settings/passkey-settings';
+import { SessionSettings } from '../session-settings/session-settings';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
 
 type AccountSectionKey = 'profile' | 'password' | 'security' | 'tokens';
@@ -18,7 +32,7 @@ const SECTIONS: { key: AccountSectionKey; label: string; icon: string }[] = [
   { key: 'profile', label: 'Profil', icon: 'user' },
   { key: 'password', label: 'Mot de passe', icon: 'lock' },
   { key: 'security', label: 'Sécurité', icon: 'shield-check' },
-  { key: 'tokens', label: 'Jetons Git', icon: 'key' },
+  { key: 'tokens', label: "Jetons d'accès", icon: 'key' },
 ];
 
 const DEFAULT_SECTION: AccountSectionKey = 'profile';
@@ -32,7 +46,7 @@ type SaveState = 'saving' | 'saved' | 'error';
 @Component({
   selector: 'fg-account-page',
   standalone: true,
-  imports: [FormsModule, NgTemplateOutlet, Avatar, Badge, Button, GbtInput, Icon, SaveStatus, Skeleton, ApiTokensList, MfaSettings, PasskeySettings, PageHeader, PageLayout, Card, NavTab, NavTabs, RouterLink],
+  imports: [FormsModule, NgTemplateOutlet, Avatar, Badge, Button, GbtInput, Icon, SaveStatus, Skeleton, ApiTokensList, MfaSettings, PasskeySettings, SessionSettings, PageHeader, PageLayout, Card, NavTab, NavTabs, RouterLink, GbtDateTimePipe],
   templateUrl: './account-page.html',
   styleUrl: './account-page.scss',
 })

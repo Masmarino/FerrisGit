@@ -1,5 +1,5 @@
 import { inject, provideAppInitializer } from '@angular/core';
-import { IconRegistry } from '@masmarino/gabarit';
+import { IconRegistry } from '@masmarino/gabarit/icon';
 
 /** The icons Gabarit doesn't ship. `search` is in its set too; ours overrides it with a different stroke. */
 const FERRISGIT_ICONS: Record<string, string> = {

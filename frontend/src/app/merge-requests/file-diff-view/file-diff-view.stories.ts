@@ -1,5 +1,5 @@
 import { componentWrapperDecorator, moduleMetadata, type Meta, type StoryObj } from '@storybook/angular-vite';
-import { Card, CardHeader } from '@masmarino/gabarit';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
 import { expect, userEvent, within } from 'storybook/test';
 import { inShellContentArea } from '../../shared/layout/page-story-helpers';
 import { FileDiffView } from './file-diff-view';

@@ -6,7 +6,8 @@ use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::invitation::{PendingAccount, PendingAccountPort, UserInvitationPort};
 
 use crate::account_rules::{
-    INVITATION_TTL_HOURS, PENDING_ACCOUNT_RETENTION_DAYS, generate_invitation_token,
+    INVITATION_TTL_HOURS, PENDING_ACCOUNT_RETENTION_DAYS, activation_url,
+    generate_invitation_token, is_placeholder_username,
 };
 use crate::email_templates;
 use crate::mailer::Mailer;
@@ -100,18 +101,15 @@ impl SweepPendingAccountsUseCase {
         now: DateTime<Utc>,
     ) -> Result<bool, DomainError> {
         let token = generate_invitation_token();
-        let activation_url = format!("{}/activate#token={}", self.public_url, token);
+        let activation_url = activation_url(&self.public_url, &account.username, &token);
         let deletion_date = deletion.format("%d/%m/%Y").to_string();
-        self.mailer
-            .send(
-                &account.email,
-                email_templates::activation_reminder(
-                    &account.username,
-                    &activation_url,
-                    &deletion_date,
-                ),
-            )
-            .await?;
+        // An invitation whose name is still to be chosen has no name to show.
+        let mail = if is_placeholder_username(&account.username) {
+            email_templates::invitation_reminder(&activation_url, &deletion_date)
+        } else {
+            email_templates::activation_reminder(&account.username, &activation_url, &deletion_date)
+        };
+        self.mailer.send(&account.email, mail).await?;
         self.invitations
             .renew(
                 account.user_id,
@@ -193,6 +191,27 @@ mod tests {
             f.invitations.row_of(a.user_id).unwrap().0,
             "first-link-hash"
         );
+    }
+
+    #[tokio::test]
+    async fn an_invitation_still_to_be_named_is_reminded_with_a_link_that_asks_for_the_name() {
+        let a = account("invite-0123456789ab");
+        let f = fixture(vec![a.clone()]);
+
+        f.use_case
+            .execute(day(1) + Duration::minutes(5))
+            .await
+            .unwrap();
+
+        let sent = f.email.sent();
+        assert!(
+            sent[0]
+                .2
+                .contains(&format!("{PUBLIC_URL}/invitation#token=")),
+            "{}",
+            sent[0].2
+        );
+        assert!(!sent[0].2.contains("invite-0123456789ab"), "{}", sent[0].2);
     }
 
     #[tokio::test]

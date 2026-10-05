@@ -1,10 +1,8 @@
 <div class="public-layout">
   <header class="public-layout__header">
     <a class="public-layout__home" routerLink="/explore" aria-label="FerrisGit, explorer les dépôts publics">
-      <picture>
-        <source srcset="Logo_horizontal_dark.png" media="(prefers-color-scheme: dark)" />
-        <img class="public-layout__logo" src="Logo_horizontal.png" alt="" />
-      </picture>
+      <!-- The light version of the logo, drawn for the graphite bar, as in the app's rail. -->
+      <img class="public-layout__logo" src="Logo_horizontal_dark.png" alt="" />
     </a>
 
     <form ngNoForm class="public-layout__search" role="search" aria-label="Recherche rapide" (submit)="$event.preventDefault(); search()">

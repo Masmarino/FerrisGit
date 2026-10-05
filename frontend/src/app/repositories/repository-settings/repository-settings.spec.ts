@@ -7,7 +7,7 @@ import { of } from 'rxjs';
 import { RepositorySettings } from './repository-settings';
 import { RepositorySettingsService } from '../repository-settings.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { LabelsService } from '../../labels/labels.service';
 import { MilestonesService } from '../../milestones/milestones.service';
 import { RepositoriesService } from '../repositories.service';

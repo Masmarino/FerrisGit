@@ -3,10 +3,10 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
-import { ConfirmDangerModal, MfaSettings as GbtMfaSettings } from '@masmarino/gabarit';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { MfaSettings as GbtMfaSettings } from '@masmarino/gabarit/mfa-settings';
 import { MfaSettings } from './mfa-settings';
 import { AuthService } from '../../auth/auth.service';
-import { provideFerrisgitAuth } from '../../auth/auth-kit';
 
 // The QR code comes through our renderer, which lazily imports `qrcode`; jsdom has no canvas.
 const toDataURL = vi.hoisted(() => vi.fn());
@@ -34,7 +34,7 @@ describe('MfaSettings', () => {
     const calls: string[] = [];
     const auth = { setToken: vi.fn(), logout: vi.fn(() => calls.push('logout')) };
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), provideFerrisgitAuth(), { provide: AuthService, useValue: auth }],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: AuthService, useValue: auth }],
     });
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockImplementation((url) => {
       calls.push(`navigate ${String(url)}`);

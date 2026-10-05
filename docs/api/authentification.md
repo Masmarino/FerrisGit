@@ -254,18 +254,19 @@ Erreurs : 400 `registration is disabled` (cette réponse ne dépend pas de ce qu
 
 ### `POST /api/auth/activate`
 
-Active un compte créé par un administrateur ou par une inscription libre, et définit son mot de passe. Route anonyme, limitée à 10 requêtes par 5 minutes et par IP (budget partagé avec `reset-password`).
+Active un compte créé par un administrateur ou par une inscription libre, et définit son mot de passe, ainsi que son nom d'utilisateur pour une invitation. Route anonyme, limitée à 10 requêtes par 5 minutes et par IP (budget partagé avec `reset-password`).
 
 Corps :
 
 | Champ | Type | Obligatoire | Description |
 |---|---|---|---|
-| `token` | texte | oui | Le jeton du lien reçu par e-mail (invitation ou confirmation d'inscription) : 64 caractères hexadécimaux, placé dans le fragment `#token=` de l'URL `/activate`. |
+| `token` | texte | oui | Le jeton du lien reçu par e-mail : 64 caractères hexadécimaux, placé dans le fragment `#token=` de l'URL `/invitation` (invitation d'un administrateur) ou `/activate` (confirmation d'inscription). |
 | `password` | texte | oui | 8 caractères au minimum. |
+| `username` | texte | pour une invitation | Le nom que choisit la personne invitée : 3 à 32 caractères, mis en minuscules, commençant par une lettre, avec `a-z`, `0-9`, `-` et `_`, hors noms réservés. Exigé quand le compte vient d'une invitation, refusé quand le nom a été choisi à l'inscription. |
 
 Le lien est valable 24 heures. Réponse 204, sans session : connectez-vous ensuite, et enrôlez un second facteur à la première connexion.
 
-Erreurs : 400 `invalid or expired invitation` (jeton inconnu, expiré, déjà utilisé ou mal formé), 400 `password must be at least 8 characters` (le lien reste utilisable), 429 `too many activation attempts, try again later`.
+Erreurs : 400 `invalid or expired invitation` (jeton inconnu, expiré, déjà utilisé ou mal formé), 400 `password must be at least 8 characters`, 400 `username is required`, 400 `username was chosen at registration`, 400 nom invalide ou réservé, 409 `username already taken`, 409 `username collides with an existing root group` (dans tous ces cas, le lien reste utilisable), 429 `too many activation attempts, try again later`.
 
 ### `POST /api/auth/reset-password`
 

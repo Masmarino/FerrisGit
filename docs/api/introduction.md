@@ -148,3 +148,15 @@ Les routes Git ne sont pas sous `/api`. Elles vivent à la racine, sous la forme
 ## Santé du serveur
 
 `GET /health`, `GET /healthz` et `GET /readyz` répondent sans authentification, hors de `/api`. `/healthz` dit que le processus tourne (sonde de vivacité) ; `/readyz` vérifie en plus que la base répond (sonde de disponibilité). Voir [Administration](/docs/api/administration).
+
+## Version du serveur
+
+### `GET /api/version`
+
+La version de FerrisGit qui répond, sans authentification. L'interface l'affiche au pied du menu de navigation.
+
+Réponse 200 :
+
+```json
+{ "version": "0.1.3" }
+```

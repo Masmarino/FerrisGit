@@ -10,7 +10,9 @@ import { RepositoryWebhooks } from '../repository-webhooks/repository-webhooks';
 import { RepositoryCollaboratorsSettings } from '../repository-collaborators-settings/repository-collaborators-settings';
 import { RepositoryLabelsSettings } from '../repository-labels-settings/repository-labels-settings';
 import { RepositoryMilestonesSettings } from '../repository-milestones-settings/repository-milestones-settings';
-import { NavTab, NavTabs, PageHeader, PageLayout } from '@masmarino/gabarit';
+import { NavTab, NavTabs } from '@masmarino/gabarit/nav-tabs';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
 
 export type SettingsSectionKey = 'general' | 'pipeline' | 'variables' | 'webhooks' | 'collaborators' | 'labels' | 'milestones';
 

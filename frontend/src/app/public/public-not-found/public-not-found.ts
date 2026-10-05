@@ -1,6 +1,8 @@
 import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { Button, Card, EmptyState } from '@masmarino/gabarit';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
 import { PageTitleService } from '../../shell/page-title.service';
 import { loginLink } from '../../auth/login-link';
 

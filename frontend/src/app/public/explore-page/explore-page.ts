@@ -4,19 +4,15 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, ParamMap, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { BehaviorSubject, catchError, combineLatest, debounceTime, distinctUntilChanged, map, Observable, of, startWith, Subject, switchMap } from 'rxjs';
-import {
-  Alert,
-  Button,
-  Card,
-  EmptyState,
-  GbtDateTimePipe,
-  GbtInput,
-  GbtRelativeTimePipe,
-  Icon,
-  SegmentedControl,
-  SegmentedControlOption,
-  Skeleton,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { AuthService } from '../../auth/auth.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { PublicConfigService } from '../public-config.service';

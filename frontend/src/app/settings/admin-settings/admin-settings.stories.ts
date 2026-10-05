@@ -8,7 +8,7 @@ import { NEVER, Observable, of, switchMap, throwError, timer } from 'rxjs';
 import { AdminSettings } from './admin-settings';
 import { SettingsService, SmtpSettings, SystemSettings, SystemSettingsUpdate } from '../settings.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { atPhoneWidth, inDarkTheme, inShellContentArea, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectSettingsLayout, fakeToast } from '../../shared/layout/settings-story-helpers';
 
@@ -195,6 +195,23 @@ export const ConfirmRemoveRegistrationToken: Story = {
   },
 };
 
+/** The engine switched to Kubernetes, not saved yet: its card replaces the runners', and the section offers to save. */
+export const UnsavedEngineChange: Story = {
+  decorators: [startAt('/')],
+  play: async ({ canvasElement }) => {
+    await expectSettingsPage(canvasElement, 'Exécution');
+    const kubernetes = await waitFor(() => {
+      const found = Array.from(canvasElement.querySelectorAll<HTMLButtonElement>('[data-field="executionEngine"] [role="radio"]')).find((b) => b.textContent?.trim() === 'Kubernetes');
+      if (!found) throw new Error('the engine choice is not rendered yet');
+      return found;
+    });
+    kubernetes.click();
+    await waitFor(() => expect(canvasElement.querySelector('.settings-save-bar__summary')?.textContent).toContain('Modifications non enregistrées'));
+    await expect(canvasElement.querySelector('[data-field="k8sNamespace"]')).not.toBeNull();
+    await expect(canvasElement.querySelector('[data-field="maxConcurrentJobs"]')).toBeNull();
+  },
+};
+
 export const ExecutionAtPhoneWidth: Story = {
   decorators: [startAt('/'), atPhoneWidth],
   play: async ({ canvasElement }) => {
@@ -244,6 +261,21 @@ export const PublicPagesOff: Story = {
   play: async ({ canvasElement }) => {
     await expectSettingsPage(canvasElement, 'Sécurité');
     await waitFor(() => expect(canvasElement.querySelector<HTMLInputElement>('[data-field="seoIndexingEnabled"] input[role="switch"]')?.disabled, 'indexing switch greyed out').toBe(true));
+  },
+};
+
+/** Free registration switched on, not saved yet: the section offers to save or to put everything back. */
+export const UnsavedSecurityChange: Story = {
+  decorators: [startAt('/?section=security')],
+  play: async ({ canvasElement }) => {
+    await expectSettingsPage(canvasElement, 'Sécurité');
+    const toggle = await waitFor(() => {
+      const input = canvasElement.querySelector<HTMLInputElement>('[data-field="registrationEnabled"] input[role="switch"]');
+      if (!input) throw new Error('registration switch not rendered yet');
+      return input;
+    });
+    toggle.click();
+    await waitFor(() => expect(canvasElement.querySelector('.settings-save-bar__summary')?.textContent).toContain('Modifications non enregistrées'));
   },
 };
 

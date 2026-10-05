@@ -107,6 +107,10 @@
 
 .account-page__password-form {
   @include settings-section.form;
+
+  .gbt-form-required-note {
+    margin: 0;
+  }
 }
 
 .account-page__current {

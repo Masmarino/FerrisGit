@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import type { AuthConfig, AuthPort, LoginResponse, MfaProof, MfaSetupResult, PasskeyChallenge, TotpEnrollment } from '@masmarino/gabarit';
+import type { AuthConfig, AuthPort, LoginResponse, MfaProof, MfaSetupResult, PasskeyChallenge, TotpEnrollment } from '@masmarino/gabarit/auth';
 import { map, Observable, tap } from 'rxjs';
 
 const TOKEN_KEY = 'ferrisgit_token';
@@ -29,8 +29,9 @@ export class AuthService implements Omit<AuthPort, 'register'> {
     return this.http.post<void>('/api/auth/register', { username, email });
   }
 
-  activate(token: string, password: string): Observable<void> {
-    return this.http.post<void>('/api/auth/activate', { token, password });
+  /** `username` only from the invitation page: an invitee chooses it there, a registered account already has one. */
+  activate(token: string, password: string, username?: string): Observable<void> {
+    return this.http.post<void>('/api/auth/activate', username === undefined ? { token, password } : { token, password, username });
   }
 
   resetPassword(token: string, password: string): Observable<void> {

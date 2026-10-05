@@ -1,14 +1,15 @@
-import { Component, inject, linkedSignal, signal, WritableSignal } from '@angular/core';
+import { Component, computed, inject, linkedSignal, signal } from '@angular/core';
+import { Card } from '@masmarino/gabarit/card';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
 import { FormsModule } from '@angular/forms';
-import { Card, GbtInput, Icon, SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit';
-import { FieldSaveState } from '../field-save-state';
 import { RunnerRegistrationToken } from '../runner-registration-token/runner-registration-token';
+import { SettingsSaveBar } from '../settings-save-bar/settings-save-bar';
 import { SettingsEditor } from '../settings-editor';
-import { SystemSettings } from '../settings.service';
+import { SystemSettings, SystemSettingsUpdate } from '../settings.service';
 
 type Engine = SystemSettings['executionEngine'];
-type K8sField = 'k8sNamespace' | 'k8sCacheStorageClass';
-type CountField = 'maxConcurrentJobs' | 'logRetentionDays';
 
 const ENGINE_OPTIONS: SegmentedControlOption<Engine>[] = [
   { value: 'docker-runners', label: 'Docker / runners' },
@@ -20,11 +21,27 @@ const RETENTION_ERROR = 'Entrez un nombre entier de jours, 1 ou plus, ou laissez
 
 const configuredOrDetected = (configured: string | null, detected: string | null) => configured ?? detected ?? '';
 
-/** The "Exécution" section: where jobs run, how runners register, the Kubernetes target and log retention. */
+/** Empty is "no limit" (`null`); otherwise a whole number, 1 or more, as the server requires. `undefined`: invalid. */
+function parseCount(value: string): number | null | undefined {
+  const trimmed = value.trim();
+  if (trimmed === '') {
+    return null;
+  }
+  const count = Number(trimmed);
+  return /^\d+$/.test(trimmed) && Number.isSafeInteger(count) && count >= 1 ? count : undefined;
+}
+
+const countText = (count: number | null) => String(count ?? '');
+
+/**
+ * The "Exécution" section: where jobs run, then the settings of that engine only (the runners' for Docker, the
+ * cluster's for Kubernetes), and log retention. Nothing is saved until "Enregistrer", which sends what is shown in one
+ * request; generating or removing the runners' registration token stays an action of its own.
+ */
 @Component({
   selector: 'fg-execution-settings',
   standalone: true,
-  imports: [FormsModule, Card, GbtInput, Icon, SegmentedControl, FieldSaveState, RunnerRegistrationToken],
+  imports: [FormsModule, Card, GbtInput, Icon, SegmentedControl, RunnerRegistrationToken, SettingsSaveBar],
   templateUrl: './execution-settings.html',
   styleUrl: './execution-settings.scss',
 })
@@ -34,75 +51,122 @@ export class ExecutionSettings {
   protected settings = this.editor.saved;
   protected readonly engineOptions = ENGINE_OPTIONS;
 
-  protected engineShown = linkedSignal<Engine>(() => this.settings().executionEngine);
-  protected namespaceShown = linkedSignal(() => this.namespaceDefault());
-  protected storageClassShown = linkedSignal(() => this.storageClassDefault());
-  protected maxJobsShown = linkedSignal(() => String(this.settings().maxConcurrentJobs ?? ''));
-  protected retentionShown = linkedSignal(() => String(this.settings().logRetentionDays ?? ''));
-  protected maxJobsError = signal<string | null>(null);
-  protected retentionError = signal<string | null>(null);
-  private edited: Record<K8sField, boolean> = { k8sNamespace: false, k8sCacheStorageClass: false };
+  // Drafts: each follows the saved value until edited, and again after a save.
+  protected engine = linkedSignal<Engine>(() => this.settings().executionEngine);
+  protected namespace = linkedSignal(() => this.namespaceDefault());
+  protected storageClass = linkedSignal(() => this.storageClassDefault());
+  protected maxJobs = linkedSignal(() => countText(this.settings().maxConcurrentJobs));
+  protected retention = linkedSignal(() => countText(this.settings().logRetentionDays));
+  /**
+   * A Kubernetes field pre-filled from the cluster is only saved once edited: tabbing through it saves nothing. Saving
+   * the detected StorageClass is how the admin confirms it supports ReadWriteMany.
+   */
+  private namespaceEdited = linkedSignal(() => (this.settings(), false));
+  private storageClassEdited = linkedSignal(() => (this.settings(), false));
+  protected tokenDraft = this.editor.runnerTokenDraft;
+
+  protected saving = signal(false);
+  /** Errors show once the admin tried to save, then follow the value. */
+  private submitted = signal(false);
+
+  protected engineChanged = computed(() => this.engine() !== this.settings().executionEngine);
+  protected onKubernetes = computed(() => this.engine() === 'kubernetes');
+
+  private maxJobsValue = computed(() => parseCount(this.maxJobs()));
+  private retentionValue = computed(() => parseCount(this.retention()));
+  protected maxJobsError = computed(() => (this.submitted() && this.maxJobsValue() === undefined ? MAX_JOBS_ERROR : null));
+  protected retentionError = computed(() => (this.submitted() && this.retentionValue() === undefined ? RETENTION_ERROR : null));
+  private invalid = computed(() => this.retentionValue() === undefined || (!this.onKubernetes() && this.maxJobsValue() === undefined));
+
+  /** What "Enregistrer" sends: the changes to the fields shown, and only those. */
+  private update = computed<SystemSettingsUpdate>(() => {
+    const saved = this.settings();
+    const update: SystemSettingsUpdate = {};
+    if (this.engineChanged()) {
+      update.executionEngine = this.engine();
+    }
+    const retention = this.retentionValue();
+    if (retention !== undefined && retention !== saved.logRetentionDays) {
+      update.logRetentionDays = retention;
+    }
+    if (this.onKubernetes()) {
+      const namespace = this.k8sValue(this.namespace(), this.namespaceEdited(), saved.k8sNamespace);
+      if (namespace !== saved.k8sNamespace) {
+        update.k8sNamespace = namespace;
+      }
+      const storageClass = this.k8sValue(this.storageClass(), this.storageClassEdited(), saved.k8sCacheStorageClass);
+      if (storageClass !== saved.k8sCacheStorageClass) {
+        update.k8sCacheStorageClass = storageClass;
+      }
+    } else {
+      const maxJobs = this.maxJobsValue();
+      if (maxJobs !== undefined && maxJobs !== saved.maxConcurrentJobs) {
+        update.maxConcurrentJobs = maxJobs;
+      }
+      const token = this.tokenDraft().trim();
+      if (token !== '') {
+        update.runnerRegistrationToken = token;
+      }
+    }
+    return update;
+  });
+
+  /** An invalid value counts too: it is a change, just not one that can be saved yet. */
+  protected dirty = computed(() => Object.keys(this.update()).length > 0 || this.invalid());
 
   protected setEngine(engine: Engine): void {
-    if (engine === this.engineShown()) {
+    this.engine.set(engine);
+  }
+
+  protected editNamespace(value: string): void {
+    this.namespace.set(value);
+    this.namespaceEdited.set(true);
+  }
+
+  protected editStorageClass(value: string): void {
+    this.storageClass.set(value);
+    this.storageClassEdited.set(true);
+  }
+
+  protected save(): void {
+    if (this.saving() || !this.dirty()) {
       return;
     }
-    this.engineShown.set(engine);
-    this.editor.save('executionEngine', { executionEngine: engine }, () => this.engineShown.set(this.settings().executionEngine));
-  }
-
-  /** Empty means "no limit". Same rule as the server: a whole number, 1 or more. */
-  protected setMaxConcurrentJobs(value: string): void {
-    this.commitCount('maxConcurrentJobs', value, this.maxJobsShown, this.maxJobsError, MAX_JOBS_ERROR);
-  }
-
-  /** Empty means "keep the logs forever". */
-  protected setLogRetentionDays(value: string): void {
-    this.commitCount('logRetentionDays', value, this.retentionShown, this.retentionError, RETENTION_ERROR);
-  }
-
-  private commitCount(field: CountField, value: string, shown: WritableSignal<string>, error: WritableSignal<string | null>, message: string): void {
-    const trimmed = value.trim();
-    const count = trimmed === '' ? null : Number(trimmed);
-    if (count !== null && (!/^\d+$/.test(trimmed) || !Number.isSafeInteger(count) || count < 1)) {
-      error.set(message);
+    this.submitted.set(true);
+    if (this.invalid()) {
       return;
     }
-    error.set(null);
-    shown.set(trimmed);
-    if (count !== this.settings()[field]) {
-      this.editor.save(field, { [field]: count }, () => shown.set(String(this.settings()[field] ?? '')));
+    this.saving.set(true);
+    this.editor.saveSection(this.update(), "Réglages d'exécution enregistrés", (saved) => {
+      this.saving.set(false);
+      if (saved) {
+        this.submitted.set(false);
+        this.tokenDraft.set('');
+      }
+    });
+  }
+
+  /** Back to what is saved, the engine included. */
+  protected discard(): void {
+    const saved = this.settings();
+    this.engine.set(saved.executionEngine);
+    this.namespace.set(this.namespaceDefault());
+    this.storageClass.set(this.storageClassDefault());
+    this.namespaceEdited.set(false);
+    this.storageClassEdited.set(false);
+    this.maxJobs.set(countText(saved.maxConcurrentJobs));
+    this.retention.set(countText(saved.logRetentionDays));
+    this.tokenDraft.set('');
+    this.submitted.set(false);
+  }
+
+  /** Untouched, a field keeps its saved value even when it shows the detected one; edited, empty clears it. */
+  private k8sValue(shown: string, edited: boolean, saved: string | null): string | null {
+    if (!edited) {
+      return saved;
     }
-  }
-
-  /**
-   * Saved on blur only when edited (`markEdited`), so tabbing through a field pre-filled from the cluster saves
-   * nothing. Saving the detected StorageClass is how the admin confirms it supports ReadWriteMany.
-   */
-  protected markEdited(field: K8sField): void {
-    this.edited[field] = true;
-  }
-
-  protected setK8sNamespace(value: string): void {
-    this.commitK8sField('k8sNamespace', value, this.namespaceShown, () => this.namespaceDefault());
-  }
-
-  protected setK8sCacheStorageClass(value: string): void {
-    this.commitK8sField('k8sCacheStorageClass', value, this.storageClassShown, () => this.storageClassDefault());
-  }
-
-  private commitK8sField(field: K8sField, value: string, shown: WritableSignal<string>, savedText: () => string): void {
-    if (!this.edited[field]) {
-      return;
-    }
-    this.edited[field] = false;
-    const trimmed = value.trim();
-    const next = trimmed === '' ? null : trimmed;
-    if (next === this.settings()[field]) {
-      return;
-    }
-    shown.set(trimmed);
-    this.editor.save(field, { [field]: next }, () => shown.set(savedText()));
+    const trimmed = shown.trim();
+    return trimmed === '' ? null : trimmed;
   }
 
   private namespaceDefault(): string {

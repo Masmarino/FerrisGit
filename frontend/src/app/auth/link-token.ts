@@ -1,6 +1,6 @@
 import { afterNextRender, inject } from '@angular/core';
 import { ActivatedRoute, Router } from '@angular/router';
-import { activationToken } from '@masmarino/gabarit';
+import { activationToken } from '@masmarino/gabarit/auth';
 
 /**
  * Reads the token of a mailed link (`#token=…`, or `?token=` for older mails) and scrubs it, and any other parameter,

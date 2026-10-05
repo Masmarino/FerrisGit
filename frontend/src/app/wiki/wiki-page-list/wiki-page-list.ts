@@ -1,6 +1,11 @@
 import { Component, OnInit, computed, inject, input, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { Alert, Button, Icon, IconMarker, ListCard, ListCardState, PageHeader } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { Icon } from '@masmarino/gabarit/icon';
+import { IconMarker } from '@masmarino/gabarit/icon-marker';
+import { ListCard, ListCardState } from '@masmarino/gabarit/list-card';
+import { PageHeader } from '@masmarino/gabarit/page-header';
 import { WikiList, WikiPageSummary } from '../wiki.service';
 import { sortedByTitle, wikiLink } from '../wiki-links';
 import { WikiLayout } from '../wiki-layout/wiki-layout';

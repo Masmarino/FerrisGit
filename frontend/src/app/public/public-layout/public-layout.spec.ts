@@ -56,13 +56,13 @@ describe('PublicLayout', () => {
     expect(el().querySelector('main')?.classList.contains('public-layout__content--full')).toBe(true);
   });
 
-  it('shows the logo, linking to the catalog', async () => {
+  it('shows the light logo of the graphite bar, linking to the catalog', async () => {
     const { el } = await setup();
 
     const home = el().querySelector<HTMLAnchorElement>('a.public-layout__home')!;
     expect(home.getAttribute('href')).toBe('/explore');
     expect(home.getAttribute('aria-label')).toContain('FerrisGit');
-    expect(home.querySelector('img')?.getAttribute('src')).toBe('Logo_horizontal.png');
+    expect(home.querySelector('img')?.getAttribute('src')).toBe('Logo_horizontal_dark.png');
   });
 
   it('offers an anonymous visitor to sign in and come back to this page', async () => {

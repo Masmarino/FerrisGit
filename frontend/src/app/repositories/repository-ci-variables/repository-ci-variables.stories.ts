@@ -4,7 +4,7 @@ import { expect, userEvent, waitFor } from 'storybook/test';
 import { NEVER, of, throwError } from 'rxjs';
 import { RepositoryCiVariables } from './repository-ci-variables';
 import { CiVariableSummary, RepositorySettingsService } from '../repository-settings.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectRows, expectSettingsLayout, fakeToast, inSettingsColumn, rendered } from '../../shared/layout/settings-story-helpers';
 

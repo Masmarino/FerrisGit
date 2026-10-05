@@ -3,7 +3,8 @@ import { LOCALE_ID, signal, WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, convertToParamMap, provideRouter, Router } from '@angular/router';
 import { BehaviorSubject, Subject } from 'rxjs';
-import { formatBytes, formatDateTime, GbtToastService } from '@masmarino/gabarit';
+import { formatBytes, formatDateTime } from '@masmarino/gabarit/format';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AdminUser, AdminUserRepository, AdminUsersService, InviteResult, PasswordResetResult } from '../../admin-users.service';
 import { MeService } from '../../../shell/me.service';
 import { PageTitleService } from '../../../shell/page-title.service';
@@ -16,6 +17,7 @@ const size = (bytes: number) => formatBytes(bytes, 'fr', { binaryUnits: 'legacy'
 const shownSize = (bytes: number) => size(bytes).replace(/\s+/g, ' ');
 
 const user = (overrides: Partial<AdminUser> & Pick<AdminUser, 'id' | 'username'>): AdminUser => ({
+  named: true,
   email: `${overrides.username}@example.com`,
   isAdmin: false,
   createdAt: minutesAgo(60 * 24 * 5),

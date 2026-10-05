@@ -3,7 +3,7 @@ import { moduleMetadata } from '@storybook/angular-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { Router } from '@angular/router';
 import { MfaSettings } from './mfa-settings';
-import type { MfaStatus } from '@masmarino/gabarit';
+import type { MfaStatus } from '@masmarino/gabarit/auth';
 import { PASSWORD, CODE, withMfa } from '../mfa-story-helpers';
 import { AuthService } from '../../auth/auth.service';
 import { withFerrisgitIcons } from '../../shared/layout/page-story-helpers';

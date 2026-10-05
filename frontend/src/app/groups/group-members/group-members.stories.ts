@@ -5,7 +5,7 @@ import { NEVER, Observable, of, throwError } from 'rxjs';
 import { ActivatedRoute, convertToParamMap, provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { GroupMembers } from './group-members';
 import { GroupMember, GroupMembership, GroupsService } from '../groups.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { daysAgo, inShellContentArea } from '../../shared/layout/page-story-helpers';
 import { expectRows, expectSettingsLayout } from '../../shared/layout/settings-story-helpers';

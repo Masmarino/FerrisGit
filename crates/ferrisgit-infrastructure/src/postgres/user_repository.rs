@@ -1,5 +1,5 @@
 use super::repository_row::RepositoryRow;
-use crate::error::infra;
+use crate::error::{conflict_on_duplicate, infra};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use ferrisgit_domain::error::DomainError;
@@ -114,6 +114,28 @@ impl UserRepositoryPort for PostgresUserRepository {
         .execute(&self.pool)
         .await
         .map_err(infra)?;
+        if result.rows_affected() == 0 {
+            return Err(DomainError::NotFound("user".to_string()));
+        }
+        Ok(())
+    }
+
+    async fn set_username_and_password_hash(
+        &self,
+        user_id: Uuid,
+        username: String,
+        password_hash: String,
+    ) -> Result<(), DomainError> {
+        let result =
+            sqlx::query("UPDATE users SET username = $1, password_hash = $2 WHERE id = $3")
+                .bind(username)
+                .bind(password_hash)
+                .bind(user_id)
+                .execute(&self.pool)
+                .await
+                .map_err(conflict_on_duplicate(|| {
+                    "username already taken".to_string()
+                }))?;
         if result.rows_affected() == 0 {
             return Err(DomainError::NotFound("user".to_string()));
         }
@@ -408,6 +430,28 @@ mod tests {
             .unwrap();
 
         let refetched = repo.find_by_id(created.id).await.unwrap().unwrap();
+        assert_eq!(refetched.password_hash, "new-hash");
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn naming_an_invited_account_sets_its_name_and_password_at_once(pool: PgPool) {
+        let repo = PostgresUserRepository::new(pool);
+        let invited = create_user(&repo, "invite-0123456789ab", false).await;
+        create_user(&repo, "marie", false).await;
+
+        let taken = repo
+            .set_username_and_password_hash(invited.id, "marie".to_string(), "new-hash".to_string())
+            .await;
+        repo.set_username_and_password_hash(invited.id, "bob".to_string(), "new-hash".to_string())
+            .await
+            .unwrap();
+
+        assert!(
+            matches!(&taken, Err(DomainError::Conflict(m)) if m == "username already taken"),
+            "{taken:?}"
+        );
+        let refetched = repo.find_by_id(invited.id).await.unwrap().unwrap();
+        assert_eq!(refetched.username, "bob");
         assert_eq!(refetched.password_hash, "new-hash");
     }
 

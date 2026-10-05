@@ -1,5 +1,5 @@
 import { computed, inject, signal } from '@angular/core';
-import type { SelectOption } from '@masmarino/gabarit';
+import type { SelectOption } from '@masmarino/gabarit/select';
 import { Label, LabelsService } from '../labels/labels.service';
 import { Milestone, MilestonesService } from '../milestones/milestones.service';
 

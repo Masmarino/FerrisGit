@@ -1,6 +1,11 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Badge, Button, Card, IconMarker, SegmentedControl, SegmentedControlOption, Textarea } from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { IconMarker } from '@masmarino/gabarit/icon-marker';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Textarea } from '@masmarino/gabarit/textarea';
 import { MergeRequestSummary, TimelineItem, UserRef } from '../merge-requests.service';
 import { MrCommentCard } from '../mr-comment-card/mr-comment-card';
 import { MrSystemNote } from '../mr-system-note/mr-system-note';

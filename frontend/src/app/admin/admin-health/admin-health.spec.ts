@@ -3,7 +3,7 @@ import { Observable, of, Subject, throwError } from 'rxjs';
 import { AdminHealth } from './admin-health';
 import { AdminMetricsService, HealthStatus } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 const ALL_UP: HealthStatus = {
   database: { status: 'up', detail: null, responseTimeMs: 3, activeConnections: 2, maxConnections: 10, serverVersion: '18.0' },

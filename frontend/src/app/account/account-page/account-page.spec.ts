@@ -4,7 +4,9 @@ import { By } from '@angular/platform-browser';
 import { provideRouter, Router } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
 import { Observable, of, Subject } from 'rxjs';
-import { Icon, GbtToastService, type MfaStatus } from '@masmarino/gabarit';
+import { type MfaStatus } from '@masmarino/gabarit/auth';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AccountPage } from './account-page';
 import { AuthService } from '../../auth/auth.service';
 import { Me, MeService } from '../../shell/me.service';
@@ -12,7 +14,6 @@ import { PageTitleService } from '../../shell/page-title.service';
 import { ApiTokenSummary, TokensService } from '../../api-tokens/api-tokens.service';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
 import { MfaService } from '../../auth/mfa.service';
-import { provideFerrisgitAuth } from '../../auth/auth-kit';
 import { MfaSettings } from '../mfa-settings/mfa-settings';
 import { stubPasskeyBrowser } from '../../shared/webauthn-testing';
 import { PasskeySettings } from '../passkey-settings/passkey-settings';
@@ -20,7 +21,7 @@ import { PasskeySettings } from '../passkey-settings/passkey-settings';
 @Component({ template: '' })
 class LoginStub {}
 
-const ME: Me = { id: 'u1', username: 'alice', email: 'alice@example.com', isAdmin: false };
+const ME: Me = { id: 'u1', username: 'alice', email: 'alice@example.com', isAdmin: false, createdAt: '2026-01-01T00:00:00Z' };
 
 const text = (el: Element | null | undefined) => el?.textContent?.replace(/\s+/g, ' ').trim();
 
@@ -31,6 +32,7 @@ describe('AccountPage', () => {
       username: signal(ME.username),
       email: signal(ME.email),
       isAdmin: signal(ME.isAdmin),
+      createdAt: signal(ME.createdAt),
       load: vi.fn(),
       updateEmail: vi.fn((email: string) => {
         meStub.email.set(email);
@@ -65,7 +67,6 @@ describe('AccountPage', () => {
         { provide: PageTitleService, useValue: pageTitleStub },
         { provide: TokensService, useValue: tokensStub },
         { provide: MfaService, useValue: mfaStub },
-        provideFerrisgitAuth(),
       ],
     });
     const harness = await RouterTestingHarness.create(url);
@@ -82,7 +83,8 @@ describe('AccountPage', () => {
     const current = () => Array.from(el().querySelectorAll('gbt-nav-tabs a[aria-current="page"]')).map((a) => a.querySelector('.gbt-nav-tab__label')?.textContent);
     const card = (heading: string) => Array.from(el().querySelectorAll('gbt-card')).find((c) => text(c.querySelector('h2')) === heading);
     const field = (label: string) => {
-      const labelEl = Array.from(el().querySelectorAll('gbt-input label')).find((l) => text(l) === label);
+      // A required field's label ends on its asterisk.
+      const labelEl = Array.from(el().querySelectorAll('gbt-input label')).find((l) => text(l)?.replace(/\s*\*$/, '') === label);
       return labelEl ? el().querySelector<HTMLInputElement>(`#${labelEl.getAttribute('for')}`) : null;
     };
     const type = (label: string, value: string) => {
@@ -126,15 +128,15 @@ describe('AccountPage', () => {
       const { el } = await setup();
 
       const links = Array.from(el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a'));
-      expect(links.map((a) => a.querySelector('.gbt-nav-tab__label')?.textContent)).toEqual(['Profil', 'Mot de passe', 'Sécurité', 'Jetons Git']);
+      expect(links.map((a) => a.querySelector('.gbt-nav-tab__label')?.textContent)).toEqual(['Profil', 'Mot de passe', 'Sécurité', "Jetons d'accès"]);
       expect(links.map((a) => a.getAttribute('href'))).toEqual(['/account', '/account?section=password', '/account?section=security', '/account?section=tokens']);
       expect(links.every((a) => a.querySelector('gbt-icon') !== null)).toBe(true);
     });
 
-    it('names the tokens as Git access tokens, not API ones, in the header', async () => {
+    it("says what the page holds in its header, in ArtiFerris's words", async () => {
       const { el } = await setup();
 
-      expect(text(el().querySelector('.account-page__intro'))).toBe("Profil, mot de passe, double authentification et jetons d'accès Git");
+      expect(text(el().querySelector('.account-page__intro'))).toBe("Profil, mot de passe, double authentification et jetons d'accès");
     });
 
     it('shows the profile section by default, and only it', async () => {
@@ -156,7 +158,7 @@ describe('AccountPage', () => {
 
       await harness.navigateByUrl('/account?section=tokens');
       harness.fixture.detectChanges();
-      expect(current()).toEqual(['Jetons Git']);
+      expect(current()).toEqual(["Jetons d'accès"]);
       expect(harness.routeDebugElement!.queryAll(By.directive(ApiTokensList))).toHaveLength(1);
       expect(card('Mot de passe')).toBeUndefined();
     });
@@ -242,11 +244,11 @@ describe('AccountPage', () => {
       expect(el().querySelector('fg-mfa-settings form')).toBeTruthy();
     });
 
-    it('lists the passkeys before the authenticator app (the recommended factor first)', async () => {
+    it('lists the passkeys before the authenticator app (the recommended factor first), then the sessions', async () => {
       const { el } = await setup('/account?section=security');
 
       const headings = Array.from(el().querySelectorAll('gbt-card h2')).map((h) => text(h));
-      expect(headings).toEqual(["Clés d'accès", "Application d'authentification"]);
+      expect(headings).toEqual(["Clés d'accès", "Application d'authentification", 'Sessions']);
     });
 
     it('says the double authentication in the page intro', async () => {
@@ -267,7 +269,8 @@ describe('AccountPage', () => {
       expect(profile.querySelector('gbt-avatar')).not.toBeNull();
       expect(text(profile.querySelector('.account-page__username'))).toBe('alice');
       expect(field("Nom d'utilisateur")).toBeNull();
-      expect(text(profile.querySelector('.account-page__identity-meta'))).toBe("Nom d'utilisateur, non modifiable");
+      const meta = Array.from(profile.querySelectorAll('.account-page__identity-meta')).map((p) => text(p));
+      expect(meta).toEqual(["Nom d'utilisateur, non modifiable", 'Membre depuis le 1 janv. 2026']);
       expect(field('Email')?.type).toBe('email');
       expect(field('Email')?.value).toBe('alice@example.com');
       expect(el().querySelector('.account-page__email [role="status"]')).not.toBeNull();
@@ -393,6 +396,19 @@ describe('AccountPage', () => {
       expect(field('Mot de passe actuel')?.autocomplete).toBe('current-password');
       expect(field('Nouveau mot de passe')?.autocomplete).toBe('new-password');
       expect(field('Confirmer le nouveau mot de passe')?.autocomplete).toBe('new-password');
+    });
+
+    it('marks its three fields required and says what the asterisk means, and that the other sessions end', async () => {
+      const { card, field } = await passwordSection();
+
+      const password = card('Mot de passe')!;
+      expect(text(password.querySelector('.gbt-form-required-note'))).toBe("Les champs marqués d'un astérisque (*) sont obligatoires.");
+      for (const label of ['Mot de passe actuel', 'Nouveau mot de passe', 'Confirmer le nouveau mot de passe']) {
+        expect(field(label)?.required, label).toBe(true);
+      }
+      expect(text(password.querySelector('.gbt-card__description'))).toBe(
+        "Choisissez-en un d'au moins 8 caractères, que vous n'utilisez nulle part ailleurs. Le changer ferme vos autres sessions.",
+      );
     });
 
     it('hints the minimum length under the new password, and marks it met', async () => {

@@ -1,6 +1,13 @@
 import { Component, computed, input, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Avatar, Badge, Button, Card, CardHeader, GbtDateTimePipe, GbtRelativeTimePipe, Icon, IconMarker, Textarea } from '@masmarino/gabarit';
+import { Avatar } from '@masmarino/gabarit/avatar';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { IconMarker } from '@masmarino/gabarit/icon-marker';
+import { Textarea } from '@masmarino/gabarit/textarea';
 import { Comment, ExcerptLine, TimelineThread } from '../merge-requests.service';
 import { shortSha } from '../../repositories/commit-format';
 import { authorName } from '../merge-request-presentation';

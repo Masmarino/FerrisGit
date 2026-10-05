@@ -4,7 +4,8 @@ import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController, TestRequest } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RepositoryTreeView } from './repository-tree-view';
-import { formatDateTime, GbtToastService } from '@masmarino/gabarit';
+import { formatDateTime } from '@masmarino/gabarit/format';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Repository } from '../repositories.service';
 import { repositoryFixture } from '../repository-fixtures';
 

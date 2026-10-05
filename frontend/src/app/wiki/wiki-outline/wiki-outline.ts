@@ -1,7 +1,7 @@
 import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { MarkdownOutlineEntry } from '../../shared/markdown-view/markdown-view';
-import { Panel } from '@masmarino/gabarit';
+import { Panel } from '@masmarino/gabarit/panel';
 
 /** An outline is worth a panel from two headings on: one heading is no table of contents. */
 export function hasOutline(entries: readonly MarkdownOutlineEntry[]): boolean {

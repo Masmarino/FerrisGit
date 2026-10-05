@@ -1,6 +1,16 @@
 import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Alert, Badge, Button, Card, ConfirmDangerModal, EmptyState, GbtInput, Icon, ListRow, SkeletonList, GbtToastService } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { CiVariableSummary, RepositorySettingsService } from '../repository-settings.service';
 import { createSettingsList } from '../settings-list';
 

@@ -1,7 +1,8 @@
 import { Component, inject } from '@angular/core';
 import { Router } from '@angular/router';
-import { MfaSettings as GbtMfaSettings } from '@masmarino/gabarit';
+import { MfaSettings as GbtMfaSettings } from '@masmarino/gabarit/mfa-settings';
 import { AuthService } from '../../auth/auth.service';
+import { provideFerrisgitAuth } from '../../auth/auth-kit';
 
 /**
  * Removing the app revokes this session on the server and, MFA being mandatory, no fresh token comes back. On
@@ -12,6 +13,7 @@ import { AuthService } from '../../auth/auth.service';
   selector: 'fg-mfa-settings',
   standalone: true,
   imports: [GbtMfaSettings],
+  providers: [provideFerrisgitAuth()],
   template: `<gbt-mfa-settings (sessionRevoked)="signOut()" />`,
   styles: ':host { display: block; min-width: 0; }',
 })

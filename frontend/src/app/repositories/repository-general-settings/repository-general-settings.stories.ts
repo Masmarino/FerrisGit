@@ -5,7 +5,7 @@ import { NEVER, of, switchMap, throwError, timer } from 'rxjs';
 import { RepositoryGeneralSettings } from './repository-general-settings';
 import { Repository, RepositoriesService } from '../repositories.service';
 import { repositoryFixture } from '../repository-fixtures';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { atPhoneWidth, inDarkTheme, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectSettingsLayout, fakeToast, inSettingsColumn, rendered } from '../../shared/layout/settings-story-helpers';
 

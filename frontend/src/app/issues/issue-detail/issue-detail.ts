@@ -1,28 +1,23 @@
 import { Component, computed, effect, inject, input, OnInit, signal, TemplateRef, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import {
-  Alert,
-  Avatar,
-  Badge,
-  Button,
-  Card,
-  CardHeader,
-  DescriptionList,
-  DescriptionListEntry,
-  GbtDateTimePipe,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  IconMarker,
-  PageHeader,
-  PageLayout,
-  Panel,
-  Select,
-  Skeleton,
-  Tag,
-  Textarea,
-  UserChip,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Avatar } from '@masmarino/gabarit/avatar';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { DescriptionList, DescriptionListEntry } from '@masmarino/gabarit/description-list';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { IconMarker } from '@masmarino/gabarit/icon-marker';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { Select } from '@masmarino/gabarit/select';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Tag } from '@masmarino/gabarit/tag';
+import { Textarea } from '@masmarino/gabarit/textarea';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { Issue, IssueComment, IssuesService, isClosed } from '../issues.service';
 import { issueKindPresentation } from '../issue-kind';
 import { labelSelectOptions, milestoneSelectOptions } from '../issue-filters';

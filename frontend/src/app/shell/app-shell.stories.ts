@@ -13,10 +13,11 @@ import { SearchService } from '../search/search.service';
 import { PublicSettings, SettingsService } from '../settings/settings.service';
 import { BreadcrumbSwitcherService } from './breadcrumb-switcher.service';
 import { Me, MeService } from './me.service';
+import { VersionService } from './version.service';
 import { PageTitleService } from './page-title.service';
 import { SidebarCollapseService } from './sidebar-collapse.service';
 import { provideFerrisgitIcons } from '../shared/register-icons';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 // Environment providers only work in `applicationConfig`, not `moduleMetadata`.
 // Routing is off (there are no pages here); the active-link story resolves one catch-all route.
@@ -46,8 +47,8 @@ interface ShellOptions {
   unreadCount?: number;
 }
 
-const ADMIN: Me = { id: 'u1', username: 'camille', email: 'camille@ferrisgit.example', isAdmin: true };
-const USER: Me = { id: 'u2', username: 'julien', email: 'julien@ferrisgit.example', isAdmin: false };
+const ADMIN: Me = { id: 'u1', username: 'camille', email: 'camille@ferrisgit.example', isAdmin: true, createdAt: '2025-03-12T09:00:00Z' };
+const USER: Me = { id: 'u2', username: 'julien', email: 'julien@ferrisgit.example', isAdmin: false, createdAt: '2025-03-12T09:00:00Z' };
 
 const REPOSITORY: RepositoryContext = {
   repositoryId: 'repo-1',
@@ -78,6 +79,7 @@ function shellProviders(options: ShellOptions) {
         username: signal(options.me.username),
         email: signal(options.me.email),
         isAdmin: signal(options.me.isAdmin),
+        createdAt: signal(options.me.createdAt),
         load: () => {},
       } satisfies Partial<MeService>,
     },
@@ -90,6 +92,7 @@ function shellProviders(options: ShellOptions) {
         loadPublic: () => {},
       } satisfies Pick<SettingsService, 'publicSettings' | 'loadPublic'>,
     },
+    { provide: VersionService, useValue: { version: signal('0.1.3'), load: () => {} } satisfies Pick<VersionService, 'version' | 'load'> },
     {
       provide: SidebarCollapseService,
       useValue: { collapsed: signal(options.collapsed ?? false), set: () => {} } satisfies Pick<SidebarCollapseService, 'collapsed' | 'set'>,
@@ -97,7 +100,8 @@ function shellProviders(options: ShellOptions) {
     {
       provide: BreadcrumbSwitcherService,
       useValue: {
-        groups: signal([{ id: 'g1', name: 'observabilite' }]),
+        // Like the real service: sub-groups only in a group's switcher, never in a personal owner's.
+        groups: signal(options.repository?.ancestors.length ? [{ id: 'g1', name: 'observabilite' }] : []),
         repositories: signal([
           { id: 'repo-2', path: ['plateforme', 'infra', 'runners'] },
           { id: 'repo-3', path: ['plateforme', 'infra', 'terraform'] },
@@ -147,7 +151,7 @@ export const AdminGroupExpanded: Story = {
   decorators: [moduleMetadata({ providers: shellProviders({ me: ADMIN, title: 'Réglages' }) })],
   play: async ({ canvasElement }) => {
     const canvas = within(canvasElement);
-    await userEvent.click(await canvas.findByRole('button', { name: 'Admin' }));
+    await userEvent.click(await canvas.findByRole('button', { name: 'Administration' }));
   },
 };
 
@@ -206,7 +210,7 @@ const withToasts = applicationConfig({
       toasts.show('Dépôt créé.', 'success');
       toasts.show('Le jeton expire dans 3 jours.', 'warning');
       toasts.show('Impossible de fusionner : un conflit a été détecté.', 'error');
-      toasts.show('Le pipeline a démarré.', 'info');
+      toasts.show('La pipeline a démarré.', 'info');
     }),
   ],
 });
@@ -215,12 +219,9 @@ export const WithToasts: Story = {
   decorators: [withToasts, moduleMetadata({ providers: shellProviders({ me: USER, title: 'Dépôts' }) })],
 };
 
-export const MobileSearchOpen: Story = {
-  decorators: [moduleMetadata({ providers: shellProviders({ me: USER, title: 'Dépôts' }) })],
+export const QuickSearchOpen: Story = {
+  decorators: [moduleMetadata({ providers: shellProviders({ me: ADMIN, title: 'Pipelines', repository: REPOSITORY }) })],
   play: async ({ canvasElement }) => {
-    const toggle = canvasElement.querySelector<HTMLElement>('gbt-search-bar .gbt-sb-toggle');
-    if (toggle && toggle.getBoundingClientRect().width > 0) {
-      await userEvent.click(toggle);
-    }
+    await userEvent.click(await within(canvasElement).findByRole('button', { name: 'Rechercher ou aller à…' }));
   },
 };

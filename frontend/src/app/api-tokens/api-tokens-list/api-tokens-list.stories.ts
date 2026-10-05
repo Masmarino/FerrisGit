@@ -4,7 +4,7 @@ import { NEVER, of, throwError } from 'rxjs';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { ApiTokensList } from './api-tokens-list';
 import { ApiTokenSummary, TokensService } from '../api-tokens.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { daysAgo, hoursAgo, minutesAgo, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectRows, expectSettingsLayout, fakeToast, inSettingsColumn, rendered } from '../../shared/layout/settings-story-helpers';
 

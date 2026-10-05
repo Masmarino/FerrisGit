@@ -56,6 +56,10 @@ pub enum SecurityEvent {
     PasskeyVerificationFailed {
         user_id: Uuid,
     },
+    /// The user signed out everywhere: every session of the account ended, this one included.
+    SessionsRevoked {
+        user_id: Uuid,
+    },
 }
 
 impl SecurityEvent {
@@ -76,6 +80,7 @@ impl SecurityEvent {
             SecurityEvent::PasskeyAdded { .. } => "PasskeyAdded",
             SecurityEvent::PasskeyDeleted { .. } => "PasskeyDeleted",
             SecurityEvent::PasskeyVerificationFailed { .. } => "PasskeyVerificationFailed",
+            SecurityEvent::SessionsRevoked { .. } => "SessionsRevoked",
         }
     }
 }
@@ -221,6 +226,18 @@ mod tests {
             SecurityEvent::PasskeyVerificationFailed { user_id: id }.event_type(),
             "PasskeyVerificationFailed"
         );
+    }
+
+    #[test]
+    fn sessions_revoked_round_trips_through_json_with_its_variant_name() {
+        let event = SecurityEvent::SessionsRevoked {
+            user_id: Uuid::new_v4(),
+        };
+        assert_eq!(event.event_type(), "SessionsRevoked");
+        let json = serde_json::to_string(&event).unwrap();
+        assert!(json.contains("\"event_type\":\"SessionsRevoked\""));
+        let decoded: SecurityEvent = serde_json::from_str(&json).unwrap();
+        assert_eq!(decoded.event_type(), "SessionsRevoked");
     }
 
     #[test]

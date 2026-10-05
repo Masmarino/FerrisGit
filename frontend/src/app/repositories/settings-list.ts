@@ -1,5 +1,5 @@
 import { inject, signal } from '@angular/core';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Observable } from 'rxjs';
 
 /** If a refresh fails after a first load, the old list stays and a toast reports it. Needs an injection context. */

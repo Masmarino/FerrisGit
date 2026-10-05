@@ -63,6 +63,18 @@ pub trait UserRepositoryPort: Send + Sync {
         username: &str,
     ) -> Result<Option<User>, DomainError>;
     async fn find_by_email_ignore_case(&self, email: &str) -> Result<Option<User>, DomainError>;
+    /// An invited account's owner names it and sets its password, in one write. `Conflict` if the name was taken in
+    /// the meantime. Unsupported by default: only the stores that serve activation implement it.
+    async fn set_username_and_password_hash(
+        &self,
+        _user_id: Uuid,
+        _username: String,
+        _password_hash: String,
+    ) -> Result<(), DomainError> {
+        Err(DomainError::Infrastructure(
+            "naming an account is not supported by this store".to_string(),
+        ))
+    }
     /// Ordered by creation time then id.
     async fn list(&self, _limit: i64) -> Result<Vec<User>, DomainError> {
         Ok(vec![])

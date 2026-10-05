@@ -1,5 +1,7 @@
 import { Component, computed, input } from '@angular/core';
-import { Avatar, Card, CardHeader, GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit';
+import { Avatar } from '@masmarino/gabarit/avatar';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
 import { authorName } from '../merge-request-presentation';
 import { UserRef } from '../merge-requests.service';
 

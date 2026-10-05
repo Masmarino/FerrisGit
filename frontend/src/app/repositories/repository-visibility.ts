@@ -1,4 +1,4 @@
-import { SegmentedControlOption } from '@masmarino/gabarit';
+import { SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
 
 export type RepositoryVisibility = 'private' | 'public';
 

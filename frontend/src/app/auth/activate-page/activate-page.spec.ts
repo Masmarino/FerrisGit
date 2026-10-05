@@ -5,9 +5,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { AuthActivate } from '@masmarino/gabarit';
+import { AuthActivate } from '@masmarino/gabarit/auth-activate';
 import { ActivatePage } from './activate-page';
-import { provideFerrisgitAuth } from '../auth-kit';
 
 @Component({ standalone: true, template: '<p>page</p>' })
 class Elsewhere {}
@@ -36,7 +35,6 @@ describe('ActivatePage', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        provideFerrisgitAuth(),
         { provide: ActivatedRoute, useValue: { snapshot: { fragment, queryParamMap: convertToParamMap(query) } } },
       ],
     });
@@ -175,7 +173,6 @@ describe('ActivatePage', () => {
             { path: 'activate', component: ActivatePage },
             { path: 'login', component: Elsewhere },
           ]),
-          provideFerrisgitAuth(),
         ],
       });
       const harness = await RouterTestingHarness.create(url);

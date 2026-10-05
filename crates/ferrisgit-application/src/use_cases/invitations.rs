@@ -8,8 +8,9 @@ use ferrisgit_domain::user::{NewUser, PasswordHasherPort, User, UserRepositoryPo
 use uuid::Uuid;
 
 use crate::account_rules::{
-    INVITATION_TTL_HOURS, ensure_account_available, generate_invitation_token, hash_blocking,
-    is_invitation_token_shaped, normalize_email, normalize_username, validate_password,
+    INVITATION_TTL_HOURS, ensure_account_available, ensure_username_available,
+    generate_invitation_token, hash_blocking, is_invitation_token_shaped, is_placeholder_username,
+    normalize_email, normalize_username, placeholder_username, validate_password,
 };
 use crate::token_hash::hash_token;
 
@@ -63,8 +64,8 @@ pub(crate) async fn renew_invitation(
     Ok(renewed.then_some(token))
 }
 
-/// An admin creates an account for someone else. Its password is unusable (hash of a random, discarded secret) until
-/// the invitee activates it.
+/// An admin invites someone by e-mail. The account gets a placeholder name and an unusable password (hash of a random,
+/// discarded secret) until the invitee activates it, choosing both.
 pub struct InviteUserUseCase {
     users: Arc<dyn UserRepositoryPort>,
     hasher: Arc<dyn PasswordHasherPort>,
@@ -87,15 +88,9 @@ impl InviteUserUseCase {
         }
     }
 
-    pub async fn execute(
-        &self,
-        username: String,
-        email: String,
-        is_admin: bool,
-    ) -> Result<InvitedUser, DomainError> {
-        let username = normalize_username(&username)?;
+    pub async fn execute(&self, email: String, is_admin: bool) -> Result<InvitedUser, DomainError> {
         let email = normalize_email(&email)?;
-        ensure_account_available(&self.users, &self.groups, &username, &email).await?;
+        let username = self.free_placeholder(&email).await?;
         // Hash of a secret that's thrown away, so nothing can log in before activation.
         let password_hash = hash_blocking(&self.hasher, generate_invitation_token()).await?;
         let user = self
@@ -109,6 +104,22 @@ impl InviteUserUseCase {
             .await?;
         let token = issue_invitation(&self.invitations, user.id).await?;
         Ok(InvitedUser { user, token })
+    }
+
+    /// A placeholder nobody holds, after checking the address is free. 48 random bits make a clash all but impossible;
+    /// a few tries cover it anyway.
+    async fn free_placeholder(&self, email: &str) -> Result<String, DomainError> {
+        for _ in 0..5 {
+            let username = placeholder_username();
+            match ensure_account_available(&self.users, &self.groups, &username, email).await {
+                Ok(()) => return Ok(username),
+                Err(DomainError::Conflict(message)) if message.starts_with("username") => {}
+                Err(error) => return Err(error),
+            }
+        }
+        Err(DomainError::Infrastructure(
+            "no free placeholder username".to_string(),
+        ))
     }
 }
 
@@ -140,11 +151,13 @@ impl ResendInvitationUseCase {
     }
 }
 
-/// The invitee follows the link and picks a password. No session is issued: they log in afterwards and go through MFA
-/// enrolment like everyone else.
+/// The invitee follows the link and picks a password, and their username when an admin invited them by e-mail (the
+/// account still has its placeholder name). No session is issued: they log in afterwards and go through MFA enrolment
+/// like everyone else.
 pub struct ActivateAccountUseCase {
     users: Arc<dyn UserRepositoryPort>,
     hasher: Arc<dyn PasswordHasherPort>,
+    groups: Arc<dyn GroupStorePort>,
     invitations: Arc<dyn UserInvitationPort>,
 }
 
@@ -152,22 +165,30 @@ impl ActivateAccountUseCase {
     pub fn new(
         users: Arc<dyn UserRepositoryPort>,
         hasher: Arc<dyn PasswordHasherPort>,
+        groups: Arc<dyn GroupStorePort>,
         invitations: Arc<dyn UserInvitationPort>,
     ) -> Self {
         Self {
             users,
             hasher,
+            groups,
             invitations,
         }
     }
 
-    pub async fn execute(&self, token: &str, password: &str) -> Result<Uuid, DomainError> {
-        // Hash before consuming, so a bad password or a hasher failure doesn't burn the invitation. Malformed tokens
-        // are refused up front, before any hashing.
+    pub async fn execute(
+        &self,
+        token: &str,
+        password: &str,
+        username: Option<&str>,
+    ) -> Result<Uuid, DomainError> {
+        // Hash before consuming, so a bad password or name, or a hasher failure, doesn't burn the invitation. Malformed
+        // tokens are refused up front, before any hashing.
         if !is_invitation_token_shaped(token) {
             return Err(DomainError::Validation(INVALID_INVITATION.to_string()));
         }
         validate_password(password)?;
+        let username = username.map(normalize_username).transpose()?;
         let password_hash = hash_blocking(&self.hasher, password.to_string()).await?;
         let token_hash = hash_token(token);
         let invitation = self
@@ -176,12 +197,11 @@ impl ActivateAccountUseCase {
             .await?
             .ok_or_else(|| DomainError::Validation(INVALID_INVITATION.to_string()))?;
         if let Err(error) = self
-            .users
-            .update_password_hash(invitation.user_id, password_hash)
+            .complete(invitation.user_id, username, password_hash)
             .await
         {
-            // Put the link back so the user can retry. Otherwise the account has no link, and resending would call
-            // it "already active".
+            // Put the link back so the user can retry (another name, say). Otherwise the account has no link, and
+            // resending would call it "already active".
             let _ = self
                 .invitations
                 .replace(invitation.user_id, &token_hash, invitation.expires_at)
@@ -189,6 +209,37 @@ impl ActivateAccountUseCase {
             return Err(error);
         }
         Ok(invitation.user_id)
+    }
+
+    /// The name is asked for exactly when the account still has its placeholder: never chosen twice, never left out.
+    async fn complete(
+        &self,
+        user_id: Uuid,
+        username: Option<String>,
+        password_hash: String,
+    ) -> Result<(), DomainError> {
+        let user = self
+            .users
+            .find_by_id(user_id)
+            .await?
+            .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+        match (is_placeholder_username(&user.username), username) {
+            (true, Some(username)) => {
+                ensure_username_available(&self.users, &self.groups, &username).await?;
+                self.users
+                    .set_username_and_password_hash(user_id, username, password_hash)
+                    .await
+            }
+            (true, None) => Err(DomainError::Validation("username is required".to_string())),
+            (false, None) => {
+                self.users
+                    .update_password_hash(user_id, password_hash)
+                    .await
+            }
+            (false, Some(_)) => Err(DomainError::Validation(
+                "username was chosen at registration".to_string(),
+            )),
+        }
     }
 }
 
@@ -211,17 +262,19 @@ mod tests {
     fn fixture(existing: Vec<User>, groups: Vec<Group>) -> Fixture {
         let users = Arc::new(FakeUsers::new(existing));
         let invitations = Arc::new(FakeInvitations::new());
+        let groups = Arc::new(FakeGroups::new(groups));
         Fixture {
             invite: InviteUserUseCase::new(
                 users.clone(),
                 Arc::new(FakeHasher),
-                Arc::new(FakeGroups::new(groups)),
+                groups.clone(),
                 invitations.clone(),
             ),
             resend: ResendInvitationUseCase::new(users.clone(), invitations.clone()),
             activate: ActivateAccountUseCase::new(
                 users.clone(),
                 Arc::new(FakeHasher),
+                groups,
                 invitations.clone(),
             ),
             users,
@@ -236,26 +289,21 @@ mod tests {
         }
     }
 
-    async fn invite(
-        f: &Fixture,
-        username: &str,
-        email: &str,
-        is_admin: bool,
-    ) -> Result<InvitedUser, DomainError> {
-        f.invite
-            .execute(username.to_string(), email.to_string(), is_admin)
-            .await
+    async fn invite(f: &Fixture, email: &str, is_admin: bool) -> Result<InvitedUser, DomainError> {
+        f.invite.execute(email.to_string(), is_admin).await
     }
 
     #[tokio::test]
     async fn inviting_creates_the_user_and_returns_a_64_hex_token() {
         let f = fixture(vec![], vec![]);
 
-        let invited = invite(&f, "  Bob ", "Bob@Example.com", false)
-            .await
-            .unwrap();
+        let invited = invite(&f, "Bob@Example.com", false).await.unwrap();
 
-        assert_eq!(invited.user.username, "bob");
+        assert!(
+            is_placeholder_username(&invited.user.username),
+            "{}",
+            invited.user.username
+        );
         assert_eq!(invited.user.email, "Bob@Example.com");
         assert!(!invited.user.is_admin);
         assert!(is_hex64(&invited.token), "{}", invited.token);
@@ -266,9 +314,7 @@ mod tests {
     async fn the_admin_flag_is_respected() {
         let f = fixture(vec![], vec![]);
 
-        let invited = invite(&f, "root2", "root2@example.com", true)
-            .await
-            .unwrap();
+        let invited = invite(&f, "root2@example.com", true).await.unwrap();
 
         assert!(invited.user.is_admin);
         assert!(f.users.get(invited.user.id).unwrap().is_admin);
@@ -278,10 +324,8 @@ mod tests {
     async fn the_invited_user_has_an_unusable_random_password() {
         let f = fixture(vec![], vec![]);
 
-        let first = invite(&f, "bob", "bob@example.com", false).await.unwrap();
-        let second = invite(&f, "carol", "carol@example.com", false)
-            .await
-            .unwrap();
+        let first = invite(&f, "bob@example.com", false).await.unwrap();
+        let second = invite(&f, "carol@example.com", false).await.unwrap();
 
         assert_ne!(first.user.password_hash, second.user.password_hash);
         let hasher = FakeHasher;
@@ -305,7 +349,7 @@ mod tests {
     async fn the_password_secret_is_not_the_activation_token() {
         let f = fixture(vec![], vec![]);
 
-        let invited = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
 
         assert!(
             !FakeHasher
@@ -318,7 +362,7 @@ mod tests {
     async fn only_the_hash_of_the_token_is_stored_and_it_expires_in_24_hours() {
         let f = fixture(vec![], vec![]);
 
-        let invited = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
 
         let (stored_hash, expires_at) = f.invitations.row_of(invited.user.id).unwrap();
         assert_eq!(stored_hash, hash_token(&invited.token));
@@ -334,30 +378,21 @@ mod tests {
     async fn two_invitations_get_different_tokens() {
         let f = fixture(vec![], vec![]);
 
-        let first = invite(&f, "bob", "bob@example.com", false).await.unwrap();
-        let second = invite(&f, "carol", "carol@example.com", false)
-            .await
-            .unwrap();
+        let first = invite(&f, "bob@example.com", false).await.unwrap();
+        let second = invite(&f, "carol@example.com", false).await.unwrap();
 
         assert_ne!(first.token, second.token);
     }
 
     #[tokio::test]
-    async fn inviting_refuses_duplicates_in_any_casing_and_root_group_names() {
-        let f = fixture(
-            vec![existing("alice", "Alice@Example.com")],
-            vec![group(None, "acme")],
-        );
+    async fn inviting_refuses_an_address_already_in_use_in_any_casing() {
+        let f = fixture(vec![existing("alice", "Alice@Example.com")], vec![]);
 
-        for (username, email) in [
-            ("ALICE", "new@example.com"),
-            ("bob", "alice@example.com"),
-            ("acme", "acme@example.com"),
-        ] {
-            let result = invite(&f, username, email, false).await;
+        for email in ["alice@example.com", "ALICE@EXAMPLE.COM"] {
+            let result = invite(&f, email, false).await;
             assert!(
-                matches!(result, Err(DomainError::Conflict(_))),
-                "{username}/{email}: {result:?}"
+                matches!(&result, Err(DomainError::Conflict(m)) if m == "email already in use"),
+                "{email}: {result:?}"
             );
         }
         assert_eq!(f.users.snapshot().len(), 1);
@@ -368,17 +403,11 @@ mod tests {
     async fn inviting_applies_the_account_rules_and_creates_nothing_on_failure() {
         let f = fixture(vec![], vec![]);
 
-        for (username, email) in [
-            ("ab", "a@example.com"),
-            ("Admin", "a@example.com"),
-            ("x.git", "a@example.com"),
-            ("bob", "nope"),
-            ("bob", "bob@localhost"),
-        ] {
-            let result = invite(&f, username, email, false).await;
+        for email in ["nope", "bob@localhost", ""] {
+            let result = invite(&f, email, false).await;
             assert!(
                 matches!(result, Err(DomainError::Validation(_))),
-                "{username}/{email}: {result:?}"
+                "{email}: {result:?}"
             );
         }
         assert!(f.users.snapshot().is_empty());
@@ -401,7 +430,7 @@ mod tests {
     #[tokio::test]
     async fn resending_replaces_the_previous_token() {
         let f = fixture(vec![], vec![]);
-        let first = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let first = invite(&f, "bob@example.com", false).await.unwrap();
 
         let second = f.resend.execute(first.user.id).await.unwrap();
 
@@ -429,7 +458,7 @@ mod tests {
     #[tokio::test]
     async fn resending_renews_an_expired_invitation() {
         let f = fixture(vec![], vec![]);
-        let first = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let first = invite(&f, "bob@example.com", false).await.unwrap();
         f.invitations.insert(
             first.user.id,
             &hash_token(&first.token),
@@ -520,7 +549,7 @@ mod tests {
     #[tokio::test]
     async fn a_resend_racing_an_activation_does_not_resurrect_an_invitation() {
         let f = fixture(vec![], vec![]);
-        let first = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let first = invite(&f, "bob@example.com", false).await.unwrap();
         let racing = ResendInvitationUseCase::new(
             f.users.clone(),
             Arc::new(ActivationWinsTheRace(f.invitations.clone())),
@@ -541,12 +570,12 @@ mod tests {
     #[tokio::test]
     async fn activating_sets_the_chosen_password_and_returns_the_user_id() {
         let f = fixture(vec![], vec![]);
-        let invited = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
         let random_hash = invited.user.password_hash.clone();
 
         let user_id = f
             .activate
-            .execute(&invited.token, "my-new-password")
+            .execute(&invited.token, "my-new-password", Some("bob"))
             .await
             .unwrap();
 
@@ -563,13 +592,16 @@ mod tests {
     #[tokio::test]
     async fn an_activation_token_works_only_once() {
         let f = fixture(vec![], vec![]);
-        let invited = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
         f.activate
-            .execute(&invited.token, "my-new-password")
+            .execute(&invited.token, "my-new-password", Some("bob"))
             .await
             .unwrap();
 
-        let second = f.activate.execute(&invited.token, "another-password").await;
+        let second = f
+            .activate
+            .execute(&invited.token, "another-password", Some("bob"))
+            .await;
 
         assert!(
             matches!(&second, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
@@ -589,14 +621,17 @@ mod tests {
     #[tokio::test]
     async fn an_expired_token_is_refused_and_never_consumable() {
         let f = fixture(vec![], vec![]);
-        let invited = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
         f.invitations.insert(
             invited.user.id,
             &hash_token(&invited.token),
             Utc::now() - Duration::seconds(1),
         );
 
-        let result = f.activate.execute(&invited.token, "my-new-password").await;
+        let result = f
+            .activate
+            .execute(&invited.token, "my-new-password", Some("bob"))
+            .await;
 
         assert!(
             matches!(&result, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
@@ -618,10 +653,10 @@ mod tests {
     #[tokio::test]
     async fn an_unknown_or_empty_token_is_refused() {
         let f = fixture(vec![], vec![]);
-        invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        invite(&f, "bob@example.com", false).await.unwrap();
 
         for token in ["", "deadbeef", &"0".repeat(64)] {
-            let result = f.activate.execute(token, "my-new-password").await;
+            let result = f.activate.execute(token, "my-new-password", None).await;
             assert!(
                 matches!(&result, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
                 "{token:?}: {result:?}"
@@ -633,10 +668,13 @@ mod tests {
     #[tokio::test]
     async fn the_stored_hash_is_not_itself_a_valid_token() {
         let f = fixture(vec![], vec![]);
-        let invited = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
         let (stored_hash, _) = f.invitations.row_of(invited.user.id).unwrap();
 
-        let result = f.activate.execute(&stored_hash, "my-new-password").await;
+        let result = f
+            .activate
+            .execute(&stored_hash, "my-new-password", None)
+            .await;
 
         assert!(matches!(result, Err(DomainError::Validation(_))));
     }
@@ -644,11 +682,14 @@ mod tests {
     #[tokio::test]
     async fn a_failed_password_update_puts_the_invitation_back_so_the_user_can_retry() {
         let f = fixture(vec![], vec![]);
-        let invited = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
         let (hash_before, expires_before) = f.invitations.row_of(invited.user.id).unwrap();
         f.users.fail_next_password_update();
 
-        let failed = f.activate.execute(&invited.token, "my-new-password").await;
+        let failed = f
+            .activate
+            .execute(&invited.token, "my-new-password", Some("bob"))
+            .await;
 
         assert!(
             matches!(&failed, Err(DomainError::Infrastructure(m)) if m == "password update failed"),
@@ -667,7 +708,7 @@ mod tests {
 
         let retried = f
             .activate
-            .execute(&invited.token, "my-new-password")
+            .execute(&invited.token, "my-new-password", Some("bob"))
             .await
             .unwrap();
 
@@ -686,9 +727,12 @@ mod tests {
     #[tokio::test]
     async fn a_weak_password_is_refused_and_the_invitation_stays_usable() {
         let f = fixture(vec![], vec![]);
-        let invited = invite(&f, "bob", "bob@example.com", false).await.unwrap();
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
 
-        let weak = f.activate.execute(&invited.token, "short").await;
+        let weak = f
+            .activate
+            .execute(&invited.token, "short", Some("bob"))
+            .await;
 
         assert!(
             matches!(&weak, Err(DomainError::Validation(m)) if m == "password must be at least 8 characters"),
@@ -701,7 +745,7 @@ mod tests {
         );
         assert!(
             f.activate
-                .execute(&invited.token, "long-enough-password")
+                .execute(&invited.token, "long-enough-password", Some("bob"))
                 .await
                 .is_ok()
         );
@@ -712,20 +756,21 @@ mod tests {
         let hasher = Arc::new(crate::test_support::ThreadRecordingHasher::default());
         let users = Arc::new(FakeUsers::new(vec![]));
         let invitations = Arc::new(FakeInvitations::new());
+        let groups = Arc::new(FakeGroups::new(vec![]));
         let invite = InviteUserUseCase::new(
             users.clone(),
             hasher.clone(),
-            Arc::new(FakeGroups::new(vec![])),
+            groups.clone(),
             invitations.clone(),
         );
-        let activate = ActivateAccountUseCase::new(users, hasher.clone(), invitations);
+        let activate = ActivateAccountUseCase::new(users, hasher.clone(), groups, invitations);
 
         let invited = invite
-            .execute("bob".to_string(), "bob@example.com".to_string(), false)
+            .execute("bob@example.com".to_string(), false)
             .await
             .unwrap();
         activate
-            .execute(&invited.token, "my-new-password")
+            .execute(&invited.token, "my-new-password", Some("bob"))
             .await
             .unwrap();
 
@@ -742,8 +787,12 @@ mod tests {
     async fn a_malformed_token_is_refused_generically_without_hashing_anything() {
         let hasher = Arc::new(crate::test_support::ThreadRecordingHasher::default());
         let users = Arc::new(FakeUsers::new(vec![]));
-        let activate =
-            ActivateAccountUseCase::new(users, hasher.clone(), Arc::new(FakeInvitations::new()));
+        let activate = ActivateAccountUseCase::new(
+            users,
+            hasher.clone(),
+            Arc::new(FakeGroups::new(vec![])),
+            Arc::new(FakeInvitations::new()),
+        );
 
         for token in [
             "",
@@ -752,7 +801,7 @@ mod tests {
             &"a".repeat(65),
             &"a".repeat(100_000),
         ] {
-            let result = activate.execute(token, "my-new-password").await;
+            let result = activate.execute(token, "my-new-password", None).await;
             assert!(
                 matches!(&result, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
                 "{result:?}"
@@ -768,11 +817,127 @@ mod tests {
     async fn a_well_formed_unknown_token_is_the_same_generic_error() {
         let f = fixture(vec![], vec![]);
 
-        let result = f.activate.execute(&"a".repeat(64), "my-new-password").await;
+        let result = f
+            .activate
+            .execute(&"a".repeat(64), "my-new-password", None)
+            .await;
 
         assert!(
             matches!(&result, Err(DomainError::Validation(m)) if m == INVALID_INVITATION),
             "{result:?}"
         );
+    }
+
+    #[tokio::test]
+    async fn activating_names_the_invited_account() {
+        let f = fixture(vec![], vec![]);
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
+
+        f.activate
+            .execute(&invited.token, "my-new-password", Some("  Bob "))
+            .await
+            .unwrap();
+
+        let stored = f.users.get(invited.user.id).unwrap();
+        assert_eq!(stored.username, "bob");
+        assert!(
+            FakeHasher
+                .verify("my-new-password", &stored.password_hash)
+                .unwrap()
+        );
+    }
+
+    #[tokio::test]
+    async fn an_invited_account_cannot_be_activated_without_a_name_and_keeps_its_link() {
+        let f = fixture(vec![], vec![]);
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
+
+        let result = f
+            .activate
+            .execute(&invited.token, "my-new-password", None)
+            .await;
+
+        assert!(
+            matches!(&result, Err(DomainError::Validation(m)) if m == "username is required"),
+            "{result:?}"
+        );
+        assert_eq!(f.invitations.snapshot().len(), 1);
+        assert_eq!(
+            f.users.get(invited.user.id).unwrap().password_hash,
+            invited.user.password_hash
+        );
+    }
+
+    #[tokio::test]
+    async fn a_name_already_held_by_a_user_or_a_root_group_is_refused_and_the_link_stays_usable() {
+        let f = fixture(
+            vec![existing("alice", "alice@example.com")],
+            vec![group(None, "acme")],
+        );
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
+
+        for name in ["Alice", "acme"] {
+            let result = f
+                .activate
+                .execute(&invited.token, "my-new-password", Some(name))
+                .await;
+            assert!(
+                matches!(result, Err(DomainError::Conflict(_))),
+                "{name}: {result:?}"
+            );
+        }
+
+        assert_eq!(f.invitations.snapshot().len(), 1);
+        assert!(
+            f.activate
+                .execute(&invited.token, "my-new-password", Some("bob"))
+                .await
+                .is_ok()
+        );
+    }
+
+    #[tokio::test]
+    async fn a_name_that_breaks_the_rules_is_refused_before_the_link_is_used() {
+        let f = fixture(vec![], vec![]);
+        let invited = invite(&f, "bob@example.com", false).await.unwrap();
+
+        for name in ["ab", "Admin", "x.git", "invitation", "invite-0123456789ab"] {
+            let result = f
+                .activate
+                .execute(&invited.token, "my-new-password", Some(name))
+                .await;
+            assert!(
+                matches!(result, Err(DomainError::Validation(_))),
+                "{name}: {result:?}"
+            );
+        }
+        assert_eq!(f.invitations.snapshot().len(), 1);
+    }
+
+    #[tokio::test]
+    async fn a_self_registered_account_keeps_the_name_it_chose() {
+        let pending = existing("marie", "marie@example.com");
+        let f = fixture(vec![pending.clone()], vec![]);
+        let token = issue_invitation(
+            &(f.invitations.clone() as Arc<dyn UserInvitationPort>),
+            pending.id,
+        )
+        .await
+        .unwrap();
+
+        let renamed = f
+            .activate
+            .execute(&token, "my-new-password", Some("other"))
+            .await;
+        f.activate
+            .execute(&token, "my-new-password", None)
+            .await
+            .unwrap();
+
+        assert!(
+            matches!(renamed, Err(DomainError::Validation(_))),
+            "{renamed:?}"
+        );
+        assert_eq!(f.users.get(pending.id).unwrap().username, "marie");
     }
 }

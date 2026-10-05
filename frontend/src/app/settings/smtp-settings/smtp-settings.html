@@ -101,12 +101,10 @@
 
         <div class="smtp-settings__actions">
           <!-- Always in the DOM: a live region only announces changes if it already exists. -->
-          <p class="smtp-settings__summary" role="status" [attr.data-state]="dirty() ? 'dirty' : configured() ? 'saved' : null">
+          <p class="smtp-settings__summary" role="status" [attr.data-state]="dirty() ? 'dirty' : null">
             @if (dirty()) {
               <gbt-icon name="circle-dot" aria-hidden="true" />Modifications non enregistrées
-            } @else if (configured()) {
-              <gbt-icon name="check" aria-hidden="true" />Réglages enregistrés
-            } @else {
+            } @else if (!configured()) {
               Aucun serveur configuré : FerrisGit n'envoie pas d'e-mails.
             }
           </p>

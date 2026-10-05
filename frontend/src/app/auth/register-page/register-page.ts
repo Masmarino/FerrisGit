@@ -2,11 +2,18 @@ import { afterNextRender, Component, computed, ElementRef, inject, Injector, sig
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import { Alert, AuthFooter, AuthFooterLink, AuthPanel, Button, EmptyState, GbtInput, Skeleton } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { AuthFooter, AuthFooterLink, AuthPanel } from '@masmarino/gabarit/auth';
+import { Button } from '@masmarino/gabarit/button';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { AuthLogo } from '../auth-logo/auth-logo';
+import { GitField } from '@masmarino/gabarit/git-field';
 import { AuthService } from '../auth.service';
 import { emailError, USERNAME_ERROR, USERNAME_HINT, usernameError } from '../account-rules';
 import { classifyRegisterFailure, REGISTER_INVALID_MESSAGE, REGISTER_RESERVED_MESSAGE, REGISTER_TAKEN_MESSAGE } from '../account-errors';
+import { provideFerrisgitAuth } from '../auth-kit';
 
 type Registration = 'loading' | 'open' | 'closed' | 'sent';
 
@@ -23,7 +30,9 @@ const FAILED = "L'inscription a échoué, réessayez.";
 @Component({
   selector: 'fg-register-page',
   standalone: true,
-  imports: [FormsModule, RouterLink, AuthPanel, AuthLogo, AuthFooter, AuthFooterLink, Alert, Button, EmptyState, GbtInput, Skeleton],
+  imports: [FormsModule, RouterLink, AuthPanel, AuthLogo, AuthFooter, AuthFooterLink, Alert, Button, EmptyState, GbtInput, Skeleton, GitField],
+  providers: [provideFerrisgitAuth()],
+  host: { class: 'fg-auth-page' },
   templateUrl: './register-page.html',
   styleUrl: './register-page.scss',
 })

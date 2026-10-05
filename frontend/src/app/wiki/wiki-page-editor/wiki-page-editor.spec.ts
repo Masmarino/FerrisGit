@@ -3,7 +3,7 @@ import { provideRouter, Router } from '@angular/router';
 import { of, throwError } from 'rxjs';
 import { WikiPageEditor } from './wiki-page-editor';
 import { WikiService } from '../wiki.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 
 describe('WikiPageEditor', () => {

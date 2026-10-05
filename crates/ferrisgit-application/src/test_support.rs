@@ -255,6 +255,33 @@ impl UserRepositoryPort for FakeUsers {
         Ok(())
     }
 
+    async fn set_username_and_password_hash(
+        &self,
+        user_id: Uuid,
+        username: String,
+        password_hash: String,
+    ) -> Result<(), DomainError> {
+        if std::mem::take(&mut *self.fail_next_password_update.lock().unwrap()) {
+            return Err(DomainError::Infrastructure(
+                "password update failed".to_string(),
+            ));
+        }
+        let mut users = self.users.lock().unwrap();
+        if users
+            .iter()
+            .any(|u| u.id != user_id && u.username.eq_ignore_ascii_case(&username))
+        {
+            return Err(DomainError::Conflict("username already taken".to_string()));
+        }
+        let user = users
+            .iter_mut()
+            .find(|u| u.id == user_id)
+            .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+        user.username = username;
+        user.password_hash = password_hash;
+        Ok(())
+    }
+
     async fn count_admins(&self) -> Result<i64, DomainError> {
         Ok(self.active_admin_ids(&self.users.lock().unwrap()).len() as i64)
     }

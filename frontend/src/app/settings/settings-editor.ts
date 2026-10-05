@@ -1,26 +1,20 @@
+import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { SettingsService, SystemSettings, SystemSettingsUpdate } from './settings.service';
 
-export type SettingsField =
-  | 'executionEngine'
-  | 'k8sNamespace'
-  | 'k8sCacheStorageClass'
-  | 'jwtTtlHours'
-  | 'maxPushSizeMb'
-  | 'runnerRegistrationToken'
-  | 'maxConcurrentJobs'
-  | 'logRetentionDays'
-  | 'registrationEnabled'
-  | 'publicPagesEnabled'
-  | 'seoIndexingEnabled';
+/**
+ * A setting saved on its own, with its save state shown beside it. Only the runners' registration token is now: its
+ * generation and removal are actions, while the sections save their other fields with one "Enregistrer".
+ */
+export type SettingsField = 'runnerRegistrationToken';
 
 export type SaveState = 'saving' | 'saved' | 'error';
 
 /**
- * The instance settings the admin page edits, and the save each field does on its own. A section shows a `linkedSignal`
- * of the saved value: the typed value while saving, the saved one again if the save fails, so a refused value never
- * stays on screen. Provided by the page, so every section shares one copy.
+ * The instance settings the admin page edits. A section keeps drafts as `linkedSignal`s of the saved values and sends
+ * them with `saveSection`; the few actions saved at once go through `save`. Provided by the page, so every section
+ * shares one copy.
  */
 @Injectable()
 export class SettingsEditor {
@@ -30,6 +24,8 @@ export class SettingsEditor {
   readonly current = signal<SystemSettings | null>(null);
   readonly loadState = signal<'loading' | 'loaded' | 'failed'>('loading');
   readonly saveStates = signal<Partial<Record<SettingsField, SaveState>>>({});
+  /** A registration token typed in the "Exécution" section, sent with the section's other changes. Never shown back. */
+  readonly runnerTokenDraft = signal('');
 
   /** The loaded settings. Sections only exist once the page has loaded them. */
   readonly saved = computed(() => {
@@ -67,6 +63,26 @@ export class SettingsEditor {
         rollback();
         this.setSaveState(field, 'error');
         this.toast.show("Échec de l'enregistrement. Réessayez.", 'error');
+      },
+    });
+  }
+
+  /**
+   * Several fields at once, for a section saved with one button: one request, then a toast either way. `done` gets
+   * whether they were stored.
+   */
+  saveSection(update: SystemSettingsUpdate, successMessage: string, done: (saved: boolean) => void): void {
+    this.settings.updateAdmin(update).subscribe({
+      next: (s) => {
+        this.current.set(s);
+        this.toast.show(successMessage);
+        done(true);
+      },
+      error: (err: unknown) => {
+        // A 400 means the server refused a value the client rules let through: retrying would fail the same way.
+        const refused = err instanceof HttpErrorResponse && err.status === 400;
+        this.toast.show(refused ? 'Réglages refusés : vérifiez les champs.' : "Échec de l'enregistrement. Réessayez.", 'error');
+        done(false);
       },
     });
   }

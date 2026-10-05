@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { of, Subject, throwError } from 'rxjs';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RepositoryGeneralSettings } from './repository-general-settings';
 import { Repository, RepositoriesService } from '../repositories.service';
 import { repositoryFixture } from '../repository-fixtures';

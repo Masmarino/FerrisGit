@@ -3,22 +3,19 @@ import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { CdkScrollable } from '@angular/cdk/scrolling';
-import {
-  Alert,
-  Badge,
-  Button,
-  GbtInput,
-  GbtToastService,
-  Icon,
-  Menu,
-  MenuItem,
-  PageHeader,
-  PageLayout,
-  Select,
-  Skeleton,
-  Tag,
-  UserChip,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { Menu, MenuItem } from '@masmarino/gabarit/menu';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Select } from '@masmarino/gabarit/select';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Tag } from '@masmarino/gabarit/tag';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { Issue, IssuesService } from '../issues.service';
 import { IssueKindPresentation, issueKindPresentation } from '../issue-kind';
 import { createIssueFilters } from '../issue-filters';

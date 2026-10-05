@@ -27,6 +27,11 @@
                 "input": "docs",
                 "output": "docs",
                 "ignore": ["superpowers/**"]
+              },
+              {
+                "glob": "*.{woff2,txt}",
+                "input": "node_modules/@masmarino/gabarit/fonts",
+                "output": "fonts"
               }
             ],
             "styles": [

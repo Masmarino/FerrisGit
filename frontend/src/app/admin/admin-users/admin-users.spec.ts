@@ -7,7 +7,8 @@ import { AdminUser, AdminUsersService, InviteResult, PasswordResetResult } from 
 import { AuthService } from '../../auth/auth.service';
 import { MeService } from '../../shell/me.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { formatDateTime, GbtToastService } from '@masmarino/gabarit';
+import { formatDateTime } from '@masmarino/gabarit/format';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AdminUsers } from './admin-users';
 
 const absoluteDateTime = (iso: string) => formatDateTime(iso, 'fr', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
@@ -17,6 +18,7 @@ const minutesAgo = (minutes: number) => new Date(Date.now() - minutes * 60_000).
 const inHours = (hours: number) => new Date(Date.now() + hours * 3_600_000).toISOString();
 
 const user = (overrides: Partial<AdminUser> & Pick<AdminUser, 'id' | 'username'>): AdminUser => ({
+  named: true,
   email: `${overrides.username}@example.com`,
   isAdmin: false,
   createdAt: minutesAgo(60 * 24 * 5),
@@ -954,8 +956,8 @@ describe('AdminUsers', () => {
         await context.settle();
       };
       await open();
-      const modal = context.fixture.debugElement.query((d) => d.nativeElement.tagName === 'FG-INVITE-USER-MODAL').componentInstance as { username: { set(v: string): void } };
-      modal.username.set('draft');
+      const modal = context.fixture.debugElement.query((d) => d.nativeElement.tagName === 'FG-INVITE-USER-MODAL').componentInstance as { email: { set(v: string): void } };
+      modal.email.set('draft@example.com');
       button(context.el, 'Annuler')!.click();
       await context.settle();
 

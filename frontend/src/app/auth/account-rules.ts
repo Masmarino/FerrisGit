@@ -1,4 +1,4 @@
-import { emailProblem, usernameProblem } from '@masmarino/gabarit';
+import { emailProblem, usernameProblem } from '@masmarino/gabarit/auth';
 
 // French messages over Gabarit's account rules, which mirror the server's (`account_rules.rs`). The server decides in the end.
 

@@ -4,6 +4,7 @@ use axum::http::request::Parts;
 use axum::http::{HeaderMap, StatusCode};
 use axum::routing::{get, post};
 use axum::{Json, Router};
+use chrono::{DateTime, Utc};
 use ferrisgit_application::email_templates;
 use ferrisgit_application::use_cases::admin_reset_password::ConsumePasswordResetUseCase;
 use ferrisgit_application::use_cases::change_password::ChangePasswordUseCase;
@@ -61,6 +62,9 @@ struct RegisterRequest {
 struct ActivateRequest {
     token: String,
     password: String,
+    /// The name an invitee chooses, when an admin invited them by e-mail. Left out when it was chosen at registration.
+    #[serde(default)]
+    username: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -100,6 +104,7 @@ struct MeResponse {
     username: String,
     email: String,
     is_admin: bool,
+    created_at: DateTime<Utc>,
 }
 
 #[derive(Deserialize)]
@@ -234,8 +239,8 @@ async fn register(
     Ok(StatusCode::NO_CONTENT)
 }
 
-/// 204 with no session. One generic 400 for an unknown, expired or used token and for a password that breaks the
-/// rules (the link stays usable).
+/// 204 with no session. One generic 400 for an unknown, expired or used token; a 400 for a password or a name that
+/// breaks the rules and a 409 for a name already taken, the link staying usable.
 async fn activate(
     MaybeConnectInfo(connect_info): MaybeConnectInfo,
     headers: HeaderMap,
@@ -254,9 +259,10 @@ async fn activate(
     ActivateAccountUseCase::new(
         state.users.clone(),
         state.hasher.clone(),
+        state.groups.clone(),
         state.invitations.clone(),
     )
-    .execute(&req.token, &req.password)
+    .execute(&req.token, &req.password, req.username.as_deref())
     .await?;
     Ok(StatusCode::NO_CONTENT)
 }
@@ -346,6 +352,7 @@ async fn me(
         username: user.username,
         email: user.email,
         is_admin: user.is_admin,
+        created_at: user.created_at,
     }))
 }
 
@@ -361,6 +368,7 @@ async fn update_email(
         username: user.username,
         email: user.email,
         is_admin: user.is_admin,
+        created_at: user.created_at,
     }))
 }
 
@@ -392,6 +400,21 @@ async fn change_password(
     Ok(Json(SessionResponse { token }))
 }
 
+/// Signs the account out everywhere: bumping the epoch ends every session, this one included. The Git tokens stay:
+/// they are revoked one by one, from the account's tokens.
+async fn logout_all(
+    AuthUser(user_id): AuthUser,
+    State(state): State<AppState>,
+) -> Result<StatusCode, ApiError> {
+    state.users.bump_token_epoch(user_id).await?;
+    state
+        .events
+        .publish_security_event(SecurityEvent::SessionsRevoked { user_id }, Some(user_id))
+        .await
+        .ok();
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub fn router() -> Router<AppState> {
     // layer() only wraps the routes added before it, so the body limit hits the unauthenticated ones alone.
     let unauthenticated = Router::new()
@@ -404,6 +427,7 @@ pub fn router() -> Router<AppState> {
         Router::new()
             .route("/auth/login", post(login))
             .route("/auth/me", get(me).patch(update_email))
-            .route("/auth/me/password", post(change_password)),
+            .route("/auth/me/password", post(change_password))
+            .route("/auth/logout-all", post(logout_all)),
     )
 }

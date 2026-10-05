@@ -38,7 +38,8 @@ impl EventPublisherPort for PostgresEventPublisher {
             | SecurityEvent::MfaDisabled { user_id }
             | SecurityEvent::PasskeyAdded { user_id }
             | SecurityEvent::PasskeyDeleted { user_id }
-            | SecurityEvent::PasskeyVerificationFailed { user_id } => user_id.to_string(),
+            | SecurityEvent::PasskeyVerificationFailed { user_id }
+            | SecurityEvent::SessionsRevoked { user_id } => user_id.to_string(),
             SecurityEvent::MfaResetByAdmin { target_user_id }
             | SecurityEvent::PasswordResetByAdmin { target_user_id }
             | SecurityEvent::AdminGranted { target_user_id }

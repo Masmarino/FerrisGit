@@ -1,6 +1,11 @@
 import { Component, computed, inject, output, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { Alert, Button, GbtInput, Modal, Textarea, GbtToastService } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Button } from '@masmarino/gabarit/button';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { Modal } from '@masmarino/gabarit/modal';
+import { Textarea } from '@masmarino/gabarit/textarea';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { groupCreationError, GroupsService } from '../groups.service';
 
 const NAME_REQUIRED = 'Le nom est requis';

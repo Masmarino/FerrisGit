@@ -4,7 +4,8 @@ import { moduleMetadata } from '@storybook/angular-vite';
 import { expect, waitFor } from 'storybook/test';
 import { MarkdownOutlineEntry, MarkdownView } from './markdown-view';
 import { inShellContentArea } from '../layout/page-story-helpers';
-import { PageLayout, Panel } from '@masmarino/gabarit';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
 
 const meta: Meta<MarkdownView> = {
   title: 'Shared/MarkdownView',

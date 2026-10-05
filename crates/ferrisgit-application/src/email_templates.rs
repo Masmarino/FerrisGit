@@ -113,6 +113,55 @@ pub fn account_created(username: &str, activation_url: &str) -> EmailContent {
     }
 }
 
+/// Sent when an admin invites someone by e-mail: the invitee chooses their username and password on the linked page.
+pub fn invitation(activation_url: &str) -> EmailContent {
+    let text = format!(
+        "Bonjour,\n\n\
+         Un compte FerrisGit a été créé pour vous. Pour l'activer, choisissez votre nom d'utilisateur et votre mot de \
+         passe en suivant le lien ci-dessous dans les 24 heures :\n\n\
+         {activation_url}\n\n\
+         Passé ce délai, le lien expirera : nous vous enverrons un rappel chaque jour avec un nouveau lien, \
+         et le compte sera supprimé au bout de 7 jours s'il n'a pas été activé."
+    );
+    let body_html = format!(
+        r#"<p style="margin:0 0 16px;">Bonjour,</p>
+<p style="margin:0 0 16px;">Un compte FerrisGit a été créé pour vous. Pour l'activer, choisissez votre nom d'utilisateur et votre mot de passe en cliquant sur le bouton ci-dessous.</p>
+{button}
+<p style="margin:16px 0 0; font-size:13px; color:{TEXT_SECONDARY};">Ce lien expire dans 24 heures. Passé ce délai, nous vous enverrons un rappel chaque jour avec un nouveau lien, et le compte sera supprimé au bout de 7 jours s'il n'a pas été activé.</p>"#,
+        button = button(activation_url, "Activer mon compte"),
+    );
+    EmailContent {
+        subject: "Votre compte FerrisGit".to_string(),
+        text,
+        html: shell("Activez votre compte FerrisGit", &body_html),
+    }
+}
+
+/// `activation_reminder` for an invitation whose name is still to be chosen.
+pub fn invitation_reminder(activation_url: &str, deletion_date: &str) -> EmailContent {
+    let text = format!(
+        "Bonjour,\n\n\
+         Le compte FerrisGit créé pour vous n'a pas encore été activé. Pour l'activer, choisissez votre nom \
+         d'utilisateur et votre mot de passe en suivant le lien ci-dessous dans les 24 heures :\n\n\
+         {activation_url}\n\n\
+         Sans activation, le compte sera supprimé le {deletion_date}. Nous vous enverrons un rappel chaque jour d'ici là. \
+         Si vous n'attendiez pas ce message, ignorez-le."
+    );
+    let body_html = format!(
+        r#"<p style="margin:0 0 16px;">Bonjour,</p>
+<p style="margin:0 0 16px;">Le compte FerrisGit créé pour vous n'a pas encore été activé. Pour l'activer, choisissez votre nom d'utilisateur et votre mot de passe en cliquant sur le bouton ci-dessous.</p>
+{button}
+<p style="margin:16px 0 0; font-size:13px; color:{TEXT_SECONDARY};">Ce lien expire dans 24 heures. Sans activation, le compte sera supprimé le <strong>{deletion_date}</strong>, et nous vous enverrons un rappel chaque jour d'ici là. Si vous n'attendiez pas ce message, ignorez-le.</p>"#,
+        button = button(activation_url, "Activer mon compte"),
+        deletion_date = esc(deletion_date),
+    );
+    EmailContent {
+        subject: "Votre compte FerrisGit n'est pas encore activé".to_string(),
+        text,
+        html: shell("Activez votre compte FerrisGit", &body_html),
+    }
+}
+
 /// Sent when someone registers themselves: the link proves they own the address and lets them pick a password.
 pub fn registration_confirmation(username: &str, activation_url: &str) -> EmailContent {
     let text = format!(
@@ -392,9 +441,33 @@ mod tests {
     }
 
     #[test]
+    fn an_invitation_asks_for_a_username_and_never_names_a_placeholder() {
+        for c in [
+            invitation("https://x/invitation#token=abc"),
+            invitation_reminder("https://x/invitation#token=abc", "10/10/2026"),
+        ] {
+            for body in [&c.text, &c.html] {
+                assert!(body.contains("https://x/invitation#token=abc"), "{body}");
+                assert!(
+                    body.contains("choisissez votre nom d'utilisateur"),
+                    "{body}"
+                );
+                assert!(!body.contains("invite-"), "{body}");
+            }
+        }
+        assert!(
+            invitation_reminder("https://x/y", "10/10/2026")
+                .text
+                .contains("10/10/2026")
+        );
+    }
+
+    #[test]
     fn every_html_body_shares_the_shell_with_the_inline_logo_and_the_footer() {
         for c in [
             account_created("a", "https://x/y"),
+            invitation("https://x/y"),
+            invitation_reminder("https://x/y", "10/10/2026"),
             registration_confirmation("a", "https://x/y"),
             activation_reminder("a", "https://x/y", "10/10/2026"),
             password_changed("a"),

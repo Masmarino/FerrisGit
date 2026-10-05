@@ -1,33 +1,25 @@
 import { Component, OnInit, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  Badge,
-  Button,
-  GbtDateTimePipe,
-  GbtInput,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  ListCard,
-  ListCardState,
-  ListRow,
-  ListToolbarSortOption,
-  Menu,
-  MenuItem,
-  Modal,
-  PageHeader,
-  PageLayout,
-  Pagination,
-  Panel,
-  SegmentedControl,
-  SegmentedControlOption,
-  Select,
-  SelectOption,
-  Tag,
-  Textarea,
-  createListToolbarState,
-} from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListCard, ListCardState } from '@masmarino/gabarit/list-card';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { ListToolbarSortOption, createListToolbarState } from '@masmarino/gabarit/list-toolbar';
+import { Menu, MenuItem } from '@masmarino/gabarit/menu';
+import { Modal } from '@masmarino/gabarit/modal';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Pagination } from '@masmarino/gabarit/pagination';
+import { Panel } from '@masmarino/gabarit/panel';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
+import { Tag } from '@masmarino/gabarit/tag';
+import { Textarea } from '@masmarino/gabarit/textarea';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { BranchInfo, MergeRequestSummary, MergeRequestsService } from '../merge-requests.service';
 import { mergeRequestEnd } from '../merge-request-presentation';
 import { Label, LabelsService } from '../../labels/labels.service';
@@ -35,6 +27,7 @@ import { Milestone, MilestonesService } from '../../milestones/milestones.servic
 import { PageTitleService } from '../../shell/page-title.service';
 import { injectRepositoryPermissions } from '../../repositories/repository-role';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
+import { openWhenAsked } from '../../shared/open-when-asked';
 
 type SortKey = 'date' | 'title';
 type StateTab = MergeRequestSummary['status'];
@@ -209,6 +202,7 @@ export class MergeRequestList implements OnInit {
     // Newest first, otherwise new work lands on the last page. Set here because the other lists keep
     // the toolbar's ascending default.
     this.direction.set('desc');
+    openWhenAsked('merge-request', () => this.openCreate());
   }
 
   ngOnInit(): void {

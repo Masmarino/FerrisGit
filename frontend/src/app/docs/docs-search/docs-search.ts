@@ -1,6 +1,6 @@
 import { ChangeDetectionStrategy, Component, inject, output, viewChild } from '@angular/core';
 import { Router } from '@angular/router';
-import { Autocomplete, AutocompleteSearchFn } from '@masmarino/gabarit';
+import { Autocomplete, AutocompleteSearchFn } from '@masmarino/gabarit/autocomplete';
 import { DocsSearchHit, DocsSearchService } from '../docs-search.service';
 
 /** The search field above the docs navigation. Pages load on first focus, since most visits never search. */

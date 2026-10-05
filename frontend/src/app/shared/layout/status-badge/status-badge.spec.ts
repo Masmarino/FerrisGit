@@ -1,7 +1,8 @@
 import { Component, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { Badge, Icon, IconRegistry } from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Icon, IconRegistry } from '@masmarino/gabarit/icon';
 import { provideFerrisgitIcons } from '../../register-icons';
 import { StatusBadge, statusPresentation, StatusKind } from './status-badge';
 

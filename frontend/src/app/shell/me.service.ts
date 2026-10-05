@@ -7,6 +7,7 @@ export interface Me {
   username: string;
   email: string;
   isAdmin: boolean;
+  createdAt: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -16,6 +17,8 @@ export class MeService {
   readonly username = signal('');
   readonly email = signal('');
   readonly isAdmin = signal(false);
+  /** When the account was created, ISO 8601; empty until loaded. */
+  readonly createdAt = signal('');
 
   load(): void {
     this.http.get<Me>('/api/auth/me').subscribe((res) => this.apply(res));
@@ -34,5 +37,6 @@ export class MeService {
     this.username.set(res.username);
     this.email.set(res.email);
     this.isAdmin.set(res.isAdmin);
+    this.createdAt.set(res.createdAt ?? '');
   }
 }

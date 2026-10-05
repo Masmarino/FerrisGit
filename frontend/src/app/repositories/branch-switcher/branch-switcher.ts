@@ -1,7 +1,7 @@
 import { Component, computed, inject, input, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Select, SelectOption } from '@masmarino/gabarit';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
 import { BranchInfo, MergeRequestsService } from '../../merge-requests/merge-requests.service';
 import { ReleasesService } from '../../releases/releases.service';
 import { repositoryLink } from '../repository-links';

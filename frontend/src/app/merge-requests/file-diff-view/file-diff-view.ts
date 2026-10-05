@@ -2,7 +2,9 @@ import { Component, computed, HostListener, input, output, signal } from '@angul
 import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Comment, FileDiff, SplitDiffRow } from '../merge-requests.service';
-import { Badge, Button, Textarea } from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Textarea } from '@masmarino/gabarit/textarea';
 
 interface CommentThread {
   root: Comment;

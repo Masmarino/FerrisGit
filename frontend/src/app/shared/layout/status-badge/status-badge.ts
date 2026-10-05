@@ -1,5 +1,5 @@
 import { Component, computed, input } from '@angular/core';
-import { Badge, BadgeVariant } from '@masmarino/gabarit';
+import { Badge, BadgeVariant } from '@masmarino/gabarit/badge';
 import { Issue } from '../../../issues/issues.service';
 import { MergeRequestSummary } from '../../../merge-requests/merge-requests.service';
 import { PipelineSummary } from '../../../pipelines/pipelines.service';

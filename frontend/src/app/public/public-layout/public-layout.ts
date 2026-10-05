@@ -2,7 +2,8 @@ import { ChangeDetectionStrategy, Component, computed, effect, inject, OnDestroy
 import { FormsModule } from '@angular/forms';
 import { Title } from '@angular/platform-browser';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Button, GbtInput } from '@masmarino/gabarit';
+import { Button } from '@masmarino/gabarit/button';
+import { GbtInput } from '@masmarino/gabarit/input';
 import { AuthService } from '../../auth/auth.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';

@@ -1,7 +1,12 @@
 @use '../../shared/layout/settings-section';
 @use '../fields';
 
+// The form is the section's column: the cards and the save row, spaced as in the other sections.
 :host {
+  display: block;
+}
+
+.execution-settings {
   @include settings-section.section;
 }
 
@@ -30,3 +35,4 @@
 .admin-settings__count ::ng-deep .gbt-input__wrapper {
   max-width: 8rem;
 }
+

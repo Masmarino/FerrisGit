@@ -1,5 +1,8 @@
 import { Component, computed, input, output } from '@angular/core';
-import { Alert, AlertVariant, Avatar, Button, IconMarker } from '@masmarino/gabarit';
+import { Alert, AlertVariant } from '@masmarino/gabarit/alert';
+import { Avatar } from '@masmarino/gabarit/avatar';
+import { Button } from '@masmarino/gabarit/button';
+import { IconMarker } from '@masmarino/gabarit/icon-marker';
 import { ReviewSummary } from '../merge-requests.service';
 import { reviewStatus } from '../review-status';
 

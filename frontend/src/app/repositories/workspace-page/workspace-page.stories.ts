@@ -6,7 +6,7 @@ import { ActivatedRoute, convertToParamMap } from '@angular/router';
 import { WorkspacePage } from './workspace-page';
 import { Repository, RepositoriesService } from '../repositories.service';
 import { GroupMembership, GroupsService, WritableGroup } from '../../groups/groups.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { inShellContentArea } from '../../shared/layout/page-story-helpers';
 import { withRouterAndIcons } from '../repository-story-fixtures';
 import { LONG_MEMBERSHIPS, LONG_REPOSITORIES, MANY_REPOSITORIES, MEMBERSHIPS, REPOSITORIES, expectWorkspaceLayout } from '../workspace-grid/workspace-story-helpers';

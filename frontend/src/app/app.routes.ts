@@ -4,6 +4,7 @@ import { AppShell } from './shell/app-shell';
 import { PublicLayout } from './public/public-layout/public-layout';
 import { anonymousGuard, publicHomeGuard, publicRepositoryMatcher } from './public/public.guards';
 import { providePublicRepositoryData } from './public/public-providers';
+import { ADMIN_TRAIL } from './shell/page-trail';
 import { DOCS_ROUTES } from './docs/docs.routes';
 
 const explorePage = () => import('./public/explore-page/explore-page').then((m) => m.ExplorePage);
@@ -16,6 +17,7 @@ export const routes: Routes = [
   { path: 'login', loadComponent: () => import('./auth/login-page/login-page').then((m) => m.LoginPage) },
   { path: 'register', loadComponent: () => import('./auth/register-page/register-page').then((m) => m.RegisterPage) },
   { path: 'activate', loadComponent: () => import('./auth/activate-page/activate-page').then((m) => m.ActivatePage) },
+  { path: 'invitation', loadComponent: () => import('./auth/invitation-page/invitation-page').then((m) => m.InvitationPage) },
   { path: 'reset-password', loadComponent: () => import('./auth/reset-password-page/reset-password-page').then((m) => m.ResetPasswordPage) },
 
   // Anonymous visitors get the catalog at `/` and `/explore`, and public repositories read-only.
@@ -55,11 +57,11 @@ export const routes: Routes = [
       { path: 'groups/:id/members', loadComponent: () => import('./groups/group-members/group-members').then((m) => m.GroupMembers) },
       { path: 'runners', loadComponent: () => import('./runners/runners-list/runners-list').then((m) => m.RunnersList) },
 
-      { path: 'admin/settings', loadComponent: () => import('./settings/admin-settings/admin-settings').then((m) => m.AdminSettings) },
-      { path: 'admin/users', loadComponent: () => import('./admin/admin-users/admin-users').then((m) => m.AdminUsers) },
-      { path: 'admin/users/:id', loadComponent: () => import('./admin/admin-users/admin-user-detail/admin-user-detail').then((m) => m.AdminUserDetail) },
-      { path: 'admin/dashboard', loadComponent: () => import('./admin/admin-dashboard/admin-dashboard').then((m) => m.AdminDashboard) },
-      { path: 'admin/health', loadComponent: () => import('./admin/admin-health/admin-health').then((m) => m.AdminHealth) },
+      { path: 'admin/settings', data: { trail: ADMIN_TRAIL }, loadComponent: () => import('./settings/admin-settings/admin-settings').then((m) => m.AdminSettings) },
+      { path: 'admin/users', data: { trail: ADMIN_TRAIL }, loadComponent: () => import('./admin/admin-users/admin-users').then((m) => m.AdminUsers) },
+      { path: 'admin/users/:id', data: { trail: [...ADMIN_TRAIL, { label: 'Utilisateurs', link: ['/admin', 'users'] }] }, loadComponent: () => import('./admin/admin-users/admin-user-detail/admin-user-detail').then((m) => m.AdminUserDetail) },
+      { path: 'admin/dashboard', data: { trail: ADMIN_TRAIL }, loadComponent: () => import('./admin/admin-dashboard/admin-dashboard').then((m) => m.AdminDashboard) },
+      { path: 'admin/health', data: { trail: ADMIN_TRAIL }, loadComponent: () => import('./admin/admin-health/admin-health').then((m) => m.AdminHealth) },
     ],
   },
 

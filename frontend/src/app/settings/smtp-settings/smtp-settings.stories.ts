@@ -4,7 +4,7 @@ import { expect, userEvent, waitFor } from 'storybook/test';
 import { NEVER, Observable, of, throwError, timer, switchMap } from 'rxjs';
 import { SmtpSettings } from './smtp-settings';
 import { SettingsService, SmtpSettings as SmtpSettingsData, SmtpTestResult } from '../settings.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectSettingsLayout, fakeToast, inSettingsColumn, rendered } from '../../shared/layout/settings-story-helpers';
 

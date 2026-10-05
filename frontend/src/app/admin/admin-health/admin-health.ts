@@ -1,25 +1,17 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
-import {
-  Alert,
-  Badge,
-  BadgeVariant,
-  Button,
-  Card,
-  CardHeader,
-  DescriptionList,
-  DescriptionListEntry,
-  formatBytes,
-  formatDateTime,
-  formatDuration,
-  formatPercent,
-  GaugeBar,
-  GbtToastService,
-  Icon,
-  PageHeader,
-  PageLayout,
-  Panel,
-  Skeleton,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge, BadgeVariant } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { DescriptionList, DescriptionListEntry } from '@masmarino/gabarit/description-list';
+import { formatBytes, formatDateTime, formatDuration, formatPercent } from '@masmarino/gabarit/format';
+import { GaugeBar } from '@masmarino/gabarit/gauge-bar';
+import { Icon } from '@masmarino/gabarit/icon';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AdminMetricsService, HealthStatus } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { ABSOLUTE_OPTIONS } from '../row-date';

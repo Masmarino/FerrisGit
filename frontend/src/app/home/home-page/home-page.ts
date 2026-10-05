@@ -1,25 +1,21 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  CardHeader,
-  EmptyState,
-  GbtDateTimePipe,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  ListRow,
-  PageHeader,
-  PageLayout,
-  Panel,
-  Skeleton,
-  SkeletonList,
-  StatGrid,
-  StatTile,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
+import { StatGrid } from '@masmarino/gabarit/stat-grid';
+import { StatTile } from '@masmarino/gabarit/stat-tile';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { DashboardResponse, DashboardService } from '../dashboard.service';
 import { SearchIssueResult, SearchMergeRequestResult, SearchRepositoryRef } from '../../search/search.service';
 import { MeService } from '../../shell/me.service';

@@ -2,23 +2,20 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, TemplateRef, computed, inject, input, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  Alert,
-  Badge,
-  Button,
-  DescriptionList,
-  DescriptionListEntry,
-  GbtInput,
-  GbtToastService,
-  Icon,
-  Modal,
-  PageHeader,
-  PageLayout,
-  Panel,
-  Skeleton,
-  Textarea,
-  UserChip,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { DescriptionList, DescriptionListEntry } from '@masmarino/gabarit/description-list';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { Modal } from '@masmarino/gabarit/modal';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Textarea } from '@masmarino/gabarit/textarea';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { Group, GROUP_ROLE_LABELS, groupCreationError, GroupMember, GroupsService, isGroupRole } from '../groups.service';
 import { RepositoriesService, Repository } from '../../repositories/repositories.service';
 import { PageTitleService } from '../../shell/page-title.service';

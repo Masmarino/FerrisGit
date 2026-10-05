@@ -4,7 +4,7 @@ import { expect, userEvent, waitFor, within } from 'storybook/test';
 import { of } from 'rxjs';
 import { Router } from '@angular/router';
 import { PasskeySettings } from './passkey-settings';
-import type { AuthConfig, Passkey } from '@masmarino/gabarit';
+import type { AuthConfig, Passkey } from '@masmarino/gabarit/auth';
 import { PASSWORD, StoryMfaStatus, withMfa } from '../mfa-story-helpers';
 import { AuthService } from '../../auth/auth.service';
 import { hoursAgo, daysAgo, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';

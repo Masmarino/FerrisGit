@@ -10,7 +10,8 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { MergeRequestTimeline } from '../merge-request-timeline/merge-request-timeline';
 import { MrApprovalsPanel } from '../mr-approvals-panel/mr-approvals-panel';
 import { FileDiffView } from '../file-diff-view/file-diff-view';
-import { Select, GbtToastService } from '@masmarino/gabarit';
+import { Select } from '@masmarino/gabarit/select';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 const alice = { id: 'u1', username: 'alice' };
 const bob = { id: 'u2', username: 'bob' };

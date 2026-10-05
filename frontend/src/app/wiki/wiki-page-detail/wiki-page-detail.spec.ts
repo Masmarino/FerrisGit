@@ -5,7 +5,7 @@ import { of, throwError, Subject } from 'rxjs';
 import { WikiPageDetail } from './wiki-page-detail';
 import { WikiRevision, WikiService } from '../wiki.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 type Role = 'owner' | 'reader' | 'contributor' | 'maintainer';
 

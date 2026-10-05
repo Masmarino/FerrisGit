@@ -1,6 +1,6 @@
 import { Component, input } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { JobStatus } from '@masmarino/gabarit';
+import { JobStatus } from '@masmarino/gabarit/job-status';
 import { JobSummary } from '../pipelines.service';
 import { STATUS_LABELS, StageGroup, jobDurationLabel, jobGlyphStatus, pipelineLink } from '../pipeline-helpers';
 

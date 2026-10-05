@@ -1,6 +1,8 @@
 import { Component, computed, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import { JobGraph, JobGraphStage, JobStatus, Stepper } from '@masmarino/gabarit';
+import { JobGraph, JobGraphStage } from '@masmarino/gabarit/job-graph';
+import { JobStatus } from '@masmarino/gabarit/job-status';
+import { Stepper } from '@masmarino/gabarit/stepper';
 import { JobSummary } from '../pipelines.service';
 import { STATUS_LABELS, StageGroup, jobDurationLabel, jobGlyphStatus, jobGraphStatus, pipelineLink, stageIndexOf, stageSteps } from '../pipeline-helpers';
 

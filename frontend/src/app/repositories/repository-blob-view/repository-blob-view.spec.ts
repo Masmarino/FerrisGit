@@ -4,7 +4,7 @@ import { HttpRequest, provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
 import { provideRouter, Router } from '@angular/router';
 import { RepositoryBlobView } from './repository-blob-view';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { TreeEntry } from '../repositories.service';
 import { repositoryFixture } from '../repository-fixtures';
 

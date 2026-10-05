@@ -5,9 +5,8 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router, convertToParamMap, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { AuthResetPassword } from '@masmarino/gabarit';
+import { AuthResetPassword } from '@masmarino/gabarit/auth-reset-password';
 import { ResetPasswordPage } from './reset-password-page';
-import { provideFerrisgitAuth } from '../auth-kit';
 
 @Component({ standalone: true, template: '<p>page</p>' })
 class Elsewhere {}
@@ -36,7 +35,6 @@ describe('ResetPasswordPage', () => {
         provideHttpClient(),
         provideHttpClientTesting(),
         provideRouter([]),
-        provideFerrisgitAuth(),
         { provide: ActivatedRoute, useValue: { snapshot: { fragment, queryParamMap: convertToParamMap(query) } } },
       ],
     });
@@ -176,7 +174,6 @@ describe('ResetPasswordPage', () => {
             { path: 'reset-password', component: ResetPasswordPage },
             { path: 'login', component: Elsewhere },
           ]),
-          provideFerrisgitAuth(),
         ],
       });
       const harness = await RouterTestingHarness.create(url);

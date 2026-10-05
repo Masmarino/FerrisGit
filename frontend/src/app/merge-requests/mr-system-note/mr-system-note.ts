@@ -1,5 +1,8 @@
 import { Component, computed, input } from '@angular/core';
-import { Badge, GbtDateTimePipe, GbtRelativeTimePipe, IconMarker, Tag } from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { IconMarker } from '@masmarino/gabarit/icon-marker';
+import { Tag } from '@masmarino/gabarit/tag';
 import { TimelineEvent } from '../merge-requests.service';
 import { eventMarker, eventSegments } from '../merge-request-events';
 

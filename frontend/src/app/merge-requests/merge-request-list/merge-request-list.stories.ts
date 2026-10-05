@@ -8,7 +8,7 @@ import { Label, LabelsService } from '../../labels/labels.service';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { withRouterAndIcons } from '../../repositories/repository-story-fixtures';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { daysAgo, hoursAgo, inShellContentArea, minutesAgo } from '../../shared/layout/page-story-helpers';
 import { fakeToast } from '../../shared/layout/settings-story-helpers';
 import { ALICE, fakeRepositoryContext, label, mergeRequestFixture, milestone } from '../merge-request-fixtures';

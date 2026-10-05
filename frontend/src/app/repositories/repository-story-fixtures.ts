@@ -6,7 +6,7 @@ import { NEVER, Observable, of, throwError } from 'rxjs';
 import { CommitInfo, Contributor, LanguageStat, RepositoriesService, Repository, TreeEntry } from './repositories.service';
 import { BranchInfo, MergeRequestsService } from '../merge-requests/merge-requests.service';
 import { ReleasesService, TagSummary } from '../releases/releases.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { provideFerrisgitIcons } from '../shared/register-icons';
 import { daysAgo, hoursAgo, minutesAgo } from '../shared/layout/page-story-helpers';
 import { fakeToast } from '../shared/layout/settings-story-helpers';

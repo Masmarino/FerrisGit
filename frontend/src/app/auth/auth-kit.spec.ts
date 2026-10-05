@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { AUTH_LABELS, AUTH_PORT, MFA_PORT, TOTP_QR_RENDERER } from '@masmarino/gabarit';
+import { AUTH_LABELS, AUTH_PORT, MFA_PORT } from '@masmarino/gabarit/auth';
+import { TOTP_QR_RENDERER } from '@masmarino/gabarit/mfa-enrollment';
 import { appConfig } from '../app.config';
 import { MfaService } from './mfa.service';
 import { AuthService } from './auth.service';
@@ -32,12 +33,12 @@ describe('provideFerrisgitAuth', () => {
     expect(TestBed.inject(AUTH_LABELS)).toBe(FR_AUTH_LABELS);
   });
 
-  it('is what the app is configured with', () => {
+  it('stays out of the root config: the pages that use the kit provide it, so it loads with them', () => {
     TestBed.configureTestingModule({ providers: appConfig.providers });
 
-    expect(TestBed.inject(AUTH_PORT)).toBe(TestBed.inject(AuthService));
-    expect(TestBed.inject(MFA_PORT)).toBe(TestBed.inject(MfaService));
-    expect(TestBed.inject(TOTP_QR_RENDERER)).toBe(renderTotpQr);
-    expect(TestBed.inject(AUTH_LABELS)).toBe(FR_AUTH_LABELS);
+    expect(TestBed.inject(AUTH_PORT, null)).toBeNull();
+    expect(TestBed.inject(MFA_PORT, null)).toBeNull();
+    expect(TestBed.inject(TOTP_QR_RENDERER, null)).toBeNull();
+    expect(TestBed.inject(AUTH_LABELS, null)).toBeNull();
   });
 });

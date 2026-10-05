@@ -1,7 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Observable, of, Subject, throwError } from 'rxjs';
-import { LineChart, GbtToastService } from '@masmarino/gabarit';
+import { LineChart } from '@masmarino/gabarit/line-chart';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AdminDashboard } from './admin-dashboard';
 import { AdminMetricsService, AdminStats, MetricsSnapshot } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';

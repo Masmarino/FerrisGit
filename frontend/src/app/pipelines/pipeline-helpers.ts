@@ -1,4 +1,6 @@
-import { JobGraphStatus, JobStatusValue, StepperStep } from '@masmarino/gabarit';
+import { JobGraphStatus } from '@masmarino/gabarit/job-graph';
+import { JobStatusValue } from '@masmarino/gabarit/job-status';
+import { StepperStep } from '@masmarino/gabarit/stepper';
 import { JobSummary, PipelineSummary } from './pipelines.service';
 
 export interface StageGroup {

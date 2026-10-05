@@ -3,11 +3,12 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
-import { type AuthConfig, ConfirmDangerModal, type Passkey, PasskeySettings as GbtPasskeySettings } from '@masmarino/gabarit';
+import { type AuthConfig, type Passkey } from '@masmarino/gabarit/auth';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { PasskeySettings as GbtPasskeySettings } from '@masmarino/gabarit/passkey-settings';
 import { Observable, of } from 'rxjs';
 import { PasskeySettings } from './passkey-settings';
 import { AuthService } from '../../auth/auth.service';
-import { provideFerrisgitAuth } from '../../auth/auth-kit';
 
 const STATUS = '/api/me/mfa';
 const DELETE = (id: string) => `/api/me/mfa/passkeys/${id}/delete`;
@@ -27,7 +28,7 @@ describe('PasskeySettings', () => {
     const auth = { setToken: vi.fn(), logout: vi.fn(() => calls.push('logout')), authConfig: vi.fn(() => config) };
     // No LOCALE_ID on purpose: the page's `[locale]="'fr'"` is what makes the dates French.
     TestBed.configureTestingModule({
-      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), provideFerrisgitAuth(), { provide: AuthService, useValue: auth }],
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([]), { provide: AuthService, useValue: auth }],
     });
     const navigate = vi.spyOn(TestBed.inject(Router), 'navigateByUrl').mockImplementation((url) => {
       calls.push(`navigate ${String(url)}`);

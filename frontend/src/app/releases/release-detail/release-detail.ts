@@ -1,30 +1,25 @@
 import { Component, ElementRef, Injector, OnInit, TemplateRef, afterNextRender, computed, inject, input, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import {
-  Badge,
-  Button,
-  Card,
-  ConfirmDangerModal,
-  DescriptionList,
-  DescriptionListEntry,
-  EmptyState,
-  FileUpload,
-  GbtDateTimePipe,
-  GbtInput,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  IconMarker,
-  PageHeader,
-  PageLayout,
-  Panel,
-  Skeleton,
-  Switch,
-  Textarea,
-  UserChip,
-  formatBytes as formatBytesFn,
-} from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { DescriptionList, DescriptionListEntry } from '@masmarino/gabarit/description-list';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { FileUpload } from '@masmarino/gabarit/file-upload';
+import { GbtDateTimePipe, GbtRelativeTimePipe, formatBytes as formatBytesFn } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { IconMarker } from '@masmarino/gabarit/icon-marker';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Switch } from '@masmarino/gabarit/switch';
+import { Textarea } from '@masmarino/gabarit/textarea';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { ReleaseAsset, ReleaseDetail as ReleaseDetailResponse, ReleasesService, releaseStatus } from '../releases.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { PageTitleService } from '../../shell/page-title.service';

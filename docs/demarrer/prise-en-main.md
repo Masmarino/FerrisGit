@@ -26,10 +26,10 @@ Le nom d'utilisateur ne peut pas être modifié ensuite. Il fait partie de l'adr
 
 ### Invitation par e-mail
 
-Un administrateur crée votre compte depuis **Admin**, **Utilisateurs** ([la procédure côté administrateur](/docs/administration/utilisateurs)). Vous recevez un e-mail intitulé « Votre compte FerrisGit » avec votre nom d'utilisateur et un lien d'activation.
+Un administrateur crée votre compte depuis **Admin**, **Utilisateurs** ([la procédure côté administrateur](/docs/administration/utilisateurs)). Vous recevez un e-mail intitulé « Votre compte FerrisGit » avec un lien d'activation.
 
 1. Ouvrez le lien dans les **24 heures**. Passé ce délai, un rappel avec un nouveau lien vous est envoyé chaque jour, jusqu'à la suppression du compte, **7 jours après sa création**. L'administrateur peut aussi vous renvoyer une invitation.
-2. Sur la page **Activez votre compte**, choisissez votre mot de passe (8 caractères au minimum) et confirmez-le.
+2. Sur la page **Activez votre compte**, choisissez votre nom d'utilisateur et votre mot de passe (8 caractères au minimum), puis confirmez le mot de passe. Le nom suit les mêmes règles qu'à l'inscription, et ne pourra plus être modifié.
 3. Connectez-vous avec votre nom d'utilisateur et ce mot de passe. La double authentification se configure à ce moment.
 
 Si l'instance ne peut pas envoyer d'e-mails, l'administrateur reçoit le lien à vous transmettre lui-même. Chaque lien ne sert qu'une fois.

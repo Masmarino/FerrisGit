@@ -6,7 +6,7 @@ import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { GroupDetail } from './group-detail';
 import { Group, GroupMember, GroupsService } from '../groups.service';
 import { Repository, RepositoriesService } from '../../repositories/repositories.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { daysAgo, inShellContentArea } from '../../shared/layout/page-story-helpers';
 import { MANY_REPOSITORIES, expectWorkspaceLayout, repository } from '../../repositories/workspace-grid/workspace-story-helpers';

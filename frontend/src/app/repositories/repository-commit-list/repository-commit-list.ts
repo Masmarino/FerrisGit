@@ -1,5 +1,11 @@
 import { ChangeDetectionStrategy, Component, computed, inject, input, OnInit, signal } from '@angular/core';
-import { Badge, GbtDateTimePipe, GbtRelativeTimePipe, ListCard, ListCardState, ListRow, PageHeader, PageLayout, UserChip } from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { ListCard, ListCardState } from '@masmarino/gabarit/list-card';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { CommitInfo, RepositoriesService } from '../repositories.service';
 import { commitTitle, shortSha } from '../commit-format';
 import { PageTitleService } from '../../shell/page-title.service';

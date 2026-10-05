@@ -1,29 +1,24 @@
 import { Component, computed, inject, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  ConfirmDangerModal,
-  DescriptionList,
-  DescriptionListEntry,
-  EmptyState,
-  GbtDateTimePipe,
-  GbtInput,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  ListRow,
-  PageHeader,
-  PageLayout,
-  Panel,
-  Select,
-  SelectOption,
-  Skeleton,
-  SkeletonList,
-  UserChip,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card } from '@masmarino/gabarit/card';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { DescriptionList, DescriptionListEntry } from '@masmarino/gabarit/description-list';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { GROUP_ROLE_LABELS, GroupMember, GroupMembership, GroupRole, GroupsService } from '../groups.service';
 import { PageTitleService } from '../../shell/page-title.service';
 

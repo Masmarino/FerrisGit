@@ -1,30 +1,23 @@
 import { Component, OnInit, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
-import {
-  Alert,
-  Badge,
-  Button,
-  Card,
-  CardHeader,
-  EmptyState,
-  GbtDateTimePipe,
-  GbtInput,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  ListToolbarSortOption,
-  PageHeader,
-  PageLayout,
-  Pagination,
-  Panel,
-  SegmentedControl,
-  SegmentedControlOption,
-  Select,
-  SelectOption,
-  Skeleton,
-  UserChip,
-  createListToolbarState,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardHeader } from '@masmarino/gabarit/card';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListToolbarSortOption, createListToolbarState } from '@masmarino/gabarit/list-toolbar';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Pagination } from '@masmarino/gabarit/pagination';
+import { Panel } from '@masmarino/gabarit/panel';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { ReleaseStatus, ReleaseSummary, ReleasesService, releaseStatus } from '../releases.service';
 import { plainExcerpt } from '../release-excerpt';
 import { RepositoryContextService } from '../../repositories/repository-context.service';

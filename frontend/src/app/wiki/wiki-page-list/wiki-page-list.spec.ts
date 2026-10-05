@@ -2,7 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { provideRouter, Router } from '@angular/router';
 import { NEVER, of, throwError } from 'rxjs';
 import { By } from '@angular/platform-browser';
-import { EmptyState } from '@masmarino/gabarit';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
 import { WikiPageList } from './wiki-page-list';
 import { WikiList, WikiService } from '../wiki.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';

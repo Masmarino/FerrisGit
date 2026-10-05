@@ -1,27 +1,21 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, computed, inject, input, linkedSignal, output, signal } from '@angular/core';
 import { RouterLink } from '@angular/router';
-import {
-  Alert,
-  Badge,
-  Button,
-  ConfirmDangerModal,
-  copyToClipboard,
-  createListToolbarState,
-  EmptyState,
-  formatBytes,
-  GbtDateTimePipe,
-  GbtRelativeTimePipe,
-  Icon,
-  ListCard,
-  ListRow,
-  ListToolbarSortOption,
-  Menu,
-  MenuItem,
-  Pagination,
-  SkeletonList,
-  GbtToastService,
-} from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { copyToClipboard } from '@masmarino/gabarit/copy-button';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { formatBytes, GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { ListCard } from '@masmarino/gabarit/list-card';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { createListToolbarState, ListToolbarSortOption } from '@masmarino/gabarit/list-toolbar';
+import { Menu, MenuItem } from '@masmarino/gabarit/menu';
+import { Pagination } from '@masmarino/gabarit/pagination';
+import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { GroupsService } from '../../groups/groups.service';
 import { MemberRole, Repository, RepositoriesService, RepositoryRole } from '../repositories.service';
 import { canMaintain } from '../repository-role';

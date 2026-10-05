@@ -1,26 +1,26 @@
-import { afterNextRender, Component, computed, DestroyRef, ElementRef, HostListener, inject, Injector, OnInit, signal, viewChild } from '@angular/core';
+import { Component, computed, DestroyRef, inject, OnInit, signal } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
-import { Subject, catchError, debounceTime, distinctUntilChanged, of, switchMap } from 'rxjs';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs';
 import { AuthService } from '../auth/auth.service';
 import { currentUrl } from '../shared/current-url';
-import { SearchResponse, SearchService } from '../search/search.service';
 import { BreadcrumbSwitcherService } from './breadcrumb-switcher.service';
 import { MeService } from './me.service';
 import { NotificationBell } from './notification-bell/notification-bell';
 import { PageTitleService } from './page-title.service';
+import { QuickSearch } from './quick-search/quick-search';
+import { Crumb, pageTrail } from './page-trail';
 import { RepositoryContext, RepositoryContextService } from '../repositories/repository-context.service';
 import { SettingsService } from '../settings/settings.service';
 import { SidebarCollapseService } from './sidebar-collapse.service';
-import { AppShell as GbtAppShell, AppShellNavGroup, Breadcrumb, Icon, Menu, MenuItem, SearchBar, SearchResultCategory, Toaster } from '@masmarino/gabarit';
-
-interface QuickSearchResult {
-  kind: 'repository' | 'issue' | 'mergeRequest' | 'user';
-  id: string;
-  label: string;
-  link: string[] | null;
-}
+import { VersionService } from './version.service';
+import { AppShell as GbtAppShell, AppShellNavGroup } from '@masmarino/gabarit/app-shell';
+import { Breadcrumb } from '@masmarino/gabarit/breadcrumb';
+import { CommandPaletteTrigger } from '@masmarino/gabarit/command-palette';
+import { Icon } from '@masmarino/gabarit/icon';
+import { Menu, MenuItem } from '@masmarino/gabarit/menu';
+import { Toaster } from '@masmarino/gabarit/toaster';
 
 interface NavItem {
   action: string;
@@ -30,19 +30,16 @@ interface NavItem {
   children?: { action: string; icon: string; text: string; link: string }[];
 }
 
-const EMPTY_SEARCH_RESPONSE: SearchResponse = { repositories: [], issues: [], mergeRequests: [], users: [] };
-
 @Component({
   selector: 'fg-app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, NotificationBell, Toaster, GbtAppShell, AppShellNavGroup, SearchBar, Breadcrumb, Menu, MenuItem, NgTemplateOutlet],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, NotificationBell, Toaster, GbtAppShell, AppShellNavGroup, QuickSearch, CommandPaletteTrigger, Breadcrumb, Menu, MenuItem, NgTemplateOutlet],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
 })
 export class AppShell implements OnInit {
   private auth = inject(AuthService);
   private router = inject(Router);
-  private search = inject(SearchService);
   private destroyRef = inject(DestroyRef);
   protected me = inject(MeService);
   protected pageTitle = inject(PageTitleService);
@@ -50,76 +47,18 @@ export class AppShell implements OnInit {
   protected settings = inject(SettingsService);
   protected sidebarCollapse = inject(SidebarCollapseService);
   protected switcher = inject(BreadcrumbSwitcherService);
-  private injector = inject(Injector);
-  private searchBar = viewChild('searchBar', { read: ElementRef });
-  protected mobileSearchOpen = signal(false);
-  searchQuery = signal('');
-  private searchInput$ = new Subject<string>();
-  private searchResponse = signal<SearchResponse>(EMPTY_SEARCH_RESPONSE);
-
-  readonly searchResults = computed<SearchResultCategory<QuickSearchResult>[]>(() => {
-    const r = this.searchResponse();
-    const categories: SearchResultCategory<QuickSearchResult>[] = [];
-    if (r.repositories.length > 0) {
-      categories.push({
-        label: 'Dépôts',
-        icon: 'folder-git-2',
-        items: r.repositories.map((repo) => ({
-          kind: 'repository' as const,
-          id: repo.id,
-          label: repo.path.join('/'),
-          link: ['/repositories', ...repo.path],
-        })),
-      });
-    }
-    if (r.issues.length > 0) {
-      categories.push({
-        label: 'Tickets',
-        icon: 'circle-dot',
-        items: r.issues.map((issue) => ({
-          kind: 'issue' as const,
-          id: issue.id,
-          label: `${issue.repository.path.join('/')}#${issue.number} — ${issue.title}`,
-          link: ['/repositories', ...issue.repository.path, '-', 'issues', String(issue.number)],
-        })),
-      });
-    }
-    if (r.mergeRequests.length > 0) {
-      categories.push({
-        label: 'Demandes de fusion',
-        icon: 'git-pull-request',
-        items: r.mergeRequests.map((mr) => ({
-          kind: 'mergeRequest' as const,
-          id: mr.id,
-          label: `${mr.repository.path.join('/')} — ${mr.title}`,
-          link: ['/repositories', ...mr.repository.path, '-', 'merge-requests', mr.id],
-        })),
-      });
-    }
-    if (r.users.length > 0) {
-      categories.push({
-        label: 'Utilisateurs',
-        icon: 'user',
-        items: r.users.map((user) => ({ kind: 'user' as const, id: user.id, label: user.username, link: null })),
-      });
-    }
-    return categories;
-  });
-
-  readonly searchResultLabel = (item: QuickSearchResult): string => item.label;
-
-  /** Announced when the results open (Gabarit's default is English). */
-  readonly resultsAnnouncement = (count: number): string => `${count} résultat${count > 1 ? 's' : ''}`;
+  protected version = inject(VersionService);
+  /** What sits above the current page outside a repository, from its route; the page's title names the page itself. */
+  protected readonly trail = signal<Crumb[]>([]);
 
   constructor() {
-    this.searchInput$
+    this.trail.set(pageTrail(this.router.routerState.snapshot.root));
+    this.router.events
       .pipe(
-        debounceTime(250),
-        distinctUntilChanged(),
-        switchMap((q) => (q ? this.search.search(q).pipe(catchError(() => of(EMPTY_SEARCH_RESPONSE))) : of(EMPTY_SEARCH_RESPONSE))),
+        filter((event) => event instanceof NavigationEnd),
         takeUntilDestroyed(this.destroyRef),
       )
-      .subscribe((r) => this.searchResponse.set(r));
+      .subscribe(() => this.trail.set(pageTrail(this.router.routerState.snapshot.root)));
   }
 
   readonly navItems = computed<NavItem[]>(() => {
@@ -135,12 +74,12 @@ export class AppShell implements OnInit {
         action: 'admin',
         icon: 'settings',
         link: '/admin',
-        text: 'Admin',
+        text: 'Administration',
         children: [
-          { action: 'settings', icon: 'settings', link: '/admin/settings', text: 'Réglages' },
+          { action: 'dashboard', icon: 'layout-dashboard', link: '/admin/dashboard', text: 'Tableau de bord' },
           { action: 'users', icon: 'users', link: '/admin/users', text: 'Utilisateurs' },
-          { action: 'dashboard', icon: 'layout-dashboard', link: '/admin/dashboard', text: 'Dashboard' },
           { action: 'health', icon: 'activity', link: '/admin/health', text: 'Santé' },
+          { action: 'settings', icon: 'settings', link: '/admin/settings', text: 'Réglages' },
         ],
       });
     }
@@ -181,42 +120,7 @@ export class AppShell implements OnInit {
   ngOnInit(): void {
     this.me.load();
     this.settings.loadPublic();
-  }
-
-  onSearchInput(query: string): void {
-    this.searchQuery.set(query);
-    this.searchInput$.next(query.trim());
-  }
-
-  onSelectResult(item: QuickSearchResult): void {
-    this.searchQuery.set('');
-    this.searchInput$.next('');
-    if (item.link) {
-      this.router.navigate(item.link);
-    }
-  }
-
-  onSearchSubmitEnter(): void {
-    const q = this.searchQuery().trim();
-    if (!q || this.searchResults().length > 0) {
-      return;
-    }
-    this.mobileSearchOpen.set(false);
-    this.router.navigate(['/search'], { queryParams: { q } });
-  }
-
-  @HostListener('document:keydown.escape')
-  onEscape(): void {
-    if (!this.mobileSearchOpen()) {
-      return;
-    }
-    this.mobileSearchOpen.set(false);
-    // Gabarit gap: `gbt-search-bar` only refocuses its toggle from its own close button, not when `expanded` is set from
-    // outside. `.gbt-sb-toggle` is its internal class. Remove once `blurSearch` keeps focus in the bar.
-    afterNextRender(
-      () => (this.searchBar()?.nativeElement as HTMLElement | undefined)?.querySelector<HTMLElement>('.gbt-sb-toggle')?.focus(),
-      { injector: this.injector },
-    );
+    this.version.load();
   }
 
   logout(): void {

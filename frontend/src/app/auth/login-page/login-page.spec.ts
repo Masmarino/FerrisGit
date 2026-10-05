@@ -5,10 +5,9 @@ import { HttpTestingController, provideHttpClientTesting } from '@angular/common
 import { By } from '@angular/platform-browser';
 import { Router, provideRouter } from '@angular/router';
 import { RouterTestingHarness } from '@angular/router/testing';
-import { AuthLogin } from '@masmarino/gabarit';
+import { AuthLogin } from '@masmarino/gabarit/auth-login';
 import { LoginPage } from './login-page';
 import { authInterceptor } from '../auth.interceptor';
-import { provideFerrisgitAuth } from '../auth-kit';
 import { REQUEST_OPTIONS, fakeAssertion, stubPasskeyBrowser } from '../../shared/webauthn-testing';
 
 // Enrolment draws its QR code through our renderer, which lazily imports `qrcode`; jsdom has no canvas.
@@ -37,7 +36,6 @@ describe('LoginPage', () => {
           { path: 'repositories', component: Elsewhere },
           { path: 'repositories/**', component: Elsewhere },
         ]),
-        provideFerrisgitAuth(),
       ],
     });
     const harness = await RouterTestingHarness.create(options.url ?? '/login');

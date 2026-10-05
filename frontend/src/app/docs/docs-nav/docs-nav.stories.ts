@@ -3,7 +3,7 @@ import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
 import { provideLocationMocks } from '@angular/common/testing';
 import { provideRouter } from '@angular/router';
 import { expect } from 'storybook/test';
-import { PageLayout } from '@masmarino/gabarit';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
 import { DocsNav } from './docs-nav';
 import { DocsService } from '../docs.service';
 import { DOCS_INDEX, fakeDocsService } from '../docs-fixtures';

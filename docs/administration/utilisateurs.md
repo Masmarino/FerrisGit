@@ -26,15 +26,14 @@ Le menu **Actions** et le bouton **Supprimer l'utilisateur** regroupent les opé
 
 Le bouton **Inviter un utilisateur** ouvre un formulaire :
 
-- **Nom d'utilisateur** : 3 à 32 caractères, lettres, chiffres, `-` et `_`, commençant par une lettre. Il est enregistré en minuscules. Certains noms sont réservés parce qu'ils correspondent à des pages de l'application (`admin`, `api`, `login`, `settings`…) ;
 - **Adresse e-mail** ;
 - l'interrupteur **Super-administrateur**, pour que le compte soit administrateur dès l'activation.
 
-Le nom d'utilisateur et l'adresse doivent être libres (sans tenir compte de la casse), et le nom ne doit pas être celui d'un groupe racine existant.
+Vous ne choisissez pas le nom d'utilisateur : c'est la personne invitée qui le choisit en activant son compte. L'adresse doit être libre (sans tenir compte de la casse).
 
-FerrisGit crée le compte **sans mot de passe utilisable** et envoie à l'adresse un e-mail contenant un lien d'activation, de la forme `PUBLIC_URL/activate#token=…`. Ce lien est **valable 24 heures** et ne sert qu'une fois. La personne y choisit son mot de passe (8 caractères au minimum), puis se connecte et configure la double authentification, comme tout le monde.
+FerrisGit crée le compte **sans nom ni mot de passe utilisable** et envoie à l'adresse un e-mail contenant un lien d'activation, de la forme `PUBLIC_URL/invitation#token=…`. Ce lien est **valable 24 heures** et ne sert qu'une fois. La personne y choisit son nom d'utilisateur et son mot de passe (8 caractères au minimum), puis se connecte et configure la double authentification, comme tout le monde. Le nom suit les mêmes règles qu'à l'inscription : 3 à 32 caractères, lettres, chiffres, `-` et `_`, commençant par une lettre, enregistré en minuscules, libre, hors noms réservés (`admin`, `api`, `login`, `settings`…) et différent d'un groupe racine existant.
 
-Le compte apparaît tout de suite dans la liste avec l'état **Invitation en attente**. Il ne peut pas se connecter avant l'activation. Un compte qui n'est jamais activé est nettoyé automatiquement (voir [Comptes jamais activés](#comptes-jamais-actives)).
+Le compte apparaît tout de suite dans la liste avec l'état **Invitation en attente**. Tant que la personne n'a pas choisi son nom, la liste l'affiche par son adresse e-mail. Il ne peut pas se connecter avant l'activation. Un compte qui n'est jamais activé est nettoyé automatiquement (voir [Comptes jamais activés](#comptes-jamais-actives)).
 
 **Quand l'e-mail n'a pas pu partir** (serveur SMTP non configuré, injoignable, adresse refusée), le compte est créé quand même, et une alerte **Le mail n'a pas pu être envoyé** donne le motif et le lien d'activation à copier. Transmettez-le vous-même à la personne. Le lien n'est affiché que cette fois : **Renvoyer l'invitation** en génère un nouveau. Voir [Réglages de l'instance](/docs/administration/reglages) pour configurer l'envoi.
 

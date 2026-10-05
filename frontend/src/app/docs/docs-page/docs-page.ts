@@ -2,7 +2,13 @@ import { ChangeDetectionStrategy, Component, computed, DestroyRef, effect, Eleme
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, ParamMap, RouterLink } from '@angular/router';
 import { BehaviorSubject, catchError, combineLatest, debounceTime, map, Observable, of, startWith, switchMap, tap } from 'rxjs';
-import { Alert, Breadcrumb, Button, Card, CardLink, EmptyState, PageLayout, Skeleton } from '@masmarino/gabarit';
+import { Alert } from '@masmarino/gabarit/alert';
+import { Breadcrumb } from '@masmarino/gabarit/breadcrumb';
+import { Button } from '@masmarino/gabarit/button';
+import { Card, CardLink } from '@masmarino/gabarit/card';
+import { EmptyState } from '@masmarino/gabarit/empty-state';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { PageTitleService } from '../../shell/page-title.service';
 import { findAnchorTarget, MarkdownOutlineEntry, MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { hasOutline, WikiOutline } from '../../wiki/wiki-outline/wiki-outline';
@@ -163,7 +169,7 @@ export class DocsPage {
       if (heading) {
         this.focus(heading);
       }
-      this.host.nativeElement.ownerDocument.defaultView?.scrollTo?.({ top: 0 });
+      scrollToTop(this.host.nativeElement);
     }
   }
 
@@ -174,4 +180,17 @@ export class DocsPage {
     }
     element.focus({ preventScroll: true });
   }
+}
+
+/**
+ * Back to the top of the page, whichever box scrolls it: the window, or a scrolling ancestor such as the app shell's
+ * sheet, which scrolls its own content on a wide screen.
+ */
+function scrollToTop(from: HTMLElement): void {
+  for (let box = from.parentElement; box; box = box.parentElement) {
+    if (box.scrollTop > 0) {
+      box.scrollTop = 0;
+    }
+  }
+  from.ownerDocument.defaultView?.scrollTo?.({ top: 0 });
 }

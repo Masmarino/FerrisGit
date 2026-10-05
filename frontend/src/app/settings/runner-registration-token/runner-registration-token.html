@@ -12,9 +12,8 @@
     label="{{ configured() ? 'Remplacer le jeton' : 'Définir un jeton' }}"
     autocomplete="new-password"
     mono
-    [ngModel]="tokenDraft()"
-    (ngModelChange)="tokenDraft.set($event)"
-    (committed)="setToken($event)"
+    [ngModel]="editor.runnerTokenDraft()"
+    (ngModelChange)="editor.runnerTokenDraft.set($event)"
   />
   <div class="admin-settings__token-actions">
     <gbt-button variant="secondary" size="small" iconName="refresh-cw" [text]="configured() ? 'Générer un nouveau jeton' : 'Générer un jeton'" (clicked)="askGenerate()" />

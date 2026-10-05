@@ -2,7 +2,9 @@ import { Component, OnDestroy, OnInit, inject, signal, viewChild } from '@angula
 import { Router } from '@angular/router';
 import { Notification, NotificationsService } from '../../notifications/notifications.service';
 import { notificationLink, notificationQueryParams, notificationSentence } from '../../notifications/notification-display';
-import { Button, NotificationDot, Popover } from '@masmarino/gabarit';
+import { Button } from '@masmarino/gabarit/button';
+import { NotificationDot } from '@masmarino/gabarit/notification-dot';
+import { Popover } from '@masmarino/gabarit/popover';
 
 const POLL_INTERVAL_MS = 20000;
 

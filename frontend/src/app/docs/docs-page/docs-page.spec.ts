@@ -123,6 +123,17 @@ describe('DocsPage', () => {
     expect(scrollTo).toHaveBeenCalledWith({ top: 0 });
   });
 
+  it("also brings the shell's sheet back to the top, since it scrolls its own content on a wide screen", async () => {
+    const { el, go } = await setup('/docs/ci-cd/premiers-pas');
+    const sheet = el().parentElement!;
+    let top = 240;
+    Object.defineProperty(sheet, 'scrollTop', { get: () => top, set: (value: number) => (top = value), configurable: true });
+
+    await go('/docs/ci-cd/reference-yaml');
+
+    expect(top).toBe(0);
+  });
+
   it('shows its own "not found" in the docs frame for a page outside the index', async () => {
     const { el, title } = await setup('/docs/ci-cd/inconnue');
 

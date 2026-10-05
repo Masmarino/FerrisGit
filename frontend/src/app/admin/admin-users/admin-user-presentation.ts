@@ -1,4 +1,5 @@
-import { BadgeVariant, formatDateTime } from '@masmarino/gabarit';
+import { BadgeVariant } from '@masmarino/gabarit/badge';
+import { formatDateTime } from '@masmarino/gabarit/format';
 import { AdminUser } from '../admin-users.service';
 import { ABSOLUTE_OPTIONS, RowDate, rowDate } from '../row-date';
 

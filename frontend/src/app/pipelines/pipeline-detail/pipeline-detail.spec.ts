@@ -4,7 +4,7 @@ import { provideHttpClient } from '@angular/common/http';
 import { HttpTestingController } from '@angular/common/http/testing';
 import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { Router, provideRouter } from '@angular/router';
-import { formatDateTime, formatRelativeTime } from '@masmarino/gabarit';
+import { formatDateTime, formatRelativeTime } from '@masmarino/gabarit/format';
 import { PipelineDetail } from './pipeline-detail';
 import { JobSummary, PipelineDetail as PipelineDetailModel } from '../pipelines.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';

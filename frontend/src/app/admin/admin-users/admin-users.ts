@@ -1,26 +1,19 @@
 import { afterNextRender, Component, computed, ElementRef, inject, Injector, OnInit, signal, viewChild } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import {
-  Badge,
-  Button,
-  ConfirmDangerModal,
-  createListToolbarState,
-  GbtToastService,
-  ListCard,
-  ListCardState,
-  ListRow,
-  ListToolbar,
-  ListToolbarSortOption,
-  Menu,
-  MenuItem,
-  PageHeader,
-  PageLayout,
-  Panel,
-  SegmentedControl,
-  SegmentedControlOption,
-  Spinner,
-  UserChip,
-} from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
+import { ListCard, ListCardState } from '@masmarino/gabarit/list-card';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { createListToolbarState, ListToolbar, ListToolbarSortOption } from '@masmarino/gabarit/list-toolbar';
+import { Menu, MenuItem } from '@masmarino/gabarit/menu';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Panel } from '@masmarino/gabarit/panel';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Spinner } from '@masmarino/gabarit/spinner';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { AdminUser, AdminUsersService } from '../admin-users.service';
 import { AuthService } from '../../auth/auth.service';
 import { MeService } from '../../shell/me.service';

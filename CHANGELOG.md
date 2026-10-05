@@ -4,6 +4,20 @@ Every notable change to FerrisGit. The format follows [Keep a Changelog](https:/
 versions follow [SemVer](https://semver.org/). Each section is the text of the GitHub release of the same number: see
 "Publishing a version" below.
 
+## [Unreleased]
+
+### Changed
+
+- The interface takes the Ferris family's design from Gabarit 2.0: the palette, IBM Plex (now served from the package),
+  the graphite shell and the sign-in page. The local theme, its map onto Gabarit's tokens and the shell's overrides are
+  gone; the shell's breadcrumb, the repository switcher and the commit graph behind the sign-in panel stay. A few
+  shades move slightly so every text reaches 7:1 on the page and on a panel: lighter secondary text in the dark theme,
+  a slightly darker danger button.
+- An administrator invites someone by e-mail address only: the invitee chooses their username, along with their
+  password, on the page the invitation mail links to (`/invitation`). Until then the user list shows them by their
+  address, and the API sends `username: null`. A registered account's link still goes to `/activate`, which only asks
+  for the password. The interface uses Gabarit 1.4.0.
+
 ## [0.1.3] - 2026-10-05
 
 ### Added

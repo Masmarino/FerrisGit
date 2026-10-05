@@ -1,34 +1,26 @@
 import { Component, OnInit, computed, inject, input, linkedSignal, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
-import {
-  Badge,
-  Button,
-  createListToolbarState,
-  GbtDateTimePipe,
-  GbtInput,
-  GbtRelativeTimePipe,
-  GbtToastService,
-  Icon,
-  ListCard,
-  ListCardState,
-  ListRow,
-  ListToolbarSortOption,
-  Menu,
-  MenuItem,
-  Modal,
-  PageHeader,
-  PageLayout,
-  Pagination,
-  Panel,
-  SegmentedControl,
-  SegmentedControlOption,
-  Select,
-  SelectOption,
-  Tag,
-  Textarea,
-  UserChip,
-} from '@masmarino/gabarit';
+import { Badge } from '@masmarino/gabarit/badge';
+import { Button } from '@masmarino/gabarit/button';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
+import { Icon } from '@masmarino/gabarit/icon';
+import { GbtInput } from '@masmarino/gabarit/input';
+import { ListCard, ListCardState } from '@masmarino/gabarit/list-card';
+import { ListRow } from '@masmarino/gabarit/list-row';
+import { createListToolbarState, ListToolbarSortOption } from '@masmarino/gabarit/list-toolbar';
+import { Menu, MenuItem } from '@masmarino/gabarit/menu';
+import { Modal } from '@masmarino/gabarit/modal';
+import { PageHeader } from '@masmarino/gabarit/page-header';
+import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { Pagination } from '@masmarino/gabarit/pagination';
+import { Panel } from '@masmarino/gabarit/panel';
+import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
+import { Tag } from '@masmarino/gabarit/tag';
+import { Textarea } from '@masmarino/gabarit/textarea';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { UserChip } from '@masmarino/gabarit/user-chip';
 import { Issue, IssuesService, isClosed } from '../issues.service';
 import { CreatableIssueKind, ISSUE_KIND_OPTIONS, IssueKindPresentation, issueKindPresentation } from '../issue-kind';
 import { createIssueFilters } from '../issue-filters';
@@ -36,6 +28,7 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { MeService } from '../../shell/me.service';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { PageTitleService } from '../../shell/page-title.service';
+import { openWhenAsked } from '../../shared/open-when-asked';
 
 type SortKey = 'date' | 'title';
 type StateTab = 'open' | 'closed';
@@ -177,6 +170,7 @@ export class IssueList implements OnInit {
     // Newest first: with tabs and pages, oldest-first would bury new work on the last page. Set here, not in
     // `createListToolbarState`, whose `asc` default the other lists keep.
     this.direction.set('desc');
+    openWhenAsked('issue', () => this.openCreate());
   }
 
   ngOnInit(): void {

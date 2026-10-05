@@ -5,7 +5,7 @@ import { NEVER, of, throwError } from 'rxjs';
 import { AdminDashboard } from './admin-dashboard';
 import { AdminMetricsService, AdminStats, MetricsSnapshot } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { GbtToastService } from '@masmarino/gabarit';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { inShellContentArea, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { fakeToast } from '../../shared/layout/settings-story-helpers';
 

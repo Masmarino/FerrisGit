@@ -1,8 +1,12 @@
 import { Component, inject } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { AuthFooterLink, AuthResetPassword, Button } from '@masmarino/gabarit';
+import { AuthFooterLink } from '@masmarino/gabarit/auth';
+import { AuthResetPassword } from '@masmarino/gabarit/auth-reset-password';
+import { Button } from '@masmarino/gabarit/button';
 import { AuthLogo } from '../auth-logo/auth-logo';
+import { GitField } from '@masmarino/gabarit/git-field';
 import { consumeLinkToken } from '../link-token';
+import { provideFerrisgitAuth } from '../auth-kit';
 
 /**
  * Owns the `/reset-password#token=…` URL, like `ActivatePage`; Gabarit's page asks for the new password. Leaving
@@ -11,9 +15,12 @@ import { consumeLinkToken } from '../link-token';
 @Component({
   selector: 'fg-reset-password-page',
   standalone: true,
-  imports: [AuthResetPassword, AuthLogo, AuthFooterLink, Button, RouterLink],
+  imports: [AuthResetPassword, AuthLogo, AuthFooterLink, Button, RouterLink, GitField],
+  providers: [provideFerrisgitAuth()],
+  host: { class: 'fg-auth-page' },
   template: `
     <gbt-auth-reset-password [token]="token" (signIn)="toSignIn()">
+      <gbt-git-field auth-backdrop />
       <picture auth-logo fgAuthLogo></picture>
       <a gbtButton variant="link" gbtAuthFooterLink routerLink="/login">Se connecter</a>
     </gbt-auth-reset-password>
