@@ -4,13 +4,25 @@ Every notable change to FerrisGit. The format follows [Keep a Changelog](https:/
 versions follow [SemVer](https://semver.org/). Each section is the text of the GitHub release of the same number: see
 "Publishing a version" below.
 
-## [0.1.2] - 2026-10-03
+## [0.1.3] - 2026-10-05
 
 ### Added
 
 - A "Ressources" documentation page with the memory, size and start-up figures of an empty instance, and how to
   measure them. An instance administrator cannot read other users' private repositories, through the API or through
   Git: a test now guards the rule.
+
+### Changed
+
+- The public website is rebuilt as a reference document: one page per subject (product, CI/CD, installation, security,
+  roadmap), formal copy in the five languages, the measured footprint of an instance on the home page and the security
+  headers of a real response on the security page. A page whose code cannot be fetched now loads again once instead of
+  staying blank.
+
+## [0.1.2] - 2026-10-03
+
+### Added
+
 - Accounts nobody activated are cleaned up, whether they came from an invitation or from a registration. When the link
   of the last mail has expired, a reminder with a fresh link and the deletion date is sent, which makes one a day, and
   the account is deleted 7 days after it was created, freeing its username and address. Activating is the only thing
@@ -136,6 +148,7 @@ pages switches in `system_settings`). See "Upgrades" in the README.
 The CI/CD workflow builds and publishes the image, then creates the GitHub release `vX.Y.Z` with the text of the matching
 section. If the section is missing, only the release job fails (the image is not affected): add it, then rerun the job.
 
+[0.1.3]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.1
 [0.1.0]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.0

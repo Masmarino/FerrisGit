@@ -46,7 +46,7 @@ Depuis une copie du dépôt, avec un compte qui peut créer les ressources du ch
 ```bash
 helm upgrade --install ferrisgit ./helm/ferrisgit \
   --namespace ferrisgit --create-namespace \
-  --set image.tag=0.1.2 \
+  --set image.tag=0.1.3 \
   --set ingress.host=git.example.com \
   --set-string ferrisgit.trustedProxyCidrs=10.42.0.0/16
 kubectl -n ferrisgit rollout status deployment/ferrisgit
@@ -58,7 +58,7 @@ Les valeurs que vous avez le plus souvent à régler (la liste complète, commen
 
 | Valeur | Défaut | Rôle |
 |---|---|---|
-| `image.tag` | aucun, obligatoire | La version à déployer, par exemple `0.1.2`. |
+| `image.tag` | aucun, obligatoire | La version à déployer, par exemple `0.1.3`. |
 | `image.digest` | vide | Un `sha256:…` : le Pod exécute exactement cette image, quoi que l'étiquette désigne plus tard. La CI le renseigne. |
 | `image.repository` | `masmarino/ferrisgit` | L'image. Pour un registre privé, `imagePullSecrets` liste les Secrets de registre. |
 | `ingress.host` | `app.ferrisgit.pro` | L'hôte public. |
@@ -284,7 +284,7 @@ La procédure coupe le service entre l'étape 4 et la fin. Les données ne sont 
 
    ```bash
    helm template ferrisgit ./helm/ferrisgit --namespace ferrisgit \
-     --set image.tag=0.1.2 --set-string ferrisgit.trustedProxyCidrs=<TRUSTED_PROXY_CIDRS> \
+     --set image.tag=0.1.3 --set-string ferrisgit.trustedProxyCidrs=<TRUSTED_PROXY_CIDRS> \
      | grep -E '^kind:|^  name:'
    ```
 
@@ -314,7 +314,7 @@ La procédure coupe le service entre l'étape 4 et la fin. Les données ne sont 
 
    ```bash
    helm upgrade --install ferrisgit ./helm/ferrisgit --namespace ferrisgit \
-     --set image.tag=0.1.2 \
+     --set image.tag=0.1.3 \
      --set ingress.host=<hôte> \
      --set-string ferrisgit.trustedProxyCidrs=<TRUSTED_PROXY_CIDRS> \
      --set storage.size=10Gi --set postgres.storage.size=5Gi \
