@@ -853,5 +853,4 @@ The project is developed on GitHub at <https://github.com/Masmarino/FerrisGit>.
 
 ## License
 
-No license has been chosen yet, so all rights are reserved by default. Add a `LICENSE` file before distributing or
-accepting outside contributions.
+FerrisGit is licensed under the [Apache License, Version 2.0](LICENSE).
