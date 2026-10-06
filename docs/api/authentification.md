@@ -287,7 +287,7 @@ Renvoie le compte connecté.
 Réponse 200 :
 
 ```json
-{ "id": "0b6c…", "username": "alice", "email": "alice@example.com", "isAdmin": false }
+{ "id": "0b6c…", "username": "alice", "email": "alice@example.com", "isAdmin": false, "createdAt": "2026-03-01T10:00:00Z" }
 ```
 
 ### `PATCH /api/auth/me`
@@ -310,6 +310,12 @@ Corps :
 Réponse 200 : `{ "token": "<nouveau JWT>" }`. Le changement révoque tous les JWT émis avant, y compris celui de la requête : remplacez-le par le nouveau. Un e-mail prévient le titulaire.
 
 Erreurs : 400 `password must be at least 8 characters`, 400 `current password is incorrect` (en 400, pas en 401, pour qu'un formulaire ne déconnecte pas l'utilisateur), 429 `too many attempts, try again later` (cette route partage le budget de 10 tentatives par 5 minutes de la double authentification).
+
+### `POST /api/auth/logout-all`
+
+Déconnecte le compte partout : tous les JWT émis jusque-là sont révoqués, y compris celui de la requête. Les jetons d'accès Git restent valables ; ils se révoquent un par un. L'événement est consigné dans le journal de sécurité.
+
+Pas de corps. Réponse 204.
 
 ## Gérer ses facteurs
 
