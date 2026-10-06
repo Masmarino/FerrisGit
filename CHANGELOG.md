@@ -4,10 +4,27 @@ Every notable change to FerrisGit. The format follows [Keep a Changelog](https:/
 versions follow [SemVer](https://semver.org/). Each section is the text of the GitHub release of the same number: see
 "Publishing a version" below.
 
-## [Unreleased]
+## [0.1.4] - 2026-10-06
+
+### Added
+
+- A quick search, opened with ⌘K (Ctrl K on Windows and Linux), `/` or the search button in the header. Before anything
+  is typed it offers the repositories opened last in this browser, the current repository's pages and, to those who
+  can write, its "Nouveau ticket", "Nouvelle demande de fusion" and "Nouvelle page de wiki"; then the menu's pages and
+  the global actions ("Nouveau dépôt", "Nouveau groupe", "Déconnexion"). Typing filters them at once, accents ignored,
+  then adds the repositories, tickets and merge requests the server finds, and a link to the full results page. The
+  administration pages, and the users found, are only offered to administrators.
+- The account page says since when the account exists, and ends on a "Sessions" card: "Se déconnecter partout" ends
+  every session of the account, this one included (`POST /auth/logout-all`, recorded as a security event); the Git
+  access tokens stay.
 
 ### Changed
 
+- The "Exécution" settings only show the chosen engine's: the runners' for Docker, the cluster's for Kubernetes.
+  "Exécution" and "Sécurité" now keep their changes until "Enregistrer", which sends them in one request and confirms
+  with a notification, or says it failed and keeps them; "Annuler les modifications" puts everything back as saved.
+- The administration menu is named "Administration" and opens on its "Tableau de bord": Tableau de bord, Utilisateurs,
+  Santé, then Réglages.
 - The interface takes the Ferris family's design from Gabarit 2.0: the palette, IBM Plex (now served from the package),
   the graphite shell and the sign-in page. The local theme, its map onto Gabarit's tokens and the shell's overrides are
   gone; the shell's breadcrumb, the repository switcher and the commit graph behind the sign-in panel stay. A few
@@ -16,7 +33,7 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 - An administrator invites someone by e-mail address only: the invitee chooses their username, along with their
   password, on the page the invitation mail links to (`/invitation`). Until then the user list shows them by their
   address, and the API sends `username: null`. A registered account's link still goes to `/activate`, which only asks
-  for the password. The interface uses Gabarit 1.4.0.
+  for the password. The interface uses Gabarit 2.2.1.
 
 ## [0.1.3] - 2026-10-05
 
@@ -162,6 +179,7 @@ pages switches in `system_settings`). See "Upgrades" in the README.
 The CI/CD workflow builds and publishes the image, then creates the GitHub release `vX.Y.Z` with the text of the matching
 section. If the section is missing, only the release job fails (the image is not affected): add it, then rerun the job.
 
+[0.1.4]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.2
 [0.1.1]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.1

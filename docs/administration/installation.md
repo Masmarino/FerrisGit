@@ -157,7 +157,7 @@ Le projet publie l'image `masmarino/ferrisgit` sur Docker Hub, avec les étiquet
 Pour l'utiliser avec Compose, remplacez dans le service `ferrisgit-server`, la ligne `build: .` par :
 
 ```yaml
-    image: masmarino/ferrisgit:0.1.3
+    image: masmarino/ferrisgit:0.1.4
 ```
 
 Puis `docker compose pull` et `docker compose up -d`. Épinglez une version plutôt que `latest` : vous maîtrisez ainsi le moment des mises à jour (voir [Sauvegardes et mises à jour](/docs/administration/sauvegardes-et-mises-a-jour)).

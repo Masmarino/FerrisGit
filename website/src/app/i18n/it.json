@@ -274,7 +274,7 @@
       "source": "Comandi per avviare FerrisGit dal codice sorgente"
     },
     "notes": {
-      "compose": "Compose costruisce l'immagine dai sorgenti. Per usare l'immagine pubblicata, sostituisci `build: .` con `image: masmarino/ferrisgit:0.1.3` in `docker-compose.yml`.",
+      "compose": "Compose costruisce l'immagine dai sorgenti. Per usare l'immagine pubblicata, sostituisci `build: .` con `image: masmarino/ferrisgit:0.1.4` in `docker-compose.yml`.",
       "helm": "Se lasciati vuoti, il chart genera la password del database, `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY` e la password del primo amministratore nel Secret `ferrisgit-secrets`. La release deve chiamarsi `ferrisgit`.",
       "source": "Servono `rustup`, Node.js 26, Docker con Compose e `git` nel PATH. Lo script avvia PostgreSQL, applica le migrazioni e lancia il backend sulla porta 8080 e il server di sviluppo Angular sulla porta 4201."
     },
