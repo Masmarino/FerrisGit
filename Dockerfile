@@ -35,7 +35,7 @@ FROM alpine:3.24 AS runtime
 WORKDIR /app
 
 # git http-backend comes from alpine's git-daemon package.
-RUN apk add --no-cache git git-daemon ca-certificates
+RUN apk upgrade --no-cache && apk add --no-cache git git-daemon ca-certificates
 
 COPY --from=backend-build /app/target/release/ferrisgit-api ./ferrisgit-api
 COPY --from=frontend-build /app/frontend/dist/ferrisgit-web/browser ./static
