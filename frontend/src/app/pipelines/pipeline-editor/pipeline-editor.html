@@ -68,11 +68,21 @@
         <p class="pipeline-editor__summary">{{ summary() }}</p>
       }
       <div class="pipeline-editor__toolbar-actions">
-        <gbt-button variant="secondary" size="small" icon="key" text="Variables et secrets" (clicked)="openSecrets()" />
+        @if (mode() === 'cards') {
+          <div class="pipeline-editor__history" role="group" aria-label="Historique des modifications">
+            <gbt-tooltip [text]="undoTip()">
+              <gbt-button variant="ghost" size="small" [iconOnly]="true" iconName="undo-2" [ariaLabel]="undoTip()" [attr.aria-keyshortcuts]="'Meta+Z Control+Z'" [disabled]="!canUndo()" (clicked)="undo()" />
+            </gbt-tooltip>
+            <gbt-tooltip [text]="redoTip()">
+              <gbt-button variant="ghost" size="small" [iconOnly]="true" iconName="redo-2" [ariaLabel]="redoTip()" [attr.aria-keyshortcuts]="'Shift+Meta+Z Control+Y'" [disabled]="!canRedo()" (clicked)="redo()" />
+            </gbt-tooltip>
+          </div>
+        }
+        <gbt-button variant="secondary" size="small" iconName="key" text="Variables et secrets" (clicked)="openSecrets()" />
         @if (missingSecretUses().length > 0) {
           <gbt-badge variant="warning" class="pipeline-editor__secrets-badge">{{ missingSecretUses().length }} à créer</gbt-badge>
         }
-        <gbt-button variant="ghost" size="small" text="Revenir au fichier du dépôt" (clicked)="reset()" />
+        <gbt-button variant="ghost" size="small" text="Revenir au fichier du dépôt" [disabled]="!edited()" (clicked)="askReset()" />
       </div>
     </div>
 
@@ -107,20 +117,42 @@
 
           <ul class="pipeline-editor__cards" cdkDropList [id]="lane.id" [cdkDropListData]="lane.cards" [cdkDropListConnectedTo]="laneIds()" [cdkDropListAutoScrollStep]="6" (cdkDropListDropped)="drop($event, lane.stage)">
             @for (card of lane.cards; track card.job.name) {
-              <li class="pipeline-editor__card" cdkDrag [cdkDragData]="card.job.name" [cdkDragStartDelay]="dragStartDelay" [class.pipeline-editor__card--problem]="card.problemCount > 0" [attr.data-job]="card.job.name">
+              <li
+                class="pipeline-editor__card"
+                cdkDrag
+                [cdkDragData]="card.job.name"
+                [cdkDragStartDelay]="dragStartDelay"
+                [class.pipeline-editor__card--problem]="card.problemCount > 0"
+                [class.pipeline-editor__card--pointed]="pointedJob() === card.job.name"
+                [attr.data-relation]="card.relation"
+                [attr.data-job]="card.job.name"
+                (mouseenter)="pointedJob.set(card.job.name)"
+                (mouseleave)="pointedJob.set(null)"
+                (focusin)="pointedJob.set(card.job.name)"
+                (focusout)="pointedJob.set(null)"
+              >
                 <div class="pipeline-editor__card-head">
                   <button type="button" class="pipeline-editor__card-open" (click)="openJob(card.job.name)">
                     <span class="pipeline-editor__card-name">{{ card.job.name }}</span>
                     <span class="pipeline-editor__card-image">{{ card.job.image || 'aucune image' }}</span>
+                    @if (card.firstCommand; as command) {
+                      <span class="pipeline-editor__card-command">
+                        <span class="pipeline-editor__card-command-text">{{ command }}</span>
+                        @if (card.moreCommands > 0) {
+                          <span class="pipeline-editor__card-more">+{{ card.moreCommands }}</span>
+                        }
+                      </span>
+                    }
                   </button>
-                  <!-- Dragging has no keyboard equivalent: this menu is how to move a job without a mouse. -->
-                  @if (card.moveTargets.length > 0) {
-                    <gbt-menu class="pipeline-editor__move" [label]="card.menuLabel" triggerIcon="ellipsis-vertical" align="end">
-                      @for (target of card.moveTargets; track target) {
-                        <button gbtMenuItem (click)="moveTo(card.job, target)">{{ target }}</button>
-                      }
-                    </gbt-menu>
-                  }
+                  <!-- Dragging has no keyboard equivalent: this menu is also how to move a job without a mouse. -->
+                  <gbt-menu class="pipeline-editor__actions" [label]="card.menuLabel" triggerIcon="ellipsis-vertical" align="end">
+                    <button gbtMenuItem (click)="openJob(card.job.name)">Modifier</button>
+                    <button gbtMenuItem (click)="duplicate(card.job.name)">Dupliquer</button>
+                    @for (target of card.moveTargets; track target) {
+                      <button gbtMenuItem class="pipeline-editor__move" (click)="moveTo(card.job, target)">Déplacer vers {{ target }}</button>
+                    }
+                    <button gbtMenuItem variant="danger" (click)="deleteJob(card.job.name)">Supprimer</button>
+                  </gbt-menu>
                 </div>
                 @if (card.job.needs.length > 0 || card.problemCount > 0) {
                   <div class="pipeline-editor__card-meta">
@@ -138,7 +170,7 @@
             }
           </ul>
 
-          <gbt-button class="pipeline-editor__add-job" variant="ghost" size="small" icon="plus" text="Ajouter un job" (clicked)="addJobTo(lane.stage)" />
+          <gbt-button class="pipeline-editor__add-job" variant="ghost" size="small" iconName="plus" text="Ajouter un job" (clicked)="addJobTo(lane.stage)" />
         </section>
       }
 
@@ -149,7 +181,7 @@
         </p>
         <form class="pipeline-editor__new-stage" (submit)="$event.preventDefault(); addNewStage()">
           <gbt-input label="Nouvelle étape" placeholder="deploy" [ngModel]="newStageName()" (ngModelChange)="newStageName.set($event)" [ngModelOptions]="{ standalone: true }" />
-          <gbt-button type="submit" variant="secondary" icon="plus" text="Ajouter l'étape" />
+          <gbt-button type="submit" variant="secondary" iconName="plus" text="Ajouter l'étape" />
         </form>
       </section>
     </div>
@@ -281,6 +313,30 @@
     />
   }
 </gbt-drawer>
+
+<gbt-confirm-danger-modal
+  [isOpen]="resetOpen()"
+  tone="warning"
+  heading="Revenir au fichier du dépôt ?"
+  message="Les modifications faites ici seront perdues, et ne pourront pas être annulées."
+  confirmLabel="Revenir au fichier"
+  cancelLabel="Garder mes modifications"
+  closeLabel="Fermer"
+  (confirmed)="reset()"
+  (closed)="resetOpen.set(false)"
+/>
+
+<gbt-confirm-danger-modal
+  [isOpen]="leaveOpen()"
+  tone="warning"
+  heading="Quitter l'éditeur ?"
+  message="Vos modifications n'ont pas été proposées : elles seront perdues. Pour les garder, restez et utilisez « Proposer la modification »."
+  confirmLabel="Quitter sans proposer"
+  cancelLabel="Rester dans l'éditeur"
+  closeLabel="Fermer"
+  (confirmed)="answerLeave(true)"
+  (closed)="answerLeave(false)"
+/>
 
 <!-- What the last move or change did, for those who cannot see the board change. -->
 <p class="sr-only" role="status">{{ announcement() }}</p>

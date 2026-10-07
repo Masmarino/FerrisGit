@@ -11,6 +11,8 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { PIPELINE_TEMPLATES, tileById } from './pipeline-catalog';
 import { PageTitleService } from '../../shell/page-title.service';
 import { SettingsService } from '../../settings/settings.service';
+import { PendingChanges } from '../../shared/pending-changes';
+import { GbtToastService } from '@masmarino/gabarit/toaster';
 
 const FILE_URL = '/api/repositories/repo-1/pipeline-definition';
 const PROPOSAL_URL = '/api/repositories/repo-1/pipeline-definition/proposal';
@@ -42,7 +44,7 @@ interface Internals {
   moveTo(job: { name: string }, stage: string): void;
   rename(stage: string, name: string): void;
   patchJob(name: string, patch: Record<string, unknown>): void;
-  state(): { stages: string[]; jobs: { name: string; stage: string; image: string; variables: { key: string; value: string }[] }[] };
+  state(): { stages: string[]; jobs: { name: string; stage: string; image: string; needs: string[]; variables: { key: string; value: string }[] }[] };
   selected(): string | null;
   announcement(): string;
   setMode(mode: 'cards' | 'yaml'): void;
@@ -59,6 +61,15 @@ interface Internals {
   existingSecretUses(): { name: string; jobs: string[] }[];
   secrets(): string[] | null;
   modeOptions(): { value: string; disabled: boolean }[];
+  undo(): boolean;
+  redo(): boolean;
+  canUndo(): boolean;
+  canRedo(): boolean;
+  undoTip(): string;
+  duplicate(name: string): void;
+  deleteJob(name: string): void;
+  pointedJob: { set(name: string | null): void };
+  onBeforeUnload(event: Event): void;
 }
 
 describe('PipelineEditor', () => {
@@ -106,6 +117,14 @@ describe('PipelineEditor', () => {
   const lanes = (el: HTMLElement) => Array.from(el.querySelectorAll<HTMLElement>('.pipeline-editor__lane:not(.pipeline-editor__lane--new)'));
   const stageNames = (el: HTMLElement) => lanes(el).map((lane) => lane.querySelector<HTMLInputElement>('.pipeline-editor__stage-name input')!.value);
   const cardNames = (lane: HTMLElement) => Array.from(lane.querySelectorAll('.pipeline-editor__card-name')).map(text);
+  const buttonNamed = (root: ParentNode, name: string) => Array.from(root.querySelectorAll<HTMLButtonElement>('button')).find((b) => text(b) === name)!;
+  const card = (el: HTMLElement, job: string) => el.querySelector<HTMLElement>(`[data-job="${job}"]`)!;
+  /** Opens the actions menu of a card and reads its items. */
+  function menuItems(ctx: ReturnType<typeof setup>, job: string): string[] {
+    card(ctx.el, job).querySelector<HTMLButtonElement>('.pipeline-editor__actions .gbt-menu__trigger')!.click();
+    ctx.fixture.detectChanges();
+    return Array.from(card(ctx.el, job).querySelectorAll('[role="menuitem"]'), text);
+  }
 
   afterEach(() => TestBed.inject(HttpTestingController).verify());
 
@@ -222,11 +241,11 @@ describe('PipelineEditor', () => {
       await answerRender(ctx);
     });
 
-    it('has a move menu on a card only because there is somewhere else to go', async () => {
+    it('offers every card its actions, moving it to each other stage among them', async () => {
       const ctx = opened();
       await answerRender(ctx);
 
-      expect(ctx.el.querySelectorAll('.pipeline-editor__move')).toHaveLength(2);
+      expect(menuItems(ctx, 'compile')).toEqual(['Modifier', 'Dupliquer', 'Déplacer vers test', 'Supprimer']);
     });
   });
 
@@ -391,12 +410,19 @@ describe('PipelineEditor', () => {
     expect(navigate).toHaveBeenCalledWith(['/repositories', 'acme', 'widget', '-', 'pipelines']);
   });
 
-  it('starts again from the repository file', async () => {
+  it('starts again from the repository file, once asked', async () => {
     const ctx = opened();
     await answerRender(ctx);
     ctx.internals.patchJob('compile', { image: 'changed' });
+    ctx.fixture.detectChanges();
 
-    Array.from(ctx.el.querySelectorAll('button')).find((b) => text(b) === 'Revenir au fichier du dépôt')!.click();
+    buttonNamed(ctx.el, 'Revenir au fichier du dépôt').click();
+    ctx.fixture.detectChanges();
+    expect(Array.from(document.querySelectorAll('gbt-confirm-danger-modal'), text).join(' ')).toContain('Les modifications faites ici seront perdues');
+    ctx.http.expectNone(FILE_URL);
+
+    buttonNamed(document.body, 'Revenir au fichier').click();
+    ctx.fixture.detectChanges();
     ctx.http.expectOne(FILE_URL).flush(fileBody(FILE));
     ctx.http.expectOne(PARSE_URL).flush(parsed());
     ctx.fixture.detectChanges();
@@ -794,6 +820,265 @@ describe('PipelineEditor', () => {
       expect(ctx.internals.state().jobs.find((j) => j.name === 'compile')?.variables).toEqual([{ key: 'REGISTRY_TOKEN', value: 'abc' }]);
       await sleep(300);
       ctx.http.match(RENDER_URL).forEach((r) => r.flush(rendered()));
+    });
+  });
+
+  describe('undo and redo', () => {
+    it('undoes the last change, says what it undid, and redoes it', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      expect(ctx.internals.canUndo()).toBe(false);
+
+      ctx.internals.moveTo({ name: 'compile' }, 'test');
+      ctx.fixture.detectChanges();
+      expect(ctx.internals.undoTip()).toMatch(/^Annuler : déplacement du job compile \((⌘Z|Ctrl\+Z)\)$/);
+
+      expect(ctx.internals.undo()).toBe(true);
+      ctx.fixture.detectChanges();
+      expect(cardNames(lanes(ctx.el)[0])).toEqual(['compile']);
+      expect(text(ctx.el.querySelector('p[role="status"]'))).toBe('Annulé : déplacement du job compile');
+      expect(ctx.internals.canRedo()).toBe(true);
+
+      expect(ctx.internals.redo()).toBe(true);
+      ctx.fixture.detectChanges();
+      expect(cardNames(lanes(ctx.el)[1])).toEqual(['unit', 'compile']);
+      expect(text(ctx.el.querySelector('p[role="status"]'))).toBe('Rétabli : déplacement du job compile');
+      await answerRender(ctx);
+    });
+
+    it('makes one step of what is typed in one field of a job', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+
+      ctx.internals.patchJob('compile', { image: 'r' });
+      ctx.internals.patchJob('compile', { image: 'ru' });
+      ctx.internals.patchJob('compile', { image: 'rust:2' });
+      ctx.internals.undo();
+
+      expect(ctx.internals.state().jobs.find((j) => j.name === 'compile')?.image).toBe('rust:1');
+      expect(ctx.internals.canUndo()).toBe(false);
+      await answerRender(ctx);
+    });
+
+    it('makes a step of each dependency ticked, however quick', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+
+      ctx.internals.patchJob('unit', { needs: [] });
+      ctx.internals.patchJob('unit', { needs: ['compile'] });
+      ctx.internals.undo();
+
+      expect(ctx.internals.state().jobs.find((j) => j.name === 'unit')).toMatchObject({ needs: [] });
+      expect(ctx.internals.canUndo()).toBe(true);
+      await answerRender(ctx);
+    });
+
+    it('closes the drawer of a job that undoing took away', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.pickerStage.set('test');
+      ctx.internals.chooseTile(tileById('custom'));
+      expect(ctx.internals.selected()).not.toBeNull();
+
+      ctx.internals.undo();
+
+      expect(ctx.internals.selected()).toBeNull();
+      expect(ctx.internals.state().jobs.map((j) => j.name)).toEqual(['compile', 'unit']);
+      await answerRender(ctx);
+    });
+
+    it('answers ⌘Z and Ctrl+Y on the board, and leaves them to a field being typed in', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.moveTo({ name: 'compile' }, 'test');
+
+      const field = ctx.el.querySelector<HTMLInputElement>('.pipeline-editor__stage-name input')!;
+      field.dispatchEvent(new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true }));
+      expect(ctx.internals.state().jobs.find((j) => j.name === 'compile')?.stage).toBe('test');
+
+      const undoKey = new KeyboardEvent('keydown', { key: 'z', metaKey: true, bubbles: true, cancelable: true });
+      document.body.dispatchEvent(undoKey);
+      expect(ctx.internals.state().jobs.find((j) => j.name === 'compile')?.stage).toBe('build');
+      expect(undoKey.defaultPrevented).toBe(true);
+
+      document.body.dispatchEvent(new KeyboardEvent('keydown', { key: 'y', ctrlKey: true, bubbles: true }));
+      expect(ctx.internals.state().jobs.find((j) => j.name === 'compile')?.stage).toBe('test');
+      await answerRender(ctx);
+    });
+
+    it('is not offered over the YAML, which the text field undoes itself', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.moveTo({ name: 'compile' }, 'test');
+      await answerRender(ctx);
+
+      ctx.internals.setMode('yaml');
+      ctx.http.expectOne(RENDER_URL).flush(rendered());
+      await sleep(300);
+      ctx.http.expectOne(PARSE_URL).flush(parsed());
+      ctx.fixture.detectChanges();
+
+      expect(ctx.internals.canUndo()).toBe(false);
+      expect(ctx.el.querySelector('.pipeline-editor__history')).toBeNull();
+    });
+
+    it('starts afresh when the repository file is opened again', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.moveTo({ name: 'compile' }, 'test');
+      ctx.fixture.detectChanges();
+
+      buttonNamed(ctx.el, 'Revenir au fichier du dépôt').click();
+      ctx.fixture.detectChanges();
+      buttonNamed(document.body, 'Revenir au fichier').click();
+      ctx.http.expectOne(FILE_URL).flush(fileBody(FILE));
+      ctx.http.expectOne(PARSE_URL).flush(parsed());
+
+      expect(ctx.internals.canUndo()).toBe(false);
+      await answerRender(ctx);
+    });
+
+    it('does not offer to go back to the repository file while nothing changed', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+
+      expect(buttonNamed(ctx.el, 'Revenir au fichier du dépôt').disabled).toBe(true);
+    });
+  });
+
+  describe('card actions', () => {
+    it('duplicates a job right after it, and opens the copy', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+
+      ctx.internals.duplicate('compile');
+      ctx.fixture.detectChanges();
+
+      expect(cardNames(lanes(ctx.el)[0])).toEqual(['compile', 'compile-2']);
+      expect(ctx.internals.selected()).toBe('compile-2');
+      expect(text(ctx.el.querySelector('p[role="status"]'))).toBe('Job compile copié en compile-2');
+      await answerRender(ctx);
+    });
+
+    it('deletes a job from its menu without asking, and says how to undo it', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+
+      menuItems(ctx, 'unit');
+      Array.from(card(ctx.el, 'unit').querySelectorAll<HTMLButtonElement>('[role="menuitem"]')).find((b) => text(b) === 'Supprimer')!.click();
+      ctx.fixture.detectChanges();
+
+      expect(cardNames(lanes(ctx.el)[1])).toEqual([]);
+      expect(TestBed.inject(GbtToastService).toasts().map((t) => t.message)).toEqual([expect.stringMatching(/^Job « unit » supprimé\. (⌘Z|Ctrl\+Z) pour l'annuler\.$/)]);
+
+      ctx.internals.undo();
+      ctx.fixture.detectChanges();
+      expect(cardNames(lanes(ctx.el)[1])).toEqual(['unit']);
+      await answerRender(ctx);
+    });
+
+    it('shows what a job runs first, and how many commands follow', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.patchJob('unit', { script: ['cargo test', '', 'cargo test --doc'] });
+      ctx.fixture.detectChanges();
+
+      expect(text(card(ctx.el, 'compile').querySelector('.pipeline-editor__card-command'))).toBe('cargo build');
+      expect(text(card(ctx.el, 'unit').querySelector('.pipeline-editor__card-command-text'))).toBe('cargo test');
+      expect(text(card(ctx.el, 'unit').querySelector('.pipeline-editor__card-more'))).toBe('+1');
+      expect(card(ctx.el, 'compile').querySelector('.pipeline-editor__card-more')).toBeNull();
+      await answerRender(ctx);
+    });
+
+    it('marks the jobs a pointed job waits for, and those that wait for it', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+
+      ctx.internals.pointedJob.set('unit');
+      ctx.fixture.detectChanges();
+      expect(card(ctx.el, 'compile').dataset['relation']).toBe('waited');
+      expect(card(ctx.el, 'unit').classList).toContain('pipeline-editor__card--pointed');
+
+      ctx.internals.pointedJob.set('compile');
+      ctx.fixture.detectChanges();
+      expect(card(ctx.el, 'unit').dataset['relation']).toBe('waiting');
+
+      card(ctx.el, 'compile').dispatchEvent(new MouseEvent('mouseleave'));
+      ctx.fixture.detectChanges();
+      expect(card(ctx.el, 'unit').dataset['relation']).toBeUndefined();
+    });
+  });
+
+  describe('leaving with changes', () => {
+    it('lets one leave freely while nothing changed', async () => {
+      opened();
+
+      expect(TestBed.inject(PendingChanges).canLeave()).toBe(true);
+    });
+
+    it('asks first once something changed, and stays when told to', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.moveTo({ name: 'compile' }, 'test');
+      await answerRender(ctx);
+
+      const answer = TestBed.inject(PendingChanges).canLeave() as Promise<boolean>;
+      ctx.fixture.detectChanges();
+      expect(Array.from(document.querySelectorAll('gbt-confirm-danger-modal'), text).join(' ')).toContain("Vos modifications n'ont pas été proposées");
+
+      buttonNamed(document.body, "Rester dans l'éditeur").click();
+      await expect(answer).resolves.toBe(false);
+    });
+
+    it('leaves once confirmed', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.moveTo({ name: 'compile' }, 'test');
+      await answerRender(ctx);
+
+      const answer = TestBed.inject(PendingChanges).canLeave() as Promise<boolean>;
+      ctx.fixture.detectChanges();
+      buttonNamed(document.body, 'Quitter sans proposer').click();
+
+      await expect(answer).resolves.toBe(true);
+    });
+
+    it('asks the browser to confirm closing the tab, only with changes', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      const untouched = new Event('beforeunload', { cancelable: true });
+      ctx.internals.onBeforeUnload(untouched);
+      expect(untouched.defaultPrevented).toBe(false);
+
+      ctx.internals.moveTo({ name: 'compile' }, 'test');
+      const touched = new Event('beforeunload', { cancelable: true });
+      ctx.internals.onBeforeUnload(touched);
+      expect(touched.defaultPrevented).toBe(true);
+      await answerRender(ctx);
+    });
+
+    it('goes to the merge request without asking once the change is proposed', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.patchJob('compile', { image: 'rust:2' });
+      await answerRender(ctx);
+      vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+
+      ctx.internals.openSave();
+      ctx.internals.save();
+      ctx.http.expectOne(PROPOSAL_URL).flush({ mergeRequestId: 'mr-1', branch: 'pipeline-editor/1' });
+
+      expect(TestBed.inject(PendingChanges).canLeave()).toBe(true);
+    });
+
+    it('stops being asked once the editor is gone', () => {
+      const ctx = opened();
+      ctx.internals.moveTo({ name: 'compile' }, 'test');
+
+      ctx.fixture.destroy();
+
+      expect(TestBed.inject(PendingChanges).canLeave()).toBe(true);
+      ctx.http.match(RENDER_URL);
     });
   });
 });

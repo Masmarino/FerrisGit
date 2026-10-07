@@ -147,6 +147,28 @@ export function updateJob(state: BuilderState, name: string, patch: Partial<Buil
   return { ...state, jobs: grouped(state.stages, jobs) };
 }
 
+/**
+ * A copy of the job right after it, in the same stage, under the first free `<name>-2`, `<name>-3`... It waits for what
+ * the original waits for; no other job waits for the copy.
+ */
+export function duplicateJob(state: BuilderState, name: string): { state: BuilderState; copy: string } | null {
+  const original = state.jobs.find((job) => job.name === name);
+  if (!original) {
+    return null;
+  }
+  const copy: BuilderJob = {
+    ...original,
+    name: uniqueName(state.jobs.map((job) => job.name), name),
+    script: [...original.script],
+    variables: original.variables.map((row) => ({ ...row })),
+    needs: [...original.needs],
+    tags: [...original.tags],
+    cache: [...original.cache],
+  };
+  const at = state.jobs.indexOf(original) + 1;
+  return { state: { ...state, jobs: [...state.jobs.slice(0, at), copy, ...state.jobs.slice(at)] }, copy: copy.name };
+}
+
 /** The job goes, and so does every `needs` that named it. */
 export function removeJob(state: BuilderState, name: string): BuilderState {
   return {

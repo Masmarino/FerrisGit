@@ -6,7 +6,7 @@ Une modification n'est jamais écrite directement sur la branche par défaut : e
 
 ## Ouvrir l'éditeur
 
-Depuis la liste des pipelines d'un dépôt, le bouton **Éditer la pipeline** ouvre l'éditeur sur le fichier de la branche par défaut, là où le dépôt le range (`.ferrisgit-ci.yml` sauf si le [réglage du dépôt](/docs/utilisation/depots-et-groupes) dit autre chose). Il est réservé aux contributeurs et aux rôles au-dessus : un lecteur voit un message qui le lui explique. Sans fichier dans le dépôt, l'éditeur démarre d'une pipeline vide avec les étapes `build` et `test`.
+Depuis la liste des pipelines d'un dépôt, le bouton **Éditer la pipeline** (que propose aussi la recherche rapide, ⌘K) ouvre l'éditeur sur le fichier de la branche par défaut, là où le dépôt le range (`.ferrisgit-ci.yml` sauf si le [réglage du dépôt](/docs/utilisation/depots-et-groupes) dit autre chose). Il est réservé aux contributeurs et aux rôles au-dessus : un lecteur voit un message qui le lui explique. Sans fichier dans le dépôt, l'éditeur démarre d'une pipeline vide avec les étapes `build` et `test`.
 
 ## Modifier avec les cartes
 
@@ -15,10 +15,18 @@ Le sélecteur **Cartes / YAML**, en haut de l'éditeur, choisit la vue. Chaque n
 - **Partir d'un modèle.** Tant que la pipeline est vide, l'éditeur propose des pipelines complètes : projet Rust, projet Node ou Angular, projet Go, application publiée en image Docker. Un clic pose les étapes et les jobs, avec leurs dépendances, que vous modifiez ensuite.
 - **Ajouter un job avec une tuile.** Le bouton **Ajouter un job** d'une étape ouvre le catalogue des tuiles, rangées par usage : compiler, tester, vérifier le code, empaqueter, déployer et prévenir, ou un job vide. Une tuile arrive avec une image et des commandes prêtes et s'ouvre aussitôt pour être réglée. Chaque tuile a sa bulle d'aide qui dit ce qu'elle suppose, et un badge signale les secrets qu'elle lit et que le dépôt n'a pas encore.
 - **Régler un job.** Un clic sur une carte ouvre son tiroir : nom, image (avec des images courantes à cliquer), commandes, variables, jobs à attendre (`needs`), étiquettes de runner et caches. Les commandes sont une liste : on en ajoute, retire et réordonne chacune, sans écrire de bloc de texte.
+- **Lire le tableau.** Une carte montre le nom du job, son image et sa première commande, suivie du nombre de commandes qui viennent après. Survoler une carte, ou y placer le focus, met en évidence les jobs qu'elle attend et ceux qui l'attendent ; la mention « Après … » d'une carte dit dans quel sens.
+- **Le menu ⋮ d'une carte** permet de modifier le job, de le **dupliquer**, de le déplacer vers une autre étape ou de le supprimer. La copie se place juste après l'original, sous le nom `<nom>-2`, attend les mêmes jobs que lui et s'ouvre aussitôt : c'est le moyen le plus court de tester sur deux versions, ou de déployer vers deux cibles.
 - **Déplacer un job** se fait en le glissant vers une autre étape ou à un autre rang. Sans souris, le menu ⋮ de la carte propose les étapes de destination, et le déplacement est annoncé aux lecteurs d'écran. Sur un écran tactile, un appui prolongé saisit la carte, ce qui laisse le balayage faire défiler le tableau.
 - **Les étapes** se renomment sur place, se déplacent avec le menu ⋮ de leur colonne et ne se suppriment que vides. Renommer un job met à jour les jobs qui l'attendent, renommer une étape met à jour les jobs qu'elle contient.
 
 Le fichier produit s'affiche sous le tableau, avec un bouton pour le copier. Il est régénéré après chaque modification.
+
+## Annuler, rétablir, quitter
+
+Chaque modification faite avec les cartes peut être annulée : les flèches de la barre d'outils, ou **⌘Z** (Ctrl+Z) pour annuler et **⇧⌘Z** (Ctrl+Y) pour rétablir. L'infobulle des flèches dit ce qu'elles vont défaire, par exemple « Annuler : suppression du job lint ». Ce que l'on tape dans un même champ forme une seule étape, et tant que le curseur est dans un champ, ces raccourcis restent ceux du champ. C'est pourquoi supprimer un job ne demande pas de confirmation. Dans la vue YAML, c'est la zone de texte qui annule ce que vous tapez.
+
+Quitter l'éditeur avec des modifications qui n'ont pas été proposées, pour une autre page de FerrisGit, demande une confirmation. Fermer l'onglet ou recharger la page aussi, par la question du navigateur. Une fois la merge request ouverte, plus rien n'est demandé.
 
 ## Construire une image et déployer
 
@@ -82,7 +90,7 @@ Passer des cartes à l'enregistrement, ou du YAML aux cartes, réécrit le fichi
 - les **commentaires** ;
 - les **clés que FerrisGit ne connaît pas**, que l'analyseur ignore déjà à l'exécution.
 
-À l'ouverture, un encadré liste ce que le fichier du dépôt contient de ce genre ; au passage du YAML aux cartes, un autre dit ce qui vient d'être perdu. Le bouton **Revenir au fichier du dépôt** abandonne les modifications faites dans l'éditeur. Pour garder les commentaires, modifiez le fichier dans la vue YAML sans repasser par les cartes.
+À l'ouverture, un encadré liste ce que le fichier du dépôt contient de ce genre ; au passage du YAML aux cartes, un autre dit ce qui vient d'être perdu. Le bouton **Revenir au fichier du dépôt** abandonne les modifications faites dans l'éditeur, après une confirmation, car cela ne s'annule pas. Pour garder les commentaires, modifiez le fichier dans la vue YAML sans repasser par les cartes.
 
 Si le fichier du dépôt est illisible (YAML mal formé), l'éditeur le dit et part d'une pipeline vide plutôt que de deviner.
 

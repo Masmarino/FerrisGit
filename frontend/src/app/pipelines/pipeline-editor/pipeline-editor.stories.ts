@@ -175,8 +175,10 @@ export const MoveMenuOpen: Story = {
   decorators: [withData()],
   play: async (context) => {
     await expectBoardLayout(context);
-    context.canvasElement.querySelector<HTMLButtonElement>('[data-job="lint"] .pipeline-editor__move .gbt-menu__trigger')!.click();
-    await waitFor(() => expect(context.canvasElement.querySelectorAll('[role="menuitem"]').length).toBe(2));
+    context.canvasElement.querySelector<HTMLButtonElement>('[data-job="lint"] .pipeline-editor__actions .gbt-menu__trigger')!.click();
+    await waitFor(() =>
+      expect(Array.from(context.canvasElement.querySelectorAll('[role="menuitem"]'), (item) => item.textContent?.trim())).toEqual(['Modifier', 'Dupliquer', 'Déplacer vers build', 'Déplacer vers publish', 'Supprimer']),
+    );
   },
 };
 

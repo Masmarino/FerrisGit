@@ -119,6 +119,17 @@
   border-color: var(--color-error-base);
 }
 
+// The job under the pointer or the focus, and its ties: the jobs it waits for, and those that wait for it. Only borders
+// and a tint change, so nothing on the board moves; "Après …" on the cards says which way each tie goes.
+.pipeline-editor__card--pointed,
+.pipeline-editor__card[data-relation] {
+  border-color: var(--primary);
+}
+
+.pipeline-editor__card[data-relation] {
+  background: color-mix(in srgb, var(--primary) 7%, var(--bg-principal));
+}
+
 .pipeline-editor__card-head {
   display: flex;
   align-items: flex-start;
@@ -163,6 +174,28 @@
   font-size: 0.75rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.pipeline-editor__card-command {
+  display: flex;
+  gap: 0.375rem;
+  align-items: baseline;
+  max-width: 100%;
+  margin-top: 0.25rem;
+  color: var(--text-secondary);
+  font-family: var(--gbt-font-mono, monospace);
+  font-size: 0.75rem;
+}
+
+.pipeline-editor__card-command-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pipeline-editor__card-more {
+  flex: none;
 }
 
 .pipeline-editor__card-meta {
@@ -287,6 +320,11 @@
   display: flex;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.pipeline-editor__history {
+  display: flex;
+  gap: 0.125rem;
 }
 
 .pipeline-editor__toolbar-actions {

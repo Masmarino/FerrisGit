@@ -1,4 +1,4 @@
-import { Component, ElementRef, Injector, OnInit, afterNextRender, computed, effect, inject, input, signal, untracked } from '@angular/core';
+import { Component, DestroyRef, ElementRef, Injector, OnInit, afterNextRender, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
@@ -8,6 +8,7 @@ import { CdkScrollable } from '@angular/cdk/scrolling';
 import { Alert } from '@masmarino/gabarit/alert';
 import { Badge } from '@masmarino/gabarit/badge';
 import { Button } from '@masmarino/gabarit/button';
+import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
 import { CopyButton } from '@masmarino/gabarit/copy-button';
 import { Drawer } from '@masmarino/gabarit/drawer';
 import { EmptyState } from '@masmarino/gabarit/empty-state';
@@ -20,16 +21,20 @@ import { SegmentedControl } from '@masmarino/gabarit/segmented-control';
 import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { Tooltip } from '@masmarino/gabarit/tooltip';
 import { Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { injectRepositoryPermissions } from '../../repositories/repository-role';
 import { RepositorySettingsService } from '../../repositories/repository-settings.service';
 import { SettingsService } from '../../settings/settings.service';
 import { PageTitleService } from '../../shell/page-title.service';
+import { PendingChanges } from '../../shared/pending-changes';
 import {
   BuilderJob,
   BuilderState,
   NEW_PIPELINE,
   addStage,
+  duplicateJob,
   fromDefinition,
   jobsOf,
   moveJob,
@@ -51,6 +56,7 @@ import { PipelineStarters } from './pipeline-starters';
 import { PipelineTilePicker } from './pipeline-tile-picker';
 import { missingSecrets, secretUsage, wantedSecretNames } from './pipeline-references';
 import { ProblemView, describeProblem, describeWarning } from './pipeline-problems';
+import { emptyHistory, record, redo, undo } from './pipeline-history';
 
 /** What the editor shows when the repository does not say where its pipeline file is: the engine's own default. */
 const DEFAULT_PIPELINE_FILE = '.ferrisgit-ci.yml';
@@ -62,12 +68,23 @@ type SaveFailure = 'changed' | 'refused' | 'failed';
 
 const stageId = (index: number) => `pipeline-stage-${index}`;
 
+/** A key typed in a field undoes what was typed there, not the board. */
+const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]') !== null;
+
+/** How the person's keyboard says it: the shortcuts are shown, and announced, as they would press them. */
+const onApple = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+
 interface CardView {
   job: BuilderJob;
   /** What the server says is wrong with this job (warnings are not counted). */
   problemCount: number;
   menuLabel: string;
   moveTargets: string[];
+  /** What the job runs first, so that two jobs on the same image tell apart at a glance. */
+  firstCommand: string | null;
+  moreCommands: number;
+  /** Its tie to the job under the pointer or the focus: one it waits for, or one that waits for it. */
+  relation: 'waited' | 'waiting' | null;
 }
 
 interface LaneView {
@@ -89,9 +106,10 @@ interface LaneView {
 @Component({
   selector: 'fg-pipeline-editor',
   standalone: true,
-  imports: [FormsModule, DragDropModule, CdkScrollable, PageLayout, PageHeader, Alert, Badge, Button, CopyButton, Drawer, EmptyState, GbtInput, Menu, MenuItem, Modal, SegmentedControl, Skeleton, Textarea, HelpTip, PipelineJobForm, PipelineSecrets, PipelineStarters, PipelineTilePicker],
+  imports: [FormsModule, DragDropModule, CdkScrollable, PageLayout, PageHeader, Alert, Badge, Button, ConfirmDangerModal, CopyButton, Drawer, EmptyState, GbtInput, Menu, MenuItem, Modal, SegmentedControl, Skeleton, Textarea, Tooltip, HelpTip, PipelineJobForm, PipelineSecrets, PipelineStarters, PipelineTilePicker],
   templateUrl: './pipeline-editor.html',
   styleUrl: './pipeline-editor.scss',
+  host: { '(document:keydown)': 'onKeydown($event)', '(window:beforeunload)': 'onBeforeUnload($event)' },
 })
 export class PipelineEditor implements OnInit {
   repositoryId = input.required<string>();
@@ -135,17 +153,36 @@ export class PipelineEditor implements OnInit {
   /** Touch drags start after a 250ms press, so a swipe scrolls the board instead of picking a card up. */
   protected readonly dragStartDelay = { touch: 250, mouse: 0 };
 
-  protected canWrite = computed(() => {
-    const role = this.repoContext.current()?.role;
-    return role === 'owner' || role === 'contributor' || role === 'maintainer';
-  });
+  private permissions = injectRepositoryPermissions();
+  protected canWrite = this.permissions.canWrite;
   protected roleKnown = computed(() => this.repoContext.current()?.role != null);
-
   /** The repository's secrets belong to maintainers: they alone can list them or create one. */
-  protected canManageSecrets = computed(() => {
-    const role = this.repoContext.current()?.role;
-    return role === 'owner' || role === 'maintainer';
+  protected canManageSecrets = this.permissions.canMaintain;
+
+  /** What the cards went through, to undo and redo. The YAML has its own: the text field's. */
+  private history = signal(emptyHistory<BuilderState>());
+  protected canUndo = computed(() => this.mode() === 'cards' && this.history().past.length > 0);
+  protected canRedo = computed(() => this.mode() === 'cards' && this.history().future.length > 0);
+  private readonly apple = onApple();
+  protected readonly undoKeys = this.apple ? '⌘Z' : 'Ctrl+Z';
+  protected readonly redoKeys = this.apple ? '⇧⌘Z' : 'Ctrl+Y';
+  protected undoTip = computed(() => {
+    const label = this.history().past.at(-1)?.label;
+    return label ? `Annuler : ${label} (${this.undoKeys})` : 'Rien à annuler';
   });
+  protected redoTip = computed(() => {
+    const label = this.history().future.at(-1)?.label;
+    return label ? `Rétablir : ${label} (${this.redoKeys})` : 'Rien à rétablir';
+  });
+
+  /** The job under the pointer or the focus, whose ties to the others the board shows. */
+  protected pointedJob = signal<string | null>(null);
+
+  protected resetOpen = signal(false);
+  protected leaveOpen = signal(false);
+  private leaveAnswer: ((leave: boolean) => void) | null = null;
+  /** Set once the change went out as a merge request: going to it loses nothing. */
+  private proposed = false;
   /** Their names, or `null` while unknown (not a maintainer, or not loaded). Values are never sent back by the server. */
   protected secrets = signal<string[] | null>(null);
   protected engine = computed(() => this.appSettings.publicSettings()?.executionEngine ?? null);
@@ -202,6 +239,13 @@ export class PipelineEditor implements OnInit {
 
   protected lanes = computed<LaneView[]>(() => {
     const state = this.state();
+    const pointed = state.jobs.find((job) => job.name === this.pointedJob()) ?? null;
+    const relation = (job: BuilderJob): CardView['relation'] => {
+      if (!pointed || pointed.name === job.name) {
+        return null;
+      }
+      return pointed.needs.includes(job.name) ? 'waited' : job.needs.includes(pointed.name) ? 'waiting' : null;
+    };
     const counts = new Map<string, number>();
     for (const problem of this.problems()) {
       if (problem.job) {
@@ -215,12 +259,18 @@ export class PipelineEditor implements OnInit {
         index,
         id: stageId(index),
         headingId: `${stageId(index)}-title`,
-        cards: jobs.map((job) => ({
-          job,
-          problemCount: counts.get(job.name) ?? 0,
-          menuLabel: `Déplacer le job ${job.name} vers`,
-          moveTargets: state.stages.filter((other) => other !== stage),
-        })),
+        cards: jobs.map((job) => {
+          const commands = job.script.filter((line) => line.trim() !== '');
+          return {
+            job,
+            problemCount: counts.get(job.name) ?? 0,
+            menuLabel: `Actions du job ${job.name}`,
+            moveTargets: state.stages.filter((other) => other !== stage),
+            firstCommand: commands[0]?.trim() ?? null,
+            moreCommands: Math.max(0, commands.length - 1),
+            relation: relation(job),
+          };
+        }),
         canMoveBefore: index > 0,
         canMoveAfter: index < state.stages.length - 1,
         removable: jobs.length === 0,
@@ -293,6 +343,98 @@ export class PipelineEditor implements OnInit {
         untracked(() => this.loadSecrets());
       }
     });
+    const unregister = inject(PendingChanges).register(() => this.confirmLeave());
+    inject(DestroyRef).onDestroy(() => {
+      unregister();
+      this.answerLeave(false);
+    });
+  }
+
+  /** Every change to the cards goes through here, so that it can be undone. `typingKey` groups the keystrokes of one field. */
+  private change(next: BuilderState, label: string, typingKey: string | null = null): void {
+    const before = this.state();
+    if (next === before) {
+      return;
+    }
+    this.history.update((history) => record(history, before, label, typingKey, Date.now()));
+    this.state.set(next);
+  }
+
+  protected undo(): boolean {
+    const step = undo(this.history(), this.state());
+    if (!step) {
+      return false;
+    }
+    this.history.set(step.history);
+    this.showStep(step.state, `Annulé : ${step.label}`);
+    return true;
+  }
+
+  protected redo(): boolean {
+    const step = redo(this.history(), this.state());
+    if (!step) {
+      return false;
+    }
+    this.history.set(step.history);
+    this.showStep(step.state, `Rétabli : ${step.label}`);
+    return true;
+  }
+
+  /** A drawer about a job or a stage that the step took away closes with it. */
+  private showStep(state: BuilderState, announcement: string): void {
+    this.state.set(state);
+    if (this.selected() !== null && !state.jobs.some((job) => job.name === this.selected())) {
+      this.selected.set(null);
+    }
+    if (this.pickerStage() !== null && !state.stages.includes(this.pickerStage()!)) {
+      this.pickerStage.set(null);
+    }
+    this.announcement.set(announcement);
+  }
+
+  protected onKeydown(event: KeyboardEvent): void {
+    const key = event.key.toLowerCase();
+    if (!(event.metaKey || event.ctrlKey) || event.altKey || (key !== 'z' && key !== 'y') || event.defaultPrevented) {
+      return;
+    }
+    if (this.mode() !== 'cards' || this.status() !== 'ready' || isTyping(event.target) || this.saveOpen() || this.resetOpen() || this.leaveOpen()) {
+      return;
+    }
+    const done = key === 'y' || event.shiftKey ? this.redo() : this.undo();
+    if (done) {
+      event.preventDefault();
+    }
+  }
+
+  /** Work that would be lost by leaving: something changed, and it has not gone out as a merge request. */
+  private holdsWork(): boolean {
+    return this.status() === 'ready' && this.edited() && !this.proposed;
+  }
+
+  /** Closing the tab or reloading: only the browser's own question can stop it. */
+  protected onBeforeUnload(event: BeforeUnloadEvent): void {
+    if (this.holdsWork()) {
+      event.preventDefault();
+      // Safari and older browsers still read this rather than the call above.
+      event.returnValue = '';
+    }
+  }
+
+  /** Asked by the router before any other page: leaving with changes is a choice made in the dialog. */
+  private confirmLeave(): boolean | Promise<boolean> {
+    if (!this.holdsWork()) {
+      return true;
+    }
+    this.answerLeave(false);
+    this.leaveOpen.set(true);
+    return new Promise<boolean>((resolve) => (this.leaveAnswer = resolve));
+  }
+
+  protected answerLeave(leave: boolean): void {
+    this.leaveOpen.set(false);
+    const answer = this.leaveAnswer;
+    this.leaveAnswer = null;
+    answer?.(leave);
   }
 
   ngOnInit(): void {
@@ -305,6 +447,7 @@ export class PipelineEditor implements OnInit {
 
   protected load(): void {
     this.status.set('loading');
+    this.history.set(emptyHistory());
     this.mode.set('cards');
     this.yamlTouched.set(false);
     this.yamlCheck.set(null);
@@ -360,12 +503,12 @@ export class PipelineEditor implements OnInit {
     if (event.previousContainer === event.container && event.previousIndex === event.currentIndex) {
       return;
     }
-    this.state.set(moveJob(this.state(), name, stage, event.currentIndex));
+    this.change(moveJob(this.state(), name, stage, event.currentIndex), `déplacement du job ${name}`);
   }
 
   /** The way to move a job without dragging: it goes to the end of the stage, is announced, and focus follows it. */
   protected moveTo(job: BuilderJob, stage: string): void {
-    this.state.set(moveJob(this.state(), job.name, stage, Number.MAX_SAFE_INTEGER));
+    this.change(moveJob(this.state(), job.name, stage, Number.MAX_SAFE_INTEGER), `déplacement du job ${job.name}`);
     this.announcement.set(`Job ${job.name} déplacé vers l'étape ${stage}`);
     afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>(`[data-job="${CSS.escape(job.name)}"] .pipeline-editor__card-open`)?.focus(), { injector: this.injector });
   }
@@ -376,22 +519,23 @@ export class PipelineEditor implements OnInit {
     if (next === this.state()) {
       return;
     }
-    this.state.set(next);
+    this.change(next, `ajout de l'étape ${name}`);
     this.newStageName.set('');
     this.announcement.set(`Étape ${name} ajoutée`);
   }
 
   protected rename(stage: string, name: string): void {
-    this.state.set(renameStage(this.state(), stage, name));
+    this.change(renameStage(this.state(), stage, name), `renommage de l'étape ${stage}`);
   }
 
   protected shiftStage(lane: LaneView, by: -1 | 1): void {
-    this.state.set(moveStage(this.state(), lane.index, lane.index + by));
+    this.change(moveStage(this.state(), lane.index, lane.index + by), `déplacement de l'étape ${lane.stage}`);
     this.announcement.set(`Étape ${lane.stage} déplacée`);
   }
 
   protected deleteStage(stage: string): void {
-    this.state.set(removeStage(this.state(), stage));
+    this.change(removeStage(this.state(), stage), `suppression de l'étape ${stage}`);
+    this.announcement.set(`Étape ${stage} supprimée`);
   }
 
   /** Asks what the job should do: every kind of job is a tile, the empty one included. */
@@ -409,7 +553,7 @@ export class PipelineEditor implements OnInit {
       return;
     }
     const { state, job } = addTile(this.state(), tile, stage, values);
-    this.state.set(state);
+    this.change(state, `ajout du job ${job.name}`);
     this.pickerStage.set(null);
     this.announcement.set(`Job ${job.name} ajouté à l'étape ${stage}`);
     // Open it: the commands are a starting point, and the image or the variables are what a person adjusts first.
@@ -417,7 +561,7 @@ export class PipelineEditor implements OnInit {
   }
 
   protected chooseTemplate(template: PipelineTemplate): void {
-    this.state.set(stateFromTemplate(template));
+    this.change(stateFromTemplate(template), `modèle ${template.title}`);
     this.announcement.set(`Modèle ${template.title} appliqué`);
   }
 
@@ -464,7 +608,11 @@ export class PipelineEditor implements OnInit {
   protected patchJob(name: string, patch: Partial<BuilderJob>): void {
     const before = this.state();
     const next = updateJob(before, name, patch);
-    this.state.set(next);
+    const renaming = patch.name !== undefined && patch.name.trim() !== name;
+    // Keystrokes in one field of one job are one step. A rename (applied when its field is left) and a ticked dependency
+    // are choices, each a step of its own.
+    const typed = !renaming && patch.needs === undefined;
+    this.change(next, renaming ? `renommage du job ${name}` : `modification du job ${name}`, typed ? `job:${name}:${Object.keys(patch).sort().join(',')}` : null);
     const requested = patch.name?.trim();
     // The drawer follows the job to its new name, when the name was accepted.
     if (requested && requested !== name && next.jobs.some((job) => job.name === requested) && !before.jobs.some((job) => job.name === requested)) {
@@ -472,10 +620,23 @@ export class PipelineEditor implements OnInit {
     }
   }
 
+  /** No question asked: the step can be undone, and the notice says how. */
   protected deleteJob(name: string): void {
-    this.state.set(removeJob(this.state(), name));
+    this.change(removeJob(this.state(), name), `suppression du job ${name}`);
     this.selected.set(null);
     this.announcement.set(`Job ${name} supprimé`);
+    this.toast.show(`Job « ${name} » supprimé. ${this.undoKeys} pour l'annuler.`);
+  }
+
+  /** The copy opens in the drawer: a copy is made to be changed (another version, another target). */
+  protected duplicate(name: string): void {
+    const result = duplicateJob(this.state(), name);
+    if (!result) {
+      return;
+    }
+    this.change(result.state, `copie du job ${name}`);
+    this.announcement.set(`Job ${name} copié en ${result.copy}`);
+    this.selected.set(result.copy);
   }
 
   protected setMode(mode: EditorMode): void {
@@ -516,7 +677,7 @@ export class PipelineEditor implements OnInit {
       return;
     }
     if (this.yamlTouched()) {
-      this.state.set(fromDefinition(checked.definition));
+      this.change(fromDefinition(checked.definition), 'modification du YAML');
       this.switchLoss.set(checked.hasComments || checked.ignoredFields.length > 0 ? { hasComments: checked.hasComments, ignoredFields: checked.ignoredFields } : null);
     }
     this.mode.set('cards');
@@ -551,6 +712,7 @@ export class PipelineEditor implements OnInit {
     this.saveFailure.set(null);
     this.definitions.propose(this.repositoryId(), { yaml: this.yaml(), baseSha, title: this.saveTitle().trim(), description: this.saveDescription().trim() }).subscribe({
       next: (proposal) => {
+        this.proposed = true;
         this.saving.set(false);
         this.saveOpen.set(false);
         this.router.navigate(['/repositories', ...this.path(), '-', 'merge-requests', proposal.mergeRequestId]);
@@ -563,8 +725,16 @@ export class PipelineEditor implements OnInit {
     });
   }
 
+  /** Throwing the changes away cannot be undone: it is asked first, and only offered when there is something to lose. */
+  protected askReset(): void {
+    if (this.edited()) {
+      this.resetOpen.set(true);
+    }
+  }
+
   /** Starts again from the repository's file, dropping what was changed here. */
   protected reset(): void {
+    this.resetOpen.set(false);
     this.selected.set(null);
     this.saveOpen.set(false);
     this.load();

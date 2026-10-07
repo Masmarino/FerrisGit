@@ -84,6 +84,12 @@
   gap: 0.5rem;
 }
 
+.job-form__insert-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.125rem;
+}
+
 .job-form__variable {
   .job-form__secret-warning {
     grid-column: 1 / -1;

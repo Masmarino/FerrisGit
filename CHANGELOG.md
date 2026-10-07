@@ -10,10 +10,15 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 - A visual pipeline editor: from a repository's pipeline list, or the quick search, "Éditer la pipeline" opens the
   stages as columns and the jobs as cards to drag between them, or the YAML itself, the two views describing the same
-  file. Contributors and above are offered it. The server's own
-  parser reads, writes and checks it (`POST /api/pipeline-definitions/parse` and `/render`), reports every mistake at
-  once instead of the first, and the editor says what a rewrite would lose (comments, keys FerrisGit does not know).
-  Typed YAML is saved as it is, comments included.
+  file. Contributors and above are offered it. The server's own parser reads, writes and checks it
+  (`POST /api/pipeline-definitions/parse` and `/render`), reports every mistake at once instead of the first, and the
+  editor says what a rewrite would lose (comments, keys FerrisGit does not know). Typed YAML is saved as it is, comments
+  included.
+- Working in the editor is safe to try: every change to the cards can be undone and redone, from the toolbar or with ⌘Z
+  and ⇧⌘Z (Ctrl+Z and Ctrl+Y), keystrokes in one field making one step. Leaving the editor, or closing the tab, with
+  changes that were not proposed asks first; "Revenir au fichier du dépôt" asks too, and is only offered once something
+  changed. A job's ⋮ menu edits, duplicates, moves or deletes it. A card shows the job's first command, and pointing at
+  one marks the jobs it waits for and those that wait for it.
 - The cards view is meant to build a whole pipeline without writing YAML: starting templates (Rust, Node or Angular, Go,
   an application published as an image), a catalogue of ready-made job tiles by purpose (compile, test, check the code,
   package, deploy and notify, or an empty job), commands as an editable list, common images and caches to pick, and a

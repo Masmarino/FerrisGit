@@ -108,7 +108,7 @@ describe('PipelineJobForm', () => {
 
     type(el.querySelector<HTMLInputElement>('#job-variable-value-0')!, 'trace');
     button(el, 'Ajouter une variable').click();
-    button(el, 'Retirer').click();
+    el.querySelector<HTMLButtonElement>('[aria-label="Retirer la variable 1"]')!.click();
 
     expect(patches).toEqual([{ variables: [{ key: 'RUST_LOG', value: 'trace' }] }, { variables: [{ key: 'RUST_LOG', value: 'debug' }, { key: '', value: '' }] }, { variables: [] }]);
   });

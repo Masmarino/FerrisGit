@@ -4,6 +4,7 @@ import {
   NEW_PIPELINE,
   addJob,
   addStage,
+  duplicateJob,
   fromDefinition,
   jobsOf,
   moveJob,
@@ -172,6 +173,34 @@ describe('pipeline builder model', () => {
       const start = state(['build'], [job('a', 'build')]);
 
       expect(updateJob(start, 'ghost', { image: 'x' })).toBe(start);
+    });
+  });
+
+  describe('duplicating a job', () => {
+    it('puts a copy right after it, under a free name, waiting for what it waits for', () => {
+      const state: BuilderState = { stages: ['build', 'test'], jobs: [job('compile', 'build'), job('unit', 'test', { needs: ['compile'], variables: [{ key: 'A', value: '1' }] }), job('lint', 'test')] };
+
+      const result = duplicateJob(state, 'unit')!;
+
+      expect(result.copy).toBe('unit-2');
+      expect(result.state.jobs.map((j) => j.name)).toEqual(['compile', 'unit', 'unit-2', 'lint']);
+      expect(result.state.jobs[2]).toMatchObject({ stage: 'test', needs: ['compile'], variables: [{ key: 'A', value: '1' }] });
+    });
+
+    it('shares nothing with the original: changing the copy leaves it as it was', () => {
+      const state: BuilderState = { stages: ['build'], jobs: [job('compile', 'build')] };
+      const { state: next } = duplicateJob(state, 'compile')!;
+
+      next.jobs[1].script.push('cargo doc');
+
+      expect(next.jobs[0].script).toEqual(['cargo build']);
+    });
+
+    it('takes the next free number when the obvious name is used', () => {
+      const state: BuilderState = { stages: ['build'], jobs: [job('compile', 'build'), job('compile-2', 'build')] };
+
+      expect(duplicateJob(state, 'compile')!.copy).toBe('compile-3');
+      expect(duplicateJob(state, 'missing')).toBeNull();
     });
   });
 
