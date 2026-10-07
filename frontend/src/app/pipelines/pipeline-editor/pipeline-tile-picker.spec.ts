@@ -52,8 +52,17 @@ describe('PipelineTilePicker', () => {
   it('shows the secrets a tile needs that the repository lacks', () => {
     const { el } = setup(['DEPLOY_URL']);
 
-    expect(text(el.querySelector('[data-tile="http-deploy"] gbt-badge'))).toBe('Demande DEPLOY_TOKEN');
+    expect(text(el.querySelector('[data-tile="http-deploy"] [data-note="secrets"]'))).toBe('Secrets à créer : DEPLOY_TOKEN');
     expect(el.querySelector('[data-tile="go-test"] gbt-badge')).toBeNull();
+  });
+
+  it('gives each missing secret a badge of its own, so that a long list wraps instead of leaving the tile', () => {
+    const { el } = setup([]);
+
+    const note = el.querySelector('[data-tile="docker-build"] [data-note="secrets"]')!;
+    expect(Array.from(note.querySelectorAll('gbt-badge'), text)).toEqual(['DOCKER_HOST', 'REGISTRY_USER', 'REGISTRY_PASSWORD']);
+    // Read aloud as words, not as one run of names.
+    expect(note.textContent!.replace(/\s+/g, ' ').trim()).toBe('Secrets à créer : DOCKER_HOST REGISTRY_USER REGISTRY_PASSWORD');
   });
 
   it('shows nothing about secrets when it cannot know which exist', () => {
@@ -99,7 +108,7 @@ describe('PipelineTilePicker', () => {
       deploy.click();
 
       expect(deploy.disabled).toBe(true);
-      expect(text(el.querySelector('[data-tile="ssh-run"] gbt-badge'))).toContain('Pas avec Kubernetes');
+      expect(text(el.querySelector('[data-tile="ssh-run"] [data-note="kubernetes"]'))).toBe("Pas avec Kubernetes Les secrets n'y sont pas transmis.");
       expect(chosen).toEqual([]);
       expect(el.querySelector('[data-tile="go-test"] .tile-picker__choose')).toHaveProperty('disabled', false);
     });

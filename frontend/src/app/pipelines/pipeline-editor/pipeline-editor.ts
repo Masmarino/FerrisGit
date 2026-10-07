@@ -22,6 +22,7 @@ import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Tooltip } from '@masmarino/gabarit/tooltip';
+import { CodeView } from '../../shared/code-view/code-view';
 import { Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { injectRepositoryPermissions } from '../../repositories/repository-role';
@@ -56,6 +57,7 @@ import { JobTile, ParamValues, PipelineTemplate, addTile, stateFromTemplate } fr
 import { PipelineJobForm } from './pipeline-job-form';
 import { PipelineSecrets, SecretUse } from './pipeline-secrets';
 import { PipelineStarters } from './pipeline-starters';
+import { PipelineLink, PipelineLinks } from './pipeline-links';
 import { PipelineTilePicker } from './pipeline-tile-picker';
 import { missingSecrets, secretUsage, wantedSecretNames } from './pipeline-references';
 import { ProblemView, describeProblem, describeWarning } from './pipeline-problems';
@@ -110,7 +112,7 @@ interface LaneView {
 @Component({
   selector: 'fg-pipeline-editor',
   standalone: true,
-  imports: [FormsModule, DragDropModule, CdkScrollable, PageLayout, PageHeader, Alert, Badge, Button, ConfirmDangerModal, CopyButton, Drawer, EmptyState, GbtInput, Menu, MenuItem, Modal, SegmentedControl, Skeleton, Textarea, Tooltip, HelpTip, PipelineJobForm, PipelineSecrets, PipelineStarters, PipelineTilePicker],
+  imports: [FormsModule, DragDropModule, CdkScrollable, PageLayout, PageHeader, Alert, Badge, Button, ConfirmDangerModal, CopyButton, Drawer, EmptyState, GbtInput, Menu, MenuItem, Modal, SegmentedControl, Skeleton, Textarea, Tooltip, CodeView, HelpTip, PipelineJobForm, PipelineLinks, PipelineSecrets, PipelineStarters, PipelineTilePicker],
   templateUrl: './pipeline-editor.html',
   styleUrl: './pipeline-editor.scss',
   host: { '(document:keydown)': 'onKeydown($event)', '(window:beforeunload)': 'onBeforeUnload($event)' },
@@ -181,6 +183,20 @@ export class PipelineEditor implements OnInit {
 
   /** The job under the pointer or the focus, whose ties to the others the board shows. */
   protected pointedJob = signal<string | null>(null);
+  /** A card is being carried: the cards move under it, so the ties are hidden until it lands. */
+  protected dragging = signal(false);
+
+  /** Every `needs` of the board, drawn as on a pipeline's page; those of the pointed job stand out. */
+  protected links = computed<PipelineLink[]>(() => {
+    const state = this.state();
+    const pointed = this.pointedJob();
+    const rank = new Map(state.jobs.map((job) => [job.name, state.stages.indexOf(job.stage)]));
+    return state.jobs.flatMap((job) =>
+      job.needs
+        .filter((need) => rank.has(need))
+        .map((need) => ({ from: need, to: job.name, highlighted: pointed === need || pointed === job.name, invalid: rank.get(need)! >= rank.get(job.name)! })),
+    );
+  });
 
   protected resetOpen = signal(false);
   protected leaveOpen = signal(false);

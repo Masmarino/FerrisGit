@@ -100,14 +100,16 @@ import { Prediction } from './pipeline-prediction';
       border: 1px dashed var(--gbt-hairline);
       border-radius: var(--site-border-radius);
     }
+    /* What was made for this repository, on the family's rust rail: the generic templates below have none. */
     .starters__prediction {
       display: flex;
       flex-direction: column;
       align-items: flex-start;
       gap: 0.75rem;
       margin-bottom: 1.25rem;
-      padding-bottom: 1.25rem;
+      padding: 0 0 1.25rem 1rem;
       border-bottom: 1px solid var(--gbt-hairline);
+      box-shadow: inset 2px 0 0 var(--accent);
     }
     .starters__prediction .starters__summary {
       margin: 0;

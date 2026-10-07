@@ -18,7 +18,10 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
   and ⇧⌘Z (Ctrl+Z and Ctrl+Y), keystrokes in one field making one step. Leaving the editor, or closing the tab, with
   changes that were not proposed asks first; "Revenir au fichier du dépôt" asks too, and is only offered once something
   changed. A job's ⋮ menu edits, duplicates, moves or deletes it. A card shows the job's main (last) command, and pointing
-  at one marks the jobs it waits for and those that wait for it.
+  at one marks in indigo the jobs it waits for (full border) and those that wait for it (dashed); a job the server
+  refuses is tinted red. The produced file is coloured like the code browser, with line numbers.
+- The editor draws each job's `needs` as curves between the cards, the same as a running pipeline's page; the ties of
+  the pointed job stand out in indigo, and a need the server refuses is dashed red.
 - The editor proposes a pipeline made for the repository: it reads the default branch's projects (Rust, Node and its
   frameworks, Go, Python, up to three folders down) and lays out check, test and build jobs for each, with the versions,
   package manager and scripts the project names (`GET /api/repositories/{id}/pipeline-definition/profile`), saying which

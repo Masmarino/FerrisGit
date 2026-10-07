@@ -14,7 +14,7 @@
       @for (suggestion of suggestions(); track suggestion.job.name) {
         <li class="tile-picker__tile" [attr.data-suggestion]="suggestion.job.name">
           <button type="button" class="tile-picker__choose" (click)="chosenJob.emit(suggestion.job)">
-            <gbt-icon class="tile-picker__icon" name="sparkles" aria-hidden="true" />
+            <gbt-icon class="tile-picker__icon tile-picker__icon--repository" name="sparkles" aria-hidden="true" />
             <span class="tile-picker__text">
               <span class="tile-picker__title">{{ suggestion.title }}, {{ suggestion.project }}</span>
               <code class="tile-picker__command">{{ mainCommand(suggestion.job) }}</code>
@@ -38,10 +38,19 @@
             <span class="tile-picker__text">
               <span class="tile-picker__title">{{ tile.title }}</span>
               <span class="tile-picker__what">{{ tile.summary }}</span>
+              <!-- A badge does not wrap: it says one short thing, and the rest goes in text that does. -->
               @if (unavailable(tile)) {
-                <gbt-badge variant="warning" icon="lock">Pas avec Kubernetes : les secrets n'y sont pas transmis</gbt-badge>
+                <span class="tile-picker__note" data-note="kubernetes">
+                  <gbt-badge variant="warning" icon="lock">Pas avec Kubernetes</gbt-badge>&ngsp;
+                  <span>Les secrets n'y sont pas transmis.</span>
+                </span>
               } @else if (missing(tile).length > 0) {
-                <gbt-badge variant="warning" icon="key">Demande {{ missing(tile).join(', ') }}</gbt-badge>
+                <span class="tile-picker__note" data-note="secrets">
+                  <span>Secrets à créer :</span>
+                  @for (name of missing(tile); track name) {
+                    &ngsp;<gbt-badge variant="warning" icon="key" mono>{{ name }}</gbt-badge>
+                  }
+                </span>
               }
             </span>
           </button>

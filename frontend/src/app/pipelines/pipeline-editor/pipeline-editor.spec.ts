@@ -74,6 +74,8 @@ interface Internals {
   usePrediction(): void;
   chooseSuggested(job: unknown): void;
   suggestions(): { job: { name: string } }[];
+  links(): { from: string; to: string; highlighted: boolean; invalid: boolean }[];
+  dragging: { set(value: boolean): void };
   onBeforeUnload(event: Event): void;
 }
 
@@ -154,7 +156,7 @@ describe('PipelineEditor', () => {
     const ctx = opened();
     await answerRender(ctx, rendered({ yaml: 'stages:\n- build\njobs: {}\n' }));
 
-    expect(text(ctx.el.querySelector('.pipeline-editor__yaml'))).toBe('stages: - build jobs: {}');
+    expect(text(ctx.el.querySelector('.pipeline-editor__yaml .code-view__code'))).toBe('stages: - build jobs: {}');
     expect(ctx.fixture.debugElement.query(By.directive(CopyButton)).componentInstance.value()).toBe('stages:\n- build\njobs: {}\n');
   });
 
@@ -1200,6 +1202,54 @@ describe('PipelineEditor', () => {
       const ctx = await emptyRepository('reader');
 
       ctx.http.expectNone(PROFILE_URL);
+    });
+  });
+
+  describe('the ties between jobs', () => {
+    it('draws one per need, as on a pipeline page', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+
+      expect(ctx.internals.links()).toEqual([{ from: 'compile', to: 'unit', highlighted: false, invalid: false }]);
+      expect(Array.from(ctx.el.querySelectorAll('fg-pipeline-links path'), (path) => path.getAttribute('data-link'))).toEqual(['compile->unit']);
+    });
+
+    it('brings out the ties of the pointed job, from either end', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+
+      ctx.internals.pointedJob.set('compile');
+      ctx.fixture.detectChanges();
+
+      expect(ctx.internals.links()[0].highlighted).toBe(true);
+      expect(ctx.el.querySelector('fg-pipeline-links path')!.hasAttribute('data-highlighted')).toBe(true);
+    });
+
+    it('marks a need the server refuses: a job of the same stage or a later one', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+
+      ctx.internals.moveTo({ name: 'compile' }, 'test');
+      ctx.fixture.detectChanges();
+
+      // The moved card takes the focus, so its tie may also stand out: only whether it is refused matters here.
+      expect(ctx.internals.links()).toEqual([expect.objectContaining({ from: 'compile', to: 'unit', invalid: true })]);
+      expect(ctx.el.querySelector('fg-pipeline-links path')!.hasAttribute('data-invalid')).toBe(true);
+      await answerRender(ctx);
+    });
+
+    it('leaves out a need of a job that does not exist, and hides the ties while a card is carried', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.patchJob('unit', { needs: ['compile', 'gone'] });
+      ctx.fixture.detectChanges();
+      expect(ctx.internals.links().map((link) => link.from)).toEqual(['compile']);
+
+      ctx.internals.dragging.set(true);
+      ctx.fixture.detectChanges();
+
+      expect(ctx.el.querySelector('fg-pipeline-links')).toBeNull();
+      await answerRender(ctx);
     });
   });
 });

@@ -108,3 +108,26 @@
   font-size: 0.75rem;
   overflow-wrap: anywhere;
 }
+
+// The jobs made for this repository carry the family's accent, like the proposal of an empty pipeline.
+.tile-picker__icon--repository {
+  color: var(--accent-text);
+}
+
+// Their section stands on the same rust rail.
+[data-suggestions] {
+  padding-left: 0.75rem;
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+// What keeps a tile from working as is: short badges that wrap among themselves, beside text that wraps too.
+.tile-picker__note {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem 0.375rem;
+  max-width: 100%;
+  margin-top: 0.25rem;
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}

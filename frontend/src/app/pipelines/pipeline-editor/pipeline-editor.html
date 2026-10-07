@@ -92,6 +92,9 @@
 
     @if (mode() === 'cards') {
     <div class="pipeline-editor__board" cdkScrollable>
+      @if (!dragging()) {
+        <fg-pipeline-links [links]="links()" />
+      }
       @for (lane of lanes(); track lane.stage) {
         <section class="pipeline-editor__lane" [attr.aria-labelledby]="lane.headingId">
           <p class="pipeline-editor__lane-label" aria-hidden="true">
@@ -126,6 +129,8 @@
                 [class.pipeline-editor__card--pointed]="pointedJob() === card.job.name"
                 [attr.data-relation]="card.relation"
                 [attr.data-job]="card.job.name"
+                (cdkDragStarted)="dragging.set(true)"
+                (cdkDragEnded)="dragging.set(false)"
                 (mouseenter)="pointedJob.set(card.job.name)"
                 (mouseleave)="pointedJob.set(null)"
                 (focusin)="pointedJob.set(card.job.name)"
@@ -233,7 +238,10 @@
       @if (mode() === 'yaml') {
         <gbt-textarea class="pipeline-editor__yaml-input" label="Contenu du fichier de pipeline" hideLabel mono autosize [rows]="18" [ngModel]="yamlText()" (ngModelChange)="typeYaml($event)" />
       } @else {
-        <pre class="pipeline-editor__yaml" tabindex="0" aria-label="Contenu du fichier de pipeline produit"><code>{{ yaml() }}</code></pre>
+        <!-- The same colours as the repository's code browser, and line numbers for when the server names a line. -->
+        <div class="pipeline-editor__yaml" role="region" aria-label="Contenu du fichier de pipeline produit">
+          <fg-code-view [content]="yaml()" fileName="pipeline.yml" [lineNumbers]="true" />
+        </div>
       }
       <p class="pipeline-editor__hint">
         @if (hasBranch()) {
