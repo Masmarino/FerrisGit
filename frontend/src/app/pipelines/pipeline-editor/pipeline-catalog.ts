@@ -1,4 +1,5 @@
 import { BuilderJob, BuilderState, insertJob, uniqueName } from './pipeline-builder-model';
+import { GO, NODE, PYTHON, RUST } from './pipeline-recipes';
 import { DEPLOY_TILES } from './pipeline-tiles-deploy';
 import { JobTile, ParamValues, TileCategory, buildTile } from './pipeline-tile-types';
 
@@ -19,8 +20,9 @@ export const TILE_CATEGORIES: readonly TileCategoryInfo[] = [
   { id: 'custom', title: 'Sur mesure', summary: 'Partir de zéro et écrire ses propres commandes.' },
 ];
 
-export const RUST_CACHE = { cache: ['cargo-home', 'cargo-target'], variables: { CARGO_HOME: '/ferrisgit-cache/cargo-home', CARGO_TARGET_DIR: '/ferrisgit-cache/cargo-target' } };
-export const NPM_CACHE = { cache: ['npm'], variables: { npm_config_cache: '/ferrisgit-cache/npm' } };
+const RUST_CACHE = RUST.cache;
+const NPM_CACHE = NODE.cache();
+const npmScript = (script: string) => [...NODE.install(), NODE.run(script)];
 
 const SIMPLE_TILES: readonly JobTile[] = [
   {
@@ -32,8 +34,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'layers',
     jobName: 'compile',
     stage: 'build',
-    image: 'rust:1',
-    script: ['cargo build --release'],
+    image: RUST.image(),
+    script: RUST.build(),
+    needsSource: true,
     ...RUST_CACHE,
   },
   {
@@ -45,8 +48,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'layers',
     jobName: 'build',
     stage: 'build',
-    image: 'node:22',
-    script: ['npm ci', 'npm run build'],
+    image: NODE.image(),
+    script: npmScript('build'),
+    needsSource: true,
     ...NPM_CACHE,
   },
   {
@@ -58,8 +62,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'layers',
     jobName: 'build',
     stage: 'build',
-    image: 'golang:1.23',
-    script: ['go build ./...'],
+    image: GO.image(),
+    script: GO.build(),
+    needsSource: true,
   },
   {
     id: 'rust-test',
@@ -70,8 +75,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'flask-conical',
     jobName: 'test',
     stage: 'test',
-    image: 'rust:1',
-    script: ['cargo test --all-targets'],
+    image: RUST.image(),
+    script: RUST.test(),
+    needsSource: true,
     ...RUST_CACHE,
   },
   {
@@ -83,8 +89,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'flask-conical',
     jobName: 'unit-tests',
     stage: 'test',
-    image: 'node:22',
-    script: ['npm ci', 'npm test'],
+    image: NODE.image(),
+    script: npmScript('test'),
+    needsSource: true,
     ...NPM_CACHE,
   },
   {
@@ -96,8 +103,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'flask-conical',
     jobName: 'test',
     stage: 'test',
-    image: 'golang:1.23',
-    script: ['go test ./...'],
+    image: GO.image(),
+    script: GO.test(),
+    needsSource: true,
   },
   {
     id: 'python-test',
@@ -108,8 +116,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'flask-conical',
     jobName: 'test',
     stage: 'test',
-    image: 'python:3.13',
-    script: ['pip install -r requirements.txt', 'python -m pytest'],
+    image: PYTHON.image(),
+    script: [...PYTHON.setup(), PYTHON.exec('python -m pytest')],
+    needsSource: true,
   },
   {
     id: 'rust-format',
@@ -120,8 +129,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'shield-check',
     jobName: 'format',
     stage: 'check',
-    image: 'rust:1',
-    script: ['rustup component add rustfmt', 'cargo fmt --all -- --check'],
+    image: RUST.image(),
+    script: RUST.format(),
+    needsSource: true,
   },
   {
     id: 'rust-clippy',
@@ -132,8 +142,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'shield-check',
     jobName: 'clippy',
     stage: 'check',
-    image: 'rust:1',
-    script: ['rustup component add clippy', 'cargo clippy --all-targets -- -D warnings'],
+    image: RUST.image(),
+    script: RUST.clippy(),
+    needsSource: true,
     ...RUST_CACHE,
   },
   {
@@ -145,8 +156,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
     icon: 'shield-check',
     jobName: 'lint',
     stage: 'check',
-    image: 'node:22',
-    script: ['npm ci', 'npm run lint'],
+    image: NODE.image(),
+    script: npmScript('lint'),
+    needsSource: true,
     ...NPM_CACHE,
   },
   {

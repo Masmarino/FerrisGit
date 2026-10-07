@@ -300,8 +300,8 @@ async fn repository_profile(
     .await?;
     let profile = DetectRepositoryProfileUseCase::new(
         state.branch_reader.clone(),
-        state.repository_file_lister.clone(),
-        state.pipeline_file_reader.clone(),
+        state.repository_files.clone(),
+        state.repository_profiles.clone(),
     )
     .execute(&repo.disk_path)
     .await?;

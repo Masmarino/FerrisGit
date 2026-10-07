@@ -1,4 +1,4 @@
-import { Component, computed, input, output, signal } from '@angular/core';
+import { Component, computed, input, output } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Alert } from '@masmarino/gabarit/alert';
 import { Badge } from '@masmarino/gabarit/badge';
@@ -13,7 +13,8 @@ import { BuilderJob, BuilderVariable } from './pipeline-builder-model';
 import { HELP } from './pipeline-help';
 import { ProblemView } from './pipeline-problems';
 import { KNOWN_TILE_SECRETS } from './pipeline-catalog';
-import { isEnvName, looksLikeSecret, referencedNames, unknownReferences } from './pipeline-references';
+import { envNameProblem, isEnvName } from '../../repositories/ci-variable-name';
+import { looksLikeSecret, referencedNames, unknownReferences } from './pipeline-references';
 
 /** Images people start from. A click fills the field; anything else can still be typed. */
 const IMAGE_SUGGESTIONS = ['alpine:3.20', 'rust:1', 'node:22', 'python:3.13', 'golang:1.23', 'docker:27-cli'];
@@ -79,18 +80,13 @@ export class PipelineJobForm {
 
   /** The command last typed in, so that an inserted variable lands there, at the cursor. */
   private focused: { index: number; field: HTMLTextAreaElement | null } = { index: -1, field: null };
-  protected readonly insertedAt = signal<number | null>(null);
 
   private hasVariable(name: string): boolean {
     return this.job().variables.some((row) => row.key.trim() === name);
   }
 
   protected variableProblem(row: BuilderVariable): string | null {
-    const key = row.key.trim();
-    if (key !== '' && !isEnvName(key)) {
-      return 'Lettres, chiffres et _, sans commencer par un chiffre.';
-    }
-    return null;
+    return envNameProblem(row.key.trim());
   }
 
   protected looksSecret(row: BuilderVariable): boolean {
@@ -132,7 +128,6 @@ export class PipelineJobForm {
     if (index < 0 || index >= script.length) {
       script.push(token);
       this.patch.emit({ script });
-      this.insertedAt.set(script.length - 1);
       return;
     }
     const field = this.focused.field;
@@ -141,7 +136,6 @@ export class PipelineJobForm {
     const end = field?.selectionEnd ?? start;
     script[index] = `${line.slice(0, start)}${token}${line.slice(end)}`;
     this.patch.emit({ script });
-    this.insertedAt.set(index);
   }
 
   protected setVariable(index: number, change: Partial<BuilderVariable>): void {

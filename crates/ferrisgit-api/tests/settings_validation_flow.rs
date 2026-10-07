@@ -1,6 +1,6 @@
 mod common;
 
-use common::http::{login, put};
+use common::http::{login, post, post_json, put};
 
 use serde_json::json;
 use sqlx::PgPool;
@@ -60,4 +60,45 @@ async fn admin_settings_rejects_a_jwt_ttl_hours_outside_the_valid_range(pool: Pg
     .await
     .unwrap();
     assert_eq!(valid_res["jwtTtlHours"], 48);
+}
+
+/// A CI variable is exported into a job's shell: the server refuses a name no shell can export, whatever the form did.
+#[sqlx::test]
+async fn a_ci_variable_whose_name_no_shell_can_export_is_refused(pool: PgPool) {
+    let addr = common::spawn_app(pool).await.addr;
+    let client = reqwest::Client::new();
+    let jwt = login(&client, addr, "admin", "adminpassword123").await;
+    let repo: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
+    let path = format!(
+        "/repositories/{}/ci-variables",
+        repo["id"].as_str().unwrap()
+    );
+
+    for key in ["", "1PASSWORD", "MY-SECRET", "A=B"] {
+        let res = post(
+            &client,
+            addr,
+            &jwt,
+            &path,
+            &json!({ "key": key, "value": "v" }),
+        )
+        .await;
+        assert_eq!(res.status(), reqwest::StatusCode::BAD_REQUEST, "{key:?}");
+    }
+    let res = post(
+        &client,
+        addr,
+        &jwt,
+        &path,
+        &json!({ "key": "DEPLOY_TOKEN", "value": "v" }),
+    )
+    .await;
+    assert_eq!(res.status(), reqwest::StatusCode::OK);
 }

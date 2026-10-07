@@ -59,7 +59,7 @@ interface Options {
 /** This repository's own layout: a Rust workspace with offline queries, two Angular apps, an image and a chart. */
 const FERRISGIT_PROFILE: RepositoryProfile = {
   projects: [
-    { kind: 'rust', dir: '', evidence: ['Cargo.toml', 'rust-toolchain.toml'], workspace: true, toolchain: '1.98.1', sqlxOffline: true },
+    { kind: 'rust', dir: '', evidence: ['Cargo.toml', 'rust-toolchain.toml'], workspace: true, toolchain: '1.98.1', sqlxOffline: true, sqlxPostgres: true },
     { kind: 'node', dir: 'frontend', evidence: ['frontend/package.json', 'frontend/package-lock.json', 'frontend/angular.json'], packageManager: 'npm', nodeVersion: '26', scripts: { build: 'ng build', test: 'ng test' }, framework: 'angular', testRunner: 'vitest' },
     { kind: 'node', dir: 'website', evidence: ['website/package.json', 'website/package-lock.json'], packageManager: 'npm', nodeVersion: '26', scripts: { build: 'ng build', test: 'ng test --watch=false', lint: 'eslint .' }, framework: 'angular', testRunner: 'vitest' },
   ],
@@ -455,7 +455,7 @@ export const DockerBuild: Story = {
   },
 };
 
-/** With Kubernetes running the jobs, the tiles that read secrets cannot work and say so. */
+/** With Kubernetes running the jobs, the tiles that read secrets or work on the repository cannot work and say so. */
 export const CatalogueWithKubernetes: Story = {
   decorators: [withData({ engine: 'kubernetes' })],
   play: async (context) => {
@@ -463,5 +463,17 @@ export const CatalogueWithKubernetes: Story = {
     await expectBoardLayout(context);
     context.canvasElement.querySelector<HTMLButtonElement>('.pipeline-editor__add-job button')!.click();
     await waitFor(() => expect(doc.querySelector<HTMLButtonElement>('[data-tile="ssh-run"] .tile-picker__choose')?.disabled).toBe(true));
+    await expect(doc.querySelector<HTMLButtonElement>('[data-tile="rust-test"] .tile-picker__choose')?.disabled).toBe(true);
+    await expect(doc.querySelector<HTMLButtonElement>('[data-tile="custom"] .tile-picker__choose')?.disabled).toBe(false);
+  },
+};
+
+/** An empty pipeline with Kubernetes: no proposal and no template, since all of them work on the repository. */
+export const EmptyWithKubernetes: Story = {
+  decorators: [withData({ engine: 'kubernetes', file: of({ ...FILE, yaml: null }), profile: of(FERRISGIT_PROFILE) })],
+  play: async ({ canvasElement }) => {
+    await waitFor(() => expect(canvasElement.querySelector('fg-pipeline-starters [data-kubernetes]')).not.toBeNull());
+    await expect(canvasElement.querySelector('[data-prediction]')).toBeNull();
+    await expect(canvasElement.querySelector('.starters__card')).toBeNull();
   },
 };

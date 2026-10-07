@@ -1,3 +1,5 @@
+import { WritableSignal, computed, signal } from '@angular/core';
+
 /** A change that can be undone: the state before it, and what it did in words ("suppression du job lint"). */
 export interface HistoryEntry<T> {
   state: T;
@@ -49,4 +51,59 @@ export function redo<T>(history: EditHistory<T>, current: T): { history: EditHis
     return null;
   }
   return { history: { past: [...history.past, { state: current, label: entry.label }], future: history.future.slice(0, -1), typing: null }, state: entry.state, label: entry.label };
+}
+
+/**
+ * An undo history over a signal: every change goes through `change`, and `undo` and `redo` put a recorded value back,
+ * returning what they took back (the change's label), or `null` when there was nothing to take back.
+ */
+export function createUndoStack<T>(value: WritableSignal<T>) {
+  const history = signal(emptyHistory<T>());
+  const step = (move: typeof undo<T>): string | null => {
+    const taken = move(history(), value());
+    if (!taken) {
+      return null;
+    }
+    history.set(taken.history);
+    value.set(taken.state);
+    return taken.label;
+  };
+  return {
+    /** What `undo` would take back, `null` when nothing. */
+    nextUndo: computed(() => history().past.at(-1)?.label ?? null),
+    /** What `redo` would put back, `null` when nothing. */
+    nextRedo: computed(() => history().future.at(-1)?.label ?? null),
+    /** `typingKey` makes one step of the keystrokes of one field (see `record`). */
+    change(next: T, label: string, typingKey: string | null = null): void {
+      if (next === value()) {
+        return;
+      }
+      history.update((past) => record(past, value(), label, typingKey, Date.now()));
+      value.set(next);
+    },
+    undo: () => step(undo),
+    redo: () => step(redo),
+    clear: () => history.set(emptyHistory()),
+  };
+}
+
+/** How the person's keyboard writes the shortcuts: they are shown, and announced, as they would press them. */
+const onApple = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
+export const UNDO_KEYS = onApple ? '⌘Z' : 'Ctrl+Z';
+export const REDO_KEYS = onApple ? '⇧⌘Z' : 'Ctrl+Y';
+
+/**
+ * The step a key asks for: ⌘Z or Ctrl+Z undoes, with Shift, or Ctrl+Y, redoes. `null` for any other key, and for one
+ * typed in a field, which undoes what was typed there itself.
+ */
+export function undoShortcut(event: KeyboardEvent): 'undo' | 'redo' | null {
+  const key = event.key.toLowerCase();
+  if (!(event.metaKey || event.ctrlKey) || event.altKey || (key !== 'z' && key !== 'y') || event.defaultPrevented) {
+    return null;
+  }
+  const target = event.target;
+  if (target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]')) {
+    return null;
+  }
+  return key === 'y' || event.shiftKey ? 'redo' : 'undo';
 }

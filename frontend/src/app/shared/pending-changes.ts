@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { DOCUMENT, DestroyRef, Injectable, Signal, inject, signal } from '@angular/core';
 import { CanDeactivateFn } from '@angular/router';
 
 /** Asked before leaving: true to leave, false to stay. May ask the person first. */
@@ -32,3 +32,43 @@ export class PendingChanges {
  * between them too: its URL segments change, and that reruns its guards.
  */
 export const pendingChangesGuard: CanDeactivateFn<unknown> = () => inject(PendingChanges).canLeave();
+
+/**
+ * For a page that holds work while `holdsWork()` says so: leaving it for another page asks first, through the page's own
+ * dialog (open while `asking()`, closed by `answer`), and closing the tab or reloading asks through the browser's.
+ * Call it in an injection context; it lets go when the page goes.
+ */
+export function confirmLeaving(holdsWork: () => boolean): { asking: Signal<boolean>; answer: (leave: boolean) => void } {
+  const asking = signal(false);
+  let pending: ((leave: boolean) => void) | null = null;
+  const answer = (leave: boolean) => {
+    asking.set(false);
+    const resolve = pending;
+    pending = null;
+    resolve?.(leave);
+  };
+  const unregister = inject(PendingChanges).register(() => {
+    if (!holdsWork()) {
+      return true;
+    }
+    answer(false);
+    asking.set(true);
+    return new Promise<boolean>((resolve) => (pending = resolve));
+  });
+  // Only the browser's own question can stop a tab from closing.
+  const onBeforeUnload = (event: BeforeUnloadEvent) => {
+    if (holdsWork()) {
+      event.preventDefault();
+      // Safari and older browsers still read this rather than the call above.
+      event.returnValue = '';
+    }
+  };
+  const window = inject(DOCUMENT).defaultView;
+  window?.addEventListener('beforeunload', onBeforeUnload);
+  inject(DestroyRef).onDestroy(() => {
+    unregister();
+    window?.removeEventListener('beforeunload', onBeforeUnload);
+    answer(false);
+  });
+  return { asking: asking.asReadonly(), answer };
+}

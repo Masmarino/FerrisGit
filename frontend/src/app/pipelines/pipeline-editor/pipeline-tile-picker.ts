@@ -5,7 +5,7 @@ import { HelpTip } from './help-tip';
 import { HELP } from './pipeline-help';
 import { JOB_TILES, JobTile, ParamValues, TILE_CATEGORIES } from './pipeline-catalog';
 import { PipelineTileForm } from './pipeline-tile-form';
-import { BuilderJob } from './pipeline-builder-model';
+import { BuilderJob, mainCommand } from './pipeline-builder-model';
 import { PredictedJob } from './pipeline-prediction';
 
 /** The jobs ready to use, by what they are for. Picking one is the whole gesture: it comes with an image and commands. */
@@ -32,9 +32,7 @@ export class PipelineTilePicker {
   chosenJob = output<BuilderJob>();
 
   /** What a suggested job runs, its setup aside: what tells two of them apart. */
-  protected mainCommand(job: BuilderJob): string {
-    return job.script.filter((line) => line.trim() !== '').at(-1) ?? '';
-  }
+  protected readonly mainCommand = mainCommand;
 
   /** The tile whose questions are being answered. */
   protected readonly asking = signal<JobTile | null>(null);
@@ -48,13 +46,19 @@ export class PipelineTilePicker {
     return secrets === null ? [] : (tile.secrets ?? []).filter((name) => !secrets.includes(name));
   }
 
-  /** Secrets only reach jobs run by Docker runners, so a tile that reads some cannot work with Kubernetes. */
-  protected unavailable(tile: JobTile): boolean {
-    return this.engine() === 'kubernetes' && tile.needsSecrets === true;
+  /**
+   * Why a tile cannot work with this instance, `null` when it can. A Kubernetes Pod gets neither the repository's
+   * secrets nor a copy of the repository: a tile that reads either cannot work there.
+   */
+  protected unavailable(tile: JobTile): 'secrets' | 'source' | null {
+    if (this.engine() !== 'kubernetes') {
+      return null;
+    }
+    return tile.needsSecrets ? 'secrets' : tile.needsSource ? 'source' : null;
   }
 
   protected choose(tile: JobTile): void {
-    if (this.unavailable(tile)) {
+    if (this.unavailable(tile) !== null) {
       return;
     }
     if (tile.params && tile.params.length > 0) {

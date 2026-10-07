@@ -13,6 +13,7 @@ import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { CiVariableSummary, RepositorySettingsService } from '../repository-settings.service';
 import { createSettingsList } from '../settings-list';
+import { envNameProblem } from '../ci-variable-name';
 
 @Component({
   selector: 'fg-repository-ci-variables',
@@ -35,10 +36,7 @@ export class RepositoryCiVariables implements OnInit {
   protected newVariableKey = signal('');
   protected newVariableValue = signal('');
   /** The name has to be one an environment variable can have, or the job would never see it. */
-  protected keyProblem = computed(() => {
-    const key = this.newVariableKey().trim();
-    return key !== '' && !/^[A-Za-z_][A-Za-z0-9_]*$/.test(key) ? 'Lettres, chiffres et _, sans commencer par un chiffre.' : null;
-  });
+  protected keyProblem = computed(() => envNameProblem(this.newVariableKey().trim()));
   protected variablePendingDelete = signal<CiVariableSummary | null>(null);
   /** Keeps the confirmation open and inert while the delete request runs. */
   protected deleting = signal(false);

@@ -1,6 +1,6 @@
-import { Component, DestroyRef, ElementRef, Injector, OnInit, afterNextRender, computed, effect, inject, input, signal, untracked } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, ElementRef, Injector, OnInit, afterNextRender, computed, effect, inject, input, signal, untracked } from '@angular/core';
 import { HttpErrorResponse } from '@angular/common/http';
+import { NgTemplateOutlet } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
@@ -23,33 +23,15 @@ import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Tooltip } from '@masmarino/gabarit/tooltip';
 import { CodeView } from '../../shared/code-view/code-view';
-import { Subject, catchError, debounceTime, map, of, switchMap } from 'rxjs';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { injectRepositoryPermissions } from '../../repositories/repository-role';
 import { RepositorySettingsService } from '../../repositories/repository-settings.service';
 import { SettingsService } from '../../settings/settings.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { PendingChanges } from '../../shared/pending-changes';
-import {
-  BuilderJob,
-  BuilderState,
-  NEW_PIPELINE,
-  addStage,
-  duplicateJob,
-  insertJob,
-  uniqueName,
-  fromDefinition,
-  jobsOf,
-  moveJob,
-  moveStage,
-  possibleNeeds,
-  removeJob,
-  removeStage,
-  renameStage,
-  toDefinition,
-  updateJob,
-} from './pipeline-builder-model';
-import { ParsedPipeline, PipelineDefinitionsService, RenderedPipeline, RepositoryPipelineFile, RepositoryProfile } from './pipeline-definitions.service';
+import { confirmLeaving } from '../../shared/pending-changes';
+import { BuilderJob, addStage, duplicateJob, insertJob, uniqueName, moveJob, moveStage, possibleNeeds, removeJob, removeStage, renameStage, updateJob } from './pipeline-builder-model';
+import { PipelineDefinitionsService, RepositoryProfile } from './pipeline-definitions.service';
+import { EditorMode, PipelineDocument } from './pipeline-document';
 import { missingJobs, predictPipeline } from './pipeline-prediction';
 import { HelpTip } from './help-tip';
 import { HELP } from './pipeline-help';
@@ -57,65 +39,28 @@ import { JobTile, ParamValues, PipelineTemplate, addTile, stateFromTemplate } fr
 import { PipelineJobForm } from './pipeline-job-form';
 import { PipelineSecrets, SecretUse } from './pipeline-secrets';
 import { PipelineStarters } from './pipeline-starters';
-import { PipelineLink, PipelineLinks } from './pipeline-links';
+import { PipelineLinks } from './pipeline-links';
+import { CardView, LaneView, boardLanes, boardLinks, stageId } from './pipeline-board';
 import { PipelineTilePicker } from './pipeline-tile-picker';
 import { missingSecrets, secretUsage, wantedSecretNames } from './pipeline-references';
-import { ProblemView, describeProblem, describeWarning } from './pipeline-problems';
-import { emptyHistory, record, redo, undo } from './pipeline-history';
-
-/** What the editor shows when the repository does not say where its pipeline file is: the engine's own default. */
-const DEFAULT_PIPELINE_FILE = '.ferrisgit-ci.yml';
-
-type EditorMode = 'cards' | 'yaml';
+import { REDO_KEYS, UNDO_KEYS, undoShortcut } from './pipeline-history';
 
 /** Why a save did not go through, in the words the dialog needs. */
 type SaveFailure = 'changed' | 'refused' | 'failed';
 
-const stageId = (index: number) => `pipeline-stage-${index}`;
-
-/** A key typed in a field undoes what was typed there, not the board. */
-const isTyping = (target: EventTarget | null) => target instanceof HTMLElement && target.closest('input, textarea, select, [contenteditable=""], [contenteditable="true"]') !== null;
-
-/** How the person's keyboard says it: the shortcuts are shown, and announced, as they would press them. */
-const onApple = () => typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
-
-interface CardView {
-  job: BuilderJob;
-  /** What the server says is wrong with this job (warnings are not counted). */
-  problemCount: number;
-  menuLabel: string;
-  moveTargets: string[];
-  /** What the job is for: its last command, the ones before only set it up (`cd web`, `npm ci`). */
-  mainCommand: string | null;
-  /** How many commands come before it. */
-  setupCommands: number;
-  /** Its tie to the job under the pointer or the focus: one it waits for, or one that waits for it. */
-  relation: 'waited' | 'waiting' | null;
-}
-
-interface LaneView {
-  stage: string;
-  index: number;
-  id: string;
-  headingId: string;
-  cards: CardView[];
-  canMoveBefore: boolean;
-  canMoveAfter: boolean;
-  removable: boolean;
-}
-
 /**
- * Edits a pipeline two ways that stay in step: as cards dragged between stages, or as the YAML itself. Reading and
- * writing the YAML is the server's parser, so what is shown is what the engine would run. Saving never writes to the
- * default branch: it opens a merge request, so the change is reviewed like any other.
+ * Edits a pipeline two ways that stay in step: as cards dragged between stages, or as the YAML itself (the document,
+ * pipeline-document.ts). This is the page around it: the board's gestures, the job drawer, the tiles, the secrets and
+ * the proposal made for the repository. Saving never writes to the default branch: it opens a merge request, so the
+ * change is reviewed like any other.
  */
 @Component({
   selector: 'fg-pipeline-editor',
   standalone: true,
-  imports: [FormsModule, DragDropModule, CdkScrollable, PageLayout, PageHeader, Alert, Badge, Button, ConfirmDangerModal, CopyButton, Drawer, EmptyState, GbtInput, Menu, MenuItem, Modal, SegmentedControl, Skeleton, Textarea, Tooltip, CodeView, HelpTip, PipelineJobForm, PipelineLinks, PipelineSecrets, PipelineStarters, PipelineTilePicker],
+  imports: [FormsModule, NgTemplateOutlet, DragDropModule, CdkScrollable, PageLayout, PageHeader, Alert, Badge, Button, ConfirmDangerModal, CopyButton, Drawer, EmptyState, GbtInput, Menu, MenuItem, Modal, SegmentedControl, Skeleton, Textarea, Tooltip, CodeView, HelpTip, PipelineJobForm, PipelineLinks, PipelineSecrets, PipelineStarters, PipelineTilePicker],
   templateUrl: './pipeline-editor.html',
   styleUrl: './pipeline-editor.scss',
-  host: { '(document:keydown)': 'onKeydown($event)', '(window:beforeunload)': 'onBeforeUnload($event)' },
+  host: { '(document:keydown)': 'onKeydown($event)' },
 })
 export class PipelineEditor implements OnInit {
   repositoryId = input.required<string>();
@@ -132,26 +77,10 @@ export class PipelineEditor implements OnInit {
   private injector = inject(Injector);
 
   protected readonly help = HELP;
-  protected status = signal<'loading' | 'ready' | 'failed'>('loading');
-  /** Whether the pipeline started from the repository's file, or from nothing because it has none. */
-  protected source = signal<'file' | 'new'>('new');
-  protected state = signal<BuilderState>(NEW_PIPELINE);
-  /** What opening the file showed: what a rewrite loses, or why it could not be read. */
-  protected loadNotes = signal<{ hasComments: boolean; ignoredFields: string[]; unreadable: string | null }>({ hasComments: false, ignoredFields: [], unreadable: null });
-  /** What the repository's default branch has, and where: the editor's starting point and what a save is checked against. */
-  protected file = signal<RepositoryPipelineFile | null>(null);
-  protected filePath = computed(() => this.file()?.path ?? DEFAULT_PIPELINE_FILE);
-  protected mode = signal<EditorMode>('cards');
-  /** The YAML as typed, comments and all: it is saved as it is, not rewritten. */
-  protected yamlText = signal('');
-  private yamlTouched = signal(false);
-  /** What the server made of the typed YAML. `null` until it has answered. */
-  private yamlCheck = signal<ParsedPipeline | null>(null);
-  /** What switching from the YAML to the cards dropped, so that the loss is told once it has happened. */
-  protected switchLoss = signal<{ hasComments: boolean; ignoredFields: string[] } | null>(null);
-  private loadedDefinition = signal('');
-  protected rendered = signal<RenderedPipeline | null>(null);
-  protected renderFailed = signal(false);
+  /** The pipeline itself, with what the server says about it. */
+  protected readonly doc = new PipelineDocument(this.definitions, () => this.repositoryId());
+  /** The cards: what nearly every gesture of the page changes. */
+  protected readonly state = this.doc.state;
   protected selected = signal<string | null>(null);
   protected newStageName = signal('');
   protected announcement = signal('');
@@ -165,20 +94,15 @@ export class PipelineEditor implements OnInit {
   /** The repository's secrets belong to maintainers: they alone can list them or create one. */
   protected canManageSecrets = this.permissions.canMaintain;
 
-  /** What the cards went through, to undo and redo. The YAML has its own: the text field's. */
-  private history = signal(emptyHistory<BuilderState>());
-  protected canUndo = computed(() => this.mode() === 'cards' && this.history().past.length > 0);
-  protected canRedo = computed(() => this.mode() === 'cards' && this.history().future.length > 0);
-  private readonly apple = onApple();
-  protected readonly undoKeys = this.apple ? '⌘Z' : 'Ctrl+Z';
-  protected readonly redoKeys = this.apple ? '⇧⌘Z' : 'Ctrl+Y';
+  protected canUndo = computed(() => this.doc.mode() === 'cards' && this.doc.edits.nextUndo() !== null);
+  protected canRedo = computed(() => this.doc.mode() === 'cards' && this.doc.edits.nextRedo() !== null);
   protected undoTip = computed(() => {
-    const label = this.history().past.at(-1)?.label;
-    return label ? `Annuler : ${label} (${this.undoKeys})` : 'Rien à annuler';
+    const label = this.doc.edits.nextUndo();
+    return label ? `Annuler : ${label} (${UNDO_KEYS})` : 'Rien à annuler';
   });
   protected redoTip = computed(() => {
-    const label = this.history().future.at(-1)?.label;
-    return label ? `Rétablir : ${label} (${this.redoKeys})` : 'Rien à rétablir';
+    const label = this.doc.edits.nextRedo();
+    return label ? `Rétablir : ${label} (${REDO_KEYS})` : 'Rien à rétablir';
   });
 
   /** The job under the pointer or the focus, whose ties to the others the board shows. */
@@ -187,22 +111,13 @@ export class PipelineEditor implements OnInit {
   protected dragging = signal(false);
 
   /** Every `needs` of the board, drawn as on a pipeline's page; those of the pointed job stand out. */
-  protected links = computed<PipelineLink[]>(() => {
-    const state = this.state();
-    const pointed = this.pointedJob();
-    const rank = new Map(state.jobs.map((job) => [job.name, state.stages.indexOf(job.stage)]));
-    return state.jobs.flatMap((job) =>
-      job.needs
-        .filter((need) => rank.has(need))
-        .map((need) => ({ from: need, to: job.name, highlighted: pointed === need || pointed === job.name, invalid: rank.get(need)! >= rank.get(job.name)! })),
-    );
-  });
+  protected links = computed(() => boardLinks(this.state(), this.pointedJob()));
 
   protected resetOpen = signal(false);
-  protected leaveOpen = signal(false);
-  private leaveAnswer: ((leave: boolean) => void) | null = null;
   /** Set once the change went out as a merge request: going to it loses nothing. */
   private proposed = false;
+  /** Leaving with changes that were not proposed asks first. */
+  protected leaving = confirmLeaving(() => this.holdsWork());
   /** Their names, or `null` while unknown (not a maintainer, or not loaded). Values are never sent back by the server. */
   protected secrets = signal<string[] | null>(null);
   protected engine = computed(() => this.appSettings.publicSettings()?.executionEngine ?? null);
@@ -228,33 +143,17 @@ export class PipelineEditor implements OnInit {
     const secrets = this.secrets() ?? [];
     return [...secretUsage(this.state().jobs, secrets)].map(([name, jobs]) => ({ name, jobs }));
   });
-  protected showStarters = computed(() => this.state().jobs.length === 0 && this.mode() === 'cards');
+  protected showStarters = computed(() => this.state().jobs.length === 0 && this.doc.mode() === 'cards');
 
   /** What the repository is made of, read once, when a proposal is first useful: an empty pipeline, or a job to add. */
   private profile = signal<RepositoryProfile | null>(null);
   protected profileState = signal<'idle' | 'loading' | 'done'>('idle');
-  protected prediction = computed(() => predictPipeline(this.profile()));
+  /** Nothing is proposed with Kubernetes: every job it would make works on the repository, which a Pod does not get. */
+  protected prediction = computed(() => (this.engine() === 'kubernetes' ? null : predictPipeline(this.profile())));
   /** The jobs made for this repository that the pipeline lacks, offered first when a job is added. */
   protected suggestions = computed(() => missingJobs(this.prediction(), this.state()));
 
-  /** The server has answered about what is on screen: until it does, nothing can be saved. */
-  private checked = computed(() => (this.mode() === 'yaml' ? this.yamlCheck() !== null : this.rendered() !== null));
-  protected problems = computed<ProblemView[]>(() => ((this.mode() === 'yaml' ? this.yamlCheck()?.problems : this.rendered()?.problems) ?? []).map(describeProblem));
-  protected warnings = computed<ProblemView[]>(() => ((this.mode() === 'yaml' ? this.yamlCheck()?.warnings : this.rendered()?.warnings) ?? []).map(describeWarning));
-  /** The file as it would be saved: the typed text in YAML mode, the server's writing of the cards otherwise. */
-  protected yaml = computed(() => (this.mode() === 'yaml' ? this.yamlText() : (this.rendered()?.yaml ?? '')));
-  /** The typed YAML cannot be read: the cards cannot follow it until it is fixed. */
-  protected yamlUnreadable = computed(() => this.mode() === 'yaml' && this.yamlCheck()?.definition === null);
-  protected modeOptions = computed(() => [
-    { value: 'cards' as EditorMode, label: 'Cartes', disabled: this.yamlUnreadable() || (this.mode() === 'yaml' && this.yamlCheck() === null) },
-    { value: 'yaml' as EditorMode, label: 'YAML' },
-  ]);
-
-  /** Whether anything differs from the repository's file, in either mode: saving a file as it already is would be a no-op. */
-  protected edited = computed(() => this.yamlTouched() || JSON.stringify(toDefinition(this.state())) !== this.loadedDefinition());
-  /** An empty repository has no branch to open a merge request against. */
-  protected hasBranch = computed(() => this.file()?.baseSha != null);
-  protected canSave = computed(() => this.canWrite() && this.hasBranch() && this.edited() && this.checked() && this.problems().length === 0 && !this.yamlUnreadable());
+  protected canSave = computed(() => this.canWrite() && this.doc.proposable());
 
   protected saveOpen = signal(false);
   protected saving = signal(false);
@@ -264,46 +163,7 @@ export class PipelineEditor implements OnInit {
 
   protected laneIds = computed(() => this.state().stages.map((_, index) => stageId(index)));
 
-  protected lanes = computed<LaneView[]>(() => {
-    const state = this.state();
-    const pointed = state.jobs.find((job) => job.name === this.pointedJob()) ?? null;
-    const relation = (job: BuilderJob): CardView['relation'] => {
-      if (!pointed || pointed.name === job.name) {
-        return null;
-      }
-      return pointed.needs.includes(job.name) ? 'waited' : job.needs.includes(pointed.name) ? 'waiting' : null;
-    };
-    const counts = new Map<string, number>();
-    for (const problem of this.problems()) {
-      if (problem.job) {
-        counts.set(problem.job, (counts.get(problem.job) ?? 0) + 1);
-      }
-    }
-    return state.stages.map((stage, index) => {
-      const jobs = jobsOf(state, stage);
-      return {
-        stage,
-        index,
-        id: stageId(index),
-        headingId: `${stageId(index)}-title`,
-        cards: jobs.map((job) => {
-          const commands = job.script.filter((line) => line.trim() !== '');
-          return {
-            job,
-            problemCount: counts.get(job.name) ?? 0,
-            menuLabel: `Actions du job ${job.name}`,
-            moveTargets: state.stages.filter((other) => other !== stage),
-            mainCommand: commands.at(-1)?.trim() ?? null,
-            setupCommands: Math.max(0, commands.length - 1),
-            relation: relation(job),
-          };
-        }),
-        canMoveBefore: index > 0,
-        canMoveAfter: index < state.stages.length - 1,
-        removable: jobs.length === 0,
-      };
-    });
-  });
+  protected lanes = computed<LaneView[]>(() => boardLanes(this.state(), this.doc.problems().map((problem) => problem.job), this.pointedJob()));
 
   protected selectedJob = computed(() => {
     const name = this.selected();
@@ -316,7 +176,7 @@ export class PipelineEditor implements OnInit {
   /** What the server says about the open job, problems first. */
   protected selectedNotes = computed(() => {
     const job = this.selectedJob();
-    return job ? [...this.problems().filter((problem) => problem.job === job.name), ...this.warnings().filter((warning) => warning.job === job.name)] : [];
+    return job ? [...this.doc.problems().filter((problem) => problem.job === job.name), ...this.doc.warnings().filter((warning) => warning.job === job.name)] : [];
   });
 
   protected summary = computed(() => {
@@ -325,148 +185,62 @@ export class PipelineEditor implements OnInit {
     return `${jobs} ${jobs === 1 ? 'job' : 'jobs'} dans ${stages} ${stages === 1 ? 'étape' : 'étapes'}`;
   });
 
-  private renderRequests = new Subject<BuilderState>();
-  private yamlRequests = new Subject<string>();
-
   constructor() {
-    // The server writes and checks the YAML, so a change is sent after a short pause rather than on every keystroke.
-    this.renderRequests
-      .pipe(
-        debounceTime(250),
-        switchMap((state) =>
-          this.definitions.render(toDefinition(state)).pipe(
-            map((rendered) => ({ rendered })),
-            catchError(() => of({ rendered: null })),
-          ),
-        ),
-        takeUntilDestroyed(),
-      )
-      .subscribe(({ rendered }) => {
-        this.renderFailed.set(rendered === null);
-        if (rendered) {
-          this.rendered.set(rendered);
-        }
-      });
-    this.yamlRequests
-      .pipe(
-        debounceTime(250),
-        switchMap((yaml) => this.definitions.parse(yaml).pipe(catchError(() => of(null)))),
-        takeUntilDestroyed(),
-      )
-      .subscribe((checked) => {
-        this.renderFailed.set(checked === null);
-        if (checked) {
-          this.yamlCheck.set(checked);
-        }
-      });
     effect(() => {
-      const state = this.state();
-      if (this.status() === 'ready') {
-        this.renderRequests.next(state);
-      }
-    });
-    effect(() => {
-      if (this.canManageSecrets() && this.status() === 'ready') {
+      if (this.canManageSecrets() && this.doc.status() === 'ready') {
         untracked(() => this.loadSecrets());
       }
     });
     effect(() => {
-      if (this.status() === 'ready' && this.canWrite() && (this.showStarters() || this.pickerStage() !== null) && untracked(this.profileState) === 'idle') {
+      const proposable = this.engine() !== 'kubernetes';
+      if (proposable && this.doc.status() === 'ready' && this.canWrite() && (this.showStarters() || this.pickerStage() !== null) && untracked(this.profileState) === 'idle') {
         untracked(() => this.loadProfile());
       }
     });
-    const unregister = inject(PendingChanges).register(() => this.confirmLeave());
-    inject(DestroyRef).onDestroy(() => {
-      unregister();
-      this.answerLeave(false);
-    });
   }
 
-  /** Every change to the cards goes through here, so that it can be undone. `typingKey` groups the keystrokes of one field. */
-  private change(next: BuilderState, label: string, typingKey: string | null = null): void {
-    const before = this.state();
-    if (next === before) {
-      return;
-    }
-    this.history.update((history) => record(history, before, label, typingKey, Date.now()));
-    this.state.set(next);
+  /** Every change to the cards goes through the document, so that it can be undone. */
+  private change(...args: Parameters<PipelineDocument['change']>): void {
+    this.doc.change(...args);
   }
 
   protected undo(): boolean {
-    const step = undo(this.history(), this.state());
-    if (!step) {
-      return false;
-    }
-    this.history.set(step.history);
-    this.showStep(step.state, `Annulé : ${step.label}`);
-    return true;
+    return this.afterStep(this.doc.edits.undo(), 'Annulé');
   }
 
   protected redo(): boolean {
-    const step = redo(this.history(), this.state());
-    if (!step) {
-      return false;
-    }
-    this.history.set(step.history);
-    this.showStep(step.state, `Rétabli : ${step.label}`);
-    return true;
+    return this.afterStep(this.doc.edits.redo(), 'Rétabli');
   }
 
-  /** A drawer about a job or a stage that the step took away closes with it. */
-  private showStep(state: BuilderState, announcement: string): void {
-    this.state.set(state);
+  /** A drawer about a job or a stage that the step took away closes with it, and the step is announced. */
+  private afterStep(label: string | null, verb: string): boolean {
+    if (label === null) {
+      return false;
+    }
+    const state = this.state();
     if (this.selected() !== null && !state.jobs.some((job) => job.name === this.selected())) {
       this.selected.set(null);
     }
     if (this.pickerStage() !== null && !state.stages.includes(this.pickerStage()!)) {
       this.pickerStage.set(null);
     }
-    this.announcement.set(announcement);
+    this.announcement.set(`${verb} : ${label}`);
+    return true;
   }
 
   protected onKeydown(event: KeyboardEvent): void {
-    const key = event.key.toLowerCase();
-    if (!(event.metaKey || event.ctrlKey) || event.altKey || (key !== 'z' && key !== 'y') || event.defaultPrevented) {
+    const step = undoShortcut(event);
+    if (step === null || this.doc.mode() !== 'cards' || this.doc.status() !== 'ready' || this.saveOpen() || this.resetOpen() || this.leaving.asking()) {
       return;
     }
-    if (this.mode() !== 'cards' || this.status() !== 'ready' || isTyping(event.target) || this.saveOpen() || this.resetOpen() || this.leaveOpen()) {
-      return;
-    }
-    const done = key === 'y' || event.shiftKey ? this.redo() : this.undo();
-    if (done) {
+    if (step === 'undo' ? this.undo() : this.redo()) {
       event.preventDefault();
     }
   }
 
   /** Work that would be lost by leaving: something changed, and it has not gone out as a merge request. */
   private holdsWork(): boolean {
-    return this.status() === 'ready' && this.edited() && !this.proposed;
-  }
-
-  /** Closing the tab or reloading: only the browser's own question can stop it. */
-  protected onBeforeUnload(event: BeforeUnloadEvent): void {
-    if (this.holdsWork()) {
-      event.preventDefault();
-      // Safari and older browsers still read this rather than the call above.
-      event.returnValue = '';
-    }
-  }
-
-  /** Asked by the router before any other page: leaving with changes is a choice made in the dialog. */
-  private confirmLeave(): boolean | Promise<boolean> {
-    if (!this.holdsWork()) {
-      return true;
-    }
-    this.answerLeave(false);
-    this.leaveOpen.set(true);
-    return new Promise<boolean>((resolve) => (this.leaveAnswer = resolve));
-  }
-
-  protected answerLeave(leave: boolean): void {
-    this.leaveOpen.set(false);
-    const answer = this.leaveAnswer;
-    this.leaveAnswer = null;
-    answer?.(leave);
+    return this.doc.status() === 'ready' && this.doc.edited() && !this.proposed;
   }
 
   ngOnInit(): void {
@@ -478,51 +252,7 @@ export class PipelineEditor implements OnInit {
   }
 
   protected load(): void {
-    this.status.set('loading');
-    this.history.set(emptyHistory());
-    this.mode.set('cards');
-    this.yamlTouched.set(false);
-    this.yamlCheck.set(null);
-    this.switchLoss.set(null);
-    this.rendered.set(null);
-    this.definitions.repositoryFile(this.repositoryId()).subscribe({
-      next: (file) => {
-        this.file.set(file);
-        // No file yet, or a repository with no commit: start from an empty pipeline.
-        if (file.yaml === null) {
-          this.start();
-        } else {
-          this.read(file.yaml);
-        }
-      },
-      error: () => this.status.set('failed'),
-    });
-  }
-
-  private read(yaml: string): void {
-    this.definitions.parse(yaml).subscribe({
-      next: (parsed) => {
-        if (parsed.definition === null) {
-          const detail = describeProblem(parsed.problems[0] ?? { code: 'invalid_yaml', message: '' }).message;
-          this.loadNotes.set({ hasComments: false, ignoredFields: [], unreadable: detail });
-          this.start();
-          return;
-        }
-        this.loadNotes.set({ hasComments: parsed.hasComments, ignoredFields: parsed.ignoredFields, unreadable: null });
-        this.state.set(fromDefinition(parsed.definition));
-        this.loadedDefinition.set(JSON.stringify(toDefinition(this.state())));
-        this.source.set('file');
-        this.status.set('ready');
-      },
-      error: () => this.status.set('failed'),
-    });
-  }
-
-  private start(): void {
-    this.state.set(NEW_PIPELINE);
-    this.loadedDefinition.set(JSON.stringify(toDefinition(NEW_PIPELINE)));
-    this.source.set('new');
-    this.status.set('ready');
+    this.doc.load();
   }
 
   protected openList(): void {
@@ -615,7 +345,7 @@ export class PipelineEditor implements OnInit {
 
   /**
    * A job made for this repository, in the stage it was asked for. It keeps what it waits for only where those jobs
-   * exist in an earlier stage: the pipeline it lands in is not the predicted one.
+   * exist in that stage or an earlier one: the pipeline it lands in is not the predicted one.
    */
   protected chooseSuggested(predicted: BuilderJob): void {
     const stage = this.pickerStage();
@@ -627,7 +357,8 @@ export class PipelineEditor implements OnInit {
     const name = uniqueName(state.jobs.map((job) => job.name), predicted.name);
     const needs = predicted.needs.filter((need) => {
       const other = state.jobs.find((job) => job.name === need);
-      return other !== undefined && state.stages.indexOf(other.stage) < rank;
+      // The server takes a need in the same stage or an earlier one.
+      return other !== undefined && state.stages.indexOf(other.stage) <= rank;
     });
     this.change(insertJob(state, { ...predicted, name, stage, needs, script: [...predicted.script], variables: predicted.variables.map((row) => ({ ...row })), tags: [...predicted.tags], cache: [...predicted.cache] }), `ajout du job ${name}`);
     this.pickerStage.set(null);
@@ -662,11 +393,17 @@ export class PipelineEditor implements OnInit {
     if (!row || row.key.trim() === '' || row.value === '') {
       return;
     }
-    this.repositorySettings.setCiVariable(this.repositoryId(), row.key.trim(), row.value, true).subscribe({
+    const key = row.key.trim();
+    this.repositorySettings.setCiVariable(this.repositoryId(), key, row.value, true).subscribe({
       next: () => {
-        this.patchJob(jobName, { variables: (this.state().jobs.find((job) => job.name === jobName)?.variables ?? []).filter((_, i) => i !== index) });
+        // By its name, not its place: the job's variables may have changed while the secret was being saved. A step of
+        // its own, so that it is never undone along with the keystrokes that came before it.
+        const job = this.state().jobs.find((candidate) => candidate.name === jobName);
+        if (job) {
+          this.change(updateJob(this.state(), jobName, { variables: job.variables.filter((variable) => variable.key.trim() !== key) }), `passage de ${key} en secret`);
+        }
         this.loadSecrets();
-        this.toast.show(`« ${row.key.trim()} » est maintenant un secret du dépôt.`);
+        this.toast.show(`« ${key} » est maintenant un secret du dépôt.`);
       },
       error: () => this.toast.show("Impossible d'enregistrer le secret.", 'error'),
     });
@@ -700,7 +437,7 @@ export class PipelineEditor implements OnInit {
     this.change(removeJob(this.state(), name), `suppression du job ${name}`);
     this.selected.set(null);
     this.announcement.set(`Job ${name} supprimé`);
-    this.toast.show(`Job « ${name} » supprimé. ${this.undoKeys} pour l'annuler.`);
+    this.toast.show(`Job « ${name} » supprimé. ${UNDO_KEYS} pour l'annuler.`);
   }
 
   /** The copy opens in the drawer: a copy is made to be changed (another version, another target). */
@@ -715,57 +452,15 @@ export class PipelineEditor implements OnInit {
   }
 
   protected setMode(mode: EditorMode): void {
-    if (mode === this.mode()) {
-      return;
-    }
-    if (mode === 'yaml') {
-      this.showYaml();
-    } else {
-      this.showCards();
-    }
-  }
-
-  /** The repository's own text while nothing was changed (it keeps its comments), the server's writing of the cards after. */
-  private showYaml(): void {
-    const original = this.file()?.yaml ?? null;
-    const open = (yaml: string) => {
-      this.yamlText.set(yaml);
-      this.yamlCheck.set(null);
-      this.switchLoss.set(null);
-      this.mode.set('yaml');
-      this.yamlRequests.next(yaml);
-    };
-    if (original !== null && JSON.stringify(toDefinition(this.state())) === this.loadedDefinition()) {
-      open(this.yamlTouched() ? this.yamlText() : original);
-      return;
-    }
-    // The cards changed a moment ago: ask for their YAML now rather than trust one that may still be on its way.
-    this.definitions.render(toDefinition(this.state())).subscribe({
-      next: (rendered) => open(rendered.yaml),
-      error: () => this.renderFailed.set(true),
-    });
-  }
-
-  private showCards(): void {
-    const checked = this.yamlCheck();
-    if (checked?.definition == null) {
-      return;
-    }
-    if (this.yamlTouched()) {
-      this.change(fromDefinition(checked.definition), 'modification du YAML');
-      this.switchLoss.set(checked.hasComments || checked.ignoredFields.length > 0 ? { hasComments: checked.hasComments, ignoredFields: checked.ignoredFields } : null);
-    }
-    this.mode.set('cards');
+    this.doc.setMode(mode);
   }
 
   protected typeYaml(yaml: string): void {
-    this.yamlText.set(yaml);
-    this.yamlTouched.set(true);
-    this.yamlRequests.next(yaml);
+    this.doc.typeYaml(yaml);
   }
 
   protected openSave(): void {
-    this.saveTitle.set(this.source() === 'new' ? 'Ajouter une pipeline' : 'Modifier la pipeline');
+    this.saveTitle.set(this.doc.source() === 'new' ? 'Ajouter une pipeline' : 'Modifier la pipeline');
     this.saveDescription.set('');
     this.saveFailure.set(null);
     this.saveOpen.set(true);
@@ -779,13 +474,13 @@ export class PipelineEditor implements OnInit {
 
   /** Sends the file on a new branch with a merge request, then goes to it. */
   protected save(): void {
-    const baseSha = this.file()?.baseSha;
+    const baseSha = this.doc.file()?.baseSha;
     if (!baseSha || this.saving()) {
       return;
     }
     this.saving.set(true);
     this.saveFailure.set(null);
-    this.definitions.propose(this.repositoryId(), { yaml: this.yaml(), baseSha, title: this.saveTitle().trim(), description: this.saveDescription().trim() }).subscribe({
+    this.definitions.propose(this.repositoryId(), { yaml: this.doc.yaml(), baseSha, title: this.saveTitle().trim(), description: this.saveDescription().trim() }).subscribe({
       next: (proposal) => {
         this.proposed = true;
         this.saving.set(false);
@@ -802,7 +497,7 @@ export class PipelineEditor implements OnInit {
 
   /** Throwing the changes away cannot be undone: it is asked first, and only offered when there is something to lose. */
   protected askReset(): void {
-    if (this.edited()) {
+    if (this.doc.edited()) {
       this.resetOpen.set(true);
     }
   }

@@ -1,0 +1,81 @@
+{
+  "frameworks": [
+    "angular",
+    "react",
+    "vue",
+    "svelte",
+    "next"
+  ],
+  "packageManagers": [
+    "npm",
+    "pnpm",
+    "yarnClassic",
+    "yarn",
+    "bun"
+  ],
+  "profile": {
+    "dockerfiles": [
+      ""
+    ],
+    "helmCharts": [
+      "chart"
+    ],
+    "projects": [
+      {
+        "dir": "",
+        "evidence": [
+          "manifest"
+        ],
+        "kind": "rust",
+        "sqlxOffline": true,
+        "sqlxPostgres": true,
+        "toolchain": "1.98.1",
+        "workspace": true
+      },
+      {
+        "dir": "web",
+        "evidence": [
+          "web/manifest"
+        ],
+        "framework": "angular",
+        "kind": "node",
+        "nodeVersion": "26",
+        "packageManager": "npm",
+        "scripts": {
+          "test": "ng test"
+        },
+        "testRunner": "vitest"
+      },
+      {
+        "dir": "cli",
+        "evidence": [
+          "cli/manifest"
+        ],
+        "goVersion": "1.23",
+        "kind": "go"
+      },
+      {
+        "dir": "tools",
+        "evidence": [
+          "tools/manifest"
+        ],
+        "kind": "python",
+        "pytest": true,
+        "pythonVersion": null,
+        "ruff": false,
+        "tool": "uv"
+      }
+    ]
+  },
+  "pythonTools": [
+    "pip",
+    "poetry",
+    "uv"
+  ],
+  "testRunners": [
+    "vitest",
+    "jest",
+    "karma",
+    "playwright"
+  ]
+}

@@ -1,6 +1,6 @@
 import { BuilderState, NEW_PIPELINE } from './pipeline-builder-model';
 import { JOB_TILES, KNOWN_TILE_SECRETS, PIPELINE_TEMPLATES, TILE_CATEGORIES, addTile, jobFromTile, secretsOfTiles, stateFromTemplate, tileById } from './pipeline-catalog';
-import { isEnvName } from './pipeline-references';
+import { isEnvName } from '../../repositories/ci-variable-name';
 
 describe('pipeline catalog', () => {
   it('has unique tile ids, each in a known category', () => {

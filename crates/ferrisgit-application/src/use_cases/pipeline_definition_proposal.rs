@@ -83,7 +83,8 @@ impl ReadRepositoryPipelineFileUseCase {
     }
 }
 
-async fn default_branch(
+/// The repository's default branch, `None` for a repository with no commit yet.
+pub(crate) async fn default_branch(
     branches: &dyn BranchReaderPort,
     repository_disk_path: &str,
 ) -> Result<Option<ferrisgit_domain::branch::BranchInfo>, DomainError> {

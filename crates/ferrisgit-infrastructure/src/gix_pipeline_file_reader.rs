@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::pipeline_file_reader::PipelineFileReaderPort;
-use ferrisgit_domain::repository_profile::RepositoryFileListerPort;
+use ferrisgit_domain::repository_profile::RepositoryFilesPort;
 
 use crate::error::blocking;
 use crate::gix_reader::GixRepositoryReader;
@@ -36,7 +36,7 @@ impl PipelineFileReaderPort for GixPipelineFileReader {
 }
 
 #[async_trait]
-impl RepositoryFileListerPort for GixPipelineFileReader {
+impl RepositoryFilesPort for GixPipelineFileReader {
     async fn list_files_at_revision(
         &self,
         repository_disk_path: &str,
@@ -53,6 +53,23 @@ impl RepositoryFileListerPort for GixPipelineFileReader {
             GixRepositoryReader
                 .list_files_at_revision(&full_path, &revision, max_depth, &skip, limit)
                 .map(Option::unwrap_or_default)
+        })
+        .await
+    }
+
+    async fn read_text_files_at_revision(
+        &self,
+        repository_disk_path: &str,
+        revision: &str,
+        paths: &[String],
+        max_bytes: usize,
+    ) -> Result<std::collections::BTreeMap<String, String>, DomainError> {
+        let full_path = self.storage_root.join(repository_disk_path);
+        let revision = revision.to_string();
+        let paths = paths.to_vec();
+        blocking(move || {
+            GixRepositoryReader
+                .read_text_files_at_revision(&full_path, &revision, &paths, max_bytes)
         })
         .await
     }
@@ -153,5 +170,46 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(cut, ["Cargo.toml", "crates/"]);
+    }
+
+    #[tokio::test]
+    async fn reads_the_text_files_asked_for_and_leaves_out_the_others() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        std::fs::create_dir_all(dir.join("web")).unwrap();
+        std::fs::write(dir.join("go.mod"), "go 1.22\n").unwrap();
+        std::fs::write(dir.join("web/package.json"), "{\"name\":\"web\"}").unwrap();
+        std::fs::write(dir.join("big.json"), "x".repeat(64)).unwrap();
+        std::fs::write(dir.join("binary.json"), [0xff_u8, 0xfe, 0x00]).unwrap();
+        git(dir, &["init", "-q"]);
+        git(dir, &["add", "."]);
+        git(dir, &["commit", "-q", "-m", "files"]);
+        let sha = GixRepositoryReader.list_commits(dir, 1).unwrap()[0]
+            .sha
+            .clone();
+        let adapter = GixPipelineFileReader::new(dir.parent().unwrap().to_path_buf());
+        let disk_path = dir.file_name().unwrap().to_str().unwrap();
+        let asked: Vec<String> = [
+            "go.mod",
+            "web/package.json",
+            "big.json",
+            "binary.json",
+            "missing.toml",
+            "web",
+        ]
+        .iter()
+        .map(|path| path.to_string())
+        .collect();
+
+        let texts = adapter
+            .read_text_files_at_revision(disk_path, &sha, &asked, 32)
+            .await
+            .unwrap();
+
+        assert_eq!(
+            texts.keys().collect::<Vec<_>>(),
+            ["go.mod", "web/package.json"]
+        );
+        assert_eq!(texts["go.mod"], "go 1.22\n");
     }
 }

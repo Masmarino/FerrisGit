@@ -17,6 +17,9 @@ use ferrisgit_application::use_cases::record_metrics_snapshot::RecordMetricsSnap
 use ferrisgit_application::use_cases::report_job_result::{
     AppendJobLogsUseCase, ReportJobResultUseCase,
 };
+use ferrisgit_application::use_cases::repository_profile::{
+    PROFILE_CACHE_CAPACITY, RepositoryProfileCache,
+};
 use ferrisgit_application::use_cases::sweep_pending_accounts::SweepPendingAccountsUseCase;
 use ferrisgit_domain::api_token::ApiTokenRepositoryPort;
 use ferrisgit_domain::apply_suggestion_executor::ApplySuggestionExecutorPort;
@@ -52,7 +55,7 @@ use ferrisgit_domain::release::ReleaseStorePort;
 use ferrisgit_domain::release_asset_storage::ReleaseAssetStoragePort;
 use ferrisgit_domain::repository::RepositoryStorePort;
 use ferrisgit_domain::repository_collaborator::RepositoryCollaboratorStorePort;
-use ferrisgit_domain::repository_profile::RepositoryFileListerPort;
+use ferrisgit_domain::repository_profile::RepositoryFilesPort;
 use ferrisgit_domain::repository_star::RepositoryStarStorePort;
 use ferrisgit_domain::runner::RunnerRepositoryPort;
 use ferrisgit_domain::settings::{RepositorySettingsStorePort, SystemSettingsStorePort};
@@ -159,8 +162,10 @@ pub struct AppState {
     pub mailer: Arc<Mailer>,
     pub job_execution: Arc<JobExecutionResolver>,
     pub pipeline_file_reader: Arc<dyn PipelineFileReaderPort>,
-    /// Lists a commit's files, for the pipeline editor to see what the repository is made of.
-    pub repository_file_lister: Arc<dyn RepositoryFileListerPort>,
+    /// Lists and reads a commit's files, for the pipeline editor to see what the repository is made of.
+    pub repository_files: Arc<dyn RepositoryFilesPort>,
+    /// The profiles already read, by commit: what the repository is made of does not change while its branch does not.
+    pub repository_profiles: Arc<RepositoryProfileCache>,
     pub merge_requests: Arc<dyn MergeRequestStorePort>,
     pub merge_request_comments: Arc<dyn MergeRequestCommentPort>,
     pub merge_request_reviews: Arc<dyn MergeRequestReviewPort>,
@@ -444,7 +449,8 @@ impl AppState {
             mailer,
             job_execution,
             pipeline_file_reader: Arc::new(GixPipelineFileReader::new(storage_root.clone())),
-            repository_file_lister: Arc::new(GixPipelineFileReader::new(storage_root.clone())),
+            repository_files: Arc::new(GixPipelineFileReader::new(storage_root.clone())),
+            repository_profiles: Arc::new(RepositoryProfileCache::new(PROFILE_CACHE_CAPACITY)),
             merge_requests: merge_request_store.clone(),
             merge_request_comments: merge_request_store.clone(),
             merge_request_reviews: merge_request_store,

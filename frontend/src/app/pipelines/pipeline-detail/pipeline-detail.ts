@@ -12,6 +12,7 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { PipelineDetail as PipelineDetailModel, PipelinesService } from '../pipelines.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { canWrite } from '../../repositories/repository-role';
 import { activeStageIndex, durationLabel, groupByStage, isTerminal, pipelineLink } from '../pipeline-helpers';
 import { PipelineSidebar } from '../pipeline-sidebar/pipeline-sidebar';
 import { PipelineSummary } from '../pipeline-summary/pipeline-summary';
@@ -53,7 +54,7 @@ export class PipelineDetail implements OnInit, OnDestroy {
   protected canCancel = computed(() => {
     const status = this.pipeline()?.status;
     const role = this.role();
-    return (status === 'pending' || status === 'running') && (role === 'owner' || role === 'contributor' || role === 'maintainer');
+    return (status === 'pending' || status === 'running') && canWrite(role);
   });
   protected groups = computed(() => groupByStage(this.pipeline()?.jobs ?? []));
   protected activeStage = computed(() => activeStageIndex(this.groups()));

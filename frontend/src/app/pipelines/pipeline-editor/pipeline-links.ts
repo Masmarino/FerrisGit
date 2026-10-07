@@ -6,7 +6,7 @@ export interface PipelineLink {
   to: string;
   /** A tie of the job under the pointer or the focus. */
   highlighted: boolean;
-  /** `from` is not in an earlier stage than `to`: the server refuses it. */
+  /** `from` is in a later stage than `to`: the server refuses it. */
   invalid: boolean;
 }
 
@@ -28,13 +28,19 @@ const round = (value: number) => Math.round(value * 10) / 10;
 
 /**
  * The curve of a pipeline's page (gbt-job-graph): from the right edge of the job waited for to the left edge of the job
- * that waits, so both pages draw a tie the same way.
+ * that waits, so both pages draw a tie the same way. Two jobs of one stage (the server allows it) sit one above the
+ * other: their tie is a bracket on the right of the column, from one right edge to the other.
  */
 export function linkPath(from: Box, to: Box): string {
   const x1 = from.left + from.width;
   const y1 = from.top + from.height / 2;
-  const x2 = to.left;
   const y2 = to.top + to.height / 2;
+  if (to.left < x1) {
+    const x2 = to.left + to.width;
+    const out = Math.max(x1, x2) + 16;
+    return `M ${round(x1)} ${round(y1)} C ${round(out)} ${round(y1)}, ${round(out)} ${round(y2)}, ${round(x2)} ${round(y2)}`;
+  }
+  const x2 = to.left;
   const dx = Math.max(24, (x2 - x1) / 2);
   return `M ${round(x1)} ${round(y1)} C ${round(x1 + dx)} ${round(y1)}, ${round(x2 - dx)} ${round(y2)}, ${round(x2)} ${round(y2)}`;
 }

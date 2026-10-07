@@ -33,16 +33,16 @@
     <ul class="tile-picker__tiles">
       @for (tile of section.tiles; track tile.id) {
         <li class="tile-picker__tile" [attr.data-tile]="tile.id">
-          <button type="button" class="tile-picker__choose" [disabled]="unavailable(tile)" (click)="choose(tile)">
+          <button type="button" class="tile-picker__choose" [disabled]="unavailable(tile) !== null" (click)="choose(tile)">
             <gbt-icon class="tile-picker__icon" [name]="tile.icon" aria-hidden="true" />
             <span class="tile-picker__text">
               <span class="tile-picker__title">{{ tile.title }}</span>
               <span class="tile-picker__what">{{ tile.summary }}</span>
               <!-- A badge does not wrap: it says one short thing, and the rest goes in text that does. -->
-              @if (unavailable(tile)) {
+              @if (unavailable(tile); as reason) {
                 <span class="tile-picker__note" data-note="kubernetes">
                   <gbt-badge variant="warning" icon="lock">Pas avec Kubernetes</gbt-badge>&ngsp;
-                  <span>Les secrets n'y sont pas transmis.</span>
+                  <span>{{ reason === 'secrets' ? "Les secrets n'y sont pas transmis." : "Le dépôt n'y est pas copié." }}</span>
                 </span>
               } @else if (missing(tile).length > 0) {
                 <span class="tile-picker__note" data-note="secrets">

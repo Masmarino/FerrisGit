@@ -21,7 +21,7 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
   at one marks in indigo the jobs it waits for (full border) and those that wait for it (dashed); a job the server
   refuses is tinted red. The produced file is coloured like the code browser, with line numbers.
 - The editor draws each job's `needs` as curves between the cards, the same as a running pipeline's page; the ties of
-  the pointed job stand out in indigo, and a need the server refuses is dashed red.
+  the pointed job stand out in indigo, and a need the server refuses (on a job of a later stage) is dashed red.
 - The editor proposes a pipeline made for the repository: it reads the default branch's projects (Rust, Node and its
   frameworks, Go, Python, up to three folders down) and lays out check, test and build jobs for each, with the versions,
   package manager and scripts the project names (`GET /api/repositories/{id}/pipeline-definition/profile`), saying which
@@ -36,13 +36,15 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
   copying a folder with rsync, with the server's fingerprint checked by default), and deploying to Kubernetes
   (`kubectl apply`, changing the image of a Deployment or restarting it and waiting for it, Helm). The form shows the
   commands as the answers change, checks every answer that ends up in a command, and lists the secrets the job reads,
-  saying which the repository has. Two templates chain tests, image and deployment. Tiles that read secrets are greyed
-  out when the instance runs jobs with Kubernetes, which does not pass them.
+  saying which the repository has. Two templates chain tests, image and deployment. When the instance runs jobs with
+  Kubernetes, whose Pods get neither the repository's secrets nor a copy of the repository, the tiles that need either
+  are greyed out with the reason, and an empty pipeline offers neither templates nor a proposal but says why.
 - Variables and secrets in the editor: an "Insert a variable" menu that writes `$NAME` at the cursor, a warning on a job
   variable that looks like a secret with a button that saves it as an encrypted secret of the repository and removes it
   from the file, the secrets the jobs read and the repository lacks, which jobs read each secret, and a notice when the
   instance runs Kubernetes, which does not pass repository secrets to jobs. Creating the secrets is for maintainers.
-  The secret form of the repository settings refuses a name an environment variable cannot have.
+  The secret form of the repository settings refuses a name an environment variable cannot have, and so does the server
+  (`POST /api/repositories/{id}/ci-variables` answers `400`).
 - "Proposer la modification" saves the file the way any change is made: on a new `pipeline-editor/…` branch, in a commit
   by the author, with a merge request into the default branch, which is never written directly
   (`GET /api/repositories/{id}/pipeline-definition` and `POST …/pipeline-definition/proposal`). The file is read from,

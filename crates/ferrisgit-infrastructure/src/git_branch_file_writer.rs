@@ -34,6 +34,43 @@ async fn git_ok(
     Ok(output.stdout_trimmed())
 }
 
+/// The tree of `base_sha` with `file_path` set to the blob `blob_oid`. It is built in a scratch index, so the repository's
+/// own index (a bare repository has none) is untouched, and the scratch one is removed whatever happens.
+async fn tree_with_file(
+    repo_path: &Path,
+    base_sha: &str,
+    file_path: &str,
+    blob_oid: &str,
+) -> Result<String, DomainError> {
+    let index_path =
+        std::env::temp_dir().join(format!("ferrisgit-branch-file-index-{}", Uuid::new_v4()));
+    let index_path_str = index_path.to_string_lossy().into_owned();
+    let index_env: [(&str, &str); 1] = [("GIT_INDEX_FILE", index_path_str.as_str())];
+    let tree = async {
+        git_ok(
+            repo_path,
+            &["read-tree", base_sha],
+            &index_env,
+            None,
+            "read-tree",
+        )
+        .await?;
+        let cacheinfo = format!("100644,{blob_oid},{file_path}");
+        git_ok(
+            repo_path,
+            &["update-index", "--add", "--cacheinfo", &cacheinfo],
+            &index_env,
+            None,
+            "update-index",
+        )
+        .await?;
+        git_ok(repo_path, &["write-tree"], &index_env, None, "write-tree").await
+    }
+    .await;
+    std::fs::remove_file(&index_path).ok();
+    tree
+}
+
 #[async_trait]
 impl BranchFileWriterPort for GitBranchFileWriter {
     async fn commit_file_to_new_branch(
@@ -71,34 +108,7 @@ impl BranchFileWriterPort for GitBranchFileWriter {
         )
         .await?;
 
-        // The tree is built in a scratch index, so the repository's own index (a bare repository has none) is untouched.
-        let index_path =
-            std::env::temp_dir().join(format!("ferrisgit-branch-file-index-{}", Uuid::new_v4()));
-        let index_path_str = index_path.to_string_lossy().into_owned();
-        let index_env: [(&str, &str); 1] = [("GIT_INDEX_FILE", index_path_str.as_str())];
-        let tree = async {
-            git_ok(
-                &repo_path,
-                &["read-tree", base_sha],
-                &index_env,
-                None,
-                "read-tree",
-            )
-            .await?;
-            let cacheinfo = format!("100644,{blob_oid},{file_path}");
-            git_ok(
-                &repo_path,
-                &["update-index", "--add", "--cacheinfo", &cacheinfo],
-                &index_env,
-                None,
-                "update-index",
-            )
-            .await?;
-            git_ok(&repo_path, &["write-tree"], &index_env, None, "write-tree").await
-        }
-        .await;
-        std::fs::remove_file(&index_path).ok();
-        let tree_oid = tree?;
+        let tree_oid = tree_with_file(&repo_path, base_sha, file_path, &blob_oid).await?;
 
         let commit_env = identity_env(committer_name, committer_email);
         let commit_sha = git_ok(

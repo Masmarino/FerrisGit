@@ -2,7 +2,7 @@ import {
   BuilderJob,
   BuilderState,
   NEW_PIPELINE,
-  addJob,
+  insertJob,
   addStage,
   duplicateJob,
   fromDefinition,
@@ -125,14 +125,13 @@ describe('pipeline builder model', () => {
   });
 
   describe('jobs', () => {
-    it('numbers a new job after the ones that exist', () => {
-      let result = addJob(NEW_PIPELINE, 'build');
-      result = addJob(result, 'build');
-      result = addJob(result, 'test');
-
-      expect(names(result.jobs)).toEqual(['job', 'job-2', 'job-3']);
-      expect(result.jobs[2].stage).toBe('test');
+    it('takes the first free name, and puts a new job at the end of its stage', () => {
+      expect(uniqueName(['a'], 'b')).toBe('b');
       expect(uniqueName(['a', 'a-2'], 'a')).toBe('a-3');
+
+      const result = insertJob(state(['build', 'test'], [job('compile', 'build'), job('unit', 'test')]), job('lint', 'build'));
+
+      expect(names(result.jobs)).toEqual(['compile', 'lint', 'unit']);
     });
 
     it('renames a job and the jobs that wait for it follow', () => {

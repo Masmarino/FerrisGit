@@ -1,5 +1,6 @@
 import { BuilderState } from './pipeline-builder-model';
 import { DetectedProject, RepositoryProfile } from './pipeline-definitions.service';
+import { tileById } from './pipeline-catalog';
 import { missingJobs, predictPipeline } from './pipeline-prediction';
 
 const profile = (projects: DetectedProject[], extra: Partial<RepositoryProfile> = {}): RepositoryProfile => ({ projects, dockerfiles: [], helmCharts: [], ...extra });
@@ -19,7 +20,7 @@ const node = (overrides: Partial<Extract<DetectedProject, { kind: 'node' }>> = {
 /** This repository, as the server reads it. */
 const FERRISGIT = profile(
   [
-    { kind: 'rust', dir: '', evidence: ['Cargo.toml', 'rust-toolchain.toml'], workspace: true, toolchain: '1.98.1', sqlxOffline: true },
+    { kind: 'rust', dir: '', evidence: ['Cargo.toml', 'rust-toolchain.toml'], workspace: true, toolchain: '1.98.1', sqlxOffline: true, sqlxPostgres: true },
     node({ dir: 'frontend', evidence: ['frontend/package.json', 'frontend/package-lock.json', 'frontend/angular.json'], nodeVersion: '26', scripts: { build: 'ng build', test: 'ng test' }, framework: 'angular', testRunner: 'vitest' }),
     node({ dir: 'website', evidence: ['website/package.json', 'website/package-lock.json'], nodeVersion: '26', scripts: { build: 'ng build', test: 'ng test --watch=false', lint: 'eslint .' }, framework: 'angular', testRunner: 'vitest' }),
   ],
@@ -27,6 +28,28 @@ const FERRISGIT = profile(
 );
 
 describe('pipeline prediction', () => {
+  it('runs a plain project the way the tiles do: same images, same commands', () => {
+    const plain = (project: DetectedProject) => predictPipeline(profile([project]))!.state.jobs;
+    const same = (job: { image: string; script: string[] }, tile: string) => expect({ image: job.image, script: job.script }).toEqual({ image: tileById(tile)!.image, script: tileById(tile)!.script });
+
+    const rust = plain({ kind: 'rust', dir: '', evidence: ['Cargo.toml'], workspace: false, toolchain: null, sqlxOffline: false, sqlxPostgres: false });
+    same(rust.find((job) => job.name === 'format')!, 'rust-format');
+    same(rust.find((job) => job.name === 'clippy')!, 'rust-clippy');
+    same(rust.find((job) => job.name === 'test')!, 'rust-test');
+
+    const npm = plain(node({ scripts: { lint: 'eslint .', test: 'vitest run', build: 'vite build' } }));
+    same(npm.find((job) => job.name === 'lint')!, 'node-lint');
+    same(npm.find((job) => job.name === 'test')!, 'node-test');
+    same(npm.find((job) => job.name === 'build')!, 'node-build');
+
+    const go = plain({ kind: 'go', dir: '', evidence: ['go.mod'], goVersion: null });
+    same(go.find((job) => job.name === 'test')!, 'go-test');
+    same(go.find((job) => job.name === 'build')!, 'go-build');
+
+    const python = plain({ kind: 'python', dir: '', evidence: ['requirements.txt'], tool: 'pip', pythonVersion: null, pytest: true, ruff: false });
+    same(python.find((job) => job.name === 'test')!, 'python-test');
+  });
+
   it('has nothing to propose for a repository where nothing was recognised', () => {
     expect(predictPipeline(null)).toBeNull();
     expect(predictPipeline(profile([]))).toBeNull();
@@ -58,6 +81,10 @@ describe('pipeline prediction', () => {
     it('runs Rust on the pinned toolchain, across the workspace, without a database', () => {
       expect(job('rust-clippy')).toMatchObject({ image: 'rust:1.98.1', script: ['rustup component add clippy', 'cargo clippy --workspace --all-targets -- -D warnings'], cache: ['cargo-home', 'cargo-target'] });
       expect(job('rust-test').variables).toContainEqual({ key: 'SQLX_OFFLINE', value: 'true' });
+      // Its sqlx tests need PostgreSQL: the job starts one, and only the tests' job does.
+      expect(job('rust-test').script.slice(0, 3)).toEqual(['apt-get update -qq', 'apt-get install -y -qq postgresql > /dev/null', 'pg_ctlcluster "$(ls /etc/postgresql)" main start']);
+      expect(job('rust-test').variables).toContainEqual({ key: 'DATABASE_URL', value: 'postgres://postgres:postgres@localhost:5432/postgres' });
+      expect(job('rust-clippy').script.some((line) => line.includes('postgresql'))).toBe(false);
       expect(job('rust-test').needs).toEqual(['rust-format', 'rust-clippy']);
     });
 
@@ -72,7 +99,7 @@ describe('pipeline prediction', () => {
     it('says what each project was read from, and points at what it ships', () => {
       expect(prediction.reasons[0]).toEqual({
         evidence: ['Cargo.toml', 'rust-toolchain.toml'],
-        text: "Un workspace Rust à la racine. La version 1.98.1, épinglée par le dépôt, donne l'image rust:1.98.1. Le dossier .sqlx permet de compiler sans base de données : SQLX_OFFLINE=true.",
+        text: "Un workspace Rust à la racine. La version 1.98.1, épinglée par le dépôt, donne l'image rust:1.98.1. Le dossier .sqlx permet de compiler sans base de données : SQLX_OFFLINE=true. Ses tests sqlx demandent PostgreSQL : le job de tests en démarre un.",
       });
       expect(prediction.reasons[1].text).toBe("Une application Angular dans frontend, avec npm. Node 26 d'après package.json. Scripts repris : test et build.");
       expect(prediction.notes).toEqual([expect.stringMatching(/^Un Dockerfile à la racine : la tuile « Construire et publier une image Docker »/), expect.stringMatching(/^Un chart Helm dans helm\/ferrisgit/)]);
@@ -122,6 +149,12 @@ describe('pipeline prediction', () => {
     expect(prediction.state.jobs[1].script.slice(0, 3)).toEqual(['cd ml', 'pip install uv', 'uv sync --frozen']);
   });
 
+  it('quotes a folder that is not a plain path, so that cd reaches it and runs nothing else', () => {
+    const prediction = predictPipeline(profile([node({ dir: 'web app;x', scripts: { build: 'vite build' } })]))!;
+
+    expect(prediction.state.jobs[0].script[0]).toBe("cd 'web app;x'");
+  });
+
   it('gives two folders of the same name jobs of their own', () => {
     const prediction = predictPipeline(profile([node({ dir: 'apps/web', scripts: { build: 'vite build' } }), node({ dir: 'packages/web', scripts: { build: 'tsc' } })]))!;
 
@@ -151,6 +184,15 @@ describe('pipeline prediction', () => {
       expect(missing).not.toContain('website-test');
       expect(missing).toContain('frontend-build');
       expect(missing).toContain('frontend-test');
+    });
+
+    it('takes ./frontend and frontend/ for the same folder as frontend', () => {
+      const state: BuilderState = {
+        stages: ['test'],
+        jobs: [{ name: 'front', stage: 'test', image: 'node:26', script: ['cd ./frontend/', 'npm ci', 'npm test -- --watch=false'], variables: [], needs: [], tags: [], cache: [] }],
+      };
+
+      expect(missingJobs(prediction, state).map((predicted) => predicted.job.name)).not.toContain('frontend-test');
     });
 
     it('leaves out the jobs the pipeline has, by name or by what they run', () => {

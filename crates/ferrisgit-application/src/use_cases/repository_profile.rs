@@ -1,31 +1,79 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::collections::{BTreeMap, VecDeque};
+use std::sync::{Arc, Mutex};
 
+use crate::use_cases::pipeline_definition_proposal::default_branch;
 use ferrisgit_domain::branch::BranchReaderPort;
 use ferrisgit_domain::error::DomainError;
-use ferrisgit_domain::pipeline_file_reader::PipelineFileReaderPort;
 use ferrisgit_domain::repository_profile::{
-    MAX_DEPTH, MAX_FILES, MAX_MANIFEST_BYTES, RepositoryFileListerPort, RepositoryProfile,
-    SKIPPED_DIRS, detect, files_to_read,
+    MAX_DEPTH, MAX_FILES, MAX_MANIFEST_BYTES, RepositoryFilesPort, RepositoryProfile, SKIPPED_DIRS,
+    detect, files_to_read,
 };
+
+/// How many profiles the server keeps: a few hundred repositories' worth, a few kilobytes each.
+pub const PROFILE_CACHE_CAPACITY: usize = 256;
+
+/// The profiles already read, by repository and commit. A commit never changes, so neither does what it is made of:
+/// a profile kept is never stale, and opening the editor again spares a tree walk and up to `MAX_MANIFESTS` reads.
+/// Past its capacity, the oldest profile goes.
+pub struct RepositoryProfileCache {
+    capacity: usize,
+    entries: Mutex<VecDeque<(ProfileKey, RepositoryProfile)>>,
+}
+
+/// A repository's disk path and a commit of it.
+type ProfileKey = (String, String);
+
+impl RepositoryProfileCache {
+    pub fn new(capacity: usize) -> Self {
+        Self {
+            capacity,
+            entries: Mutex::new(VecDeque::new()),
+        }
+    }
+
+    fn get(&self, key: &ProfileKey) -> Option<RepositoryProfile> {
+        let entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        entries
+            .iter()
+            .find(|(candidate, _)| candidate == key)
+            .map(|(_, profile)| profile.clone())
+    }
+
+    fn put(&self, key: ProfileKey, profile: RepositoryProfile) {
+        let mut entries = self
+            .entries
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if self.capacity == 0 || entries.iter().any(|(candidate, _)| *candidate == key) {
+            return;
+        }
+        if entries.len() == self.capacity {
+            entries.pop_front();
+        }
+        entries.push_back((key, profile));
+    }
+}
 
 /// What the default branch of a repository is made of, for the pipeline editor to propose a pipeline that fits it.
 pub struct DetectRepositoryProfileUseCase {
     branches: Arc<dyn BranchReaderPort>,
-    lister: Arc<dyn RepositoryFileListerPort>,
-    files: Arc<dyn PipelineFileReaderPort>,
+    files: Arc<dyn RepositoryFilesPort>,
+    cache: Arc<RepositoryProfileCache>,
 }
 
 impl DetectRepositoryProfileUseCase {
     pub fn new(
         branches: Arc<dyn BranchReaderPort>,
-        lister: Arc<dyn RepositoryFileListerPort>,
-        files: Arc<dyn PipelineFileReaderPort>,
+        files: Arc<dyn RepositoryFilesPort>,
+        cache: Arc<RepositoryProfileCache>,
     ) -> Self {
         Self {
             branches,
-            lister,
             files,
+            cache,
         }
     }
 
@@ -34,17 +82,16 @@ impl DetectRepositoryProfileUseCase {
         &self,
         repository_disk_path: &str,
     ) -> Result<RepositoryProfile, DomainError> {
-        let default = self
-            .branches
-            .list_branches(repository_disk_path)
-            .await?
-            .into_iter()
-            .find(|branch| branch.is_default);
-        let Some(default) = default else {
+        let Some(default) = default_branch(self.branches.as_ref(), repository_disk_path).await?
+        else {
             return Ok(detect(&[], &BTreeMap::new()));
         };
+        let key = (repository_disk_path.to_string(), default.tip_sha.clone());
+        if let Some(profile) = self.cache.get(&key) {
+            return Ok(profile);
+        }
         let paths = self
-            .lister
+            .files
             .list_files_at_revision(
                 repository_disk_path,
                 &default.tip_sha,
@@ -53,21 +100,19 @@ impl DetectRepositoryProfileUseCase {
                 MAX_FILES,
             )
             .await?;
-        let mut contents = BTreeMap::new();
-        for path in files_to_read(&paths) {
-            let bytes = self
-                .files
-                .read_file_at_revision(repository_disk_path, &default.tip_sha, &path)
-                .await?;
-            // A manifest too big or not text says nothing reliable: the project is judged on the others.
-            if let Some(text) = bytes
-                .filter(|bytes| bytes.len() <= MAX_MANIFEST_BYTES)
-                .and_then(|bytes| String::from_utf8(bytes).ok())
-            {
-                contents.insert(path, text);
-            }
-        }
-        Ok(detect(&paths, &contents))
+        // A manifest too big or not text says nothing reliable: it is left out, and the project judged on the others.
+        let contents = self
+            .files
+            .read_text_files_at_revision(
+                repository_disk_path,
+                &default.tip_sha,
+                &files_to_read(&paths),
+                MAX_MANIFEST_BYTES,
+            )
+            .await?;
+        let profile = detect(&paths, &contents);
+        self.cache.put(key, profile.clone());
+        Ok(profile)
     }
 }
 
@@ -98,7 +143,7 @@ mod tests {
     }
 
     #[async_trait]
-    impl RepositoryFileListerPort for Tree {
+    impl RepositoryFilesPort for Tree {
         async fn list_files_at_revision(
             &self,
             _disk: &str,
@@ -113,25 +158,40 @@ mod tests {
                 .push((revision.to_string(), max_depth));
             Ok(self.files.keys().cloned().collect())
         }
-    }
 
-    #[async_trait]
-    impl PipelineFileReaderPort for Tree {
-        async fn read_file_at_revision(
+        async fn read_text_files_at_revision(
             &self,
             _disk: &str,
             _revision: &str,
-            path: &str,
-        ) -> Result<Option<Vec<u8>>, DomainError> {
-            Ok(self.files.get(path).cloned())
+            paths: &[String],
+            max_bytes: usize,
+        ) -> Result<BTreeMap<String, String>, DomainError> {
+            Ok(paths
+                .iter()
+                .filter_map(|path| self.files.get(path).map(|bytes| (path, bytes)))
+                .filter(|(_, bytes)| bytes.len() <= max_bytes)
+                .filter_map(|(path, bytes)| {
+                    String::from_utf8(bytes.clone())
+                        .ok()
+                        .map(|text| (path.clone(), text))
+                })
+                .collect())
         }
     }
 
     fn use_case(tree: &Arc<Tree>, branches: Vec<BranchInfo>) -> DetectRepositoryProfileUseCase {
+        with_cache(tree, branches, &Arc::new(RepositoryProfileCache::new(4)))
+    }
+
+    fn with_cache(
+        tree: &Arc<Tree>,
+        branches: Vec<BranchInfo>,
+        cache: &Arc<RepositoryProfileCache>,
+    ) -> DetectRepositoryProfileUseCase {
         DetectRepositoryProfileUseCase::new(
             Arc::new(FakeBranchReader::new(branches)),
             tree.clone(),
-            tree.clone(),
+            cache.clone(),
         )
     }
 
@@ -172,6 +232,60 @@ mod tests {
             *tree.asked.lock().unwrap(),
             [("tip".to_string(), MAX_DEPTH)]
         );
+    }
+
+    #[tokio::test]
+    async fn reads_a_commit_once_and_a_new_one_again() {
+        let tree = Tree::new(&[("go.mod", b"module x\n\ngo 1.22\n")]);
+        let cache = Arc::new(RepositoryProfileCache::new(4));
+
+        let first = with_cache(&tree, main_at("tip1"), &cache)
+            .execute("disk")
+            .await
+            .unwrap();
+        let again = with_cache(&tree, main_at("tip1"), &cache)
+            .execute("disk")
+            .await
+            .unwrap();
+        with_cache(&tree, main_at("tip2"), &cache)
+            .execute("disk")
+            .await
+            .unwrap();
+        with_cache(&tree, main_at("tip1"), &cache)
+            .execute("other-disk")
+            .await
+            .unwrap();
+
+        assert_eq!(first, again);
+        let revisions: Vec<String> = tree
+            .asked
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(rev, _)| rev.clone())
+            .collect();
+        assert_eq!(revisions, ["tip1", "tip2", "tip1"]);
+    }
+
+    #[tokio::test]
+    async fn keeps_only_the_latest_profiles_past_its_capacity() {
+        let tree = Tree::new(&[("go.mod", b"module x\n")]);
+        let cache = Arc::new(RepositoryProfileCache::new(2));
+        for tip in ["a", "b", "c", "a"] {
+            with_cache(&tree, main_at(tip), &cache)
+                .execute("disk")
+                .await
+                .unwrap();
+        }
+
+        let revisions: Vec<String> = tree
+            .asked
+            .lock()
+            .unwrap()
+            .iter()
+            .map(|(rev, _)| rev.clone())
+            .collect();
+        assert_eq!(revisions, ["a", "b", "c", "a"], "a was dropped for c");
     }
 
     #[tokio::test]

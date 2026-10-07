@@ -4,7 +4,7 @@
 </gbt-page-header>
 
 <gbt-page-layout width="wide">
-  @if (status() === 'loading') {
+  @if (doc.status() === 'loading') {
     <div class="pipeline-editor__board" aria-hidden="true">
       @for (lane of [0, 1, 2]; track lane) {
         <div class="pipeline-editor__lane">
@@ -17,7 +17,7 @@
       }
     </div>
     <span class="sr-only" role="status">Chargement de la pipeline</span>
-  } @else if (status() === 'failed') {
+  } @else if (doc.status() === 'failed') {
     <gbt-empty-state icon="file" heading="Le fichier n'a pas pu être chargé" message="Le fichier .ferrisgit-ci.yml du dépôt n'a pas pu être lu. Réessayez dans un instant.">
       <gbt-button variant="secondary" text="Réessayer" (clicked)="load()" />
     </gbt-empty-state>
@@ -25,15 +25,15 @@
     <gbt-empty-state icon="lock" heading="Réservé aux contributeurs" message="L'éditeur prépare une modification du fichier de CI : il faut avoir le rôle de Contributeur, ou plus, sur ce dépôt." />
   } @else {
     <div class="pipeline-editor__notes">
-      @if (loadNotes().unreadable; as reason) {
+      @if (doc.loadNotes().unreadable; as reason) {
         <gbt-alert variant="warning" appearance="subtle" iconAlign="start">Le fichier du dépôt n'a pas pu être lu. {{ reason }} Vous partez d'une pipeline vide.</gbt-alert>
-      } @else if (source() === 'new') {
-        <gbt-alert variant="info" appearance="subtle" iconAlign="start">Ce dépôt n'a pas encore de fichier <code>{{ filePath() }}</code> : vous partez d'une pipeline vide.</gbt-alert>
+      } @else if (doc.source() === 'new') {
+        <gbt-alert variant="info" appearance="subtle" iconAlign="start">Ce dépôt n'a pas encore de fichier <code>{{ doc.filePath() }}</code> : vous partez d'une pipeline vide.</gbt-alert>
       }
-      @if (!hasBranch()) {
+      @if (!doc.hasBranch()) {
         <gbt-alert variant="warning" appearance="subtle" iconAlign="start">Ce dépôt n'a encore aucun commit : il faut en pousser un premier avant de pouvoir proposer une modification. Vous pouvez composer le fichier et le copier en attendant.</gbt-alert>
       }
-      @if (switchLoss(); as loss) {
+      @if (doc.switchLoss(); as loss) {
         <gbt-alert variant="warning" appearance="subtle" iconAlign="start">
           Passer aux cartes a réécrit le fichier.
           @if (loss.hasComments) {
@@ -48,13 +48,13 @@
           Revenir au YAML ne les rend pas.
         </gbt-alert>
       }
-      @if (loadNotes().hasComments) {
+      @if (doc.loadNotes().hasComments) {
         <gbt-alert variant="warning" appearance="subtle" iconAlign="start">Le fichier du dépôt contient des commentaires. Le fichier produit ici n'en a pas : ils seraient perdus si vous le remplaciez tel quel.</gbt-alert>
       }
-      @if (loadNotes().ignoredFields.length > 0) {
+      @if (doc.loadNotes().ignoredFields.length > 0) {
         <gbt-alert variant="warning" appearance="subtle" iconAlign="start">
           Le serveur ne lit pas ces champs du fichier du dépôt, ils sont donc absents du fichier produit ici :
-          @for (field of loadNotes().ignoredFields; track field; let last = $last) {
+          @for (field of doc.loadNotes().ignoredFields; track field; let last = $last) {
             <code>{{ field }}</code>{{ last ? '.' : ', ' }}
           }
         </gbt-alert>
@@ -62,13 +62,13 @@
     </div>
 
     <div class="pipeline-editor__toolbar">
-      <gbt-segmented-control ariaLabel="Façon de modifier la pipeline" size="sm" tinted [options]="modeOptions()" [value]="mode()" (valueChange)="setMode($event)" />
-      <fg-help-tip [help]="mode() === 'yaml' ? help.yaml : help.pipeline" />
-      @if (mode() === 'cards') {
+      <gbt-segmented-control ariaLabel="Façon de modifier la pipeline" size="sm" tinted [options]="doc.modeOptions()" [value]="doc.mode()" (valueChange)="setMode($event)" />
+      <fg-help-tip [help]="doc.mode() === 'yaml' ? help.yaml : help.pipeline" />
+      @if (doc.mode() === 'cards') {
         <p class="pipeline-editor__summary">{{ summary() }}</p>
       }
       <div class="pipeline-editor__toolbar-actions">
-        @if (mode() === 'cards') {
+        @if (doc.mode() === 'cards') {
           <div class="pipeline-editor__history" role="group" aria-label="Historique des modifications">
             <gbt-tooltip [text]="undoTip()">
               <gbt-button variant="ghost" size="small" [iconOnly]="true" iconName="undo-2" [ariaLabel]="undoTip()" [attr.aria-keyshortcuts]="'Meta+Z Control+Z'" [disabled]="!canUndo()" (clicked)="undo()" />
@@ -82,23 +82,24 @@
         @if (missingSecretUses().length > 0) {
           <gbt-badge variant="warning" class="pipeline-editor__secrets-badge">{{ missingSecretUses().length }} à créer</gbt-badge>
         }
-        <gbt-button variant="ghost" size="small" text="Revenir au fichier du dépôt" [disabled]="!edited()" (clicked)="askReset()" />
+        <gbt-button variant="ghost" size="small" text="Revenir au fichier du dépôt" [disabled]="!doc.edited()" (clicked)="askReset()" />
       </div>
     </div>
 
     @if (showStarters()) {
-      <fg-pipeline-starters [prediction]="prediction()" [predicting]="profileState() === 'loading'" [branch]="file()?.branch ?? null" (chosen)="chooseTemplate($event)" (usePrediction)="usePrediction()" />
+      <fg-pipeline-starters [prediction]="prediction()" [predicting]="profileState() === 'loading'" [branch]="doc.file()?.branch ?? null" [engine]="engine()" (chosen)="chooseTemplate($event)" (usePrediction)="usePrediction()" />
     }
 
-    @if (mode() === 'cards') {
+    @if (doc.mode() === 'cards') {
     <div class="pipeline-editor__board" cdkScrollable>
       @if (!dragging()) {
         <fg-pipeline-links [links]="links()" />
       }
       @for (lane of lanes(); track lane.stage) {
         <section class="pipeline-editor__lane" [attr.aria-labelledby]="lane.headingId">
-          <p class="pipeline-editor__lane-label" aria-hidden="true">
-            Étape {{ lane.index + 1 }}
+          <!-- The number is for the eye (the hidden heading says the stage's name); the help bubble stays for everyone. -->
+          <p class="pipeline-editor__lane-label">
+            <span aria-hidden="true">Étape {{ lane.index + 1 }}</span>
             <fg-help-tip [help]="help.stage" />
           </p>
           <header class="pipeline-editor__lane-header">
@@ -193,62 +194,57 @@
     }
 
     <section class="pipeline-editor__output" aria-labelledby="pipeline-editor-output">
-      <h2 id="pipeline-editor-output">{{ mode() === 'yaml' ? 'Le fichier' : 'Le fichier produit' }}</h2>
+      <h2 id="pipeline-editor-output">{{ doc.mode() === 'yaml' ? 'Le fichier' : 'Le fichier produit' }}</h2>
 
-      @if (renderFailed()) {
+      @if (doc.renderFailed()) {
         <gbt-alert variant="error" appearance="subtle" iconAlign="start">Le serveur n'a pas pu produire le fichier. Votre pipeline est conservée ici : modifiez-la pour réessayer.</gbt-alert>
       }
-      @if (problems().length > 0) {
+      @if (doc.problems().length > 0) {
         <gbt-alert variant="error" appearance="subtle" iconAlign="start">
           <p class="pipeline-editor__notes-title">À corriger avant que le serveur accepte ce fichier</p>
-          <ul class="pipeline-editor__issues">
-            @for (problem of problems(); track problem.message) {
-              <li>
-                @if (problem.job) {
-                  <button type="button" class="pipeline-editor__issue-link" (click)="openJob(problem.job)">{{ problem.message }}</button>
-                } @else {
-                  {{ problem.message }}
-                }
-              </li>
-            }
-          </ul>
+          <ng-container *ngTemplateOutlet="issueList; context: { $implicit: doc.problems() }" />
         </gbt-alert>
       }
-      @if (warnings().length > 0) {
+      @if (doc.warnings().length > 0) {
         <gbt-alert variant="warning" appearance="subtle" iconAlign="start">
           <p class="pipeline-editor__notes-title">À vérifier</p>
-          <ul class="pipeline-editor__issues">
-            @for (warning of warnings(); track warning.message) {
-              <li>
-                @if (warning.job) {
-                  <button type="button" class="pipeline-editor__issue-link" (click)="openJob(warning.job)">{{ warning.message }}</button>
-                } @else {
-                  {{ warning.message }}
-                }
-              </li>
-            }
-          </ul>
+          <ng-container *ngTemplateOutlet="issueList; context: { $implicit: doc.warnings() }" />
         </gbt-alert>
       }
 
+      <!-- What the server says, each item leading to its job when it names one. -->
+      <ng-template #issueList let-issues>
+        <ul class="pipeline-editor__issues">
+          @for (issue of issues; track issue.message) {
+            <li>
+              @if (issue.job) {
+                <button type="button" class="pipeline-editor__issue-link" (click)="openJob(issue.job)">{{ issue.message }}</button>
+              } @else {
+                {{ issue.message }}
+              }
+            </li>
+          }
+        </ul>
+      </ng-template>
+
       <div class="pipeline-editor__yaml-head">
-        <code>{{ filePath() }}</code>
-        <gbt-copy-button [value]="yaml()" text="Copier le YAML" copiedText="Copié" failedText="Échec de la copie" variant="secondary" size="small" [disabled]="yaml() === ''" />
+        <code>{{ doc.filePath() }}</code>
+        <gbt-copy-button [value]="doc.yaml()" text="Copier le YAML" copiedText="Copié" failedText="Échec de la copie" variant="secondary" size="small" [disabled]="doc.yaml() === ''" />
       </div>
-      @if (mode() === 'yaml') {
-        <gbt-textarea class="pipeline-editor__yaml-input" label="Contenu du fichier de pipeline" hideLabel mono autosize [rows]="18" [ngModel]="yamlText()" (ngModelChange)="typeYaml($event)" />
+      @if (doc.mode() === 'yaml') {
+        <gbt-textarea class="pipeline-editor__yaml-input" label="Contenu du fichier de pipeline" hideLabel mono autosize [rows]="18" [ngModel]="doc.yamlText()" (ngModelChange)="typeYaml($event)" />
       } @else {
         <!-- The same colours as the repository's code browser, and line numbers for when the server names a line. -->
         <div class="pipeline-editor__yaml" role="region" aria-label="Contenu du fichier de pipeline produit">
-          <fg-code-view [content]="yaml()" fileName="pipeline.yml" [lineNumbers]="true" />
+          <fg-code-view [content]="doc.yaml()" fileName="pipeline.yml" [lineNumbers]="true" />
         </div>
       }
       <p class="pipeline-editor__hint">
-        @if (hasBranch()) {
+        @if (doc.hasBranch()) {
           <fg-help-tip [help]="help.propose" />
-          « Proposer la modification » écrit le fichier sur une nouvelle branche et ouvre une merge request vers <code>{{ file()?.branch }}</code> : rien n'est écrit sur <code>{{ file()?.branch }}</code> avant qu'elle soit fusionnée.
+          « Proposer la modification » écrit le fichier sur une nouvelle branche et ouvre une merge request vers <code>{{ doc.file()?.branch }}</code> : rien n'est écrit sur <code>{{ doc.file()?.branch }}</code> avant qu'elle soit fusionnée.
         } @else {
-          Copiez ce fichier dans <code>{{ filePath() }}</code> à la racine du dépôt, puis poussez-le.
+          Copiez ce fichier dans <code>{{ doc.filePath() }}</code> à la racine du dépôt, puis poussez-le.
         }
       </p>
     </section>
@@ -257,14 +253,14 @@
 
 <gbt-modal [isOpen]="saveOpen()" heading="Proposer la modification" closeLabel="Fermer" [busy]="saving()" busyLabel="Envoi en cours" (closed)="closeSave()">
   <form class="pipeline-editor__save" (submit)="$event.preventDefault(); save()">
-    <p>Le fichier <code>{{ filePath() }}</code> sera écrit sur une nouvelle branche, et une merge request sera ouverte vers <code>{{ file()?.branch }}</code>.</p>
+    <p>Le fichier <code>{{ doc.filePath() }}</code> sera écrit sur une nouvelle branche, et une merge request sera ouverte vers <code>{{ doc.file()?.branch }}</code>.</p>
     <gbt-input label="Titre" [ngModel]="saveTitle()" (ngModelChange)="saveTitle.set($event)" [ngModelOptions]="{ standalone: true }" />
     <gbt-textarea label="Description" [rows]="3" [ngModel]="saveDescription()" (ngModelChange)="saveDescription.set($event)" [ngModelOptions]="{ standalone: true }" />
     @if (saveFailure(); as failure) {
       <gbt-alert variant="error" appearance="subtle" iconAlign="start">
         @switch (failure.kind) {
           @case ('changed') {
-            Le fichier a changé sur <code>{{ file()?.branch }}</code> depuis l'ouverture de l'éditeur. Rouvrez-le pour repartir de la dernière version, puis refaites la modification.
+            Le fichier a changé sur <code>{{ doc.file()?.branch }}</code> depuis l'ouverture de l'éditeur. Rouvrez-le pour repartir de la dernière version, puis refaites la modification.
           }
           @case ('refused') {
             Le serveur refuse cette modification : {{ failure.detail }}
@@ -335,15 +331,15 @@
 />
 
 <gbt-confirm-danger-modal
-  [isOpen]="leaveOpen()"
+  [isOpen]="leaving.asking()"
   tone="warning"
   heading="Quitter l'éditeur ?"
   message="Vos modifications n'ont pas été proposées : elles seront perdues. Pour les garder, restez et utilisez « Proposer la modification »."
   confirmLabel="Quitter sans proposer"
   cancelLabel="Rester dans l'éditeur"
   closeLabel="Fermer"
-  (confirmed)="answerLeave(true)"
-  (closed)="answerLeave(false)"
+  (confirmed)="leaving.answer(true)"
+  (closed)="leaving.answer(false)"
 />
 
 <!-- What the last move or change did, for those who cannot see the board change. -->

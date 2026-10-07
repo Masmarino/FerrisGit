@@ -131,6 +131,45 @@ impl GixRepositoryReader {
         Ok(Some(paths))
     }
 
+    /// The text of each of `paths` that is a file of at most `max_bytes` and valid UTF-8, in one opening of the
+    /// repository. A file over the limit is measured from its object header and never loaded; a missing path, a
+    /// folder, or a revision that doesn't resolve leaves its entries out.
+    pub fn read_text_files_at_revision(
+        &self,
+        disk_path: &Path,
+        revision: &str,
+        paths: &[String],
+        max_bytes: usize,
+    ) -> Result<std::collections::BTreeMap<String, String>, GitReadError> {
+        let mut texts = std::collections::BTreeMap::new();
+        let repo = open(disk_path)?;
+        let Some(commit) = commit_by_sha(&repo, revision) else {
+            return Ok(texts);
+        };
+        let tree = commit.tree().map_err(GitReadError::other)?;
+        for path in paths {
+            let Some(entry) = tree
+                .lookup_entry_by_path(path)
+                .map_err(GitReadError::other)?
+            else {
+                continue;
+            };
+            if entry.mode().is_tree() {
+                continue;
+            }
+            let id = entry.object_id();
+            let size = repo.find_header(id).map_err(GitReadError::other)?.size();
+            if size > max_bytes as u64 {
+                continue;
+            }
+            let blob = repo.find_object(id).map_err(GitReadError::other)?;
+            if let Ok(text) = String::from_utf8(blob.data.clone()) {
+                texts.insert(path.clone(), text);
+            }
+        }
+        Ok(texts)
+    }
+
     /// `Ok(None)` for a missing file or a revision that doesn't exist or isn't a commit, so a malformed sha
     /// doesn't turn into a 500.
     pub fn read_file_at_revision(

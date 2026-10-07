@@ -1,0 +1,79 @@
+<section class="starters" aria-labelledby="starters-title">
+  @if (engine() === 'kubernetes') {
+    <h2 id="starters-title" class="starters__title">Partir d'un job vide</h2>
+    <gbt-alert variant="warning" appearance="subtle" iconAlign="start" data-kubernetes>
+      Votre instance exécute les jobs avec Kubernetes : le Pod d'un job ne reçoit pas de copie du dépôt. Les modèles compilent et testent ses fichiers : ils n'y fonctionneraient pas. Ajoutez un job vide à une étape, et faites-lui récupérer le code dont il a besoin (avec <code>git clone</code>, par exemple).
+    </gbt-alert>
+  } @else {
+  @if (predicting()) {
+    <div class="starters__prediction" aria-hidden="true">
+      <gbt-skeleton width="16rem" height="1.25rem" />
+      <gbt-skeleton width="100%" height="0.875rem" />
+      <gbt-skeleton width="80%" height="0.875rem" />
+    </div>
+    <span class="sr-only" role="status">Lecture du dépôt</span>
+  } @else if (prediction(); as proposal) {
+    <div class="starters__prediction" data-prediction aria-labelledby="prediction-title" role="group">
+      <h2 id="prediction-title" class="starters__title">Pour ce dépôt : {{ proposal.title }}</h2>
+      <p class="starters__summary">
+        D'après les fichiers de la branche {{ branch() ?? 'par défaut' }}. Chaque job reprend les versions, les outils et les scripts du projet ; vous pourrez tout changer ensuite.
+      </p>
+      <ul class="starters__reasons">
+        @for (reason of proposal.reasons; track reason.text) {
+          <li>
+            <span class="starters__evidence">
+              @for (file of reason.evidence; track file) {
+                <code>{{ file }}</code>
+              }
+            </span>
+            <span>{{ reason.text }}</span>
+          </li>
+        }
+      </ul>
+      <ol class="starters__plan" aria-label="Étapes proposées, dans l'ordre">
+        @for (stage of plan(); track stage.name) {
+          <li>
+            <span class="starters__stage">{{ stage.name }}</span>
+            <span class="starters__jobs">
+              @for (job of stage.jobs; track job) {
+                <code>{{ job }}</code>
+              }
+            </span>
+          </li>
+        }
+      </ol>
+      @if (proposal.notes.length > 0) {
+        <ul class="starters__notes">
+          @for (note of proposal.notes; track note) {
+            <li>{{ note }}</li>
+          }
+        </ul>
+      }
+      <gbt-button class="starters__use" variant="primary" text="Utiliser cette pipeline" (clicked)="usePrediction.emit()" />
+    </div>
+  }
+  <div class="starters__head">
+    <h2 id="starters-title" class="starters__title">
+      @if (prediction()) {
+        Ou partir d'un modèle
+      } @else {
+        Partir d'un modèle
+      }
+    </h2>
+    <fg-help-tip [help]="help.pipeline" />
+  </div>
+  <p class="starters__summary">Une pipeline complète pour votre type de projet. Vous pourrez tout changer ensuite, ou ajouter vos propres jobs.</p>
+  <ul class="starters__list">
+    @for (template of templates; track template.id) {
+      <li>
+        <button type="button" class="starters__card" [attr.data-template]="template.id" (click)="chosen.emit(template)">
+          <gbt-icon [name]="template.icon" aria-hidden="true" />
+          <span class="starters__name">{{ template.title }}</span>
+          <span class="starters__what">{{ template.summary }}</span>
+          <span class="starters__stages">{{ template.stages.join(' → ') }}</span>
+        </button>
+      </li>
+    }
+  </ul>
+  }
+</section>

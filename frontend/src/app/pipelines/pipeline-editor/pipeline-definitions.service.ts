@@ -79,6 +79,7 @@ export interface PipelineProposal {
 export type PackageManager = 'npm' | 'pnpm' | 'yarnClassic' | 'yarn' | 'bun';
 export type NodeFramework = 'angular' | 'react' | 'vue' | 'svelte' | 'next';
 export type TestRunner = 'vitest' | 'jest' | 'karma' | 'playwright';
+export type PythonTool = 'pip' | 'poetry' | 'uv';
 
 interface ProjectBase {
   /** The project's folder, `''` for the root. */
@@ -88,12 +89,16 @@ interface ProjectBase {
 }
 
 export type DetectedProject =
-  | (ProjectBase & { kind: 'rust'; workspace: boolean; toolchain: string | null; sqlxOffline: boolean })
+  | (ProjectBase & { kind: 'rust'; workspace: boolean; toolchain: string | null; sqlxOffline: boolean; sqlxPostgres: boolean })
   | (ProjectBase & { kind: 'node'; packageManager: PackageManager; nodeVersion: string | null; scripts: Record<string, string>; framework: NodeFramework | null; testRunner: TestRunner | null })
   | (ProjectBase & { kind: 'go'; goVersion: string | null })
-  | (ProjectBase & { kind: 'python'; tool: 'pip' | 'poetry' | 'uv'; pythonVersion: string | null; pytest: boolean; ruff: boolean });
+  | (ProjectBase & { kind: 'python'; tool: PythonTool; pythonVersion: string | null; pytest: boolean; ruff: boolean });
 
-/** What the default branch is made of, as the server read it: the editor's predictions start from here. */
+/**
+ * What the default branch is made of, as the server read it: the editor's predictions start from here. These types
+ * mirror repository_profile.rs; repository-profile.contract.spec.ts checks them against a sample the server's own tests
+ * keep up to date.
+ */
 export interface RepositoryProfile {
   projects: DetectedProject[];
   /** Folders with a Dockerfile, `''` for the root. */

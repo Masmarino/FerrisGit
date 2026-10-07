@@ -1,4 +1,4 @@
-import { isEnvName, looksLikeSecret, missingSecrets, referencedNames, secretUsage, unknownReferences, wantedSecretNames } from './pipeline-references';
+import { looksLikeSecret, missingSecrets, referencedNames, secretUsage, unknownReferences, wantedSecretNames } from './pipeline-references';
 
 const job = (script: string[], variables: { key: string; value: string }[] = []) => ({ script, variables });
 
@@ -9,11 +9,6 @@ describe('pipeline references', () => {
 
   it('does not take a plain dollar for a variable', () => {
     expect(referencedNames(job(['echo "$"', 'echo $1 $@ $$']))).toEqual([]);
-  });
-
-  it('knows which names an environment variable can have', () => {
-    expect(['A', '_a', 'npm_config_cache', 'A1'].every(isEnvName)).toBe(true);
-    expect(['1A', 'A-B', 'A B', ''].some(isEnvName)).toBe(false);
   });
 
   it('spots names that look like credentials', () => {

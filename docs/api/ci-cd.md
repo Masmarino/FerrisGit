@@ -127,7 +127,7 @@ Réponse 200 : `{ "path": ".ferrisgit-ci.yml", "branch": "main", "baseSha": "…
 
 ### `GET /api/repositories/{repository_id}/pipeline-definition/profile`
 
-Dit de quoi la branche par défaut est faite, pour que l'éditeur propose une pipeline qui lui ressemble. Rôle minimal : Contributeur. Le serveur parcourt l'arborescence sur trois niveaux de dossiers au plus (5 000 entrées au plus), sans entrer dans les dossiers de dépendances ou de sortie (`node_modules`, `target`, `vendor`, `dist`, `build`, `.venv`…), et lit les seuls fichiers qui disent quelque chose : `Cargo.toml`, `rust-toolchain(.toml)`, `package.json`, `.nvmrc`, `.node-version`, `go.mod`, `pyproject.toml`, `.python-version`. Les autres ne comptent que par leur présence (fichiers de verrouillage, `angular.json`, `Dockerfile`, `Chart.yaml`, `.sqlx`).
+Dit de quoi la branche par défaut est faite, pour que l'éditeur propose une pipeline qui lui ressemble. Rôle minimal : Contributeur. Le serveur parcourt l'arborescence sur trois niveaux de dossiers au plus (5 000 entrées au plus), sans entrer dans les dossiers de dépendances ou de sortie (`node_modules`, `target`, `vendor`, `dist`, `build`, `.venv`…), et lit les seuls fichiers qui disent quelque chose : `Cargo.toml`, `rust-toolchain(.toml)`, `package.json`, `.nvmrc`, `.node-version`, `go.mod`, `pyproject.toml`, `.python-version`. Les autres ne comptent que par leur présence (fichiers de verrouillage, `angular.json`, `Dockerfile`, `Chart.yaml`, `.sqlx`). Au plus 200 de ces fichiers sont lus, les moins profonds d'abord, et chacun s'il ne dépasse pas 256 Kio. Le résultat est gardé en mémoire pour ce commit (les 256 derniers commits lus) : tant que la branche par défaut ne bouge pas, la réponse ne relit rien.
 
 Réponse 200 :
 
@@ -139,7 +139,7 @@ Réponse 200 :
 
 | `kind` | Champs |
 |---|---|
-| `rust` | `workspace` ; `toolchain`, la version épinglée par `rust-toolchain.toml`, sinon le `rust-version` du manifeste, ou `null` (une chaîne nommée comme `nightly` n'en est pas une) ; `sqlxOffline`, vrai avec un dossier `.sqlx`. |
+| `rust` | `workspace` ; `toolchain`, la version épinglée par `rust-toolchain.toml`, sinon le `rust-version` du manifeste, ou `null` : seuls des chiffres et des points comptent (`1.98.1`), une chaîne nommée comme `nightly` ou toute autre valeur n'est pas reprise ; `sqlxOffline`, vrai avec un dossier `.sqlx` à sa racine ou dans une de ses caisses ; `sqlxPostgres`, vrai quand un de ses `Cargo.toml` déclare sqlx avec sa fonctionnalité `postgres` (ses tests `#[sqlx::test]` demandent alors une base PostgreSQL). |
 | `node` | `packageManager` (`npm`, `pnpm`, `yarnClassic`, `yarn`, `bun`, d'après le fichier de verrouillage ou le champ `packageManager`) ; `nodeVersion`, la version majeure de `.nvmrc`, `.node-version` ou `engines.node` ; `scripts`, ceux du `package.json` ; `framework` (`angular`, `react`, `vue`, `svelte`, `next` ou `null`) ; `testRunner` (`vitest`, `jest`, `karma`, `playwright` ou `null`). |
 | `go` | `goVersion`, le `major.minor` de la ligne `go` de `go.mod`. |
 | `python` | `tool` (`pip`, `poetry`, `uv`) ; `pythonVersion` ; `pytest` et `ruff`, vrais quand le projet les mentionne. |
@@ -185,11 +185,11 @@ Corps :
 
 | Champ | Type | Obligatoire | Description |
 |---|---|---|---|
-| `key` | texte | oui | Nom de la variable. |
+| `key` | texte | oui | Nom de la variable : lettres ASCII, chiffres et `_`, sans commencer par un chiffre (un nom qu'un shell peut exporter). |
 | `value` | texte | oui | Valeur, stockée chiffrée. |
 | `masked` | booléen | non | Si `true` (défaut), la valeur est masquée dans les journaux des jobs. |
 
-Réponse 200 : `{ "id", "key", "masked" }`. L'appel est un « créer ou remplacer » : la clé est unique par dépôt.
+Réponse 200 : `{ "id", "key", "masked" }`. L'appel est un « créer ou remplacer » : la clé est unique par dépôt. Un nom invalide est refusé avec 400.
 
 ```bash
 curl -s -X POST "$BASE/api/repositories/$REPO_ID/ci-variables" \

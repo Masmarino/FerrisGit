@@ -512,7 +512,7 @@ mod saving {
         assert_eq!(
             profile["projects"],
             json!([
-                { "dir": "", "evidence": ["Cargo.toml", "rust-toolchain.toml"], "kind": "rust", "workspace": true, "toolchain": "1.86.0", "sqlxOffline": true },
+                { "dir": "", "evidence": ["Cargo.toml", "rust-toolchain.toml"], "kind": "rust", "workspace": true, "toolchain": "1.86.0", "sqlxOffline": true, "sqlxPostgres": false },
                 {
                     "dir": "web",
                     "evidence": ["web/package.json", "web/pnpm-lock.yaml", "web/.nvmrc"],

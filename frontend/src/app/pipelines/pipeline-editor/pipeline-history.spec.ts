@@ -1,4 +1,5 @@
-import { HISTORY_LIMIT, TYPING_PAUSE_MS, emptyHistory, record, redo, undo } from './pipeline-history';
+import { signal } from '@angular/core';
+import { HISTORY_LIMIT, TYPING_PAUSE_MS, createUndoStack, emptyHistory, record, redo, undo, undoShortcut } from './pipeline-history';
 
 describe('pipeline history', () => {
   it('undoes changes one at a time, latest first, and redoes them in order', () => {
@@ -60,5 +61,59 @@ describe('pipeline history', () => {
     }
     expect(history.past).toHaveLength(HISTORY_LIMIT);
     expect(history.past[0].state).toBe(5);
+  });
+
+  describe('over a signal', () => {
+    it('sets the signal, takes changes back and puts them back, saying which', () => {
+      const value = signal('a');
+      const stack = createUndoStack(value);
+
+      stack.change('b', 'second');
+      expect(value()).toBe('b');
+      expect(stack.nextUndo()).toBe('second');
+
+      expect(stack.undo()).toBe('second');
+      expect(value()).toBe('a');
+      expect(stack.nextRedo()).toBe('second');
+
+      expect(stack.redo()).toBe('second');
+      expect(value()).toBe('b');
+      expect(stack.redo()).toBeNull();
+    });
+
+    it('records nothing for a change that changes nothing, and forgets everything when cleared', () => {
+      const value = signal('a');
+      const stack = createUndoStack(value);
+
+      stack.change('a', 'rien');
+      expect(stack.nextUndo()).toBeNull();
+
+      stack.change('b', 'second');
+      stack.clear();
+      expect(stack.undo()).toBeNull();
+      expect(value()).toBe('b');
+    });
+  });
+
+  describe('the shortcut', () => {
+    const key = (init: KeyboardEventInit, target: EventTarget = document.body) => {
+      const event = new KeyboardEvent('keydown', { bubbles: true, ...init });
+      Object.defineProperty(event, 'target', { value: target });
+      return undoShortcut(event);
+    };
+
+    it('reads ⌘Z and Ctrl+Z as undo, with Shift or Ctrl+Y as redo', () => {
+      expect(key({ key: 'z', metaKey: true })).toBe('undo');
+      expect(key({ key: 'z', ctrlKey: true })).toBe('undo');
+      expect(key({ key: 'Z', metaKey: true, shiftKey: true })).toBe('redo');
+      expect(key({ key: 'y', ctrlKey: true })).toBe('redo');
+    });
+
+    it('leaves other keys, and those typed in a field, alone', () => {
+      expect(key({ key: 'z' })).toBeNull();
+      expect(key({ key: 'z', metaKey: true, altKey: true })).toBeNull();
+      expect(key({ key: 'x', metaKey: true })).toBeNull();
+      expect(key({ key: 'z', metaKey: true }, document.createElement('textarea'))).toBeNull();
+    });
   });
 });

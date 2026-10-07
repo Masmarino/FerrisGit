@@ -110,7 +110,18 @@ describe('PipelineTilePicker', () => {
       expect(deploy.disabled).toBe(true);
       expect(text(el.querySelector('[data-tile="ssh-run"] [data-note="kubernetes"]'))).toBe("Pas avec Kubernetes Les secrets n'y sont pas transmis.");
       expect(chosen).toEqual([]);
-      expect(el.querySelector('[data-tile="go-test"] .tile-picker__choose')).toHaveProperty('disabled', false);
+      expect(el.querySelector('[data-tile="custom"] .tile-picker__choose')).toHaveProperty('disabled', false);
+    });
+
+    it('does not offer the tiles that work on the repository either: a Pod gets no copy of it', () => {
+      const { el, chosen } = setup(null, 'kubernetes');
+      const test = el.querySelector<HTMLButtonElement>('[data-tile="go-test"] .tile-picker__choose')!;
+
+      test.click();
+
+      expect(test.disabled).toBe(true);
+      expect(text(el.querySelector('[data-tile="go-test"] [data-note="kubernetes"]'))).toBe("Pas avec Kubernetes Le dépôt n'y est pas copié.");
+      expect(chosen).toEqual([]);
     });
 
     it('offers them all with Docker runners', () => {

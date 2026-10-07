@@ -8,7 +8,7 @@ use ferrisgit_domain::public_pages::{PublicPagesSettings, PublicPagesSettingsUpd
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use ferrisgit_domain::settings::{
     CiVariable, ExecutionEngine, NewCiVariable, RepositorySettings, RepositorySettingsUpdate,
-    SystemSettings, SystemSettingsUpdate,
+    SystemSettings, SystemSettingsUpdate, is_env_name,
 };
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
@@ -306,6 +306,12 @@ async fn set_ci_variable(
     Json(req): Json<SetCiVariableRequest>,
 ) -> Result<Json<CiVariableResponse>, ApiError> {
     require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Maintainer).await?;
+    if !is_env_name(&req.key) {
+        return Err(DomainError::Validation(
+            "a CI variable name is letters, digits and _, not starting with a digit".to_string(),
+        )
+        .into());
+    }
     let variable = state
         .repository_settings
         .set_ci_variable(NewCiVariable {

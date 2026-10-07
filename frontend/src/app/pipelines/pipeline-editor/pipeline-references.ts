@@ -1,11 +1,6 @@
 import { BuilderJob } from './pipeline-builder-model';
 import { KNOWN_TILE_SECRETS } from './pipeline-catalog';
 
-/** A name a shell or a job's variable can have. */
-const ENV_NAME = /^[A-Za-z_][A-Za-z0-9_]*$/;
-
-export const isEnvName = (name: string) => ENV_NAME.test(name);
-
 /** Names that look like a credential, which do not belong in a file everyone reads. */
 const SECRET_LOOKING = /(TOKEN|SECRET|PASSWORD|PASSWD|PASSPHRASE|CREDENTIAL|PRIVATE|API_?KEY|ACCESS_?KEY|_KEY$)/i;
 
