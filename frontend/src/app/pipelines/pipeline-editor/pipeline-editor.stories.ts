@@ -6,7 +6,7 @@ import { NEVER, Observable, of, throwError } from 'rxjs';
 import { HttpErrorResponse } from '@angular/common/http';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { PipelineEditor } from './pipeline-editor';
-import { DefinitionDto, ParsedPipeline, PipelineDefinitionsService, PipelineProposal, RenderedPipeline, RepositoryPipelineFile } from './pipeline-definitions.service';
+import { DefinitionDto, ParsedPipeline, PipelineDefinitionsService, PipelineProposal, RenderedPipeline, RepositoryPipelineFile, RepositoryProfile } from './pipeline-definitions.service';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { RepositorySettingsService } from '../../repositories/repository-settings.service';
 import { SettingsService } from '../../settings/settings.service';
@@ -52,7 +52,20 @@ interface Options {
   parse?: (yaml: string) => Observable<ParsedPipeline>;
   render?: (definition: DefinitionDto) => Observable<RenderedPipeline>;
   propose?: () => Observable<PipelineProposal>;
+  /** What the repository is made of; by default nothing the editor recognises. */
+  profile?: Observable<RepositoryProfile>;
 }
+
+/** This repository's own layout: a Rust workspace with offline queries, two Angular apps, an image and a chart. */
+const FERRISGIT_PROFILE: RepositoryProfile = {
+  projects: [
+    { kind: 'rust', dir: '', evidence: ['Cargo.toml', 'rust-toolchain.toml'], workspace: true, toolchain: '1.98.1', sqlxOffline: true },
+    { kind: 'node', dir: 'frontend', evidence: ['frontend/package.json', 'frontend/package-lock.json', 'frontend/angular.json'], packageManager: 'npm', nodeVersion: '26', scripts: { build: 'ng build', test: 'ng test' }, framework: 'angular', testRunner: 'vitest' },
+    { kind: 'node', dir: 'website', evidence: ['website/package.json', 'website/package-lock.json'], packageManager: 'npm', nodeVersion: '26', scripts: { build: 'ng build', test: 'ng test --watch=false', lint: 'eslint .' }, framework: 'angular', testRunner: 'vitest' },
+  ],
+  dockerfiles: [''],
+  helmCharts: ['helm/ferrisgit'],
+};
 
 function withData(options: Options = {}) {
   return moduleMetadata({
@@ -64,6 +77,7 @@ function withData(options: Options = {}) {
           parse: options.parse ?? (() => of(options.parsed ?? PARSED)),
           render: options.render ?? ((definition: DefinitionDto) => of(noProblems(definition))),
           propose: options.propose ?? (() => of({ branch: 'pipeline-editor/3f9a1c2b', commitSha: 'c1', mergeRequestId: 'mr-1' })),
+          repositoryProfile: () => options.profile ?? of({ projects: [], dockerfiles: [], helmCharts: [] }),
         },
       },
       { provide: RepositoryContextService, useValue: fakeRepositoryContextService(options.role ?? 'owner') },
@@ -275,6 +289,46 @@ export const Templates: Story = {
   play: async (context) => {
     await waitFor(() => expect(context.canvasElement.querySelectorAll('.starters__card').length).toBeGreaterThan(2));
     await expectBoardLayout(context);
+  },
+};
+
+/** An empty pipeline in a repository the editor recognises: the pipeline made for it comes first, with why. */
+export const ProposedForTheRepository: Story = {
+  decorators: [withData({ file: of({ ...FILE, yaml: null }), profile: of(FERRISGIT_PROFILE) })],
+  play: async (context) => {
+    await waitFor(() => expect(context.canvasElement.querySelector('[data-prediction] h2')?.textContent?.trim()).toBe('Pour ce dépôt : Rust et Angular'));
+    await expectBoardLayout(context);
+  },
+};
+
+/** The same at phone width: the reasons stack under their files. */
+export const ProposedAtPhoneWidth: Story = {
+  decorators: [withData({ file: of({ ...FILE, yaml: null }), profile: of(FERRISGIT_PROFILE) }), atPhoneWidth],
+  play: async (context) => {
+    const proposal = await waitFor(() => {
+      const found = context.canvasElement.querySelector<HTMLElement>('[data-prediction]');
+      if (!found) throw new Error('no proposal yet');
+      return found;
+    });
+    await expect(proposal.scrollWidth).toBeLessThanOrEqual(proposal.clientWidth + 1);
+  },
+};
+
+/** While the repository is read. */
+export const ReadingTheRepository: Story = {
+  decorators: [withData({ file: of({ ...FILE, yaml: null }), profile: NEVER })],
+  play: async (context) => {
+    await waitFor(() => expect(context.canvasElement.querySelector('fg-pipeline-starters [role="status"]')?.textContent).toBe('Lecture du dépôt'));
+  },
+};
+
+/** "Ajouter un job" in a repository the editor recognises: the jobs its projects call for come first. */
+export const TilePickerForTheRepository: Story = {
+  decorators: [withData({ profile: of(FERRISGIT_PROFILE) })],
+  play: async (context) => {
+    await expectBoardLayout(context);
+    context.canvasElement.querySelector<HTMLButtonElement>('.pipeline-editor__add-job button')!.click();
+    await waitFor(() => expect(context.canvasElement.ownerDocument.querySelectorAll('[data-suggestion]').length).toBeGreaterThan(3));
   },
 };
 

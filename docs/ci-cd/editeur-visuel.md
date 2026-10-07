@@ -12,15 +12,35 @@ Depuis la liste des pipelines d'un dépôt, le bouton **Éditer la pipeline** (q
 
 Le sélecteur **Cartes / YAML**, en haut de l'éditeur, choisit la vue. Chaque notion de la vue Cartes a sa bulle d'aide : le « ? » à côté d'une étape, d'un champ ou d'une section s'ouvre d'un clic (ou d'un appui sur un écran tactile) et explique à quoi elle sert, sans quitter la page. Échap la referme.
 
-- **Partir d'un modèle.** Tant que la pipeline est vide, l'éditeur propose des pipelines complètes : projet Rust, projet Node ou Angular, projet Go, application publiée en image Docker. Un clic pose les étapes et les jobs, avec leurs dépendances, que vous modifiez ensuite.
+- **Partir de la pipeline proposée pour le dépôt.** Tant que la pipeline est vide, l'éditeur lit la branche par défaut et propose, en tête, une pipeline faite pour elle (voir [plus bas](#une-pipeline-faite-pour-le-dépôt)). Un clic sur **Utiliser cette pipeline** la pose sur le tableau ; ⌘Z la retire.
+- **Partir d'un modèle.** Sous la proposition, ou seuls quand le dépôt ne contient rien que l'éditeur reconnaisse, des modèles génériques : projet Rust, projet Node ou Angular, projet Go, application publiée en image Docker. Un clic pose les étapes et les jobs, avec leurs dépendances, que vous modifiez ensuite.
 - **Ajouter un job avec une tuile.** Le bouton **Ajouter un job** d'une étape ouvre le catalogue des tuiles, rangées par usage : compiler, tester, vérifier le code, empaqueter, déployer et prévenir, ou un job vide. Une tuile arrive avec une image et des commandes prêtes et s'ouvre aussitôt pour être réglée. Chaque tuile a sa bulle d'aide qui dit ce qu'elle suppose, et un badge signale les secrets qu'elle lit et que le dépôt n'a pas encore.
 - **Régler un job.** Un clic sur une carte ouvre son tiroir : nom, image (avec des images courantes à cliquer), commandes, variables, jobs à attendre (`needs`), étiquettes de runner et caches. Les commandes sont une liste : on en ajoute, retire et réordonne chacune, sans écrire de bloc de texte.
-- **Lire le tableau.** Une carte montre le nom du job, son image et sa première commande, suivie du nombre de commandes qui viennent après. Survoler une carte, ou y placer le focus, met en évidence les jobs qu'elle attend et ceux qui l'attendent ; la mention « Après … » d'une carte dit dans quel sens.
+- **Lire le tableau.** Une carte montre le nom du job, son image et sa dernière commande, celle qui dit ce qu'il fait ; un « +2 » devant elle compte les commandes qui la préparent (`cd web`, `npm ci`). Survoler une carte, ou y placer le focus, met en évidence les jobs qu'elle attend et ceux qui l'attendent ; la mention « Après … » d'une carte dit dans quel sens.
 - **Le menu ⋮ d'une carte** permet de modifier le job, de le **dupliquer**, de le déplacer vers une autre étape ou de le supprimer. La copie se place juste après l'original, sous le nom `<nom>-2`, attend les mêmes jobs que lui et s'ouvre aussitôt : c'est le moyen le plus court de tester sur deux versions, ou de déployer vers deux cibles.
 - **Déplacer un job** se fait en le glissant vers une autre étape ou à un autre rang. Sans souris, le menu ⋮ de la carte propose les étapes de destination, et le déplacement est annoncé aux lecteurs d'écran. Sur un écran tactile, un appui prolongé saisit la carte, ce qui laisse le balayage faire défiler le tableau.
 - **Les étapes** se renomment sur place, se déplacent avec le menu ⋮ de leur colonne et ne se suppriment que vides. Renommer un job met à jour les jobs qui l'attendent, renommer une étape met à jour les jobs qu'elle contient.
 
 Le fichier produit s'affiche sous le tableau, avec un bouton pour le copier. Il est régénéré après chaque modification.
+
+## Une pipeline faite pour le dépôt
+
+L'éditeur lit la branche par défaut pour y reconnaître les projets, sur trois niveaux de dossiers : un workspace ou un projet Rust (`Cargo.toml`), une application Node, Angular, React, Vue, Svelte ou Next.js (`package.json`), un module Go (`go.mod`), un projet Python (`pyproject.toml` ou `requirements.txt`). Un dépôt qui en contient plusieurs, comme une API Rust et son interface Angular dans `frontend`, en reçoit les jobs de chacun, nommés d'après leur dossier (`frontend-test`).
+
+Chaque job reprend ce que le projet dit de lui-même :
+
+- **la version** : la toolchain épinglée par `rust-toolchain.toml` (ou le `rust-version` du manifeste) donne l'image `rust:<version>`, `.nvmrc`, `.node-version` ou `engines.node` celle de Node, la ligne `go` de `go.mod` celle de Go, `.python-version` ou `requires-python` celle de Python ;
+- **l'outil** : npm, pnpm, Yarn ou Bun d'après le fichier de verrouillage, uv ou Poetry pour Python, avec l'installation figée qui leur correspond (`npm ci`, `pnpm install --frozen-lockfile`, `uv sync --frozen`…) et le cache de chacun ;
+- **les scripts** : un projet Node n'a que les jobs de ses scripts `lint`, `test`, `build` et de vérification du format (`format:check`…) ; le test qu'écrit `npm init`, qui ne fait qu'échouer, est ignoré. `ng test` reçoit `--watch=false`, et `CI=true` fait tourner les autres une seule fois ;
+- **le reste** : un dossier `.sqlx` ajoute `SQLX_OFFLINE=true`, pour compiler sans base de données ; un workspace Cargo est vérifié et testé en entier (`--workspace`).
+
+Les jobs se rangent en trois étapes, `check` (format, analyse), `test` puis `build`, et ceux d'un même projet s'attendent : ses tests ne partent pas sur du code mal formé. La proposition dit, projet par projet, les fichiers qu'elle a lus et ce qu'elle en a tiré.
+
+Ce qui demande des secrets ou une cible n'est pas posé d'office : un `Dockerfile` ou un chart Helm est signalé, avec la tuile qui le publierait ou le déploierait. De même, des tests Karma, qui demandent un navigateur absent de l'image `node`, sont signalés.
+
+Quand la pipeline a déjà des jobs, le bouton **Ajouter un job** propose en tête du catalogue, sous « Pour ce dépôt », les jobs prévus que la pipeline n'a pas encore : ni sous ce nom, ni avec la même commande. Le job arrive dans l'étape choisie et n'attend que les jobs qui existent avant elle.
+
+La lecture du dépôt ne se fait qu'au moment où elle sert, une fois par ouverture de l'éditeur. Si elle échoue, les modèles et les tuiles génériques restent là.
 
 ## Annuler, rétablir, quitter
 

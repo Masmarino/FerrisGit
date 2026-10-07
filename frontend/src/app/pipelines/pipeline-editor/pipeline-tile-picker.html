@@ -6,6 +6,26 @@
   <fg-help-tip [help]="help.tiles" />
 </p>
 
+@if (suggestions().length > 0) {
+  <section class="tile-picker__section" aria-labelledby="tile-section-repository" data-suggestions>
+    <h3 class="tile-picker__heading" id="tile-section-repository">Pour ce dépôt</h3>
+    <p class="tile-picker__summary">Les jobs que ses projets appellent et que la pipeline n'a pas encore, avec leurs versions et leurs scripts.</p>
+    <ul class="tile-picker__tiles">
+      @for (suggestion of suggestions(); track suggestion.job.name) {
+        <li class="tile-picker__tile" [attr.data-suggestion]="suggestion.job.name">
+          <button type="button" class="tile-picker__choose" (click)="chosenJob.emit(suggestion.job)">
+            <gbt-icon class="tile-picker__icon" name="sparkles" aria-hidden="true" />
+            <span class="tile-picker__text">
+              <span class="tile-picker__title">{{ suggestion.title }}, {{ suggestion.project }}</span>
+              <code class="tile-picker__command">{{ mainCommand(suggestion.job) }}</code>
+            </span>
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
+}
+
 @for (section of sections(); track section.id) {
   <section class="tile-picker__section" [attr.aria-labelledby]="'tile-section-' + section.id">
     <h3 class="tile-picker__heading" [id]="'tile-section-' + section.id">{{ section.title }}</h3>

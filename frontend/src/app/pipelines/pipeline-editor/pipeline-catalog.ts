@@ -19,8 +19,8 @@ export const TILE_CATEGORIES: readonly TileCategoryInfo[] = [
   { id: 'custom', title: 'Sur mesure', summary: 'Partir de zéro et écrire ses propres commandes.' },
 ];
 
-const RUST_CACHE = { cache: ['cargo-home', 'cargo-target'], variables: { CARGO_HOME: '/ferrisgit-cache/cargo-home', CARGO_TARGET_DIR: '/ferrisgit-cache/cargo-target' } };
-const NPM_CACHE = { cache: ['npm'], variables: { npm_config_cache: '/ferrisgit-cache/npm' } };
+export const RUST_CACHE = { cache: ['cargo-home', 'cargo-target'], variables: { CARGO_HOME: '/ferrisgit-cache/cargo-home', CARGO_TARGET_DIR: '/ferrisgit-cache/cargo-target' } };
+export const NPM_CACHE = { cache: ['npm'], variables: { npm_config_cache: '/ferrisgit-cache/npm' } };
 
 const SIMPLE_TILES: readonly JobTile[] = [
   {

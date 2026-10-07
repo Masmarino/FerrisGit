@@ -5,6 +5,8 @@ import { HelpTip } from './help-tip';
 import { HELP } from './pipeline-help';
 import { JOB_TILES, JobTile, ParamValues, TILE_CATEGORIES } from './pipeline-catalog';
 import { PipelineTileForm } from './pipeline-tile-form';
+import { BuilderJob } from './pipeline-builder-model';
+import { PredictedJob } from './pipeline-prediction';
 
 /** The jobs ready to use, by what they are for. Picking one is the whole gesture: it comes with an image and commands. */
 @Component({
@@ -21,8 +23,18 @@ export class PipelineTilePicker {
 
   engine = input<string | null>(null);
 
+  /** The jobs made for this repository that the pipeline does not have yet: offered first. */
+  suggestions = input<PredictedJob[]>([]);
+
   /** A tile and the answers to its questions (none for a tile without questions). */
   chosen = output<{ tile: JobTile; values: ParamValues }>();
+  /** A job made for this repository, as it was predicted. */
+  chosenJob = output<BuilderJob>();
+
+  /** What a suggested job runs, its setup aside: what tells two of them apart. */
+  protected mainCommand(job: BuilderJob): string {
+    return job.script.filter((line) => line.trim() !== '').at(-1) ?? '';
+  }
 
   /** The tile whose questions are being answered. */
   protected readonly asking = signal<JobTile | null>(null);

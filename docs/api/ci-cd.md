@@ -125,6 +125,27 @@ Renvoie le fichier de pipeline tel que la branche par défaut l'a, depuis l'endr
 
 Réponse 200 : `{ "path": ".ferrisgit-ci.yml", "branch": "main", "baseSha": "…", "yaml": "…" }`. `yaml` vaut `null` quand la branche n'a pas ce fichier ; `branch`, `baseSha` et `yaml` valent `null` pour un dépôt sans commit. `baseSha` est la pointe de la branche au moment de la lecture : elle sert à `proposal`. Erreur : 400 si le fichier n'est pas du texte UTF-8.
 
+### `GET /api/repositories/{repository_id}/pipeline-definition/profile`
+
+Dit de quoi la branche par défaut est faite, pour que l'éditeur propose une pipeline qui lui ressemble. Rôle minimal : Contributeur. Le serveur parcourt l'arborescence sur trois niveaux de dossiers au plus (5 000 entrées au plus), sans entrer dans les dossiers de dépendances ou de sortie (`node_modules`, `target`, `vendor`, `dist`, `build`, `.venv`…), et lit les seuls fichiers qui disent quelque chose : `Cargo.toml`, `rust-toolchain(.toml)`, `package.json`, `.nvmrc`, `.node-version`, `go.mod`, `pyproject.toml`, `.python-version`. Les autres ne comptent que par leur présence (fichiers de verrouillage, `angular.json`, `Dockerfile`, `Chart.yaml`, `.sqlx`).
+
+Réponse 200 :
+
+| Champ | Description |
+|---|---|
+| `projects` | Les projets trouvés, un par dossier. Chacun a `dir` (`""` pour la racine), `evidence` (les fichiers qui l'ont fait reconnaître) et `kind`, avec les champs propres à son genre (ci-dessous). Une caisse d'un workspace Cargo, ou un paquet d'un workspace npm, appartient au projet de la racine du workspace. |
+| `dockerfiles` | Les dossiers qui ont un `Dockerfile`. |
+| `helmCharts` | Les dossiers qui ont un `Chart.yaml`. |
+
+| `kind` | Champs |
+|---|---|
+| `rust` | `workspace` ; `toolchain`, la version épinglée par `rust-toolchain.toml`, sinon le `rust-version` du manifeste, ou `null` (une chaîne nommée comme `nightly` n'en est pas une) ; `sqlxOffline`, vrai avec un dossier `.sqlx`. |
+| `node` | `packageManager` (`npm`, `pnpm`, `yarnClassic`, `yarn`, `bun`, d'après le fichier de verrouillage ou le champ `packageManager`) ; `nodeVersion`, la version majeure de `.nvmrc`, `.node-version` ou `engines.node` ; `scripts`, ceux du `package.json` ; `framework` (`angular`, `react`, `vue`, `svelte`, `next` ou `null`) ; `testRunner` (`vitest`, `jest`, `karma`, `playwright` ou `null`). |
+| `go` | `goVersion`, le `major.minor` de la ligne `go` de `go.mod`. |
+| `python` | `tool` (`pip`, `poetry`, `uv`) ; `pythonVersion` ; `pytest` et `ruff`, vrais quand le projet les mentionne. |
+
+Un dépôt sans commit répond `{ "projects": [], "dockerfiles": [], "helmCharts": [] }`. Erreur : 404 si le dépôt est inconnu ou si le rôle est insuffisant.
+
 ### `POST /api/repositories/{repository_id}/pipeline-definition/proposal`
 
 Enregistre un fichier de pipeline comme n'importe quelle modification : sur une **nouvelle branche** `pipeline-editor/<8 caractères>`, avec une merge request vers la branche par défaut. La branche par défaut elle-même n'est jamais écrite. Rôle minimal : Contributeur. Le commit est signé du nom et de l'adresse de l'appelant et bâti sur la pointe actuelle de la branche par défaut.

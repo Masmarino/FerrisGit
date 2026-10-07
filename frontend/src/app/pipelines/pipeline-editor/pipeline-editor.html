@@ -87,7 +87,7 @@
     </div>
 
     @if (showStarters()) {
-      <fg-pipeline-starters (chosen)="chooseTemplate($event)" />
+      <fg-pipeline-starters [prediction]="prediction()" [predicting]="profileState() === 'loading'" [branch]="file()?.branch ?? null" (chosen)="chooseTemplate($event)" (usePrediction)="usePrediction()" />
     }
 
     @if (mode() === 'cards') {
@@ -135,12 +135,12 @@
                   <button type="button" class="pipeline-editor__card-open" (click)="openJob(card.job.name)">
                     <span class="pipeline-editor__card-name">{{ card.job.name }}</span>
                     <span class="pipeline-editor__card-image">{{ card.job.image || 'aucune image' }}</span>
-                    @if (card.firstCommand; as command) {
-                      <span class="pipeline-editor__card-command">
-                        <span class="pipeline-editor__card-command-text">{{ command }}</span>
-                        @if (card.moreCommands > 0) {
-                          <span class="pipeline-editor__card-more">+{{ card.moreCommands }}</span>
+                    @if (card.mainCommand; as command) {
+                      <span class="pipeline-editor__card-command" [attr.title]="card.setupCommands > 0 ? card.setupCommands + ' ' + (card.setupCommands === 1 ? 'commande avant' : 'commandes avant') : null">
+                        @if (card.setupCommands > 0) {
+                          <span class="pipeline-editor__card-more" aria-hidden="true">+{{ card.setupCommands }}</span>
                         }
+                        <span class="pipeline-editor__card-command-text">{{ command }}</span>
                       </span>
                     }
                   </button>
@@ -279,7 +279,7 @@
 
 <gbt-drawer [isOpen]="pickerStage() !== null" heading="Ajouter un job" closeLabel="Fermer" (closed)="closePicker()">
   @if (pickerStage(); as stage) {
-    <fg-pipeline-tile-picker [stage]="stage" [secrets]="secrets()" [engine]="engine()" (chosen)="chooseTile($event.tile, $event.values)" />
+    <fg-pipeline-tile-picker [stage]="stage" [secrets]="secrets()" [engine]="engine()" [suggestions]="suggestions()" (chosen)="chooseTile($event.tile, $event.values)" (chosenJob)="chooseSuggested($event)" />
   }
 </gbt-drawer>
 

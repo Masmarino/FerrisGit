@@ -17,8 +17,13 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 - Working in the editor is safe to try: every change to the cards can be undone and redone, from the toolbar or with ⌘Z
   and ⇧⌘Z (Ctrl+Z and Ctrl+Y), keystrokes in one field making one step. Leaving the editor, or closing the tab, with
   changes that were not proposed asks first; "Revenir au fichier du dépôt" asks too, and is only offered once something
-  changed. A job's ⋮ menu edits, duplicates, moves or deletes it. A card shows the job's first command, and pointing at
-  one marks the jobs it waits for and those that wait for it.
+  changed. A job's ⋮ menu edits, duplicates, moves or deletes it. A card shows the job's main (last) command, and pointing
+  at one marks the jobs it waits for and those that wait for it.
+- The editor proposes a pipeline made for the repository: it reads the default branch's projects (Rust, Node and its
+  frameworks, Go, Python, up to three folders down) and lays out check, test and build jobs for each, with the versions,
+  package manager and scripts the project names (`GET /api/repositories/{id}/pipeline-definition/profile`), saying which
+  files it read. A Dockerfile or a Helm chart is pointed at with the tile that would ship it. On a pipeline that has
+  jobs, "Ajouter un job" offers first the predicted jobs it lacks.
 - The cards view is meant to build a whole pipeline without writing YAML: starting templates (Rust, Node or Angular, Go,
   an application published as an image), a catalogue of ready-made job tiles by purpose (compile, test, check the code,
   package, deploy and notify, or an empty job), commands as an editable list, common images and caches to pick, and a

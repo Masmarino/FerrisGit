@@ -52,6 +52,7 @@ use ferrisgit_domain::release::ReleaseStorePort;
 use ferrisgit_domain::release_asset_storage::ReleaseAssetStoragePort;
 use ferrisgit_domain::repository::RepositoryStorePort;
 use ferrisgit_domain::repository_collaborator::RepositoryCollaboratorStorePort;
+use ferrisgit_domain::repository_profile::RepositoryFileListerPort;
 use ferrisgit_domain::repository_star::RepositoryStarStorePort;
 use ferrisgit_domain::runner::RunnerRepositoryPort;
 use ferrisgit_domain::settings::{RepositorySettingsStorePort, SystemSettingsStorePort};
@@ -158,6 +159,8 @@ pub struct AppState {
     pub mailer: Arc<Mailer>,
     pub job_execution: Arc<JobExecutionResolver>,
     pub pipeline_file_reader: Arc<dyn PipelineFileReaderPort>,
+    /// Lists a commit's files, for the pipeline editor to see what the repository is made of.
+    pub repository_file_lister: Arc<dyn RepositoryFileListerPort>,
     pub merge_requests: Arc<dyn MergeRequestStorePort>,
     pub merge_request_comments: Arc<dyn MergeRequestCommentPort>,
     pub merge_request_reviews: Arc<dyn MergeRequestReviewPort>,
@@ -441,6 +444,7 @@ impl AppState {
             mailer,
             job_execution,
             pipeline_file_reader: Arc::new(GixPipelineFileReader::new(storage_root.clone())),
+            repository_file_lister: Arc::new(GixPipelineFileReader::new(storage_root.clone())),
             merge_requests: merge_request_store.clone(),
             merge_request_comments: merge_request_store.clone(),
             merge_request_reviews: merge_request_store,

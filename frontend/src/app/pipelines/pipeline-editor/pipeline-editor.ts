@@ -35,6 +35,8 @@ import {
   NEW_PIPELINE,
   addStage,
   duplicateJob,
+  insertJob,
+  uniqueName,
   fromDefinition,
   jobsOf,
   moveJob,
@@ -46,7 +48,8 @@ import {
   toDefinition,
   updateJob,
 } from './pipeline-builder-model';
-import { ParsedPipeline, PipelineDefinitionsService, RenderedPipeline, RepositoryPipelineFile } from './pipeline-definitions.service';
+import { ParsedPipeline, PipelineDefinitionsService, RenderedPipeline, RepositoryPipelineFile, RepositoryProfile } from './pipeline-definitions.service';
+import { missingJobs, predictPipeline } from './pipeline-prediction';
 import { HelpTip } from './help-tip';
 import { HELP } from './pipeline-help';
 import { JobTile, ParamValues, PipelineTemplate, addTile, stateFromTemplate } from './pipeline-catalog';
@@ -80,9 +83,10 @@ interface CardView {
   problemCount: number;
   menuLabel: string;
   moveTargets: string[];
-  /** What the job runs first, so that two jobs on the same image tell apart at a glance. */
-  firstCommand: string | null;
-  moreCommands: number;
+  /** What the job is for: its last command, the ones before only set it up (`cd web`, `npm ci`). */
+  mainCommand: string | null;
+  /** How many commands come before it. */
+  setupCommands: number;
   /** Its tie to the job under the pointer or the focus: one it waits for, or one that waits for it. */
   relation: 'waited' | 'waiting' | null;
 }
@@ -210,6 +214,13 @@ export class PipelineEditor implements OnInit {
   });
   protected showStarters = computed(() => this.state().jobs.length === 0 && this.mode() === 'cards');
 
+  /** What the repository is made of, read once, when a proposal is first useful: an empty pipeline, or a job to add. */
+  private profile = signal<RepositoryProfile | null>(null);
+  protected profileState = signal<'idle' | 'loading' | 'done'>('idle');
+  protected prediction = computed(() => predictPipeline(this.profile()));
+  /** The jobs made for this repository that the pipeline lacks, offered first when a job is added. */
+  protected suggestions = computed(() => missingJobs(this.prediction(), this.state()));
+
   /** The server has answered about what is on screen: until it does, nothing can be saved. */
   private checked = computed(() => (this.mode() === 'yaml' ? this.yamlCheck() !== null : this.rendered() !== null));
   protected problems = computed<ProblemView[]>(() => ((this.mode() === 'yaml' ? this.yamlCheck()?.problems : this.rendered()?.problems) ?? []).map(describeProblem));
@@ -266,8 +277,8 @@ export class PipelineEditor implements OnInit {
             problemCount: counts.get(job.name) ?? 0,
             menuLabel: `Actions du job ${job.name}`,
             moveTargets: state.stages.filter((other) => other !== stage),
-            firstCommand: commands[0]?.trim() ?? null,
-            moreCommands: Math.max(0, commands.length - 1),
+            mainCommand: commands.at(-1)?.trim() ?? null,
+            setupCommands: Math.max(0, commands.length - 1),
             relation: relation(job),
           };
         }),
@@ -341,6 +352,11 @@ export class PipelineEditor implements OnInit {
     effect(() => {
       if (this.canManageSecrets() && this.status() === 'ready') {
         untracked(() => this.loadSecrets());
+      }
+    });
+    effect(() => {
+      if (this.status() === 'ready' && this.canWrite() && (this.showStarters() || this.pickerStage() !== null) && untracked(this.profileState) === 'idle') {
+        untracked(() => this.loadProfile());
       }
     });
     const unregister = inject(PendingChanges).register(() => this.confirmLeave());
@@ -558,6 +574,49 @@ export class PipelineEditor implements OnInit {
     this.announcement.set(`Job ${job.name} ajouté à l'étape ${stage}`);
     // Open it: the commands are a starting point, and the image or the variables are what a person adjusts first.
     this.selected.set(job.name);
+  }
+
+  /** A proposal is a bonus: if the repository cannot be read, the generic templates and tiles are still there. */
+  private loadProfile(): void {
+    this.profileState.set('loading');
+    this.definitions.repositoryProfile(this.repositoryId()).subscribe({
+      next: (profile) => {
+        this.profile.set(profile);
+        this.profileState.set('done');
+      },
+      error: () => this.profileState.set('done'),
+    });
+  }
+
+  protected usePrediction(): void {
+    const prediction = this.prediction();
+    if (!prediction) {
+      return;
+    }
+    this.change(prediction.state, 'pipeline proposée pour ce dépôt');
+    this.announcement.set(`Pipeline proposée appliquée : ${prediction.state.jobs.length} jobs dans ${prediction.state.stages.length} étapes`);
+  }
+
+  /**
+   * A job made for this repository, in the stage it was asked for. It keeps what it waits for only where those jobs
+   * exist in an earlier stage: the pipeline it lands in is not the predicted one.
+   */
+  protected chooseSuggested(predicted: BuilderJob): void {
+    const stage = this.pickerStage();
+    if (stage === null) {
+      return;
+    }
+    const state = this.state();
+    const rank = state.stages.indexOf(stage);
+    const name = uniqueName(state.jobs.map((job) => job.name), predicted.name);
+    const needs = predicted.needs.filter((need) => {
+      const other = state.jobs.find((job) => job.name === need);
+      return other !== undefined && state.stages.indexOf(other.stage) < rank;
+    });
+    this.change(insertJob(state, { ...predicted, name, stage, needs, script: [...predicted.script], variables: predicted.variables.map((row) => ({ ...row })), tags: [...predicted.tags], cache: [...predicted.cache] }), `ajout du job ${name}`);
+    this.pickerStage.set(null);
+    this.announcement.set(`Job ${name} ajouté à l'étape ${stage}`);
+    this.selected.set(name);
   }
 
   protected chooseTemplate(template: PipelineTemplate): void {

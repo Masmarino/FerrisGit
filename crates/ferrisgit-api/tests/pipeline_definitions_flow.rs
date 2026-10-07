@@ -486,6 +486,83 @@ mod saving {
     }
 
     #[sqlx::test]
+    async fn the_profile_says_what_the_default_branch_is_made_of(pool: PgPool) {
+        let repo = Repo::with(
+            pool,
+            &[
+                ("Cargo.toml", b"[workspace]\nmembers = [\"crates/*\"]\n"),
+                ("rust-toolchain.toml", b"[toolchain]\nchannel = \"1.86.0\"\n"),
+                ("crates/api/Cargo.toml", b"[package]\nname = \"api\"\n"),
+                ("crates/api/src/main.rs", b"fn main() {}\n"),
+                (".sqlx/query-1.json", b"{}"),
+                ("web/package.json", br#"{"scripts":{"test":"vitest run","lint":"eslint ."},"devDependencies":{"vitest":"3"}}"#),
+                ("web/pnpm-lock.yaml", b"lockfileVersion: '9.0'\n"),
+                ("web/.nvmrc", b"22\n"),
+                ("web/node_modules/dep/package.json", b"{}"),
+                ("Dockerfile", b"FROM scratch\n"),
+            ],
+        )
+        .await;
+
+        let res =
+            common::http::get(&repo.client, repo.addr, &repo.admin, &repo.path("/profile")).await;
+        assert_eq!(res.status(), 200);
+        let profile: Value = res.json().await.unwrap();
+
+        assert_eq!(
+            profile["projects"],
+            json!([
+                { "dir": "", "evidence": ["Cargo.toml", "rust-toolchain.toml"], "kind": "rust", "workspace": true, "toolchain": "1.86.0", "sqlxOffline": true },
+                {
+                    "dir": "web",
+                    "evidence": ["web/package.json", "web/pnpm-lock.yaml", "web/.nvmrc"],
+                    "kind": "node",
+                    "packageManager": "pnpm",
+                    "nodeVersion": "22",
+                    "scripts": { "lint": "eslint .", "test": "vitest run" },
+                    "framework": null,
+                    "testRunner": "vitest"
+                }
+            ])
+        );
+        assert_eq!(profile["dockerfiles"], json!([""]));
+        assert_eq!(profile["helmCharts"], json!([]));
+    }
+
+    #[sqlx::test]
+    async fn an_empty_repository_has_an_empty_profile(pool: PgPool) {
+        let repo = Repo::with(pool, &[]).await;
+
+        let profile: Value =
+            get_json(&repo.client, repo.addr, &repo.admin, &repo.path("/profile")).await;
+
+        assert_eq!(
+            profile,
+            json!({ "projects": [], "dockerfiles": [], "helmCharts": [] })
+        );
+    }
+
+    #[sqlx::test]
+    async fn the_profile_is_for_contributors_like_the_file(pool: PgPool) {
+        let repo = Repo::with(pool, &[("go.mod", b"go 1.22\n")]).await;
+        create_user(&repo.client, repo.addr, &repo.admin, "reader").await;
+        add_collaborator(
+            &repo.client,
+            repo.addr,
+            &repo.admin,
+            &repo.id,
+            "reader",
+            "reader",
+        )
+        .await;
+        let reader = login(&repo.client, repo.addr, "reader", USER_PASSWORD).await;
+
+        let res = common::http::get(&repo.client, repo.addr, &reader, &repo.path("/profile")).await;
+
+        assert_eq!(res.status(), 404);
+    }
+
+    #[sqlx::test]
     async fn someone_with_no_access_to_a_private_repository_learns_nothing(pool: PgPool) {
         let repo = Repo::with(pool, &[(".ferrisgit-ci.yml", OLD.as_bytes())]).await;
         create_user(&repo.client, repo.addr, &repo.admin, "stranger").await;

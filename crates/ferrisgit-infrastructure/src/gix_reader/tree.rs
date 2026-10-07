@@ -86,6 +86,51 @@ impl GixRepositoryReader {
         Ok(Some(entries))
     }
 
+    /// The files of a commit at most `max_depth` folders down, breadth first so that a cut at `limit` keeps the
+    /// shallow ones. Folders are listed too, with a trailing `/`, those named in `skip` without being entered.
+    /// `Ok(None)` for a revision that doesn't resolve to a commit.
+    pub fn list_files_at_revision(
+        &self,
+        disk_path: &Path,
+        revision: &str,
+        max_depth: usize,
+        skip: &[&str],
+        limit: usize,
+    ) -> Result<Option<Vec<String>>, GitReadError> {
+        let repo = open(disk_path)?;
+        let Some(commit) = commit_by_sha(&repo, revision) else {
+            return Ok(None);
+        };
+        let root = commit.tree().map_err(GitReadError::other)?;
+        let mut paths = Vec::new();
+        let mut folders = std::collections::VecDeque::from([(String::new(), root.id, 0usize)]);
+        while let Some((dir, tree_id, depth)) = folders.pop_front() {
+            let tree = repo.find_tree(tree_id).map_err(GitReadError::other)?;
+            for entry in tree.iter() {
+                let entry = entry.map_err(GitReadError::other)?;
+                let name = entry.filename().to_string();
+                let path = if dir.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{dir}/{name}")
+                };
+                let mode = entry.mode();
+                if mode.is_tree() {
+                    if depth < max_depth && !skip.contains(&name.as_str()) {
+                        folders.push_back((path.clone(), entry.oid().to_owned(), depth + 1));
+                    }
+                    paths.push(format!("{path}/"));
+                } else if mode.is_blob() || mode.is_link() {
+                    paths.push(path);
+                }
+                if paths.len() >= limit {
+                    return Ok(Some(paths));
+                }
+            }
+        }
+        Ok(Some(paths))
+    }
+
     /// `Ok(None)` for a missing file or a revision that doesn't exist or isn't a commit, so a malformed sha
     /// doesn't turn into a 500.
     pub fn read_file_at_revision(

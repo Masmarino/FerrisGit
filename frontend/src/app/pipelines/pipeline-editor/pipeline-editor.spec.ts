@@ -18,6 +18,8 @@ const FILE_URL = '/api/repositories/repo-1/pipeline-definition';
 const PROPOSAL_URL = '/api/repositories/repo-1/pipeline-definition/proposal';
 const PARSE_URL = '/api/pipeline-definitions/parse';
 const RENDER_URL = '/api/pipeline-definitions/render';
+const PROFILE_URL = '/api/repositories/repo-1/pipeline-definition/profile';
+const NOTHING_RECOGNISED = { projects: [], dockerfiles: [], helmCharts: [] };
 
 const FILE = 'stages: [build, test]\njobs: ...';
 
@@ -69,6 +71,9 @@ interface Internals {
   duplicate(name: string): void;
   deleteJob(name: string): void;
   pointedJob: { set(name: string | null): void };
+  usePrediction(): void;
+  chooseSuggested(job: unknown): void;
+  suggestions(): { job: { name: string } }[];
   onBeforeUnload(event: Event): void;
 }
 
@@ -126,7 +131,13 @@ describe('PipelineEditor', () => {
     return Array.from(card(ctx.el, job).querySelectorAll('[role="menuitem"]'), text);
   }
 
-  afterEach(() => TestBed.inject(HttpTestingController).verify());
+  afterEach(() => {
+    // Reading the repository is a bonus asked for in the background: a spec about something else lets it find nothing.
+    TestBed.inject(HttpTestingController)
+      .match(PROFILE_URL)
+      .forEach((request) => request.flush(NOTHING_RECOGNISED));
+    TestBed.inject(HttpTestingController).verify();
+  });
 
   it("opens the repository's file as stages with their jobs, in order", async () => {
     const ctx = opened();
@@ -977,14 +988,14 @@ describe('PipelineEditor', () => {
       await answerRender(ctx);
     });
 
-    it('shows what a job runs first, and how many commands follow', async () => {
+    it('shows what a job is for, its last command, and how many come before it', async () => {
       const ctx = opened();
       await answerRender(ctx);
-      ctx.internals.patchJob('unit', { script: ['cargo test', '', 'cargo test --doc'] });
+      ctx.internals.patchJob('unit', { script: ['cd crates', '', 'cargo test --doc'] });
       ctx.fixture.detectChanges();
 
       expect(text(card(ctx.el, 'compile').querySelector('.pipeline-editor__card-command'))).toBe('cargo build');
-      expect(text(card(ctx.el, 'unit').querySelector('.pipeline-editor__card-command-text'))).toBe('cargo test');
+      expect(text(card(ctx.el, 'unit').querySelector('.pipeline-editor__card-command-text'))).toBe('cargo test --doc');
       expect(text(card(ctx.el, 'unit').querySelector('.pipeline-editor__card-more'))).toBe('+1');
       expect(card(ctx.el, 'compile').querySelector('.pipeline-editor__card-more')).toBeNull();
       await answerRender(ctx);
@@ -1079,6 +1090,116 @@ describe('PipelineEditor', () => {
 
       expect(TestBed.inject(PendingChanges).canLeave()).toBe(true);
       ctx.http.match(RENDER_URL);
+    });
+  });
+
+  describe('a pipeline made for the repository', () => {
+    /** A Rust workspace with an Angular app in `web`, as the server would read it. */
+    const PROFILE = {
+      projects: [
+        { kind: 'rust', dir: '', evidence: ['Cargo.toml'], workspace: true, toolchain: '1.86', sqlxOffline: false },
+        { kind: 'node', dir: 'web', evidence: ['web/package.json', 'web/package-lock.json'], packageManager: 'npm', nodeVersion: '22', scripts: { test: 'ng test', build: 'ng build' }, framework: 'angular', testRunner: 'vitest' },
+      ],
+      dockerfiles: [''],
+      helmCharts: [],
+    };
+
+    async function emptyRepository(role: Role = 'contributor') {
+      const ctx = setup(role);
+      ctx.fixture.detectChanges();
+      ctx.http.expectOne(FILE_URL).flush(fileBody(null));
+      ctx.fixture.detectChanges();
+      return ctx;
+    }
+
+    it('reads the repository once the pipeline is empty, and proposes what it found first', async () => {
+      const ctx = await emptyRepository();
+      expect(text(ctx.el.querySelector('fg-pipeline-starters [role="status"]'))).toBe('Lecture du dépôt');
+
+      ctx.http.expectOne(PROFILE_URL).flush(PROFILE);
+      ctx.fixture.detectChanges();
+
+      const proposal = ctx.el.querySelector('[data-prediction]')!;
+      expect(text(proposal.querySelector('h2'))).toBe('Pour ce dépôt : Rust et Angular');
+      expect(text(proposal)).toContain("D'après les fichiers de la branche main");
+      expect(Array.from(proposal.querySelectorAll('.starters__evidence code'), text)).toEqual(['Cargo.toml', 'web/package.json', 'web/package-lock.json']);
+      expect(Array.from(proposal.querySelectorAll('.starters__stage'), text)).toEqual(['check', 'test', 'build']);
+      expect(text(proposal.querySelector('.starters__notes'))).toContain('Un Dockerfile à la racine');
+      expect(text(ctx.el.querySelector('#starters-title'))).toBe("Ou partir d'un modèle");
+      await answerRender(ctx);
+    });
+
+    it('lays the proposal out on the board, and undoing takes it back', async () => {
+      const ctx = await emptyRepository();
+      ctx.http.expectOne(PROFILE_URL).flush(PROFILE);
+      await answerRender(ctx);
+      ctx.fixture.detectChanges();
+
+      buttonNamed(ctx.el, 'Utiliser cette pipeline').click();
+      ctx.fixture.detectChanges();
+      await settle(ctx);
+
+      expect(stageNames(ctx.el)).toEqual(['check', 'test', 'build']);
+      expect(cardNames(lanes(ctx.el)[1])).toEqual(['rust-test', 'web-test']);
+      expect(ctx.internals.state().jobs.find((j) => j.name === 'web-test')?.image).toBe('node:22');
+      expect(ctx.el.querySelector('fg-pipeline-starters')).toBeNull();
+      await answerRender(ctx);
+
+      ctx.internals.undo();
+      expect(ctx.internals.state().jobs).toEqual([]);
+      await answerRender(ctx);
+    });
+
+    it('keeps the templates alone when the repository cannot be read or holds nothing known', async () => {
+      const ctx = await emptyRepository();
+
+      ctx.http.expectOne(PROFILE_URL).flush(null, { status: 500, statusText: 'Server Error' });
+      ctx.fixture.detectChanges();
+
+      expect(ctx.el.querySelector('[data-prediction]')).toBeNull();
+      expect(text(ctx.el.querySelector('#starters-title'))).toBe("Partir d'un modèle");
+      expect(ctx.el.querySelectorAll('.starters__card')).toHaveLength(PIPELINE_TEMPLATES.length);
+      await answerRender(ctx);
+    });
+
+    it('does not read the repository for a pipeline that has jobs until a job is added', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.http.expectNone(PROFILE_URL);
+
+      ctx.internals.pickerStage.set('test');
+      ctx.fixture.detectChanges();
+      ctx.http.expectOne(PROFILE_URL).flush(PROFILE);
+      ctx.fixture.detectChanges();
+
+      const offered = Array.from(document.querySelectorAll<HTMLElement>('[data-suggestion]'), (tile) => tile.dataset['suggestion']);
+      // `unit` already runs cargo test at the root: Rust's tests are not offered again.
+      expect(offered).toEqual(['rust-format', 'rust-clippy', 'web-test', 'web-build']);
+      expect(text(document.querySelector('[data-suggestion="web-test"]'))).toContain('npm test -- --watch=false');
+    });
+
+    it('adds a suggested job to the stage it was asked for, waiting only for what is there before it', async () => {
+      const ctx = opened();
+      await answerRender(ctx);
+      ctx.internals.pickerStage.set('test');
+      ctx.fixture.detectChanges();
+      ctx.http.expectOne(PROFILE_URL).flush(PROFILE);
+      const clippy = { name: 'rust-clippy', stage: 'check', image: 'rust:1.86', script: ['cargo clippy'], variables: [], needs: ['compile', 'rust-format'], tags: [], cache: [] };
+
+      ctx.internals.chooseSuggested(clippy);
+      ctx.fixture.detectChanges();
+
+      expect(cardNames(lanes(ctx.el)[1])).toEqual(['unit', 'rust-clippy']);
+      expect(ctx.internals.state().jobs.find((j) => j.name === 'rust-clippy')).toMatchObject({ stage: 'test', needs: ['compile'] });
+      expect(ctx.internals.selected()).toBe('rust-clippy');
+      expect(ctx.internals.suggestions().map((s) => s.job.name)).not.toContain('rust-clippy');
+      await answerRender(ctx);
+    });
+
+    it('does not read the repository for a reader', async () => {
+      const ctx = await emptyRepository('reader');
+
+      ctx.http.expectNone(PROFILE_URL);
     });
   });
 });

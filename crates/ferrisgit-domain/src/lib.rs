@@ -35,6 +35,7 @@ pub mod release_asset_storage;
 pub mod repository;
 pub mod repository_authz;
 pub mod repository_collaborator;
+pub mod repository_profile;
 pub mod repository_star;
 pub mod runner;
 pub mod secret_encryption;

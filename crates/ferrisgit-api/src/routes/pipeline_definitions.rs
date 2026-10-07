@@ -9,10 +9,12 @@ use ferrisgit_application::use_cases::pipeline_definition_builder::{
 use ferrisgit_application::use_cases::pipeline_definition_proposal::{
     PipelineProposal, ProposePipelineDefinitionUseCase, ReadRepositoryPipelineFileUseCase,
 };
+use ferrisgit_application::use_cases::repository_profile::DetectRepositoryProfileUseCase;
 use ferrisgit_domain::pipeline_definition::{
     JobDefinition, PipelineDefinition, PipelineDefinitionError, PipelineDefinitionWarning,
 };
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
+use ferrisgit_domain::repository_profile::RepositoryProfile;
 use serde::{Deserialize, Serialize};
 
 use uuid::Uuid;
@@ -282,6 +284,30 @@ async fn repository_file(
     }))
 }
 
+/// What the default branch is made of (its projects, their versions and tools, its Dockerfiles and charts), for the
+/// editor to propose a pipeline that fits the repository.
+async fn repository_profile(
+    AuthUser(user_id): AuthUser,
+    State(state): State<AppState>,
+    Path(repository_id): Path<Uuid>,
+) -> Result<Json<RepositoryProfile>, ApiError> {
+    let repo = require_role_by_id(
+        &state,
+        user_id,
+        repository_id,
+        CollaboratorRole::Contributor,
+    )
+    .await?;
+    let profile = DetectRepositoryProfileUseCase::new(
+        state.branch_reader.clone(),
+        state.repository_file_lister.clone(),
+        state.pipeline_file_reader.clone(),
+    )
+    .execute(&repo.disk_path)
+    .await?;
+    Ok(Json(profile))
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct ProposalRequest {
@@ -357,6 +383,10 @@ pub fn router() -> Router<AppState> {
         .route(
             "/repositories/{repository_id}/pipeline-definition/proposal",
             post(propose),
+        )
+        .route(
+            "/repositories/{repository_id}/pipeline-definition/profile",
+            get(repository_profile),
         )
         .layer(DefaultBodyLimit::max(BODY_LIMIT_BYTES))
 }
