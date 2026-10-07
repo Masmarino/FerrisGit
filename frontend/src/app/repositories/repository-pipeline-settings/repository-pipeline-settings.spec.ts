@@ -150,7 +150,7 @@ describe('RepositoryPipelineSettings', () => {
       repositorySettingsStub.update.mockReturnValue(of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 0 }));
       fixture.componentInstance.togglePipelineEnabled();
       fixture.detectChanges();
-      expect(text(el.querySelector('.repository-pipeline-settings__switch-hint'))).toContain('Aucun pipeline');
+      expect(text(el.querySelector('.repository-pipeline-settings__switch-hint'))).toContain('Aucune pipeline');
     });
 
     it('marks a field "Enregistré" once it is saved on blur, and "Non enregistré" when the save fails', () => {
@@ -215,7 +215,7 @@ describe('RepositoryPipelineSettings', () => {
         refused.error({ status: 500 });
         await settle(fixture);
 
-        expect(toastStub.show).toHaveBeenCalledWith('Impossible de mettre à jour le pipeline.', 'error');
+        expect(toastStub.show).toHaveBeenCalledWith('Impossible de mettre à jour la pipeline.', 'error');
         expect(switchInput(el).checked).toBe(true);
         expect(text(el.querySelector('.repository-pipeline-settings__switch-hint'))).toContain('à chaque push');
 
@@ -255,7 +255,7 @@ describe('RepositoryPipelineSettings', () => {
       const el = fixture.nativeElement as HTMLElement;
 
       const failed = el.querySelector('gbt-alert .gbt-alert');
-      expect(text(failed)).toContain("Les réglages du pipeline n'ont pas pu être chargés");
+      expect(text(failed)).toContain("Les réglages de la pipeline n'ont pas pu être chargés");
       expect(failed?.getAttribute('data-variant')).toBe('error');
       // The toast announces the failure, so the inline block stays silent.
       expect(failed?.getAttribute('role')).toBeNull();

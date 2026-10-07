@@ -15,7 +15,7 @@ Les notifications sont internes à FerrisGit : FerrisGit n'envoie pas d'e-mail p
 | Auteur ou assigné d'un ticket | quelqu'un d'autre le commente |
 | Auteur d'un ticket | quelqu'un d'autre le ferme |
 | Collaborateur d'un dépôt | on vous ajoute, on change votre rôle ou on vous retire |
-| Personne dont l'action a lancé un pipeline (poussée, fusion) | ce pipeline échoue |
+| Personne dont l'action a lancé une pipeline (poussée, fusion) | cette pipeline échoue |
 
 Une revue répétée à l'identique (même avis, même commit) ne génère pas de nouvelle notification. Il n'y a pas de notification pour l'ouverture d'un ticket ou d'une demande de fusion, ni pour les mentions : FerrisGit ne gère pas les `@nom`. Il n'existe pas de réglage pour désactiver certaines notifications.
 

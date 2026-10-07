@@ -160,7 +160,7 @@ describe('NotificationBell', () => {
     it('renders the pipeline_failed sentence', () => {
       const n = makeNotification({ kind: 'pipeline_failed', commitSha: 'abcdef1234567890', pipelineId: '9' });
       const { fixture } = renderWithNotification(n);
-      expect(itemText(fixture)).toBe('Le pipeline sur abcdef12 a échoué (alice/hello)');
+      expect(itemText(fixture)).toBe('La pipeline sur abcdef12 a échoué (alice/hello)');
     });
 
     it('falls back to a generic sentence for an unrecognized kind', () => {

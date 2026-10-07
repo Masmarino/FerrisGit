@@ -1,0 +1,152 @@
+<div class="job-form">
+  @for (problem of problems(); track problem.message) {
+    <gbt-alert variant="error" appearance="subtle" iconAlign="start">{{ problem.message }}</gbt-alert>
+  }
+
+  <!-- The name is applied when the field is left: renaming on every key would rename the job under the cursor. -->
+  <div class="job-form__field">
+    <gbt-input [id]="'job-name'" label="Nom du job" hint="Unique dans la pipeline. Les jobs qui l'attendent suivent son nouveau nom." [ngModel]="job().name" (committed)="patch.emit({ name: $event })" />
+    <fg-help-tip class="job-form__help" [help]="help.name" align="end" />
+  </div>
+
+  <div class="job-form__field">
+    <gbt-input [id]="'job-image'" label="Image" mono placeholder="rust:1" hint="L'image du conteneur dans lequel les commandes s'exécutent." [ngModel]="job().image" (ngModelChange)="patch.emit({ image: $event })" />
+    <fg-help-tip class="job-form__help" [help]="help.image" align="end" />
+    <div class="job-form__chips" role="group" aria-label="Images courantes">
+      @for (image of imageSuggestions; track image) {
+        <gbt-button variant="secondary" size="small" [text]="image" [attr.data-image]="image" (clicked)="patch.emit({ image })" />
+      }
+    </div>
+  </div>
+
+  <section class="job-form__group" role="group" aria-labelledby="job-commands-title">
+    <div class="job-form__head">
+      <h3 id="job-commands-title" class="job-form__title">Commandes</h3>
+      <fg-help-tip [help]="help.script" />
+    </div>
+    @for (line of job().script; track $index) {
+      <div class="job-form__command" (focusin)="noteFocus($index, $event)">
+        <gbt-textarea
+          [id]="'job-command-' + $index"
+          [label]="'Commande ' + ($index + 1)"
+          hideLabel
+          mono
+          autosize
+          [rows]="1"
+          placeholder="cargo build"
+          [ngModel]="line"
+          (ngModelChange)="setCommand($index, $event)"
+        />
+        <div class="job-form__command-actions">
+          <gbt-button variant="ghost" size="small" [iconOnly]="true" iconName="arrow-up" [ariaLabel]="'Monter la commande ' + ($index + 1)" [disabled]="$first" (clicked)="moveCommand($index, -1)" />
+          <gbt-button variant="ghost" size="small" [iconOnly]="true" iconName="arrow-down" [ariaLabel]="'Descendre la commande ' + ($index + 1)" [disabled]="$last" (clicked)="moveCommand($index, 1)" />
+          <gbt-button variant="ghost" size="small" [iconOnly]="true" iconName="trash-2" [ariaLabel]="'Retirer la commande ' + ($index + 1)" (clicked)="removeCommand($index)" />
+        </div>
+      </div>
+    } @empty {
+      <p class="job-form__empty">Aucune commande : le job ne ferait rien.</p>
+    }
+    <div class="job-form__row-actions">
+      <gbt-button variant="secondary" size="small" icon="plus" text="Ajouter une commande" (clicked)="addCommand()" />
+      @if (insertable().length > 0) {
+        <gbt-menu class="job-form__insert" label="Insérer une variable" chevron align="start">
+          @for (name of insertable(); track name) {
+            <button gbtMenuItem [attr.data-insert]="name" (click)="insert(name)">{{ '$' + name }}</button>
+          }
+        </gbt-menu>
+        <fg-help-tip [help]="help.insert" />
+      }
+    </div>
+    @if (unknown().length > 0) {
+      <p class="job-form__note" data-note="unknown">
+        Les commandes lisent
+        @for (name of unknown(); track name; let last = $last) {
+          <code>{{ '$' + name }}</code>{{ last ? ',' : ', ' }}
+        }
+        qui n'est ni une variable du job ni un secret du dépôt. Si l'image ne le fournit pas, la commande le verra vide.
+      </p>
+      @for (name of creatable(); track name) {
+        <gbt-button class="job-form__create-secret" variant="secondary" size="small" icon="plus" [text]="'Créer le secret ' + name" (clicked)="createSecret.emit(name)" />
+      }
+    }
+  </section>
+
+  <section class="job-form__group" role="group" aria-labelledby="job-variables-title">
+    <div class="job-form__head">
+      <h3 id="job-variables-title" class="job-form__title">Variables</h3>
+      <fg-help-tip [help]="help.variables" />
+    </div>
+    <p class="job-form__lede">Visibles par tous ceux qui lisent le dépôt. Pas de mot de passe ici : voir les secrets.</p>
+    @for (row of job().variables; track $index) {
+      <div class="job-form__variable">
+        <gbt-input [id]="'job-variable-key-' + $index" [label]="'Nom de la variable ' + ($index + 1)" hideLabel mono placeholder="NOM" [errorMessage]="variableProblem(row)" [ngModel]="row.key" (ngModelChange)="setVariable($index, { key: $event })" />
+        <gbt-input [id]="'job-variable-value-' + $index" [label]="'Valeur de la variable ' + ($index + 1)" hideLabel mono placeholder="valeur" [ngModel]="row.value" (ngModelChange)="setVariable($index, { value: $event })" />
+        <gbt-button variant="ghost" size="small" text="Retirer" [ariaLabel]="'Retirer la variable ' + ($index + 1)" (clicked)="removeVariable($index)" />
+        @if (looksSecret(row)) {
+          <gbt-alert class="job-form__secret-warning" variant="warning" appearance="subtle" iconAlign="start" [attr.data-secret-warning]="$index">
+            « {{ row.key }} » ressemble à un secret : écrit ici, il est lisible par tous dans le dépôt.
+            @if (canManageSecrets()) {
+              <gbt-button alert-actions variant="secondary" size="small" text="En faire un secret" (clicked)="makeSecret.emit($index)" />
+            } @else {
+              Demandez à un mainteneur de le créer comme secret du dépôt.
+            }
+          </gbt-alert>
+        }
+      </div>
+    }
+    <gbt-button variant="secondary" size="small" icon="plus" text="Ajouter une variable" (clicked)="addVariable()" />
+  </section>
+
+  @if (secrets() !== null) {
+    <section class="job-form__group" role="group" aria-labelledby="job-secrets-title">
+      <div class="job-form__head">
+        <h3 id="job-secrets-title" class="job-form__title">Secrets lus par ce job</h3>
+        <fg-help-tip [help]="help.secrets" />
+      </div>
+      @if (usedSecrets().length === 0) {
+        <p class="job-form__empty">Aucun. Écrivez $NOM dans une commande, ou utilisez « Insérer une variable ».</p>
+      } @else {
+        <ul class="job-form__secrets">
+          @for (name of usedSecrets(); track name) {
+            <li><gbt-badge variant="neutral" icon="lock" mono>{{ name }}</gbt-badge></li>
+          }
+        </ul>
+      }
+    </section>
+  }
+
+  <section class="job-form__group" role="group" aria-labelledby="job-needs-title">
+    <div class="job-form__head">
+      <h3 id="job-needs-title" class="job-form__title">Attend la fin de</h3>
+      <fg-help-tip [help]="help.needs" />
+    </div>
+    @for (name of needChoices(); track name) {
+      <gbt-checkbox [label]="name" [checked]="job().needs.includes(name)" (checkedChange)="toggleNeed(name, $event)" />
+    } @empty {
+      <p class="job-form__empty">Aucun autre job dans cette étape ou une étape précédente.</p>
+    }
+  </section>
+
+  <div class="job-form__field">
+    <gbt-tag-input [id]="'job-tags'" label="Étiquettes du runner" placeholder="docker" [ngModel]="job().tags" (ngModelChange)="patch.emit({ tags: $event })" />
+    <fg-help-tip class="job-form__help" [help]="help.tags" align="end" />
+  </div>
+
+  <div class="job-form__field">
+    <gbt-tag-input [id]="'job-cache'" label="Caches" placeholder="cargo-registry" [ngModel]="job().cache" (ngModelChange)="patch.emit({ cache: $event })" />
+    <fg-help-tip class="job-form__help" [help]="help.cache" align="end" />
+    <p class="job-form__hint">Une clé de cache : minuscules, chiffres et tirets.</p>
+    @if (cacheSuggestions().length > 0) {
+      <div class="job-form__chips" role="group" aria-label="Caches courants">
+        @for (key of cacheSuggestions(); track key) {
+          <gbt-button variant="secondary" size="small" icon="plus" [text]="key" [attr.data-cache]="key" (clicked)="addCache(key)" />
+        }
+      </div>
+    }
+    @if (cachesIgnored()) {
+      <p class="job-form__note" data-note="cache">Votre instance utilise des runners Docker : les caches n'y ont pas d'effet. Ils servent avec le moteur Kubernetes.</p>
+    }
+  </div>
+
+  <gbt-button class="job-form__remove" variant="danger" text="Supprimer le job" (clicked)="remove.emit()" />
+</div>

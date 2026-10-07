@@ -4,6 +4,38 @@ Every notable change to FerrisGit. The format follows [Keep a Changelog](https:/
 versions follow [SemVer](https://semver.org/). Each section is the text of the GitHub release of the same number: see
 "Publishing a version" below.
 
+## [Unreleased]
+
+### Added
+
+- A visual pipeline editor: from a repository's pipeline list, or the quick search, "Éditer la pipeline" opens the
+  stages as columns and the jobs as cards to drag between them, or the YAML itself, the two views describing the same
+  file. Contributors and above are offered it. The server's own
+  parser reads, writes and checks it (`POST /api/pipeline-definitions/parse` and `/render`), reports every mistake at
+  once instead of the first, and the editor says what a rewrite would lose (comments, keys FerrisGit does not know).
+  Typed YAML is saved as it is, comments included.
+- The cards view is meant to build a whole pipeline without writing YAML: starting templates (Rust, Node or Angular, Go,
+  an application published as an image), a catalogue of ready-made job tiles by purpose (compile, test, check the code,
+  package, deploy and notify, or an empty job), commands as an editable list, common images and caches to pick, and a
+  help bubble on every notion, opened by a click so it also works on a phone.
+- Deploying from the editor: tiles with a short form for building and publishing a Docker image (against a remote
+  daemon, since runners give jobs no Docker of their own), deploying to a virtual machine over SSH (running commands, or
+  copying a folder with rsync, with the server's fingerprint checked by default), and deploying to Kubernetes
+  (`kubectl apply`, changing the image of a Deployment or restarting it and waiting for it, Helm). The form shows the
+  commands as the answers change, checks every answer that ends up in a command, and lists the secrets the job reads,
+  saying which the repository has. Two templates chain tests, image and deployment. Tiles that read secrets are greyed
+  out when the instance runs jobs with Kubernetes, which does not pass them.
+- Variables and secrets in the editor: an "Insert a variable" menu that writes `$NAME` at the cursor, a warning on a job
+  variable that looks like a secret with a button that saves it as an encrypted secret of the repository and removes it
+  from the file, the secrets the jobs read and the repository lacks, which jobs read each secret, and a notice when the
+  instance runs Kubernetes, which does not pass repository secrets to jobs. Creating the secrets is for maintainers.
+  The secret form of the repository settings refuses a name an environment variable cannot have.
+- "Proposer la modification" saves the file the way any change is made: on a new `pipeline-editor/…` branch, in a commit
+  by the author, with a merge request into the default branch, which is never written directly
+  (`GET /api/repositories/{id}/pipeline-definition` and `POST …/pipeline-definition/proposal`). The file is read from,
+  and written to, the path the repository's settings name. A file that changed on the default branch since the editor
+  was opened is refused with `409` instead of overwritten.
+
 ## [0.1.5] - 2026-10-07
 
 ### Added

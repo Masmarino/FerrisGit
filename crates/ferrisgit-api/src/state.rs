@@ -22,6 +22,7 @@ use ferrisgit_domain::api_token::ApiTokenRepositoryPort;
 use ferrisgit_domain::apply_suggestion_executor::ApplySuggestionExecutorPort;
 use ferrisgit_domain::audit::EventPublisherPort;
 use ferrisgit_domain::branch::BranchReaderPort;
+use ferrisgit_domain::branch_file_writer::BranchFileWriterPort;
 use ferrisgit_domain::diff::DiffReaderPort;
 use ferrisgit_domain::email::SmtpSettingsPort;
 use ferrisgit_domain::group::GroupStorePort;
@@ -68,6 +69,7 @@ use ferrisgit_infrastructure::disk_space_health::FilesystemStorageHealthCheck;
 use ferrisgit_infrastructure::docker_runner_executor::DockerRunnerExecutor;
 use ferrisgit_infrastructure::git_apply_suggestion_executor::GitApplySuggestionExecutor;
 use ferrisgit_infrastructure::git_backend::GitBackend;
+use ferrisgit_infrastructure::git_branch_file_writer::GitBranchFileWriter;
 use ferrisgit_infrastructure::git_merge_executor::GitMergeExecutor;
 use ferrisgit_infrastructure::git_tag_creator::GitTagCreator;
 use ferrisgit_infrastructure::git_wiki_writer::GitWikiWriter;
@@ -170,6 +172,7 @@ pub struct AppState {
     pub diff_reader: Arc<dyn DiffReaderPort>,
     pub merge_executor: Arc<dyn MergeExecutorPort>,
     pub suggestion_executor: Arc<dyn ApplySuggestionExecutorPort>,
+    pub branch_file_writer: Arc<dyn BranchFileWriterPort>,
     pub webhooks: Arc<dyn WebhookDispatcherPort>,
     pub webhook_store: Arc<dyn WebhookStorePort>,
     pub releases: Arc<dyn ReleaseStorePort>,
@@ -452,6 +455,7 @@ impl AppState {
             diff_reader: merge_request_reader.clone(),
             merge_executor: Arc::new(GitMergeExecutor::new(storage_root.clone())),
             suggestion_executor: Arc::new(GitApplySuggestionExecutor::new(storage_root.clone())),
+            branch_file_writer: Arc::new(GitBranchFileWriter::new(storage_root.clone())),
             webhooks,
             webhook_store,
             releases,

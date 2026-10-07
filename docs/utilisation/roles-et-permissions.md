@@ -13,7 +13,7 @@ FerrisGit a trois rôles, du moins au plus puissant : **Lecteur**, **Contributeu
 | Pousser (`git push`), y compris sur le wiki | non | oui | oui |
 | Créer des tickets, les commenter, les modifier, les assigner, les fermer, déplacer les cartes du kanban | non | oui | oui |
 | Créer, modifier et fermer une demande de fusion, la commenter, la relire, l'approuver, appliquer une suggestion | non | oui | oui |
-| Annuler un pipeline | non | oui | oui |
+| Annuler une pipeline | non | oui | oui |
 | Créer et modifier étiquettes et jalons | non | oui | oui |
 | Modifier une page du wiki | non | oui | oui |
 | **Fusionner** une demande de fusion | non | non | oui |

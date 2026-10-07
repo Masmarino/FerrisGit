@@ -34,10 +34,10 @@ jobs:
 
 | Clé | Type | Obligatoire | Description |
 |---|---|---|---|
-| `stages` | liste de chaînes | oui | Les étapes du pipeline, dans l'ordre. |
+| `stages` | liste de chaînes | oui | Les étapes de la pipeline, dans l'ordre. |
 | `jobs` | table `nom du job` vers définition | oui | Les jobs. Le nom du job est la clé de la table. |
 
-`stages` peut être vide et `jobs` peut être vide, mais un pipeline sans aucun job ne se termine jamais : il reste **En attente**.
+`stages` peut être vide et `jobs` peut être vide, mais une pipeline sans aucun job ne se termine jamais : elle reste **En attente**.
 
 ## Clés d'un job
 
@@ -87,7 +87,7 @@ Les variables CI du dépôt viennent s'ajouter, avec les runners Docker. Voir [V
 
 ### needs
 
-Liste de noms de jobs du même pipeline. Un job n'est lancé que lorsque tous les jobs de sa liste sont **Réussis**. Quand `needs` est présent, il remplace la barrière d'étape pour ce job : il n'attend que les jobs listés, pas toute l'étape précédente. Si l'un d'eux échoue ou est annulé, le job est **Ignoré** sans être exécuté, ainsi que tous les jobs qui en dépendent à leur tour.
+Liste de noms de jobs de la même pipeline. Un job n'est lancé que lorsque tous les jobs de sa liste sont **Réussis**. Quand `needs` est présent, il remplace la barrière d'étape pour ce job : il n'attend que les jobs listés, pas toute l'étape précédente. Si l'un d'eux échoue ou est annulé, le job est **Ignoré** sans être exécuté, ainsi que tous les jobs qui en dépendent à leur tour.
 
 ### tags
 
@@ -99,7 +99,7 @@ Liste de clés de cache. Chaque clé doit être non vide et ne contenir que des 
 
 ## Erreurs de validation
 
-FerrisGit valide le fichier au moment de créer le pipeline. Les contrôles s'arrêtent à la première erreur. Les jobs sont examinés dans l'ordre alphabétique de leur nom ; pour chaque job, dans l'ordre : son étape, puis chaque entrée de `needs`, puis chaque clé de `cache`.
+FerrisGit valide le fichier au moment de créer la pipeline. Les contrôles s'arrêtent à la première erreur. Les jobs sont examinés dans l'ordre alphabétique de leur nom ; pour chaque job, dans l'ordre : son étape, puis chaque entrée de `needs`, puis chaque clé de `cache`.
 
 | Cause | Message |
 |---|---|
@@ -121,24 +121,24 @@ Le `<détail>` de `invalid YAML` vient de l'analyseur YAML. Il indique le chemin
 
 Si un job dépend d'un job dont l'étape n'est pas déclarée, l'erreur « references stage » est attribuée au job dépendance, pas au job qui l'exige.
 
-Le push réussit toujours. Si le fichier est présent mais invalide, FerrisGit crée quand même un pipeline, **Échoué** dès sa création, sans aucun job, qui porte le message d'erreur : l'interface l'affiche dans l'encadré « Fichier de pipeline invalide » (liste et détail du pipeline), et l'API le renvoie dans le champ `error`. La personne qui a poussé est notifiée comme pour tout pipeline échoué. Un fichier **absent** ne crée aucun pipeline. Voir [Dépannage](/docs/ci-cd/depannage#le-fichier-est-invalide).
+Le push réussit toujours. Si le fichier est présent mais invalide, FerrisGit crée quand même une pipeline, **Échouée** dès sa création, sans aucun job, qui porte le message d'erreur : l'interface l'affiche dans l'encadré « Fichier de pipeline invalide » (liste et détail de la pipeline), et l'API le renvoie dans le champ `error`. La personne qui a poussé est notifiée comme pour toute pipeline échouée. Un fichier **absent** ne crée aucune pipeline. Voir [Dépannage](/docs/ci-cd/depannage#le-fichier-est-invalide).
 
 ## Règles sur le graphe de dépendances
 
 - Une dépendance doit être dans la même étape que le job ou dans une étape antérieure de `stages`. Une dépendance dans la même étape est acceptée.
 - Les cycles sont refusés à la validation : deux jobs de la même étape qui se déclarent mutuellement dans `needs`, un cycle plus long, ou un job qui se déclare lui-même (voir [Erreurs de validation](#erreurs-de-validation)).
 - Les entrées dupliquées dans `needs` sont sans conséquence.
-- Un job ne peut dépendre que de jobs du même pipeline, désignés par leur nom exact.
+- Un job ne peut dépendre que de jobs de la même pipeline, désignés par leur nom exact.
 
 ## Ordre de lancement
 
-1. À la création du pipeline, FerrisGit crée tous les jobs à l'état **En attente**, dans l'ordre des étapes puis, dans une étape, dans l'ordre alphabétique des noms.
+1. À la création de la pipeline, FerrisGit crée tous les jobs à l'état **En attente**, dans l'ordre des étapes puis, dans une étape, dans l'ordre alphabétique des noms.
 2. Un job devient disponible selon la première de ces règles qui s'applique à lui :
    - il déclare `needs` : dès que tous les jobs listés sont **Réussis** ;
    - sinon, il n'est pas dans la première étape : dès que **tous les jobs de toutes les étapes précédentes** sont **Réussis** (une étape est une barrière) ;
    - sinon (première étape, sans `needs`) : immédiatement.
 3. Les jobs d'une même étape qui n'ont pas de dépendance entre eux sont parallèles : ils sont disponibles en même temps.
-4. Avec les runners Docker, chaque runner prend, à chaque interrogation, le plus ancien job disponible dont les étiquettes conviennent (ordre de création : donc d'abord les pipelines les plus anciens, puis l'ordre des étapes, puis l'ordre alphabétique). Un runner exécute un seul job à la fois ; le parallélisme est donné par le nombre de runners.
+4. Avec les runners Docker, chaque runner prend, à chaque interrogation, le plus ancien job disponible dont les étiquettes conviennent (ordre de création : donc d'abord les pipelines les plus anciennes, puis l'ordre des étapes, puis l'ordre alphabétique). Un runner exécute un seul job à la fois ; le parallélisme est donné par le nombre de runners.
 5. Avec Kubernetes, tous les jobs disponibles sont lancés ensemble, chacun dans son Pod, dès qu'ils le deviennent.
 
 Les deux moteurs appliquent exactement la même règle : c'est le serveur qui décide quels jobs sont disponibles.
@@ -181,13 +181,13 @@ jobs:
 
 Dans cet exemple, `compile` et `lint` démarrent ensemble. `smoke` n'attend que `compile` ; `unit-tests`, qui n'a pas de `needs`, attend la fin de `compile` **et** de `lint`. `publish` attend la fin de tous les jobs de `build` et de `test`.
 
-Les jobs d'un même pipeline ne partagent rien : chacun repart d'un dépôt fraîchement cloné (Docker) ou d'un conteneur vide (Kubernetes). Il n'y a pas d'artefacts pour passer des fichiers d'un job à l'autre.
+Les jobs d'une même pipeline ne partagent rien : chacun repart d'un dépôt fraîchement cloné (Docker) ou d'un conteneur vide (Kubernetes). Il n'y a pas d'artefacts pour passer des fichiers d'un job à l'autre.
 
 ## Statuts
 
 Un job a l'un de ces statuts : **En attente**, **En cours**, **Réussi**, **Échoué**, **Annulé**, **Ignoré**. Un job est **Ignoré** quand il ne peut plus jamais démarrer parce qu'un job dont il dépend (par `needs`, ou par la barrière d'étape) a échoué, a été annulé ou a lui-même été ignoré. Il ne s'exécute pas, n'a ni heure de début ni journal.
 
-Un pipeline a l'un de ces statuts : **En attente**, **En cours**, **Réussi**, **Échoué**, **Annulé**.
+Une pipeline a l'un de ces statuts : **En attente**, **En cours**, **Réussie**, **Échouée**, **Annulée**.
 
 - Il est **En attente** de sa création jusqu'à ce qu'un premier job démarre.
 - Il passe à **En cours** dès qu'un de ses jobs démarre.
@@ -196,14 +196,14 @@ Un pipeline a l'un de ces statuts : **En attente**, **En cours**, **Réussi**, *
 ## Comportement à l'échec
 
 - Un job échoue quand son script retourne un code non nul, quand l'image ne peut pas être lancée, ou (Docker) quand le clonage du dépôt échoue.
-- Les jobs qui dépendent d'un job échoué ou annulé, par `needs` ou par la barrière d'étape, directement ou non, sont **Ignorés** : ils ne démarrent jamais. Le pipeline ne reste donc pas en attente.
+- Les jobs qui dépendent d'un job échoué ou annulé, par `needs` ou par la barrière d'étape, directement ou non, sont **Ignorés** : ils ne démarrent jamais. La pipeline ne reste donc pas en attente.
 - Les jobs qui ne dépendent pas du job échoué continuent jusqu'au bout : ceux de la même étape, et ceux qui déclarent des `needs` satisfaits.
-- Quand tous les jobs sont terminés, le pipeline est **Échoué** si l'un d'eux a échoué (ou a été ignoré), sinon **Annulé** si l'un d'eux a été annulé, sinon **Réussi**. À l'échec, la personne qui a déclenché le pipeline est notifiée.
+- Quand tous les jobs sont terminés, la pipeline est **Échouée** si l'un d'eux a échoué (ou a été ignoré), sinon **Annulée** si l'un d'eux a été annulé, sinon **Réussie**. À l'échec, la personne qui a déclenché la pipeline est notifiée.
 - Il n'y a pas de nouvelle tentative automatique ni de délai maximal : voir [Limites](#limites).
 
 ## Limites
 
-- Aucun délai maximal d'exécution d'un job : un script qui ne rend jamais la main laisse le job **En cours** jusqu'à l'annulation du pipeline.
+- Aucun délai maximal d'exécution d'un job : un script qui ne rend jamais la main laisse le job **En cours** jusqu'à l'annulation de la pipeline.
 - Aucune limite de nombre de jobs, de lignes de script ou de variables n'est appliquée, ni de taille de journal.
 - Un job en attente d'un runner (étiquettes qu'aucun runner ne porte, aucun runner en ligne) reste en attente sans limite de temps.
 - Le nombre de jobs simultanés des runners Docker peut être plafonné pour toute l'instance par un administrateur (réglage **Jobs simultanés (runners Docker)** dans **Admin > Réglages > Exécution**). Il ne s'applique pas au moteur Kubernetes.

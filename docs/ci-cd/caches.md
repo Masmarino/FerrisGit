@@ -1,6 +1,6 @@
 # Caches
 
-Un cache conserve des fichiers (dépendances téléchargées, dossier de compilation) d'un job à l'autre et d'un pipeline à l'autre. FerrisGit ne fournit des caches que sur le moteur Kubernetes.
+Un cache conserve des fichiers (dépendances téléchargées, dossier de compilation) d'un job à l'autre et d'une pipeline à l'autre. FerrisGit ne fournit des caches que sur le moteur Kubernetes.
 
 > **Attention** : avec les runners Docker, la clé `cache` est validée puis ignorée : rien n'est conservé entre deux jobs, chaque job repart d'un conteneur et d'un dossier de travail neufs. Le reste de cette page ne concerne que Kubernetes.
 
@@ -34,7 +34,7 @@ Le dossier est celui d'un volume qui peut appartenir à un autre utilisateur que
 ## Portée
 
 - Un cache appartient à un **dépôt** : la clé `cargo-target` de deux dépôts désigne deux volumes différents, et deux dépôts ne partagent jamais de cache.
-- Dans un dépôt, tous les jobs, de tous les pipelines, de toutes les branches, qui déclarent la même clé voient le même volume. Il n'y a pas de cache par branche.
+- Dans un dépôt, tous les jobs, de toutes les pipelines, de toutes les branches, qui déclarent la même clé voient le même volume. Il n'y a pas de cache par branche.
 - Le volume est partagé en lecture et écriture (accès `ReadWriteMany`) et FerrisGit n'y pose aucun verrou : deux jobs parallèles qui écrivent la même clé peuvent se gêner. Séparez les clés, ou ordonnez les jobs avec `needs` ou en les plaçant dans des étapes différentes.
 
 ## Stockage

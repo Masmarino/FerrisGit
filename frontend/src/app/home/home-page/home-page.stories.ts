@@ -57,7 +57,7 @@ const ACTIVITY: Notification[] = [
 
 const POPULATED: DashboardResponse = {
   assignedIssues: [
-    issue({ number: 42, title: 'Le pipeline échoue quand le runner perd la connexion', kind: 'bug', status: 'in_progress', createdAt: hoursAgo(2) }),
+    issue({ number: 42, title: 'La pipeline échoue quand le runner perd la connexion', kind: 'bug', status: 'in_progress', createdAt: hoursAgo(2) }),
     issue({ number: 38, title: 'Afficher les dates relatives dans la liste des pipelines', kind: 'feature', createdAt: daysAgo(3) }),
     issue({ number: 12, title: 'Documenter l’enregistrement des runners', kind: 'task', status: 'in_review', repository: RUNNER, createdAt: daysAgo(9) }),
   ],
@@ -81,7 +81,7 @@ const LONG: DashboardResponse = {
   assignedIssues: [
     issue({
       number: 1234,
-      title: 'Quand un runner Kubernetes redémarre pendant un job, le pipeline reste « en cours » indéfiniment et bloque les suivants de la même branche',
+      title: 'Quand un runner Kubernetes redémarre pendant un job, la pipeline reste « en cours » indéfiniment et bloque les suivantes de la même branche',
       kind: 'bug',
       repository: repo('organisation-avec-un-nom-tres-long', 'equipe-plateforme', 'infrastructure-des-runners-kubernetes'),
     }),

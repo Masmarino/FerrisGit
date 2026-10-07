@@ -188,7 +188,7 @@ describe('RepositoryWebhooks', () => {
       expect(groups.map((group) => group.querySelectorAll('input[type="checkbox"]').length)).toEqual([5, 3, 1, 3]);
       const labels = Array.from(fieldset.querySelectorAll('label')).map(text);
       expect(labels).toContain('Fusionnée');
-      expect(labels).toContain('Échoué');
+      expect(labels).toContain('Échouée');
       expect(labels.every((label) => !!label && !label.includes('_'))).toBe(true);
     });
 
@@ -197,7 +197,7 @@ describe('RepositoryWebhooks', () => {
       const box = (label: string) =>
         Array.from(el.querySelectorAll<HTMLInputElement>('gbt-checkbox-group input[type="checkbox"]')).find((input) => text(input.closest('label')) === label)!;
 
-      box('Échoué').click();
+      box('Échouée').click();
       box('Fusionnée').click();
       fixture.detectChanges();
       expect(component['newWebhookEvents']()).toEqual(['merge_request_merged', 'pipeline_failed']);
@@ -237,7 +237,7 @@ describe('RepositoryWebhooks', () => {
       const rows = Array.from(el.querySelectorAll('ul > li > gbt-list-row'));
       expect(rows.map((row) => text(row.querySelector('.repository-webhooks__url')))).toEqual(['https://ci.exemple.fr/hooks', 'https://chat.exemple.fr/notifications']);
       expect(rows.map((row) => text(row.querySelector('gbt-badge')))).toEqual(['Actif', 'Inactif']);
-      expect(Array.from(rows[0].querySelectorAll('.repository-webhooks__event')).map(text)).toEqual(['Pipeline échoué', 'Demande de fusion fusionnée']);
+      expect(Array.from(rows[0].querySelectorAll('.repository-webhooks__event')).map(text)).toEqual(['Pipeline échouée', 'Demande de fusion fusionnée']);
       const second = Array.from(rows[1].querySelectorAll('.repository-webhooks__event')).map(text);
       expect(second).toEqual(['Demande de fusion approuvée', 'Demande de fusion commentée', 'Ticket assigné', '+2']);
       expect(rows[1].querySelector('.repository-webhooks__event--more')?.getAttribute('title')).toBe('Ticket fermé, Collaborateur ajouté');
@@ -299,7 +299,7 @@ describe('RepositoryWebhooks', () => {
       fixture.detectChanges();
       const deliveries = Array.from(drawer().querySelectorAll('li'));
       expect(deliveries.map((li) => text(li.querySelector('gbt-badge')))).toEqual(['Succès', 'Échec']);
-      expect(text(deliveries[0])).toContain('Pipeline échoué');
+      expect(text(deliveries[0])).toContain('Pipeline échouée');
       expect(text(deliveries[0])).toContain('HTTP 200');
       expect(text(deliveries[1])).toContain('Délai dépassé');
     });

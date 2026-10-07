@@ -89,12 +89,17 @@
         {
           "slug": "premiers-pas",
           "title": "Premiers pas",
-          "description": "Lancer son premier pipeline."
+          "description": "Lancer sa première pipeline."
         },
         {
           "slug": "reference-yaml",
           "title": "Référence de .ferrisgit-ci.yml",
           "description": "Toutes les clés du fichier de pipeline."
+        },
+        {
+          "slug": "editeur-visuel",
+          "title": "Éditeur visuel",
+          "description": "Composer une pipeline en déplaçant des jobs entre des étapes."
         },
         {
           "slug": "variables-et-secrets",
@@ -104,7 +109,7 @@
         {
           "slug": "caches",
           "title": "Caches",
-          "description": "Conserver des fichiers d'un pipeline à l'autre."
+          "description": "Conserver des fichiers d'une pipeline à l'autre."
         },
         {
           "slug": "runners-docker",
@@ -124,7 +129,7 @@
         {
           "slug": "depannage",
           "title": "Dépannage",
-          "description": "Comprendre un pipeline qui échoue ou qui ne démarre pas."
+          "description": "Comprendre une pipeline qui échoue ou qui ne démarre pas."
         }
       ]
     },

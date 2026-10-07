@@ -30,12 +30,12 @@ L'interface permet d'ajouter, de supprimer et de consulter l'historique. L'API p
 | `issue_assigned` | un ticket est assigné |
 | `issue_commented` | un ticket est commenté |
 | `issue_closed` | un ticket est fermé |
-| `pipeline_failed` | un pipeline passe à l'état échoué |
+| `pipeline_failed` | une pipeline passe à l'état échoué |
 | `collaborator_added` | un collaborateur est ajouté |
 | `collaborator_role_changed` | le rôle d'un collaborateur change |
 | `collaborator_removed` | un collaborateur est retiré |
 
-Il n'y a pas d'événement pour une poussée, la création d'un ticket ou d'une demande de fusion, une release, ni pour un pipeline réussi. Une revue identique à la précédente de la même personne sur le même commit ne redéclenche pas d'événement.
+Il n'y a pas d'événement pour une poussée, la création d'un ticket ou d'une demande de fusion, une release, ni pour une pipeline réussie. Une revue identique à la précédente de la même personne sur le même commit ne redéclenche pas d'événement.
 
 ## Contenu de l'envoi
 

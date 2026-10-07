@@ -71,7 +71,7 @@ Il n'y a pas de branche protégée : tout Contributeur peut pousser sur n'import
 
 ### Ce qui se passe après un push
 
-- Si la CI du dépôt est activée et que le fichier de pipeline existe, un pipeline démarre. Voir [Premiers pas CI/CD](/docs/ci-cd/premiers-pas).
+- Si la CI du dépôt est activée et que le fichier de pipeline existe, une pipeline démarre. Voir [Premiers pas CI/CD](/docs/ci-cd/premiers-pas).
 - Les demandes de fusion ouvertes dont la branche source a bougé enregistrent les nouveaux commits dans leur chronologie.
 
 ## Wikis

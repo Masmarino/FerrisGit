@@ -675,7 +675,8 @@
         "items": {
           "i1": "AI agents on a repository. Candidates: a review assistant on merge requests, summaries of merge requests and commits, an explanation of why a pipeline failed, issue triage and labelling. Whatever ships has to fit a self-hosted platform: a model endpoint the administrator chooses (a local one included), opt-in per repository, scoped credentials, and every action recorded.",
           "i2": "A commit graph in the repository view: branches, merges and tags drawn together, next to the file tree and the commit list that already exist.",
-          "i3": "Profile photos, stored in S3-compatible object storage. The initials stay as the fallback, and the same storage could later hold release files and pipeline artifacts."
+          "i3": "Profile photos, stored in S3-compatible object storage. The initials stay as the fallback, and the same storage could later hold release files and pipeline artifacts.",
+          "i4": "A no-code pipeline builder: assemble a pipeline by dragging and dropping stages and jobs in the interface, without writing YAML. `.ferrisgit-ci.yml` would stay the source of truth: the builder reads and writes that file, so a pipeline drawn in the interface can be edited by hand and the other way round, and a change is committed like any other (a branch and a merge request). It would use the server's own parser, so a mistake is shown where it is made. Candidates: dependencies (`needs`) drawn as links between jobs, a library of ready-made jobs, and the variables and caches of a job."
         }
       }
     },

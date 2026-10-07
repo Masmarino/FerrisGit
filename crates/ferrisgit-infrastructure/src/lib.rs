@@ -5,6 +5,7 @@ pub mod docker_runner_executor;
 mod error;
 pub mod git_apply_suggestion_executor;
 pub mod git_backend;
+pub mod git_branch_file_writer;
 mod git_cli;
 pub mod git_merge_executor;
 pub mod git_tag_creator;

@@ -67,6 +67,41 @@ describe('RepositoryCiVariables', () => {
     expect(repositorySettingsStub.setCiVariable).not.toHaveBeenCalled();
   });
 
+  it('refuses a name an environment variable cannot have, and says so', () => {
+    const { component, fixture, repositorySettingsStub } = setup();
+    fixture.detectChanges();
+
+    component['newVariableKey'].set('1-BAD');
+    component['newVariableValue'].set('secret');
+    fixture.detectChanges();
+    component.addVariable();
+
+    expect(component['keyProblem']()).toContain('sans commencer par un chiffre');
+    expect(repositorySettingsStub.setCiVariable).not.toHaveBeenCalled();
+  });
+
+  it('tells its host when a variable was added or deleted, so that what depends on the list can be refreshed', () => {
+    const { component, fixture } = setup();
+    fixture.detectChanges();
+    const changed = vi.fn();
+    component.changed.subscribe(changed);
+
+    component['newVariableKey'].set('API_KEY');
+    component['newVariableValue'].set('secret');
+    component.addVariable();
+    component['deleteVariable']('v1');
+
+    expect(changed).toHaveBeenCalledTimes(2);
+  });
+
+  it('starts the form with the name its host suggests', () => {
+    const { fixture, component } = setup();
+    fixture.componentRef.setInput('prefillKey', 'DEPLOY_TOKEN');
+    fixture.detectChanges();
+
+    expect(component['newVariableKey']()).toBe('DEPLOY_TOKEN');
+  });
+
   describe('layout', () => {
     const VARIABLES: CiVariableSummary[] = [
       { id: 'v1', key: 'DATABASE_URL', masked: true },

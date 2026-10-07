@@ -126,7 +126,7 @@ Ferme la demande sans la fusionner. Rôle minimal : Contributeur. Réponse 204. 
 
 Fusionne la demande. Rôle minimal : Mainteneur.
 
-FerrisGit ne fait que des fusions sans conflit, avec le message `Merge branch '<source>' into <cible>`. Après une fusion réussie, un pipeline démarre sur le nouveau sommet de la branche cible, et l'auteur est notifié.
+FerrisGit ne fait que des fusions sans conflit, avec le message `Merge branch '<source>' into <cible>`. Après une fusion réussie, une pipeline démarre sur le nouveau sommet de la branche cible, et l'auteur est notifié.
 
 Si le dépôt exige des approbations (`requiredApprovals` supérieur à 0), la fusion est refusée tant qu'il n'y a pas assez d'approbations à jour (données sur le sommet actuel de la branche source) ou tant qu'une relecture à jour demande des changements.
 

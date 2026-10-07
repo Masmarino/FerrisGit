@@ -63,7 +63,7 @@ Lancez \`npm start\` dans \`frontend/\` : l’interface se recharge à chaque mo
 
 ## Relecture
 
-Chaque demande de fusion est relue par un mainteneur. Les pipelines doivent être verts avant la fusion.
+Chaque demande de fusion est relue par un mainteneur. Les pipelines doivent être vertes avant la fusion.
 `;
 
 export const SHORT_CONTENT = `Les réponses aux questions qu’on nous pose le plus souvent.

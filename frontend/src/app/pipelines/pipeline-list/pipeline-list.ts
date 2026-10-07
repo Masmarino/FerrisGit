@@ -17,6 +17,8 @@ import { Select, SelectOption } from '@masmarino/gabarit/select';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { PipelineSummary, PipelinesService } from '../pipelines.service';
 import { formatDuration, isTerminal, pipelineLink } from '../pipeline-helpers';
+import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { canWrite } from '../../repositories/repository-role';
 import { PageTitleService } from '../../shell/page-title.service';
 import { StatusBadge, StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 
@@ -28,8 +30,8 @@ const PIPELINES_PAGE_SIZE = 25;
 const SORT_OPTIONS: ListToolbarSortOption<'date'>[] = [{ value: 'date', label: 'Date' }];
 
 const ORDER_OPTIONS: SelectOption<'asc' | 'desc'>[] = [
-  { value: 'desc', label: 'Plus récents' },
-  { value: 'asc', label: 'Plus anciens' },
+  { value: 'desc', label: 'Plus récentes' },
+  { value: 'asc', label: 'Plus anciennes' },
 ];
 
 /** A queued pipeline counts as "en cours" too. */
@@ -39,7 +41,7 @@ const TAB_STATUSES: Record<Exclude<StatusTab, 'all'>, PipelineSummary['status'][
   failed: ['failed'],
 };
 
-const TAB_ADJECTIVES: Record<StatusTab, string> = { all: '', active: ' en cours', success: ' réussi', failed: ' échoué' };
+const TAB_ADJECTIVES: Record<StatusTab, string> = { all: '', active: ' en cours', success: ' réussie', failed: ' échouée' };
 
 interface PipelineRow {
   pipeline: PipelineSummary;
@@ -101,6 +103,11 @@ export class PipelineList implements OnInit {
   private pipelines = inject(PipelinesService);
   private pageTitle = inject(PageTitleService);
   private toast = inject(GbtToastService);
+  private repoContext = inject(RepositoryContextService);
+
+  /** Contributors and above can open the editor, which prepares a change to the pipeline file. */
+  protected canEdit = computed(() => canWrite(this.repoContext.current()?.role ?? null));
+  protected editorLink = computed(() => ['/repositories', ...this.path(), '-', 'pipelines', 'editor']);
 
   protected list = signal<PipelineSummary[]>([]);
   protected loading = signal(true);
@@ -129,14 +136,14 @@ export class PipelineList implements OnInit {
   protected tabOptions = computed<SegmentedControlOption<StatusTab>[]>(() => {
     const groups = this.byTab();
     return [
-      { value: 'all', label: `Tous (${groups.all.length})` },
+      { value: 'all', label: `Toutes (${groups.all.length})` },
       { value: 'active', label: `En cours (${groups.active.length})` },
-      { value: 'success', label: `Réussis (${groups.success.length})` },
-      { value: 'failed', label: `Échoués (${groups.failed.length})` },
+      { value: 'success', label: `Réussies (${groups.success.length})` },
+      { value: 'failed', label: `Échouées (${groups.failed.length})` },
     ];
   });
   protected tabList = computed(() => this.byTab()[this.tab()]);
-  protected emptyTabMessage = computed(() => `Aucun pipeline${TAB_ADJECTIVES[this.tab()]}${this.search().trim() !== '' ? ' ne correspond à cette recherche' : ''}`);
+  protected emptyTabMessage = computed(() => `Aucune pipeline${TAB_ADJECTIVES[this.tab()]}${this.search().trim() !== '' ? ' ne correspond à cette recherche' : ''}`);
 
   protected readonly pageSize = PIPELINES_PAGE_SIZE;
   protected page = linkedSignal<unknown, number>({

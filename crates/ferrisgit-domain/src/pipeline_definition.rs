@@ -1,28 +1,28 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PipelineDefinition {
     pub stages: Vec<String>,
     pub jobs: BTreeMap<String, JobDefinition>,
 }
 
-#[derive(Debug, Clone, PartialEq, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct JobDefinition {
     pub stage: String,
     pub image: String,
     pub script: Vec<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub variables: BTreeMap<String, String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub needs: Vec<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tags: Vec<String>,
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<String>,
 }
 
-#[derive(Debug, thiserror::Error, PartialEq)]
+#[derive(Debug, Clone, thiserror::Error, PartialEq)]
 pub enum PipelineDefinitionError {
     #[error("invalid YAML: {0}")]
     InvalidYaml(String),
@@ -103,38 +103,46 @@ fn is_valid_cache_key(key: &str) -> bool {
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
-pub fn parse_pipeline_definition(
-    yaml: &str,
-) -> Result<PipelineDefinition, PipelineDefinitionError> {
-    let definition: PipelineDefinition = serde_yaml_ng::from_str(yaml)
-        .map_err(|e| PipelineDefinitionError::InvalidYaml(e.to_string()))?;
+/// Every problem of a definition whose YAML was well formed, in the order `parse_pipeline_definition` would hit them: the
+/// first one is the error the parser reports. The builder shows them all at once.
+pub fn check_pipeline_definition(definition: &PipelineDefinition) -> Vec<PipelineDefinitionError> {
+    let mut problems: Vec<PipelineDefinitionError> = Vec::new();
+    let mut report = |problem: PipelineDefinitionError| {
+        // A dependency in an undeclared stage is reported for that job too; once is enough.
+        if !problems.contains(&problem) {
+            problems.push(problem);
+        }
+    };
 
     for (job_name, job) in &definition.jobs {
-        let Some(job_stage_index) = definition.stages.iter().position(|s| s == &job.stage) else {
-            return Err(PipelineDefinitionError::UnknownStage {
+        let job_stage_index = definition.stages.iter().position(|s| s == &job.stage);
+        if job_stage_index.is_none() {
+            report(PipelineDefinitionError::UnknownStage {
                 job: job_name.clone(),
                 stage: job.stage.clone(),
             });
-        };
+        }
         for dependency in &job.needs {
             let Some(dependency_job) = definition.jobs.get(dependency) else {
-                return Err(PipelineDefinitionError::UnknownDependency {
+                report(PipelineDefinitionError::UnknownDependency {
                     job: job_name.clone(),
                     dependency: dependency.clone(),
                 });
+                continue;
             };
             let Some(dependency_stage_index) = definition
                 .stages
                 .iter()
                 .position(|s| s == &dependency_job.stage)
             else {
-                return Err(PipelineDefinitionError::UnknownStage {
+                report(PipelineDefinitionError::UnknownStage {
                     job: dependency.clone(),
                     stage: dependency_job.stage.clone(),
                 });
+                continue;
             };
-            if dependency_stage_index > job_stage_index {
-                return Err(PipelineDefinitionError::NeedsMustPrecedeOwnStage {
+            if job_stage_index.is_some_and(|index| dependency_stage_index > index) {
+                report(PipelineDefinitionError::NeedsMustPrecedeOwnStage {
                     job: job_name.clone(),
                     dependency: dependency.clone(),
                 });
@@ -142,7 +150,7 @@ pub fn parse_pipeline_definition(
         }
         for cache_key in &job.cache {
             if !is_valid_cache_key(cache_key) {
-                return Err(PipelineDefinitionError::InvalidCacheKey {
+                report(PipelineDefinitionError::InvalidCacheKey {
                     job: job_name.clone(),
                     key: cache_key.clone(),
                 });
@@ -150,11 +158,234 @@ pub fn parse_pipeline_definition(
         }
     }
 
-    if let Some(jobs) = find_needs_cycle(&definition.jobs) {
-        return Err(PipelineDefinitionError::NeedsCycle { jobs });
+    // The cycle search follows `needs`, so it needs every dependency to exist.
+    let all_dependencies_exist = !problems
+        .iter()
+        .any(|p| matches!(p, PipelineDefinitionError::UnknownDependency { .. }));
+    if all_dependencies_exist && let Some(jobs) = find_needs_cycle(&definition.jobs) {
+        problems.push(PipelineDefinitionError::NeedsCycle { jobs });
     }
+    problems
+}
 
-    Ok(definition)
+/// Deeper `[`/`{` nesting than any pipeline needs. The YAML parser takes a time that grows with the square of it (about
+/// twenty seconds for a 256 KiB file of nested brackets), so a file past it is refused before being parsed.
+pub const MAX_FLOW_NESTING: usize = 64;
+
+/// The deepest `[`/`{` nesting of a YAML text, quoted strings and comments aside. Inside a flow collection brackets are
+/// always structure (a plain scalar cannot hold them there); outside, only one that opens a value counts, so that
+/// `echo [x]` in a command is not taken for nesting.
+pub fn flow_nesting(yaml: &str) -> usize {
+    let mut depth = 0usize;
+    let mut deepest = 0usize;
+    let mut quote: Option<char> = None;
+    // At the start of a value: a line's first token, or after `- `, `? `, `: `, or `[`, `{`, `,` inside a collection.
+    let mut value_start = true;
+    // An indicator (`-`, `?`, `:`) just read: a space after it starts a value.
+    let mut indicator = false;
+    let mut previous = '\n';
+    let mut chars = yaml.chars().peekable();
+    while let Some(c) = chars.next() {
+        if let Some(open) = quote {
+            match c {
+                // '' is an escaped quote inside a single-quoted string.
+                '\'' if open == '\'' && chars.peek() == Some(&'\'') => {
+                    chars.next();
+                }
+                '\\' if open == '"' => {
+                    chars.next();
+                }
+                _ if c == open => quote = None,
+                _ => {}
+            }
+            previous = c;
+            continue;
+        }
+        match c {
+            '\n' => {
+                // A new line in block context starts a value again; inside a collection, the line break changes nothing.
+                if depth == 0 {
+                    value_start = true;
+                }
+                indicator = false;
+            }
+            ' ' | '\t' => {
+                if indicator {
+                    value_start = true;
+                    indicator = false;
+                }
+            }
+            '#' if previous.is_whitespace() => {
+                while chars.peek().is_some_and(|&next| next != '\n') {
+                    chars.next();
+                }
+            }
+            '\'' | '"' if value_start => {
+                quote = Some(c);
+                value_start = false;
+            }
+            '[' | '{' if depth > 0 || value_start => {
+                depth += 1;
+                deepest = deepest.max(depth);
+                value_start = true;
+            }
+            ']' | '}' if depth > 0 => {
+                depth -= 1;
+                value_start = false;
+            }
+            ',' if depth > 0 => value_start = true,
+            ':' => indicator = true,
+            '-' | '?' if value_start => indicator = true,
+            _ => {
+                value_start = false;
+                indicator = false;
+            }
+        }
+        previous = c;
+    }
+    deepest
+}
+
+/// The YAML read into a definition, without any of the checks: a file whose stages or dependencies are wrong can still be
+/// opened and fixed in the builder.
+pub fn read_pipeline_definition(yaml: &str) -> Result<PipelineDefinition, PipelineDefinitionError> {
+    if flow_nesting(yaml) > MAX_FLOW_NESTING {
+        return Err(PipelineDefinitionError::InvalidYaml(format!(
+            "lists and maps are nested more than {MAX_FLOW_NESTING} levels deep"
+        )));
+    }
+    serde_yaml_ng::from_str(yaml).map_err(|e| PipelineDefinitionError::InvalidYaml(e.to_string()))
+}
+
+pub fn parse_pipeline_definition(
+    yaml: &str,
+) -> Result<PipelineDefinition, PipelineDefinitionError> {
+    let definition = read_pipeline_definition(yaml)?;
+    match check_pipeline_definition(&definition).into_iter().next() {
+        Some(problem) => Err(problem),
+        None => Ok(definition),
+    }
+}
+
+/// Things the server accepts but that are very likely a mistake, shown next to the problems and never blocking.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum PipelineDefinitionWarning {
+    EmptyImage { job: String },
+    EmptyScript { job: String },
+    DuplicateStage { stage: String },
+}
+
+pub fn pipeline_definition_warnings(
+    definition: &PipelineDefinition,
+) -> Vec<PipelineDefinitionWarning> {
+    let mut warnings = Vec::new();
+    for (index, stage) in definition.stages.iter().enumerate() {
+        if definition.stages[..index].contains(stage)
+            && !warnings.contains(&PipelineDefinitionWarning::DuplicateStage {
+                stage: stage.clone(),
+            })
+        {
+            warnings.push(PipelineDefinitionWarning::DuplicateStage {
+                stage: stage.clone(),
+            });
+        }
+    }
+    for (name, job) in &definition.jobs {
+        if job.image.trim().is_empty() {
+            warnings.push(PipelineDefinitionWarning::EmptyImage { job: name.clone() });
+        }
+        if job.script.iter().all(|line| line.trim().is_empty()) {
+            warnings.push(PipelineDefinitionWarning::EmptyScript { job: name.clone() });
+        }
+    }
+    warnings
+}
+
+/// The definition as YAML, jobs grouped by stage in the order of `stages` and by name inside a stage, with the empty
+/// optional fields left out. Comments, anchors and formatting of an earlier file are not kept: only what the parser
+/// reads is written.
+pub fn render_pipeline_definition(
+    definition: &PipelineDefinition,
+) -> Result<String, PipelineDefinitionError> {
+    let invalid = |e: serde_yaml_ng::Error| PipelineDefinitionError::InvalidYaml(e.to_string());
+    let stage_rank = |stage: &str| {
+        definition
+            .stages
+            .iter()
+            .position(|s| s == stage)
+            .unwrap_or(usize::MAX)
+    };
+    let mut names: Vec<&String> = definition.jobs.keys().collect();
+    names.sort_by_key(|name| (stage_rank(&definition.jobs[*name].stage), name.as_str()));
+
+    let mut jobs = serde_yaml_ng::Mapping::new();
+    for name in names {
+        jobs.insert(
+            serde_yaml_ng::Value::String(name.clone()),
+            serde_yaml_ng::to_value(&definition.jobs[name]).map_err(invalid)?,
+        );
+    }
+    let mut root = serde_yaml_ng::Mapping::new();
+    root.insert(
+        serde_yaml_ng::Value::String("stages".to_string()),
+        serde_yaml_ng::to_value(&definition.stages).map_err(invalid)?,
+    );
+    root.insert(
+        serde_yaml_ng::Value::String("jobs".to_string()),
+        serde_yaml_ng::Value::Mapping(jobs),
+    );
+    serde_yaml_ng::to_string(&serde_yaml_ng::Value::Mapping(root)).map_err(invalid)
+}
+
+const TOP_LEVEL_FIELDS: [&str; 2] = ["stages", "jobs"];
+const JOB_FIELDS: [&str; 7] = [
+    "stage",
+    "image",
+    "script",
+    "variables",
+    "needs",
+    "tags",
+    "cache",
+];
+
+/// The fields of a pipeline file that the parser does not read (`jobs.build.when`, `include`...), as dotted paths. A
+/// builder that rewrites the file would drop them, so it has to say so first. Empty when the YAML does not parse.
+pub fn ignored_pipeline_fields(yaml: &str) -> Vec<String> {
+    if flow_nesting(yaml) > MAX_FLOW_NESTING {
+        return Vec::new();
+    }
+    let Ok(serde_yaml_ng::Value::Mapping(root)) = serde_yaml_ng::from_str(yaml) else {
+        return Vec::new();
+    };
+    let key_name = |key: &serde_yaml_ng::Value| key.as_str().unwrap_or("?").to_string();
+    let mut ignored = Vec::new();
+    for (key, value) in &root {
+        let name = key_name(key);
+        if !TOP_LEVEL_FIELDS.contains(&name.as_str()) {
+            ignored.push(name);
+        } else if name == "jobs"
+            && let serde_yaml_ng::Value::Mapping(jobs) = value
+        {
+            for (job_key, job) in jobs {
+                if let serde_yaml_ng::Value::Mapping(fields) = job {
+                    for field in fields.keys() {
+                        let field = key_name(field);
+                        if !JOB_FIELDS.contains(&field.as_str()) {
+                            ignored.push(format!("jobs.{}.{field}", key_name(job_key)));
+                        }
+                    }
+                }
+            }
+        }
+    }
+    ignored
+}
+
+/// Whether the file has YAML comments, which a rewrite would lose. It leans towards saying yes: a quoted ` #` is
+/// reported too, and a false alarm costs a warning where a miss would cost a comment.
+pub fn has_yaml_comments(yaml: &str) -> bool {
+    yaml.lines()
+        .any(|line| line.trim_start().starts_with('#') || line.contains(" #"))
 }
 
 #[cfg(test)]
@@ -443,8 +674,12 @@ jobs:
     fn the_repositorys_own_ci_file_is_a_valid_pipeline_definition() {
         let definition =
             parse_pipeline_definition(include_str!("../../../.ferrisgit-ci.yml")).unwrap();
-        assert_eq!(definition.stages, vec!["prepare", "check", "report"]);
-        assert_eq!(definition.jobs.len(), 5);
+        assert_eq!(definition.stages, vec!["check", "test", "build"]);
+        assert_eq!(definition.jobs.len(), 10);
+        assert_eq!(
+            definition.jobs["rust-test"].needs,
+            vec!["rust-format", "rust-clippy"]
+        );
     }
 
     #[test]
@@ -462,6 +697,285 @@ jobs:
         assert_eq!(
             definition.jobs["compile"].cache,
             vec!["cargo-registry-v2".to_string(), "target-dir".to_string()]
+        );
+    }
+
+    fn job(stage: &str, needs: &[&str]) -> JobDefinition {
+        JobDefinition {
+            stage: stage.to_string(),
+            image: "rust:1".to_string(),
+            script: vec!["cargo build".to_string()],
+            variables: BTreeMap::new(),
+            needs: needs.iter().map(|n| n.to_string()).collect(),
+            tags: Vec::new(),
+            cache: Vec::new(),
+        }
+    }
+
+    fn definition(stages: &[&str], jobs: Vec<(&str, JobDefinition)>) -> PipelineDefinition {
+        PipelineDefinition {
+            stages: stages.iter().map(|s| s.to_string()).collect(),
+            jobs: jobs.into_iter().map(|(n, j)| (n.to_string(), j)).collect(),
+        }
+    }
+
+    #[test]
+    fn check_reports_every_problem_and_the_parser_keeps_reporting_the_first() {
+        let broken = definition(
+            &["build", "test"],
+            vec![
+                ("a", job("nowhere", &[])),
+                ("b", job("build", &["ghost"])),
+                (
+                    "c",
+                    JobDefinition {
+                        cache: vec!["Bad Key".to_string()],
+                        ..job("build", &["d"])
+                    },
+                ),
+                ("d", job("test", &[])),
+            ],
+        );
+
+        let problems = check_pipeline_definition(&broken);
+
+        assert_eq!(
+            problems,
+            vec![
+                PipelineDefinitionError::UnknownStage {
+                    job: "a".into(),
+                    stage: "nowhere".into()
+                },
+                PipelineDefinitionError::UnknownDependency {
+                    job: "b".into(),
+                    dependency: "ghost".into()
+                },
+                PipelineDefinitionError::NeedsMustPrecedeOwnStage {
+                    job: "c".into(),
+                    dependency: "d".into()
+                },
+                PipelineDefinitionError::InvalidCacheKey {
+                    job: "c".into(),
+                    key: "Bad Key".into()
+                },
+            ],
+            "in the order the parser would meet them, and no cycle search while a dependency is missing"
+        );
+        let yaml = render_pipeline_definition(&broken).unwrap();
+        assert_eq!(parse_pipeline_definition(&yaml), Err(problems[0].clone()));
+    }
+
+    #[test]
+    fn check_reports_a_cycle_once_the_dependencies_exist() {
+        let cyclic = definition(
+            &["build"],
+            vec![("a", job("build", &["b"])), ("b", job("build", &["a"]))],
+        );
+
+        let problems = check_pipeline_definition(&cyclic);
+
+        assert_eq!(
+            problems,
+            vec![PipelineDefinitionError::NeedsCycle {
+                jobs: vec!["a".into(), "b".into()]
+            }]
+        );
+    }
+
+    #[test]
+    fn an_undeclared_stage_of_a_dependency_is_reported_once() {
+        let d = definition(
+            &["build"],
+            vec![("a", job("build", &["b"])), ("b", job("nowhere", &[]))],
+        );
+
+        let problems = check_pipeline_definition(&d);
+
+        assert_eq!(
+            problems,
+            vec![PipelineDefinitionError::UnknownStage {
+                job: "b".into(),
+                stage: "nowhere".into()
+            }]
+        );
+    }
+
+    #[test]
+    fn check_accepts_a_valid_definition() {
+        let d = definition(
+            &["build", "test"],
+            vec![("a", job("build", &[])), ("b", job("test", &["a"]))],
+        );
+
+        assert!(check_pipeline_definition(&d).is_empty());
+    }
+
+    #[test]
+    fn rendering_groups_jobs_by_stage_then_name_and_leaves_empty_fields_out() {
+        let d = definition(
+            &["build", "test"],
+            vec![
+                ("zeta", job("build", &[])),
+                ("alpha", job("test", &["zeta"])),
+                ("beta", job("build", &[])),
+            ],
+        );
+
+        let yaml = render_pipeline_definition(&d).unwrap();
+
+        assert_eq!(
+            yaml,
+            "stages:\n- build\n- test\njobs:\n  beta:\n    stage: build\n    image: rust:1\n    script:\n    - cargo build\n  zeta:\n    stage: build\n    image: rust:1\n    script:\n    - cargo build\n  alpha:\n    stage: test\n    image: rust:1\n    script:\n    - cargo build\n    needs:\n    - zeta\n"
+        );
+        assert!(!yaml.contains("variables") && !yaml.contains("tags") && !yaml.contains("cache"));
+    }
+
+    #[test]
+    fn what_is_rendered_parses_back_to_the_same_definition() {
+        let mut tricky = job("build", &[]);
+        tricky.script = vec![
+            "echo \"a: b # not a comment\"".to_string(),
+            "- starts with a dash".to_string(),
+            "true".to_string(),
+            "multi word | pipe > redirect".to_string(),
+        ];
+        tricky.variables.insert("PLAIN".into(), "yes".into());
+        tricky.variables.insert("NUMBER".into(), "007".into());
+        tricky.tags = vec!["docker".into()];
+        tricky.cache = vec!["cargo-registry".into()];
+        let d = definition(&["build"], vec![("tricky", tricky)]);
+
+        let yaml = render_pipeline_definition(&d).unwrap();
+
+        assert_eq!(parse_pipeline_definition(&yaml).unwrap(), d, "{yaml}");
+    }
+
+    #[test]
+    fn the_repositorys_own_ci_file_survives_a_render() {
+        let original =
+            parse_pipeline_definition(include_str!("../../../.ferrisgit-ci.yml")).unwrap();
+
+        let yaml = render_pipeline_definition(&original).unwrap();
+
+        assert_eq!(parse_pipeline_definition(&yaml).unwrap(), original);
+        assert_eq!(
+            render_pipeline_definition(&parse_pipeline_definition(&yaml).unwrap()).unwrap(),
+            yaml,
+            "rendering is stable"
+        );
+    }
+
+    #[test]
+    fn warnings_flag_an_empty_image_an_empty_script_and_a_repeated_stage() {
+        let mut blank = job("build", &[]);
+        blank.image = "  ".to_string();
+        blank.script = vec![String::new(), "  ".to_string()];
+        let d = definition(&["build", "test", "build"], vec![("blank", blank)]);
+
+        let warnings = pipeline_definition_warnings(&d);
+
+        assert_eq!(
+            warnings,
+            vec![
+                PipelineDefinitionWarning::DuplicateStage {
+                    stage: "build".into()
+                },
+                PipelineDefinitionWarning::EmptyImage {
+                    job: "blank".into()
+                },
+                PipelineDefinitionWarning::EmptyScript {
+                    job: "blank".into()
+                },
+            ]
+        );
+        assert!(
+            pipeline_definition_warnings(&definition(&["a"], vec![("ok", job("a", &[]))]))
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn fields_the_parser_does_not_read_are_listed_by_path() {
+        let yaml = r#"
+include: other.yml
+stages: [build]
+jobs:
+  compile:
+    stage: build
+    image: rust:1
+    script: [cargo build]
+    when: manual
+    retry: 2
+"#;
+
+        assert_eq!(
+            ignored_pipeline_fields(yaml),
+            vec![
+                "include".to_string(),
+                "jobs.compile.when".to_string(),
+                "jobs.compile.retry".to_string()
+            ]
+        );
+        assert!(ignored_pipeline_fields(include_str!("../../../.ferrisgit-ci.yml")).is_empty());
+        assert!(ignored_pipeline_fields("not: [valid").is_empty());
+    }
+
+    #[test]
+    fn comments_are_noticed_when_they_start_a_line_or_follow_a_value() {
+        assert!(has_yaml_comments("# build\nstages: [a]"));
+        assert!(has_yaml_comments("stages: [a] # the only one"));
+        assert!(has_yaml_comments("jobs:\n    # indented\n  a: {}"));
+        assert!(!has_yaml_comments(
+            "stages: [a]\njobs:\n  a:\n    image: rust:1#2"
+        ));
+    }
+
+    #[test]
+    fn measures_the_nesting_of_lists_and_maps_and_nothing_else() {
+        assert_eq!(
+            flow_nesting("stages: [build, test]\njobs: {a: {b: [1]}}\n"),
+            3
+        );
+        // Brackets in quoted strings, comments and commands are not nesting.
+        assert_eq!(
+            flow_nesting(
+                "script:\n  - echo [x] {y}\n  - 'a [[[ b'\n  - \"c {{{ \\\" d\"\n# [[[[\n"
+            ),
+            0
+        );
+        assert_eq!(flow_nesting("a: 'it''s [' \nb: [[1]]\n"), 2);
+    }
+
+    #[test]
+    fn cannot_be_fooled_by_closing_brackets_hidden_in_strings() {
+        let yaml = format!("stages: {}x\n", "[\"]\", ".repeat(100));
+        assert_eq!(flow_nesting(&yaml), 100);
+    }
+
+    #[test]
+    fn refuses_nesting_deeper_than_any_pipeline_before_parsing_it() {
+        let deep = format!(
+            "stages: {}x{}\njobs: {{}}\n",
+            "[".repeat(100_000),
+            "]".repeat(100_000)
+        );
+        let started = std::time::Instant::now();
+
+        let refused = read_pipeline_definition(&deep);
+
+        assert!(
+            matches!(refused, Err(PipelineDefinitionError::InvalidYaml(message)) if message.contains("nested more than 64"))
+        );
+        assert!(started.elapsed() < std::time::Duration::from_secs(1));
+        assert!(ignored_pipeline_fields(&deep).is_empty());
+        let fine = format!(
+            "stages: [build]\njobs:\n  a:\n    stage: build\n    image: x\n    script: [{}1{}]\n",
+            "[".repeat(10),
+            "]".repeat(10)
+        );
+        assert!(
+            read_pipeline_definition(&fine)
+                .is_err_and(|error| !error.to_string().contains("nested"))
         );
     }
 }

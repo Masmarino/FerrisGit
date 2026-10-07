@@ -1,24 +1,24 @@
 # Dépannage
 
-Cette page suit les symptômes : un pipeline n'apparaît pas, un job reste en attente, un job échoue, un cache manque, un runner ou Kubernetes ne répond pas. Les messages cités sont ceux du code ; beaucoup ne sont visibles que dans les journaux du serveur ou du runner, c'est précisé à chaque fois.
+Cette page suit les symptômes : une pipeline n'apparaît pas, un job reste en attente, un job échoue, un cache manque, un runner ou Kubernetes ne répond pas. Les messages cités sont ceux du code ; beaucoup ne sont visibles que dans les journaux du serveur ou du runner, c'est précisé à chaque fois.
 
 > **Note** : les journaux du serveur sont ceux du conteneur ou du processus `ferrisgit-api` (par exemple `docker compose logs ferrisgit-server`, ou `kubectl logs` sur le Pod du serveur). Les erreurs de création de pipeline sont au niveau `ERROR`.
 
-## Aucun pipeline n'apparaît après un push
+## Aucune pipeline n'apparaît après un push
 
-Le push réussit toujours, même quand aucun pipeline n'est créé. Vérifiez dans l'ordre :
+Le push réussit toujours, même quand aucune pipeline n'est créée. Vérifiez dans l'ordre :
 
 1. **La CI est-elle activée ?** **Réglages > Pipeline > CI activée pour ce dépôt** (rôle Mainteneur).
 2. **Le fichier existe-t-il où FerrisGit le cherche ?** Par défaut `.ferrisgit-ci.yml` à la racine ; le chemin se règle dans **Chemin du fichier pipeline**. Un fichier absent ne produit aucun message.
 3. **Le fichier est-il présent sur le commit lu ?** FerrisGit lit le fichier sur le commit de `HEAD` (la branche par défaut du dépôt), pas sur la branche que vous venez de pousser. Un fichier ajouté seulement sur une branche de travail n'est pas vu avant la fusion.
-4. **Le fichier est-il valide ?** Un fichier invalide donne un pipeline **Échoué** visible dans la liste, pas une absence de pipeline : voir la section suivante.
+4. **Le fichier est-il valide ?** Un fichier invalide donne une pipeline **Échouée** visible dans la liste, pas une absence de pipeline : voir la section suivante.
 5. Le push visait-il le wiki du dépôt ? Un push vers un wiki ne déclenche rien.
 
 ## Le fichier est invalide
 
-Un fichier de pipeline présent mais invalide ne bloque pas le push : FerrisGit crée un pipeline **Échoué**, sans job, rattaché au commit. Ouvrez-le dans **Pipelines** : la liste le marque « Fichier de pipeline invalide », et son détail affiche l'encadré **Fichier de pipeline invalide** avec le message de l'analyseur, en police à chasse fixe. Vous êtes aussi notifié comme pour tout pipeline échoué. L'erreur n'apparaît pas dans la sortie de `git push`, qui ne la connaît pas : elle est écrite dans l'interface (et renvoyée par l'API dans le champ `error`, voir [Pipelines et runners (API)](/docs/api/ci-cd)).
+Un fichier de pipeline présent mais invalide ne bloque pas le push : FerrisGit crée une pipeline **Échouée**, sans job, rattachée au commit. Ouvrez-la dans **Pipelines** : la liste la marque « Fichier de pipeline invalide », et son détail affiche l'encadré **Fichier de pipeline invalide** avec le message de l'analyseur, en police à chasse fixe. Vous êtes aussi notifié comme pour toute pipeline échouée. L'erreur n'apparaît pas dans la sortie de `git push`, qui ne la connaît pas : elle est écrite dans l'interface (et renvoyée par l'API dans le champ `error`, voir [Pipelines et runners (API)](/docs/api/ci-cd)).
 
-Corrigez le fichier et poussez à nouveau : un nouveau pipeline est créé. Les messages possibles et leur remède :
+Corrigez le fichier et poussez à nouveau : une nouvelle pipeline est créée. Les messages possibles et leur remède :
 
 | Message | Cause et remède |
 |---|---|
@@ -32,11 +32,11 @@ Corrigez le fichier et poussez à nouveau : un nouveau pipeline est créé. Les 
 
 FerrisGit n'a pas d'outil de vérification séparé : relisez le fichier avec [la référence](/docs/ci-cd/reference-yaml#erreurs-de-validation) avant de pousser. Seule la première erreur est rapportée à chaque fois.
 
-Le pipeline de la fusion d'une demande de fusion se comporte de la même façon : il apparaît **Échoué** avec son message.
+La pipeline de la fusion d'une demande de fusion se comporte de la même façon : elle apparaît **Échouée** avec son message.
 
-## Le pipeline reste « En attente » ou un job ne démarre pas
+## La pipeline reste « En attente » ou un job ne démarre pas
 
-Un pipeline est **En attente** jusqu'à ce que son premier job démarre, puis **En cours**. Un pipeline qui reste **En attente** n'a donc encore démarré aucun job : regardez l'état des jobs. Un job **En attente** peut avoir plusieurs causes.
+Une pipeline est **En attente** jusqu'à ce que son premier job démarre, puis **En cours**. Une pipeline qui reste **En attente** n'a donc encore démarré aucun job : regardez l'état des jobs. Un job **En attente** peut avoir plusieurs causes.
 
 ### Aucun runner ne convient (runners Docker)
 
@@ -50,12 +50,12 @@ Un pipeline est **En attente** jusqu'à ce que son premier job démarre, puis **
 
 - Un job avec `needs` attend que tous les jobs listés soient **Réussis**.
 - Un job sans `needs` placé après la première étape attend que **tous** les jobs de **toutes** les étapes précédentes soient **Réussis**. Un job d'une étape ultérieure qui reste **En attente** alors que ses voisins ont démarré attend donc probablement un job lent ou en attente d'un runner à une étape précédente.
-- Si un job dont il dépend échoue, il passe à **Ignoré** : il ne restera pas en attente, et le pipeline se termine **Échoué**.
-- Les cycles dans `needs` (deux jobs qui s'attendent mutuellement, ou un job qui se déclare lui-même) sont refusés à la création : le pipeline est alors un pipeline invalide, voir [Le fichier est invalide](#le-fichier-est-invalide).
+- Si un job dont il dépend échoue, il passe à **Ignoré** : il ne restera pas en attente, et la pipeline se termine **Échouée**.
+- Les cycles dans `needs` (deux jobs qui s'attendent mutuellement, ou un job qui se déclare lui-même) sont refusés à la création : la pipeline est alors une pipeline invalide, voir [Le fichier est invalide](#le-fichier-est-invalide).
 
-### Un pipeline sans job
+### Une pipeline sans job
 
-Un pipeline dont `jobs` est vide n'a rien à exécuter et reste **En attente**.
+Une pipeline dont `jobs` est vide n'a rien à exécuter et reste **En attente**.
 
 ## Un job échoue
 
@@ -112,8 +112,8 @@ Autres messages du runner :
 
 FerrisGit n'applique aucun délai. Les causes :
 
-- **Runner arrêté ou redémarré en plein job** : le job n'est pas repris. Annulez le pipeline, ou révoquez le runner (`DELETE /api/admin/runners/{id}`) : ses jobs en cours repassent alors à **En attente** et un autre runner les prend.
-- **Script qui ne rend jamais la main** : annulez le pipeline. Avec les runners Docker, le conteneur n'est pas arrêté pour autant : arrêtez-le sur la machine du runner (`docker ps`, `docker stop`).
+- **Runner arrêté ou redémarré en plein job** : le job n'est pas repris. Annulez la pipeline, ou révoquez le runner (`DELETE /api/admin/runners/{id}`) : ses jobs en cours repassent alors à **En attente** et un autre runner les prend.
+- **Script qui ne rend jamais la main** : annulez la pipeline. Avec les runners Docker, le conteneur n'est pas arrêté pour autant : arrêtez-le sur la machine du runner (`docker ps`, `docker stop`).
 - **Variables CI illisibles** : si `SETTINGS_ENCRYPTION_KEY` a été changée, la lecture des variables du dépôt échoue au moment de confier le job au runner, qui reçoit une erreur du serveur alors que le job est déjà marqué **En cours**. Remettez l'ancienne clé, ou recréez les variables.
 
 ## Kubernetes
@@ -137,7 +137,7 @@ Les causes courantes sont visibles dans `describe` :
 - `Pending` avec `Unschedulable` : pas de nœud avec assez de ressources ;
 - `Pending` à cause d'un volume : la PVC de cache ne se lie pas (la `StorageClass` ne fournit pas `ReadWriteMany`, ou n'existe pas).
 
-Annulez le pipeline : le Pod est alors supprimé. Corrigez la cause, puis poussez à nouveau.
+Annulez la pipeline : le Pod est alors supprimé. Corrigez la cause, puis poussez à nouveau.
 
 ### Quota de Pods ou refus du cluster
 
@@ -148,7 +148,7 @@ ERROR failed to submit job to execution engine; marking it failed
 ERROR failed to submit newly-runnable job to execution engine; marking it failed
 ```
 
-(le premier pour un job sans `needs`, créé avec le pipeline ; le second pour un job lancé plus tard), suivie du message de l'API Kubernetes. Vérifiez :
+(le premier pour un job sans `needs`, créé avec la pipeline ; le second pour un job lancé plus tard), suivie du message de l'API Kubernetes. Vérifiez :
 
 ```bash
 kubectl get resourcequota -n <namespace>

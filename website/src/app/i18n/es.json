@@ -675,7 +675,8 @@
         "items": {
           "i1": "Agentes de IA en un repositorio. Posibilidades: un asistente de revisión en las solicitudes de fusión, resúmenes de solicitudes de fusión y de commits, la explicación de por qué falló un pipeline, triaje y etiquetado de incidencias. Lo que se publique debe encajar en una plataforma autoalojada: un endpoint de modelo que elige el administrador (también uno local), activación repositorio por repositorio, credenciales de alcance limitado y cada acción registrada.",
           "i2": "Un gráfico de commits en la vista del repositorio: ramas, fusiones y etiquetas dibujadas juntas, junto al árbol de archivos y a la lista de commits que ya existen.",
-          "i3": "Fotos de perfil, guardadas en almacenamiento de objetos compatible con S3. Las iniciales quedan como alternativa, y ese mismo almacenamiento podría guardar más adelante los archivos de las releases y los artefactos de los pipelines."
+          "i3": "Fotos de perfil, guardadas en almacenamiento de objetos compatible con S3. Las iniciales quedan como alternativa, y ese mismo almacenamiento podría guardar más adelante los archivos de las releases y los artefactos de los pipelines.",
+          "i4": "Un constructor de pipelines sin código: ensamblar una pipeline arrastrando y soltando etapas y trabajos en la interfaz, sin escribir YAML. `.ferrisgit-ci.yml` seguiría siendo la fuente de verdad: el constructor lo lee y lo escribe, de modo que una pipeline dibujada en la interfaz también se puede editar a mano, y al revés, y un cambio se confirma como cualquier otro (una rama y una solicitud de fusión). Usaría el analizador del propio servidor, para que el error aparezca donde se comete. Posibilidades: las dependencias (`needs`) trazadas como enlaces entre trabajos, una biblioteca de trabajos listos para usar, y las variables y cachés de un trabajo."
         }
       }
     },

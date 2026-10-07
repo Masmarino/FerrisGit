@@ -11,7 +11,7 @@ Un administrateur ouvre **Admin > Réglages**, section **Exécution** :
 - carte **Moteur d'exécution** : choisissez **Kubernetes** (l'autre choix est **Docker / runners**). Chaque réglage est enregistré dès que vous le modifiez ;
 - carte **Kubernetes** : **Namespace Kubernetes** et **StorageClass pour le cache (RWX requis)**.
 
-Le changement de moteur s'applique aux prochains pipelines. Un pipeline garde le moteur avec lequel il a été créé, même si vous rebasculez ensuite ; ses jobs en attente sont lancés par ce moteur-là. Quand le moteur actif n'est pas Docker, l'entrée **Runners** disparaît du menu.
+Le changement de moteur s'applique aux prochaines pipelines. Une pipeline garde le moteur avec lequel elle a été créée, même si vous rebasculez ensuite ; ses jobs en attente sont lancés par ce moteur-là. Quand le moteur actif n'est pas Docker, l'entrée **Runners** disparaît du menu.
 
 ## Accès au cluster
 
@@ -112,7 +112,7 @@ FerrisGit lit les journaux du Pod une fois, quand il est terminé (`Succeeded` o
 ## Nettoyage
 
 - Quand un Pod est terminé, FerrisGit récupère ses journaux, enregistre le résultat, puis supprime le Pod.
-- Annuler un job ou un pipeline supprime immédiatement son Pod.
+- Annuler un job ou une pipeline supprime immédiatement son Pod.
 - Les PVC de cache ne sont jamais supprimées par FerrisGit : voir [Caches](/docs/ci-cd/caches#invalidation).
 
 Un Pod terminé dont la suppression échoue est laissé dans le cluster (avertissement dans les journaux du serveur) : cherchez les Pods `ferrisgit-job-*` avec `kubectl get pods -n <namespace>`.
@@ -124,6 +124,6 @@ Un Pod terminé dont la suppression échoue est laissé dans le cluster (avertis
 - **`tags` ignoré.** Les étiquettes n'ont d'effet qu'avec les runners Docker.
 - **Journaux à la fin seulement**, sans masquage.
 - **Pas de délai maximal.** Un Pod qui n'atteint jamais l'état terminal (non planifiable, image introuvable en `ImagePullBackOff`, volume qui ne peut pas être lié) laisse son job **En cours** indéfiniment. Si vous supprimez un Pod à la main pendant qu'il s'exécute, FerrisGit ne s'en aperçoit pas non plus.
-- **Pas de plafond de jobs simultanés** : le réglage **Jobs simultanés (runners Docker)** de **Admin > Réglages > Exécution** ne s'applique qu'aux runners Docker. FerrisGit crée un Pod pour chaque job dès qu'il est prêt, sans limite : ce plafond ne retient pas les jobs d'un pipeline Kubernetes.
+- **Pas de plafond de jobs simultanés** : le réglage **Jobs simultanés (runners Docker)** de **Admin > Réglages > Exécution** ne s'applique qu'aux runners Docker. FerrisGit crée un Pod pour chaque job dès qu'il est prêt, sans limite : ce plafond ne retient pas les jobs d'une pipeline Kubernetes.
 - **Un seul namespace**, lu au démarrage pour la surveillance.
 - **Une PVC `ReadWriteMany`** par clé de cache : la `StorageClass` doit le permettre. Voir [Caches](/docs/ci-cd/caches).

@@ -18,7 +18,7 @@ Côté technique, c'est un seul binaire Rust qui sert à la fois l'interface web
 | Brancher d'autres outils | Webhooks signés | [Webhooks](/docs/utilisation/webhooks) |
 | Rester informé | Notifications dans l'application, recherche | [Notifications et recherche](/docs/utilisation/notifications-et-recherche) |
 | Ouvrir un projet | Pages publiques lisibles sans compte | [Pages publiques](/docs/utilisation/pages-publiques) |
-| Automatiser | Pipelines décrits dans `.ferrisgit-ci.yml`, exécutés par des runners Docker ou dans des Pods Kubernetes | [Premiers pas CI/CD](/docs/ci-cd/premiers-pas) |
+| Automatiser | Pipelines décrites dans `.ferrisgit-ci.yml`, exécutées par des runners Docker ou dans des Pods Kubernetes | [Premiers pas CI/CD](/docs/ci-cd/premiers-pas) |
 
 L'écran **Accueil** regroupe ce qui vous attend (« À traiter ») et votre activité récente. Chaque dépôt a ses onglets : Aperçu, Pipelines, Demandes de fusion, Tickets, Releases, Wiki et, pour les propriétaires et Mainteneurs, Réglages.
 

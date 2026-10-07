@@ -124,7 +124,7 @@ export class PipelineDetail implements OnInit, OnDestroy {
       },
       error: () => {
         if (!this.destroyed && seq === this.requestSeq) {
-          this.toast.show('Impossible de charger ce pipeline. Réessayez plus tard.', 'error');
+          this.toast.show('Impossible de charger cette pipeline. Réessayez plus tard.', 'error');
         }
       },
     });
@@ -133,10 +133,10 @@ export class PipelineDetail implements OnInit, OnDestroy {
   cancel(): void {
     this.pipelines.cancel(this.pipelineId()).subscribe({
       next: () => {
-        this.toast.show('Pipeline annulé.');
+        this.toast.show('Pipeline annulée.');
         this.refresh();
       },
-      error: () => this.toast.show("Impossible d'annuler le pipeline.", 'error'),
+      error: () => this.toast.show("Impossible d'annuler la pipeline.", 'error'),
     });
   }
 }

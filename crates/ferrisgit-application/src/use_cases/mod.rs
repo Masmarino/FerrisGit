@@ -59,6 +59,8 @@ pub mod merge_merge_request;
 pub mod mfa;
 pub mod move_issue_status;
 pub mod passkeys;
+pub mod pipeline_definition_builder;
+pub mod pipeline_definition_proposal;
 pub mod public_pages;
 pub mod purge_expired_job_logs;
 pub mod record_metrics_snapshot;

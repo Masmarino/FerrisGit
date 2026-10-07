@@ -675,7 +675,8 @@
         "items": {
           "i1": "KI-Agenten für ein Repository. Denkbar sind: ein Review-Assistent für Merge Requests, Zusammenfassungen von Merge Requests und Commits, die Erklärung, warum eine Pipeline fehlgeschlagen ist, sowie Triage und Labeling von Issues. Was erscheint, muss zu einer selbst gehosteten Plattform passen: ein Modell-Endpunkt, den der Administrator wählt (auch ein lokaler), Aktivierung pro Repository, Zugangsdaten mit begrenztem Umfang und jede Aktion protokolliert.",
           "i2": "Ein Commit-Graph in der Repository-Ansicht: Branches, Merges und Tags gemeinsam gezeichnet, neben dem Dateibaum und der Commit-Liste, die es bereits gibt.",
-          "i3": "Profilfotos, gespeichert in S3-kompatiblem Objektspeicher. Die Initialen bleiben als Ersatz, und derselbe Speicher könnte später Release-Dateien und Pipeline-Artefakte aufnehmen."
+          "i3": "Profilfotos, gespeichert in S3-kompatiblem Objektspeicher. Die Initialen bleiben als Ersatz, und derselbe Speicher könnte später Release-Dateien und Pipeline-Artefakte aufnehmen.",
+          "i4": "Ein No-Code-Pipeline-Builder: eine Pipeline per Drag-and-drop aus Stages und Jobs in der Oberfläche zusammenstellen, ohne YAML zu schreiben. `.ferrisgit-ci.yml` bliebe die maßgebliche Quelle: Der Builder liest und schreibt diese Datei, sodass sich eine in der Oberfläche gezeichnete Pipeline auch von Hand bearbeiten lässt und umgekehrt, und eine Änderung wird wie jede andere committet (ein Branch und ein Merge Request). Er würde den Parser des Servers nutzen, damit ein Fehler dort angezeigt wird, wo er entsteht. Denkbar sind: Abhängigkeiten (`needs`) als Verbindungen zwischen Jobs, eine Bibliothek fertiger Jobs sowie die Variablen und Caches eines Job."
         }
       }
     },

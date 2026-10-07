@@ -675,7 +675,8 @@
         "items": {
           "i1": "Des agents d'IA sur un dépôt. Pistes : un assistant de relecture des demandes de fusion, des résumés de demandes de fusion et de commits, l'explication d'une pipeline en échec, le tri et l'étiquetage des tickets. Pour une plateforme auto-hébergée, ils utiliseraient un modèle choisi par l'administrateur (un modèle local compris), activé dépôt par dépôt, avec des identifiants limités et chaque action enregistrée.",
           "i2": "Un graphe des commits dans la vue d'un dépôt : branches, fusions et tags dessinés ensemble, à côté de l'arborescence et de la liste des commits qui existent déjà.",
-          "i3": "Des photos de profil, stockées sur un espace compatible S3. Les initiales restent en solution de repli, et le même stockage pourrait accueillir plus tard les fichiers de releases et les artefacts de pipeline."
+          "i3": "Des photos de profil, stockées sur un espace compatible S3. Les initiales restent en solution de repli, et le même stockage pourrait accueillir plus tard les fichiers de releases et les artefacts de pipeline.",
+          "i4": "Un constructeur de pipeline sans code : assembler une pipeline en glissant-déposant des étapes et des jobs dans l'interface, sans écrire de YAML. Le fichier `.ferrisgit-ci.yml` resterait la source de vérité : le constructeur le lit et l'écrit, de sorte qu'une pipeline dessinée dans l'interface se modifie aussi à la main, et inversement, et qu'une modification est commitée comme les autres (une branche et une demande de fusion). Il s'appuierait sur l'analyseur du serveur, pour que l'erreur s'affiche là où elle est faite. Pistes : les dépendances (`needs`) tracées comme des liens entre jobs, une bibliothèque de jobs prêts à l'emploi, et les variables et caches d'un job."
         }
       }
     },

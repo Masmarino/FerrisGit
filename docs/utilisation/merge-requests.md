@@ -85,7 +85,7 @@ Avec 0, aucune revue ne bloque, y compris une demande de changements. Le bouton 
 
 Le bouton **Fusionner** (page de la demande, ou menu de la ligne dans la liste) n'existe que pour les demandes ouvertes, et seulement pour les propriétaires et les Mainteneurs. FerrisGit n'a qu'une seule stratégie : un **commit de fusion** à deux parents, intitulé « Merge branch 'source' into cible », signé « FerrisGit ». Il n'y a pas d'option de squash, de rebase ni d'avance rapide. La branche source n'est pas supprimée.
 
-Après la fusion, la demande passe à **Fusionnée** et si l'intégration continue est activée sur le dépôt, un pipeline démarre sur le nouveau commit (voir [Premiers pas CI/CD](/docs/ci-cd/premiers-pas)).
+Après la fusion, la demande passe à **Fusionnée** et si l'intégration continue est activée sur le dépôt, une pipeline démarre sur le nouveau commit (voir [Premiers pas CI/CD](/docs/ci-cd/premiers-pas)).
 
 ### Conflits
 

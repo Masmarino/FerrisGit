@@ -90,7 +90,7 @@ export function deletionMessage(username: string, repositories: AdminUserReposit
     personal,
     "Les dépôts qu'il a créés dans un groupe seront conservés et vous seront réattribués.",
     'Ses demandes de fusion, ses commentaires sur les demandes de fusion et ses releases seront conservés et affichés comme « Utilisateur supprimé ».',
-    "Les tickets et les commentaires de tickets qu'il a rédigés, ses revues et les pipelines qu'il a déclenchés seront supprimés.",
+    "Les tickets et les commentaires de tickets qu'il a rédigés, ses revues et les pipelines qu'il a déclenchées seront supprimés.",
     'Cette action est irréversible.',
   ].join('\n');
 }

@@ -1,0 +1,34 @@
+@if (asking(); as tile) {
+  <fg-pipeline-tile-form [tile]="tile" [stage]="stage()" [secrets]="secrets()" (confirmed)="chosen.emit({ tile, values: $event })" (back)="asking.set(null)" />
+} @else {
+<p class="tile-picker__intro">
+  <span>Choisissez ce que le job doit faire : il arrive dans l'étape <strong>{{ stage() }}</strong> avec une image et des commandes prêtes, que vous réglerez ensuite.</span>
+  <fg-help-tip [help]="help.tiles" />
+</p>
+
+@for (section of sections(); track section.id) {
+  <section class="tile-picker__section" [attr.aria-labelledby]="'tile-section-' + section.id">
+    <h3 class="tile-picker__heading" [id]="'tile-section-' + section.id">{{ section.title }}</h3>
+    <p class="tile-picker__summary">{{ section.summary }}</p>
+    <ul class="tile-picker__tiles">
+      @for (tile of section.tiles; track tile.id) {
+        <li class="tile-picker__tile" [attr.data-tile]="tile.id">
+          <button type="button" class="tile-picker__choose" [disabled]="unavailable(tile)" (click)="choose(tile)">
+            <gbt-icon class="tile-picker__icon" [name]="tile.icon" aria-hidden="true" />
+            <span class="tile-picker__text">
+              <span class="tile-picker__title">{{ tile.title }}</span>
+              <span class="tile-picker__what">{{ tile.summary }}</span>
+              @if (unavailable(tile)) {
+                <gbt-badge variant="warning" icon="lock">Pas avec Kubernetes : les secrets n'y sont pas transmis</gbt-badge>
+              } @else if (missing(tile).length > 0) {
+                <gbt-badge variant="warning" icon="key">Demande {{ missing(tile).join(', ') }}</gbt-badge>
+              }
+            </span>
+          </button>
+          <fg-help-tip class="tile-picker__help" [help]="{ title: tile.title, body: tile.help }" align="end" />
+        </li>
+      }
+    </ul>
+  </section>
+}
+}

@@ -31,9 +31,9 @@ const MERGE_REQUEST_STATUSES: Record<MergeRequestSummary['status'], StatusPresen
 const PIPELINE_STATUSES: Record<PipelineSummary['status'], StatusPresentation> = {
   pending: { label: 'En attente', variant: 'neutral', icon: 'clock' },
   running: { label: 'En cours', variant: 'info', icon: 'circle-play' },
-  success: { label: 'Réussi', variant: 'success', icon: 'circle-check' },
-  failed: { label: 'Échoué', variant: 'error', icon: 'circle-x' },
-  canceled: { label: 'Annulé', variant: 'neutral', icon: 'circle-slash' },
+  success: { label: 'Réussie', variant: 'success', icon: 'circle-check' },
+  failed: { label: 'Échouée', variant: 'error', icon: 'circle-x' },
+  canceled: { label: 'Annulée', variant: 'neutral', icon: 'circle-slash' },
 };
 
 const RELEASE_STATUSES: Record<ReleaseStatus, StatusPresentation> = {

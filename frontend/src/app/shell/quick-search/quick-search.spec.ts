@@ -155,6 +155,7 @@ describe('QuickSearch', () => {
       'Nouveau ticket',
       'Nouvelle demande de fusion',
       'Nouvelle page de wiki',
+      'Éditer la pipeline',
     ]);
   });
 

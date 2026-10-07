@@ -2,6 +2,7 @@ pub mod api_token;
 pub mod apply_suggestion_executor;
 pub mod audit;
 pub mod branch;
+pub mod branch_file_writer;
 pub mod diff;
 pub mod email;
 pub mod error;

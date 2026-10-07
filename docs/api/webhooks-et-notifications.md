@@ -16,7 +16,7 @@ Les webhooks et les notifications partagent la même liste de 12 types :
 | `collaborator_added` | Un collaborateur est ajouté. |
 | `collaborator_role_changed` | Le rôle d'un collaborateur change. |
 | `collaborator_removed` | Un collaborateur est retiré. |
-| `pipeline_failed` | Un pipeline échoue. |
+| `pipeline_failed` | Une pipeline échoue. |
 | `issue_assigned` | Un ticket est assigné. |
 | `issue_commented` | Un ticket reçoit un commentaire. |
 | `issue_closed` | Un ticket est fermé. |
@@ -124,7 +124,7 @@ Une notification a cette forme :
 }
 ```
 
-`kind` est l'un des types du tableau plus haut. Les champs qui ne concernent pas ce type valent `null` : `mergeRequest*` pour les demandes de fusion, `pipelineId` et `commitSha` pour un pipeline, `issue*` pour un ticket, `role` pour un changement de rôle de collaborateur. `actorUsername` est la personne à l'origine de l'événement (`null` pour un pipeline).
+`kind` est l'un des types du tableau plus haut. Les champs qui ne concernent pas ce type valent `null` : `mergeRequest*` pour les demandes de fusion, `pipelineId` et `commitSha` pour une pipeline, `issue*` pour un ticket, `role` pour un changement de rôle de collaborateur. `actorUsername` est la personne à l'origine de l'événement (`null` pour une pipeline).
 
 ### `GET /api/notifications`
 

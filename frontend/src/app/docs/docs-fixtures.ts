@@ -17,7 +17,7 @@ export const DOCS_INDEX: DocsIndex = {
       slug: 'ci-cd',
       title: 'CI/CD',
       pages: [
-        { slug: 'premiers-pas', title: 'Premiers pas', description: 'Lancer son premier pipeline.' },
+        { slug: 'premiers-pas', title: 'Premiers pas', description: 'Lancer sa première pipeline.' },
         { slug: 'reference-yaml', title: 'Référence de .ferrisgit-ci.yml', description: 'Toutes les clés du fichier de pipeline.' },
       ],
     },
@@ -99,7 +99,7 @@ Les variables d'environnement d'un job viennent de \`variables\` et des variable
 
 ## Cache
 
-Le cache conserve des fichiers d'un pipeline à l'autre.
+Le cache conserve des fichiers d'une pipeline à l'autre.
 `,
   'administration/installation': `# Installation
 
