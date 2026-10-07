@@ -4,6 +4,19 @@ Every notable change to FerrisGit. The format follows [Keep a Changelog](https:/
 versions follow [SemVer](https://semver.org/). Each section is the text of the GitHub release of the same number: see
 "Publishing a version" below.
 
+## [0.1.5] - 2026-10-07
+
+### Added
+
+- The application can be installed from Safari's "Ajouter au Dock", a phone's home screen or Chrome's "Installer", and
+  then opens in its own window. iOS shows the crab and the name FerrisGit instead of the first letter of the page title;
+  Android gets an icon it can crop to its own shape. The bars take the graphite of the shell's header in both themes.
+- FerrisGit is licensed under the Apache License 2.0 (`LICENSE`).
+
+### Fixed
+
+- The API documentation describes `POST /api/auth/logout-all` and the `createdAt` field of `GET /api/auth/me`.
+
 ## [0.1.4] - 2026-10-06
 
 ### Added
@@ -179,6 +192,7 @@ pages switches in `system_settings`). See "Upgrades" in the README.
 The CI/CD workflow builds and publishes the image, then creates the GitHub release `vX.Y.Z` with the text of the matching
 section. If the section is missing, only the release job fails (the image is not affected): add it, then rerun the job.
 
+[0.1.5]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.3
 [0.1.2]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.2

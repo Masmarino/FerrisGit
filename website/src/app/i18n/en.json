@@ -274,7 +274,7 @@
       "source": "Commands to run FerrisGit from its source code"
     },
     "notes": {
-      "compose": "Compose builds the image from the sources. To use the published image instead, replace `build: .` by `image: masmarino/ferrisgit:0.1.4` in `docker-compose.yml`.",
+      "compose": "Compose builds the image from the sources. To use the published image instead, replace `build: .` by `image: masmarino/ferrisgit:0.1.5` in `docker-compose.yml`.",
       "helm": "Left empty, the chart generates the database password, `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY` and the first administrator's password in the `ferrisgit-secrets` Secret. The release must be called `ferrisgit`.",
       "source": "Needs `rustup`, Node.js 26, Docker with Compose and `git` on the PATH. The script starts PostgreSQL, applies the migrations and runs the backend on port 8080 and the Angular dev server on port 4201."
     },

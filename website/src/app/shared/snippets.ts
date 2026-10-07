@@ -54,7 +54,7 @@ export const HELM_COMMANDS = `git clone https://github.com/Masmarino/FerrisGit.g
 cd FerrisGit
 helm upgrade --install ferrisgit ./helm/ferrisgit \\
   --namespace ferrisgit --create-namespace \\
-  --set image.tag=0.1.4 \\
+  --set image.tag=0.1.5 \\
   --set ingress.host=git.example.com \\
   --set-string ferrisgit.trustedProxyCidrs=10.42.0.0/16
 kubectl -n ferrisgit rollout status deployment/ferrisgit
