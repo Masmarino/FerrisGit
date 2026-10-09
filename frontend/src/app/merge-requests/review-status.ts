@@ -1,4 +1,5 @@
 import { ReviewSummary } from './merge-requests.service';
+import { t, tn } from '../shared/i18n/translator';
 
 export interface ReviewStatus {
   blocked: boolean;
@@ -14,12 +15,12 @@ export function reviewStatus(summary: ReviewSummary | null): ReviewStatus | null
   if (summary.blocked) {
     const changesRequested = summary.reviews.some((review) => !review.stale && review.decision === 'changes_requested');
     return changesRequested
-      ? { blocked: true, tone: 'warning', icon: 'alert-triangle', text: 'Des changements ont été demandés.' }
-      : { blocked: true, tone: 'info', icon: 'info', text: `${summary.liveApprovalCount}/${summary.requiredApprovals} approbations requises.` };
+      ? { blocked: true, tone: 'warning', icon: 'alert-triangle', text: t('mergeRequests.review.changesRequested') }
+      : { blocked: true, tone: 'info', icon: 'info', text: t('mergeRequests.review.required', { live: summary.liveApprovalCount, required: summary.requiredApprovals }) };
   }
   const approvals = summary.liveApprovalCount;
   if (approvals > 0) {
-    return { blocked: false, tone: 'success', icon: 'check', text: `${approvals} ${approvals === 1 ? 'approbation' : 'approbations'}` };
+    return { blocked: false, tone: 'success', icon: 'check', text: tn('mergeRequests.review.approvals', approvals) };
   }
-  return { blocked: false, tone: 'neutral', icon: 'message-circle', text: summary.reviews.length === 0 ? "Aucune revue pour l'instant." : 'Aucune approbation à jour.' };
+  return { blocked: false, tone: 'neutral', icon: 'message-circle', text: summary.reviews.length === 0 ? t('mergeRequests.review.none') : t('mergeRequests.review.noneCurrent') };
 }

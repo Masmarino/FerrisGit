@@ -9,11 +9,11 @@
         </span>
       </p>
     }
-    <gbt-segmented-control class="mr-timeline__filter" [options]="filterOptions" [(value)]="filter" ariaLabel="Filtrer la chronologie" />
+    <gbt-segmented-control class="mr-timeline__filter" [options]="filterOptions" [(value)]="filter" [ariaLabel]="'mergeRequests.timelineFilter' | transloco" />
   </div>
 
   @if (isEmpty()) {
-    <p class="mr-timeline__empty">Aucune activité pour l'instant.</p>
+    <p class="mr-timeline__empty">{{ 'mergeRequests.noActivity' | transloco }}</p>
   }
 
   <div class="mr-timeline__body">
@@ -21,7 +21,7 @@
       <ol class="mr-timeline">
         @if (showDescription()) {
           <li class="mr-timeline__item mr-timeline__item--card">
-            <fg-mr-comment-card [author]="author()" [createdAt]="mergeRequest().createdAt" [body]="mergeRequest().description" verb="a ouvert cette demande de fusion" badge="Auteur" />
+            <fg-mr-comment-card [author]="author()" [createdAt]="mergeRequest().createdAt" [body]="mergeRequest().description" [verb]="'mergeRequests.openedVerb' | transloco" [badge]="'common.author' | transloco" />
           </li>
         }
         @for (item of visibleItems(); track item.id) {
@@ -49,8 +49,8 @@
         <gbt-icon-marker class="mr-timeline__composer-marker" appearance="outline" icon="pencil" />
         <gbt-card variant="outlined" [flush]="true">
           <div class="mr-timeline__composer-card">
-            <gbt-textarea label="Ajouter un commentaire" placeholder="Écrire un commentaire…" [ngModel]="draft()" (ngModelChange)="draft.set($event)" />
-            <gbt-button class="comment-button" variant="secondary" size="small" text="Commenter" (clicked)="submitComment()" />
+            <gbt-textarea [label]="'common.addComment' | transloco" [placeholder]="'common.writeComment' | transloco" [ngModel]="draft()" (ngModelChange)="draft.set($event)" />
+            <gbt-button class="comment-button" variant="secondary" size="small" [text]="'common.comment' | transloco" (clicked)="submitComment()" />
           </div>
         </gbt-card>
       </div>

@@ -5,11 +5,12 @@ import { Button } from '@masmarino/gabarit/button';
 import { IconMarker } from '@masmarino/gabarit/icon-marker';
 import { ReviewSummary } from '../merge-requests.service';
 import { reviewStatus } from '../review-status';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
   selector: 'fg-mr-approvals-panel',
   standalone: true,
-  imports: [Alert, Avatar, Button, IconMarker],
+  imports: [TranslocoPipe, Alert, Avatar, Button, IconMarker],
   templateUrl: './mr-approvals-panel.html',
   styleUrl: './mr-approvals-panel.scss',
 })

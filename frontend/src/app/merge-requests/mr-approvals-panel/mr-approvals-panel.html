@@ -5,14 +5,14 @@
         <gbt-alert [variant]="blocked.variant">{{ blocked.text }}</gbt-alert>
       </div>
     }
-    <ul class="mr-approvals__reviews" aria-label="Revues">
+    <ul class="mr-approvals__reviews" [attr.aria-label]="'mergeRequests.reviews' | transloco">
       @for (review of summary()?.reviews ?? []; track review.userId) {
         <li class="mr-approvals__review" [class.mr-approvals__review--stale]="review.stale">
           <gbt-avatar class="mr-approvals__avatar" [name]="review.username" size="sm" aria-hidden="true" />
           <span class="mr-approvals__line">
             <strong>{{ review.username }}</strong> — {{ review.decision === 'approved' ? 'a approuvé' : 'a demandé des changements' }}
             @if (review.stale) {
-              <em>(obsolète — nouveau commit poussé)</em>
+              <em>{{ 'mergeRequests.stale' | transloco }}</em>
             }
           </span>
           <!-- The text already says the decision; the marker just repeats it. -->
@@ -26,13 +26,13 @@
           />
         </li>
       } @empty {
-        <li class="mr-approvals__empty">Aucune revue pour l'instant.</li>
+        <li class="mr-approvals__empty">{{ 'mergeRequests.review.none' | transloco }}</li>
       }
     </ul>
     @if (canWrite()) {
       <div class="mr-approvals__actions">
-        <gbt-button variant="secondary" size="small" iconName="check" text="Approuver" (clicked)="approve.emit()" />
-        <gbt-button variant="secondary" size="small" text="Demander des changements" (clicked)="requestChanges.emit()" />
+        <gbt-button variant="secondary" size="small" iconName="check" [text]="'mergeRequests.approve' | transloco" (clicked)="approve.emit()" />
+        <gbt-button variant="secondary" size="small" [text]="'mergeRequests.requestChanges' | transloco" (clicked)="requestChanges.emit()" />
       </div>
     }
   </div>

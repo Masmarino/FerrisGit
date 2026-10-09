@@ -11,11 +11,12 @@ import { Textarea } from '@masmarino/gabarit/textarea';
 import { Comment, ExcerptLine, TimelineThread } from '../merge-requests.service';
 import { shortSha } from '../../repositories/commit-format';
 import { authorName } from '../merge-request-presentation';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
   selector: 'fg-mr-thread-card',
   standalone: true,
-  imports: [FormsModule, Avatar, Badge, Button, Card, CardHeader, Icon, IconMarker, Textarea, GbtDateTimePipe, GbtRelativeTimePipe],
+  imports: [TranslocoPipe, FormsModule, Avatar, Badge, Button, Card, CardHeader, Icon, IconMarker, Textarea, GbtDateTimePipe, GbtRelativeTimePipe],
   templateUrl: './mr-thread-card.html',
   styleUrl: './mr-thread-card.scss',
 })

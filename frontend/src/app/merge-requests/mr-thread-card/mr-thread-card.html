@@ -2,14 +2,14 @@
   <div class="mr-thread-collapsed">
     <gbt-icon-marker class="mr-thread__marker" size="sm" appearance="outline" tone="success" icon="check" />
     <p class="mr-thread-collapsed__text">
-      <span>Discussion résolue</span>
+      <span>{{ 'mergeRequests.resolvedDiscussion' | transloco }}</span>
       @if (thread().resolvedBy; as resolvedBy) {
-        &ngsp;<span>par <strong class="mr-thread-collapsed__who">{{ resolvedBy.username }}</strong></span>
+        &ngsp;<span>{{ 'common.by' | transloco }} <strong class="mr-thread-collapsed__who">{{ resolvedBy.username }}</strong></span>
       }
       <span class="mr-thread-collapsed__sep" aria-hidden="true"> · </span>
       <code class="mr-thread__location">{{ location() }}</code>
     </p>
-    <gbt-button class="mr-thread-collapsed__toggle" variant="secondary" size="small" text="Afficher" [ariaLabel]="'Afficher la discussion sur ' + location()" (clicked)="toggleExpanded()" />
+    <gbt-button class="mr-thread-collapsed__toggle" variant="secondary" size="small" [text]="'common.show' | transloco" [ariaLabel]="'mergeRequests.showDiscussion' | transloco: { location: location() }" (clicked)="toggleExpanded()" />
   </div>
 } @else {
   <article class="mr-thread">
@@ -19,12 +19,12 @@
         <gbt-icon class="mr-thread__header-icon" name="message-circle" />
         <code class="mr-thread__location">{{ location() }}</code>
         @if (thread().resolved) {
-          <gbt-badge class="mr-thread__badge mr-thread__badge--resolved" variant="success">Résolue</gbt-badge>
+          <gbt-badge class="mr-thread__badge mr-thread__badge--resolved" variant="success">{{ 'mergeRequests.threadResolved' | transloco }}</gbt-badge>
         } @else {
-          <gbt-badge class="mr-thread__badge mr-thread__badge--open" variant="warning">Ouverte</gbt-badge>
+          <gbt-badge class="mr-thread__badge mr-thread__badge--open" variant="warning">{{ 'mergeRequests.threadOpen' | transloco }}</gbt-badge>
         }
         @if (thread().outdated) {
-          <gbt-badge class="mr-thread__badge mr-thread__badge--outdated">Périmée</gbt-badge>
+          <gbt-badge class="mr-thread__badge mr-thread__badge--outdated">{{ 'mergeRequests.outdated' | transloco }}</gbt-badge>
         }
         <time class="mr-thread__date" [attr.datetime]="thread().createdAt" [title]="thread().createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ thread().createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
         @if (thread().resolved) {
@@ -35,7 +35,7 @@
       </div>
 
       @if (thread().excerpt.length) {
-        <div class="mr-thread__excerpt" role="region" [attr.aria-label]="'Extrait de ' + location()" tabindex="0">
+        <div class="mr-thread__excerpt" role="region" [attr.aria-label]="'mergeRequests.excerptOf' | transloco: { location: location() }" tabindex="0">
           <table class="mr-thread__excerpt-table">
             <tbody>
               @for (line of thread().excerpt; track $index) {
@@ -62,14 +62,14 @@
             @if (first && comment.suggestedContent !== null) {
               <div class="mr-thread__suggestion-block">
                 <div class="mr-thread__suggestion-head">
-                  <span class="mr-thread__suggestion-title">Suggestion de modification</span>
+                  <span class="mr-thread__suggestion-title">{{ 'mergeRequests.suggestion' | transloco }}</span>
                   @if (comment.appliedAt !== null) {
                     <span class="mr-thread__applied">
                       <gbt-icon name="check" />
-                      <span>Suggestion appliquée dans <code class="mr-thread__sha">{{ shortSha(comment.appliedCommitSha ?? '') }}</code></span>
+                      <span>{{ 'mergeRequests.appliedIn' | transloco }} <code class="mr-thread__sha">{{ shortSha(comment.appliedCommitSha ?? '') }}</code></span>
                     </span>
                   } @else if (canWrite()) {
-                    <gbt-button variant="secondary" size="small" text="Appliquer la suggestion" (clicked)="applySuggestionClicked.emit({ commentId: comment.id })" />
+                    <gbt-button variant="secondary" size="small" [text]="'common.applySuggestion' | transloco" (clicked)="applySuggestionClicked.emit({ commentId: comment.id })" />
                   }
                 </div>
                 <pre class="mr-thread__suggestion">{{ comment.suggestedContent }}</pre>
@@ -84,9 +84,9 @@
           <gbt-textarea
             class="mr-thread__reply"
             [id]="'mr-reply-' + thread().root.id"
-            label="Répondre"
+            [label]="'common.reply' | transloco"
             hideLabel
-            placeholder="Répondre…"
+            [placeholder]="'mergeRequests.replyPlaceholder' | transloco"
             [rows]="1"
             autosize
             [maxRows]="6"
@@ -94,16 +94,16 @@
             (ngModelChange)="replyBody.set($event)"
           />
           <div class="mr-thread__actions">
-            <gbt-button variant="secondary" size="small" text="Répondre" (clicked)="submitReply()" />
-            <gbt-button variant="secondary" size="small" [iconName]="thread().resolved ? null : 'check'" [text]="thread().resolved ? 'Rouvrir' : 'Résoudre'" (clicked)="toggleResolve()" />
+            <gbt-button variant="secondary" size="small" [text]="'common.reply' | transloco" (clicked)="submitReply()" />
+            <gbt-button variant="secondary" size="small" [iconName]="thread().resolved ? null : 'check'" [text]="(thread().resolved ? 'common.reopen' : 'common.resolve') | transloco" (clicked)="toggleResolve()" />
             @if (thread().resolved) {
-              <gbt-button variant="secondary" size="small" text="Masquer" (clicked)="toggleExpanded()" />
+              <gbt-button variant="secondary" size="small" [text]="'common.hide' | transloco" (clicked)="toggleExpanded()" />
             }
           </div>
         </footer>
       } @else if (thread().resolved) {
         <footer class="mr-thread__footer mr-thread__footer--end">
-          <gbt-button variant="secondary" size="small" text="Masquer" (clicked)="toggleExpanded()" />
+          <gbt-button variant="secondary" size="small" [text]="'common.hide' | transloco" (clicked)="toggleExpanded()" />
         </footer>
       }
     </gbt-card>

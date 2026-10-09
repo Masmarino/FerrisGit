@@ -10,13 +10,15 @@ import { MergeRequestSummary, TimelineItem, UserRef } from '../merge-requests.se
 import { MrCommentCard } from '../mr-comment-card/mr-comment-card';
 import { MrSystemNote } from '../mr-system-note/mr-system-note';
 import { MrThreadCard } from '../mr-thread-card/mr-thread-card';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
 type TimelineFilter = 'all' | 'discussions' | 'activity';
 
 @Component({
   selector: 'fg-merge-request-timeline',
   standalone: true,
-  imports: [FormsModule, Badge, Button, Card, IconMarker, SegmentedControl, Textarea, MrCommentCard, MrSystemNote, MrThreadCard],
+  imports: [TranslocoPipe, FormsModule, Badge, Button, Card, IconMarker, SegmentedControl, Textarea, MrCommentCard, MrSystemNote, MrThreadCard],
   templateUrl: './merge-request-timeline.html',
   styleUrl: './merge-request-timeline.scss',
 })
@@ -32,9 +34,9 @@ export class MergeRequestTimeline {
   applySuggestionClicked = output<{ commentId: string }>();
 
   protected filterOptions: SegmentedControlOption<TimelineFilter>[] = [
-    { value: 'all', label: 'Tout' },
-    { value: 'discussions', label: 'Discussions' },
-    { value: 'activity', label: 'Activité' },
+    { value: 'all', label: t('mergeRequests.filterAll') },
+    { value: 'discussions', label: t('mergeRequests.filterDiscussions') },
+    { value: 'activity', label: t('mergeRequests.filterActivity') },
   ];
 
   protected filter = signal<TimelineFilter>('all');
@@ -72,18 +74,18 @@ export class MergeRequestTimeline {
 
   protected openBadge = computed(() => {
     const { open } = this.threadCounts();
-    return `${open} ${open > 1 ? 'ouvertes' : 'ouverte'}`;
+    return tn('mergeRequests.openThreads', open);
   });
 
   protected resolvedBadge = computed(() => {
     const { resolved } = this.threadCounts();
-    return `${resolved} ${resolved > 1 ? 'résolues' : 'résolue'}`;
+    return tn('mergeRequests.resolvedThreads', resolved);
   });
 
   // Full sentence for screen readers; the badges alone ("2 ouvertes") lack their noun.
   protected counterText = computed(() => {
     const { open, resolved } = this.threadCounts();
-    return `${open} ${open > 1 ? 'discussions ouvertes' : 'discussion ouverte'} · ${resolved} ${resolved > 1 ? 'résolues' : 'résolue'}`;
+    return `${tn('mergeRequests.openDiscussions', open)} · ${tn('mergeRequests.resolvedThreads', resolved)}`;
   });
 
   protected hasThreads = computed(() => {

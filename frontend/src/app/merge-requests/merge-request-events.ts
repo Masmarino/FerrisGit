@@ -1,5 +1,6 @@
 import { shortSha } from '../repositories/commit-format';
 import { TimelineEvent } from './merge-requests.service';
+import { t, tn } from '../shared/i18n/translator';
 
 export interface LabelRef {
   name: string;
@@ -14,9 +15,9 @@ export type EventTone = 'neutral' | 'success' | 'error';
 const text = (value: string): EventSegment => ({ kind: 'text', text: value });
 const quote = (value: unknown): EventSegment => ({ kind: 'quote', text: String(value) });
 
-function labelSegments(verb: string, labels: LabelRef[]): EventSegment[] {
-  const noun = labels.length === 1 ? 'le label' : 'les labels';
-  return [text(`${verb} ${noun}`), { kind: 'labels', labels }];
+/** `key` is a plural pair: « a ajouté le label » for one, « a ajouté les labels » for several. */
+function labelSegments(key: string, labels: LabelRef[]): EventSegment[] {
+  return [text(tn(key, labels.length)), { kind: 'labels', labels }];
 }
 
 function shaSegments(sha: unknown): EventSegment[] {
@@ -30,18 +31,18 @@ export function eventSegments(event: TimelineEvent): EventSegment[] {
   switch (event.kind) {
     case 'review_submitted':
       if (payload['decision'] === 'approved') {
-        return [text(hasActor ? 'a approuvé cette demande de fusion' : 'Revue : approuvée')];
+        return [text(hasActor ? t('mergeRequests.events.approved') : t('mergeRequests.events.approvedNoActor'))];
       }
-      return [text(hasActor ? 'a demandé des changements' : 'Revue : changements demandés')];
+      return [text(hasActor ? t('mergeRequests.events.changesRequested') : t('mergeRequests.events.changesRequestedNoActor'))];
     case 'labels_changed': {
       const added = (payload['added'] as LabelRef[] | undefined) ?? [];
       const removed = (payload['removed'] as LabelRef[] | undefined) ?? [];
       const segments: EventSegment[] = [];
       if (added.length) {
-        segments.push(...labelSegments('a ajouté', added));
+        segments.push(...labelSegments('mergeRequests.events.addedLabels', added));
       }
       if (removed.length) {
-        segments.push(...labelSegments(added.length ? 'et retiré' : 'a retiré', removed));
+        segments.push(...labelSegments(added.length ? 'mergeRequests.events.andRemovedLabels' : 'mergeRequests.events.removedLabels', removed));
       }
       return segments;
     }
@@ -49,23 +50,23 @@ export function eventSegments(event: TimelineEvent): EventSegment[] {
       const from = payload['from'] as string | null;
       const to = payload['to'] as string | null;
       if (from === null || from === undefined) {
-        return [text('a défini le milestone'), quote(to)];
+        return [text(t('mergeRequests.events.milestoneSet')), quote(to)];
       }
       if (to === null || to === undefined) {
-        return [text('a retiré le milestone'), quote(from)];
+        return [text(t('mergeRequests.events.milestoneRemoved')), quote(from)];
       }
-      return [text('a changé le milestone de'), quote(from), text('à'), quote(to)];
+      return [text(t('mergeRequests.events.milestoneChanged')), quote(from), text(t('mergeRequests.events.to')), quote(to)];
     }
     case 'title_changed':
-      return [text('a renommé la demande de'), quote(payload['from']), text('en'), quote(payload['to'])];
+      return [text(t('mergeRequests.events.renamed')), quote(payload['from']), text(t('mergeRequests.events.renamedTo')), quote(payload['to'])];
     case 'commits_pushed':
-      return [text('a poussé de nouveaux commits'), ...shaSegments(payload['toSha'])];
+      return [text(t('mergeRequests.events.pushed')), ...shaSegments(payload['toSha'])];
     case 'merged':
-      return [text(hasActor ? 'a fusionné cette demande de fusion' : 'Fusionnée'), ...shaSegments(payload['mergeCommitSha'])];
+      return [text(hasActor ? t('mergeRequests.events.merged') : t('mergeRequests.events.mergedNoActor')), ...shaSegments(payload['mergeCommitSha'])];
     case 'closed':
-      return [text(hasActor ? 'a fermé cette demande de fusion' : 'Fermée')];
+      return [text(hasActor ? t('mergeRequests.events.closed') : t('mergeRequests.events.closedNoActor'))];
     default:
-      return [text('a effectué une action')];
+      return [text(t('mergeRequests.events.other'))];
   }
 }
 
@@ -76,7 +77,7 @@ function segmentText(segment: EventSegment): string {
     case 'labels':
       return segment.labels.map((label) => label.name).join(', ');
     case 'quote':
-      return `« ${segment.text} »`;
+      return t('common.quoted', { text: segment.text });
     case 'sha':
       return `(${segment.sha})`;
   }

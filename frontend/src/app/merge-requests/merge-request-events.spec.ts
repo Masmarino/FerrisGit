@@ -34,19 +34,19 @@ describe('describeEvent', () => {
   });
 
   it('describes a milestone being set', () => {
-    expect(describeEvent(event('milestone_changed', { from: null, to: 'v1.0' }))).toBe('a défini le milestone « v1.0 »');
+    expect(describeEvent(event('milestone_changed', { from: null, to: 'v1.0' }))).toBe('a défini le milestone «\u00a0v1.0\u00a0»');
   });
 
   it('describes a milestone being removed', () => {
-    expect(describeEvent(event('milestone_changed', { from: 'v1.0', to: null }))).toBe('a retiré le milestone « v1.0 »');
+    expect(describeEvent(event('milestone_changed', { from: 'v1.0', to: null }))).toBe('a retiré le milestone «\u00a0v1.0\u00a0»');
   });
 
   it('describes a milestone being changed', () => {
-    expect(describeEvent(event('milestone_changed', { from: 'v1.0', to: 'v1.1' }))).toBe('a changé le milestone de « v1.0 » à « v1.1 »');
+    expect(describeEvent(event('milestone_changed', { from: 'v1.0', to: 'v1.1' }))).toBe('a changé le milestone de «\u00a0v1.0\u00a0» à «\u00a0v1.1\u00a0»');
   });
 
   it('describes a rename', () => {
-    expect(describeEvent(event('title_changed', { from: 'A', to: 'B' }))).toBe('a renommé la demande de « A » en « B »');
+    expect(describeEvent(event('title_changed', { from: 'A', to: 'B' }))).toBe('a renommé la demande de «\u00a0A\u00a0» en «\u00a0B\u00a0»');
   });
 
   it('describes pushed commits with the short head sha', () => {

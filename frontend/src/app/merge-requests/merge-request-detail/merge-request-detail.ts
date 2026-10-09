@@ -28,6 +28,8 @@ import { UserRef } from '../../shared/user-ref';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
 import { mergeRequestEnd } from '../merge-request-presentation';
 import { reviewStatus } from '../review-status';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
 interface FileChangePresentation {
   label: string;
@@ -36,10 +38,34 @@ interface FileChangePresentation {
 }
 
 const FILE_CHANGES: Record<FileDiff['change'], FileChangePresentation> = {
-  added: { label: 'Ajouté', variant: 'success', icon: 'plus' },
-  modified: { label: 'Modifié', variant: 'info', icon: 'pencil' },
-  deleted: { label: 'Supprimé', variant: 'error', icon: 'x' },
-  binary: { label: 'Binaire', variant: 'neutral', icon: 'file' },
+  added: {
+    get label() {
+      return t('mergeRequests.changes.added');
+    },
+    variant: 'success',
+    icon: 'plus',
+  },
+  modified: {
+    get label() {
+      return t('mergeRequests.changes.modified');
+    },
+    variant: 'info',
+    icon: 'pencil',
+  },
+  deleted: {
+    get label() {
+      return t('mergeRequests.changes.deleted');
+    },
+    variant: 'error',
+    icon: 'x',
+  },
+  binary: {
+    get label() {
+      return t('mergeRequests.changes.binary');
+    },
+    variant: 'neutral',
+    icon: 'file',
+  },
 };
 
 interface DiffEntry {
@@ -52,13 +78,11 @@ interface DiffEntry {
 
 const OVERVIEW_TAB = 0;
 
-const LOAD_ERROR = 'Impossible de charger cette demande de fusion.';
-const COMMENT_ERROR = 'Impossible d’envoyer votre commentaire — cette ligne ne fait peut-être plus partie du diff. Rechargez et réessayez.';
 
 @Component({
   selector: 'fg-merge-request-detail',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     FormsModule,
     FileDiffView,
     MergeRequestTimeline,
@@ -114,7 +138,7 @@ export class MergeRequestDetail implements OnInit {
   protected author = computed<UserRef | null>(() => this.mergeRequest()?.author ?? this.timeline().author ?? null);
   protected branchesTitle = computed(() => {
     const mr = this.mergeRequest();
-    return mr ? `Fusion de ${mr.sourceBranch} vers ${mr.targetBranch}` : '';
+    return mr ? t('mergeRequests.mergeOf', { source: mr.sourceBranch, target: mr.targetBranch }) : '';
   });
   protected ended = computed(() => {
     const mr = this.mergeRequest();
@@ -122,7 +146,7 @@ export class MergeRequestDetail implements OnInit {
   });
   protected commentCountLabel = computed(() => {
     const count = this.comments().length;
-    return count === 0 ? null : `${count} ${count === 1 ? 'commentaire' : 'commentaires'}`;
+    return count === 0 ? null : tn('common.comments', count);
   });
 
   protected activeTab = signal(OVERVIEW_TAB);
@@ -142,7 +166,7 @@ export class MergeRequestDetail implements OnInit {
   });
   protected diffSummary = computed(() => {
     const count = this.diffs().length;
-    return `${count} ${count === 1 ? 'fichier modifié' : 'fichiers modifiés'}`;
+    return tn('mergeRequests.changedFiles', count);
   });
 
   // Computed because `labels.map(...)` in the template made a new array on every pass, so NgModel kept
@@ -150,7 +174,7 @@ export class MergeRequestDetail implements OnInit {
   protected labelIds = computed(() => this.mergeRequest()?.labels.map((label) => label.id) ?? []);
   protected labelOptions = computed<SelectOption<string>[]>(() => this.labels().map((label) => ({ value: label.id, label: label.name, color: label.color })));
   protected milestoneOptions = computed<SelectOption<string | null>[]>(() => [
-    { value: null, label: 'Aucun milestone' },
+    { value: null, label: t('issues.noMilestone') },
     ...this.milestones().map((milestone) => ({ value: milestone.id, label: milestone.title })),
   ]);
   protected milestoneTitle = computed(() => {
@@ -192,7 +216,7 @@ export class MergeRequestDetail implements OnInit {
       },
       error: () => {
         this.loadFailed.set(true);
-        this.toast.show(LOAD_ERROR, 'error');
+        this.toast.show(t('mergeRequests.loadFailedToast'), 'error');
       },
     });
     this.loadInto(this.mergeRequests.diff(this.mergeRequestId()), this.diffs);
@@ -204,7 +228,7 @@ export class MergeRequestDetail implements OnInit {
   }
 
   private loadInto<T>(request: Observable<T>, target: { set(value: T): void }): void {
-    request.subscribe({ next: (value) => target.set(value), error: () => this.toast.show(LOAD_ERROR, 'error') });
+    request.subscribe({ next: (value) => target.set(value), error: () => this.toast.show(t('mergeRequests.loadFailedToast'), 'error') });
   }
 
   protected onLabelsChange(labelIds: string[]): void {
@@ -212,9 +236,9 @@ export class MergeRequestDetail implements OnInit {
       next: (labels) => {
         this.mergeRequest.update((mr) => (mr ? { ...mr, labels } : mr));
         this.reloadTimeline();
-        this.toast.show('Labels mis à jour.');
+        this.toast.show(t('issues.labelsUpdated'));
       },
-      error: () => this.toast.show('Impossible de mettre à jour les labels.', 'error'),
+      error: () => this.toast.show(t('issues.labelsFailed'), 'error'),
     });
   }
 
@@ -227,9 +251,9 @@ export class MergeRequestDetail implements OnInit {
       next: (updated) => {
         this.mergeRequest.set(updated);
         this.reloadTimeline();
-        this.toast.show('Milestone mis à jour.');
+        this.toast.show(t('issues.milestoneUpdated'));
       },
-      error: () => this.toast.show('Impossible de mettre à jour le milestone.', 'error'),
+      error: () => this.toast.show(t('issues.milestoneFailed'), 'error'),
     });
   }
 
@@ -257,9 +281,9 @@ export class MergeRequestDetail implements OnInit {
         // Only now is the draft cleared, so a failed POST doesn't lose what was typed.
         this.timelineView()?.clearDraft();
         this.reloadDiscussion();
-        this.toast.show('Commentaire ajouté.');
+        this.toast.show(t('issues.commentAdded'));
       },
-      error: () => this.toast.show('Impossible d’ajouter le commentaire.', 'error'),
+      error: () => this.toast.show(t('mergeRequests.commentAddFailed'), 'error'),
     });
   }
 
@@ -269,9 +293,9 @@ export class MergeRequestDetail implements OnInit {
       .subscribe({
         next: () => {
           this.reloadDiscussion();
-          this.toast.show('Commentaire ajouté.');
+          this.toast.show(t('issues.commentAdded'));
         },
-        error: () => this.toast.show(COMMENT_ERROR, 'error'),
+        error: () => this.toast.show(t('mergeRequests.commentFailed'), 'error'),
       });
   }
 
@@ -279,9 +303,9 @@ export class MergeRequestDetail implements OnInit {
     this.mergeRequests.addComment(this.mergeRequestId(), event.body, { replyToId: event.replyToId }).subscribe({
       next: () => {
         this.reloadDiscussion();
-        this.toast.show('Réponse ajoutée.');
+        this.toast.show(t('mergeRequests.replyAdded'));
       },
-      error: () => this.toast.show(COMMENT_ERROR, 'error'),
+      error: () => this.toast.show(t('mergeRequests.commentFailed'), 'error'),
     });
   }
 
@@ -290,9 +314,9 @@ export class MergeRequestDetail implements OnInit {
     call.subscribe({
       next: () => {
         this.reloadDiscussion();
-        this.toast.show(event.resolved ? 'Commentaire résolu.' : 'Commentaire non résolu.');
+        this.toast.show(event.resolved ? t('mergeRequests.resolved') : t('mergeRequests.unresolved'));
       },
-      error: () => this.toast.show(COMMENT_ERROR, 'error'),
+      error: () => this.toast.show(t('mergeRequests.commentFailed'), 'error'),
     });
   }
 
@@ -300,9 +324,9 @@ export class MergeRequestDetail implements OnInit {
     this.mergeRequests.applySuggestion(this.mergeRequestId(), event.commentId).subscribe({
       next: () => {
         this.reloadDiscussion();
-        this.toast.show('Suggestion appliquée.');
+        this.toast.show(t('mergeRequests.suggestionApplied'));
       },
-      error: () => this.toast.show(COMMENT_ERROR, 'error'),
+      error: () => this.toast.show(t('mergeRequests.commentFailed'), 'error'),
     });
   }
 
@@ -311,9 +335,9 @@ export class MergeRequestDetail implements OnInit {
       next: () => {
         this.reloadReviews();
         this.reloadTimeline();
-        this.toast.show(decision === 'approved' ? 'Revue envoyée : approuvée.' : 'Revue envoyée : changements demandés.');
+        this.toast.show(decision === 'approved' ? t('mergeRequests.reviewApproved') : t('mergeRequests.reviewChanges'));
       },
-      error: () => this.toast.show('Impossible d’envoyer votre revue.', 'error'),
+      error: () => this.toast.show(t('mergeRequests.reviewFailed'), 'error'),
     });
   }
 
@@ -327,9 +351,9 @@ export class MergeRequestDetail implements OnInit {
         }
         this.mergeRequest.set(result);
         this.reloadTimeline();
-        this.toast.show('Demande de fusion fusionnée.');
+        this.toast.show(t('mergeRequests.mergedToast'));
       },
-      error: () => this.toast.show('Une erreur est survenue pendant la fusion.', 'error'),
+      error: () => this.toast.show(t('mergeRequests.mergeError'), 'error'),
     });
   }
 
@@ -339,9 +363,9 @@ export class MergeRequestDetail implements OnInit {
       next: () => {
         this.mergeRequests.detail(this.mergeRequestId()).subscribe({ next: (mr) => this.mergeRequest.set(mr) });
         this.reloadTimeline();
-        this.toast.show('Demande de fusion fermée.');
+        this.toast.show(t('mergeRequests.closedToast'));
       },
-      error: () => this.toast.show('Impossible de fermer la demande de fusion.', 'error'),
+      error: () => this.toast.show(t('mergeRequests.closeFailed'), 'error'),
     });
   }
 }

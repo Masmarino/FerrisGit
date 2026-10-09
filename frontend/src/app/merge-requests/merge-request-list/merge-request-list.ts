@@ -28,7 +28,7 @@ import { PageTitleService } from '../../shell/page-title.service';
 import { injectRepositoryPermissions } from '../../repositories/repository-role';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { openWhenAsked } from '../../shared/open-when-asked';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 type SortKey = 'date' | 'title';
@@ -37,17 +37,21 @@ type StateTab = MergeRequestSummary['status'];
 /** Paginated client-side: the API returns every merge request at once. */
 const MERGE_REQUESTS_PAGE_SIZE = 25;
 
-const SORT_OPTIONS: ListToolbarSortOption<SortKey>[] = [
-  { value: 'date', label: 'Date de création' },
-  { value: 'title', label: 'Titre' },
+const sortOptions = (): ListToolbarSortOption<SortKey>[] => [
+  { value: 'date', label: t('common.createdAt') },
+  { value: 'title', label: t('common.title') },
 ];
 
-const DIRECTION_OPTIONS: SegmentedControlOption<'asc' | 'desc'>[] = [
-  { value: 'asc', label: 'Croissant' },
-  { value: 'desc', label: 'Décroissant' },
+const directionOptions = (): SegmentedControlOption<'asc' | 'desc'>[] => [
+  { value: 'asc', label: t('common.ascending') },
+  { value: 'desc', label: t('common.descending') },
 ];
 
-const TAB_ADJECTIVES: Record<StateTab, string> = { open: 'ouverte', merged: 'fusionnée', closed: 'fermée' };
+const EMPTY_TAB_MESSAGES: Record<StateTab, { all: string; filtered: string }> = {
+  open: { all: 'mergeRequests.emptyTab.open', filtered: 'mergeRequests.emptyTab.openFiltered' },
+  merged: { all: 'mergeRequests.emptyTab.merged', filtered: 'mergeRequests.emptyTab.mergedFiltered' },
+  closed: { all: 'mergeRequests.emptyTab.closed', filtered: 'mergeRequests.emptyTab.closedFiltered' },
+};
 
 interface MergeRequestRow {
   mergeRequest: MergeRequestSummary;
@@ -113,17 +117,17 @@ export class MergeRequestList implements OnInit {
 
   protected labelOptions = computed<SelectOption<string>[]>(() => this.labels().map((label) => ({ value: label.id, label: label.name, color: label.color })));
   protected milestoneOptions = computed<SelectOption<string | null>[]>(() => [
-    { value: null, label: 'Tous les milestones' },
+    { value: null, label: t('issues.allMilestones') },
     ...this.milestones().map((milestone) => ({ value: milestone.id, label: milestone.title })),
   ]);
   private milestoneTitleById = computed(() => new Map(this.milestones().map((milestone) => [milestone.id, milestone.title])));
 
-  private readonly searchSort = createListToolbarState<SortKey>({ sortOptions: SORT_OPTIONS, defaultSort: 'date' });
+  private readonly searchSort = createListToolbarState<SortKey>({ sortOptions: sortOptions(), defaultSort: 'date' });
   protected search = this.searchSort.search;
   protected sortValue = this.searchSort.sortValue;
   protected direction = this.searchSort.direction;
   protected readonly sortOptions = this.searchSort.sortOptions as SelectOption<SortKey>[];
-  protected readonly directionOptions = DIRECTION_OPTIONS;
+  protected readonly directionOptions = directionOptions();
   protected filteredList = this.searchSort.filtered(() => this.list(), {
     text: (mr) => mr.title,
     sortBy: { title: (mr) => mr.title, date: (mr) => mr.createdAt },
@@ -141,14 +145,14 @@ export class MergeRequestList implements OnInit {
   protected tabOptions = computed<SegmentedControlOption<StateTab>[]>(() => {
     const groups = this.byStatus();
     return [
-      { value: 'open', label: `Ouvertes (${groups.open.length})` },
-      { value: 'merged', label: `Fusionnées (${groups.merged.length})` },
-      { value: 'closed', label: `Fermées (${groups.closed.length})` },
+      { value: 'open', label: t('mergeRequests.openTab', { count: groups.open.length }) },
+      { value: 'merged', label: t('mergeRequests.mergedTab', { count: groups.merged.length }) },
+      { value: 'closed', label: t('mergeRequests.closedTab', { count: groups.closed.length }) },
     ];
   });
   protected tabList = computed(() => this.byStatus()[this.tab()]);
   protected emptyTabMessage = computed(
-    () => `Aucune demande de fusion ${TAB_ADJECTIVES[this.tab()]}${this.hasActiveFilters() ? ' ne correspond à ces filtres' : ''}`,
+    () => t(EMPTY_TAB_MESSAGES[this.tab()][this.hasActiveFilters() ? 'filtered' : 'all']),
   );
 
   protected readonly pageSize = MERGE_REQUESTS_PAGE_SIZE;
@@ -171,10 +175,10 @@ export class MergeRequestList implements OnInit {
         milestoneTitle: mergeRequest.milestoneId ? (milestoneTitles.get(mergeRequest.milestoneId) ?? null) : null,
         branchesTitle: `${mergeRequest.sourceBranch} → ${mergeRequest.targetBranch}`,
         ended: mergeRequestEnd(mergeRequest),
-        menuLabel: `Actions de la demande de fusion « ${mergeRequest.title} »`,
+        menuLabel: t('mergeRequests.actionsFor', { title: mergeRequest.title }),
       }));
   });
-  protected readonly pageLabel = (page: number) => `Page ${page}`;
+  protected readonly pageLabel = (page: number) => t('common.pageNumber', { page });
 
   protected hasServerFilters = computed(() => this.selectedLabelIds().length > 0 || this.selectedMilestoneId() !== null);
   protected hasActiveFilters = computed(() => this.search().trim() !== '' || this.hasServerFilters());
@@ -194,8 +198,8 @@ export class MergeRequestList implements OnInit {
   protected description = signal('');
   protected titleTouched = signal(false);
   protected sameBranches = computed(() => this.sourceBranch() !== '' && this.sourceBranch() === this.targetBranch());
-  protected targetError = computed(() => (this.sameBranches() ? 'Identique à la branche source' : null));
-  protected titleError = computed(() => (this.titleTouched() && this.title().trim() === '' ? 'Le titre est requis' : null));
+  protected targetError = computed(() => (this.sameBranches() ? t('mergeRequests.sameBranch') : null));
+  protected titleError = computed(() => (this.titleTouched() && this.title().trim() === '' ? t('issues.titleRequired') : null));
   protected canSubmit = computed(
     () => this.sourceBranch() !== '' && this.targetBranch() !== '' && !this.sameBranches() && this.title().trim() !== '' && !this.creating(),
   );
@@ -208,11 +212,11 @@ export class MergeRequestList implements OnInit {
   }
 
   ngOnInit(): void {
-    this.pageTitle.set('Demandes de fusion');
+    this.pageTitle.set(t('nav.mergeRequests'));
     this.reload();
     this.mergeRequests.listBranches(this.repositoryId()).subscribe({
       next: (branches) => this.branches.set(branches),
-      error: () => this.toast.show('Impossible de charger les branches.', 'error'),
+      error: () => this.toast.show(t('mergeRequests.branchesFailed'), 'error'),
     });
     this.labelsService.listForRepository(this.repositoryId()).subscribe({ next: (labels) => this.labels.set(labels) });
     this.milestonesService.listForRepository(this.repositoryId()).subscribe({ next: (milestones) => this.milestones.set(milestones) });
@@ -229,7 +233,7 @@ export class MergeRequestList implements OnInit {
         this.loading.set(false);
         // The failed card is already up and won't announce a second time, so use a toast.
         if (this.loadFailed()) {
-          this.toast.show('Impossible de charger les demandes de fusion. Réessayez plus tard.', 'error');
+          this.toast.show(t('mergeRequests.loadFailedListToast'), 'error');
         }
         this.loadFailed.set(true);
       },
@@ -291,12 +295,12 @@ export class MergeRequestList implements OnInit {
           this.creating.set(false);
           this.closeCreate();
           this.reload();
-          this.toast.show('Demande de fusion créée.');
+          this.toast.show(t('mergeRequests.created'));
         },
         // Dialog stays open, nothing typed is lost.
         error: () => {
           this.creating.set(false);
-          this.toast.show('Impossible de créer la demande de fusion (branches identiques ou introuvables ?).', 'error');
+          this.toast.show(t('mergeRequests.createFailed'), 'error');
         },
       });
   }
@@ -305,9 +309,9 @@ export class MergeRequestList implements OnInit {
     this.mergeRequests.close(mr.id).subscribe({
       next: () => {
         this.reload();
-        this.toast.show('Demande de fusion fermée.');
+        this.toast.show(t('mergeRequests.closedToast'));
       },
-      error: () => this.toast.show('Impossible de fermer la demande de fusion. Réessayez plus tard.', 'error'),
+      error: () => this.toast.show(t('mergeRequests.closeFailedLater'), 'error'),
     });
   }
 
@@ -315,13 +319,13 @@ export class MergeRequestList implements OnInit {
     this.mergeRequests.merge(mr.id).subscribe({
       next: (result) => {
         if (result.outcome === 'conflicting') {
-          this.toast.show('Fusion impossible : un conflit a été détecté.', 'error');
+          this.toast.show(t('mergeRequests.mergeConflict'), 'error');
           return;
         }
         this.reload();
-        this.toast.show('Demande de fusion fusionnée.');
+        this.toast.show(t('mergeRequests.mergedToast'));
       },
-      error: () => this.toast.show('Fusion impossible : vérifiez les approbations requises. Réessayez plus tard.', 'error'),
+      error: () => this.toast.show(t('mergeRequests.mergeFailed'), 'error'),
     });
   }
 }
