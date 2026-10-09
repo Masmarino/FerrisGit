@@ -1,8 +1,8 @@
-<gbt-page-header heading="Runners">
+<gbt-page-header [heading]="'nav.runners' | transloco">
   @if (summary(); as text) {
     <p header-meta class="runners-list__summary">{{ text }}</p>
   }
-  <gbt-button header-actions iconName="plus" text="Enregistrer un runner" (clicked)="openRegister()" />
+  <gbt-button header-actions iconName="plus" [text]="'runners.register' | transloco" (clicked)="openRegister()" />
 </gbt-page-header>
 
 <gbt-page-layout width="wide" asideWidth="sm">
@@ -13,26 +13,26 @@
           <div card-header class="runners-list__token-header">
             <gbt-icon-marker shape="tile" appearance="outline" tone="warning" icon="key" />
             <div class="runners-list__token-titles">
-              <h2 id="runners-list-token-heading" class="runners-list__token-heading">Jeton du runner {{ r.name }}</h2>
-              <p class="runners-list__token-warning">Copiez-le maintenant : il ne sera plus jamais affiché.</p>
+              <h2 id="runners-list-token-heading" class="runners-list__token-heading">{{ 'runners.tokenHeading' | transloco: { name: r.name } }}</h2>
+              <p class="runners-list__token-warning">{{ 'runners.tokenWarning' | transloco }}</p>
             </div>
           </div>
           <div class="runners-list__token-body">
-            <p class="runners-list__token-usage">Donnez-le au runner dans la variable <code>FERRISGIT_RUNNER_TOKEN</code>.</p>
+            <p class="runners-list__token-usage" [innerHTML]="'runners.tokenUsage' | transloco"></p>
             <!-- The token can be hidden (say, on a shared screen). The widget handles the copy and its live region announces it. -->
             <gbt-secret-reveal
               class="runners-list__token-secret"
               [value]="r.token"
               [revealed]="true"
-              showLabel="Afficher le jeton"
-              hideLabel="Masquer le jeton"
-              hiddenLabel="Jeton masqué"
-              copyLabel="Copier le jeton"
-              copiedText="Jeton copié"
-              failedText="Copie impossible, jeton sélectionné"
+              [showLabel]="'runners.showToken' | transloco"
+              [hideLabel]="'runners.hideToken' | transloco"
+              [hiddenLabel]="'runners.tokenHidden' | transloco"
+              [copyLabel]="'runners.copyToken' | transloco"
+              [copiedText]="'runners.tokenCopied' | transloco"
+              [failedText]="'common.copyFailedSelected' | transloco"
             />
             <div class="runners-list__token-footer">
-              <gbt-button variant="secondary" size="small" text="J'ai copié le jeton" (clicked)="dismissToken()" />
+              <gbt-button variant="secondary" size="small" [text]="'runners.copiedIt' | transloco" (clicked)="dismissToken()" />
             </div>
           </div>
         </gbt-card>
@@ -41,11 +41,11 @@
 
     <!-- Stays `ready` so the header (heading and count) names the card in every state. The list card's own loading,
          failed and empty states would replace that header. -->
-    <gbt-list-card ariaLabel="Runners enregistrés">
+    <gbt-list-card [ariaLabel]="'runners.registered' | transloco">
       <div list-card-header class="runners-list__band">
         <span class="runners-list__card-title">
           <gbt-icon name="server" aria-hidden="true" />
-          <h2 class="runners-list__card-heading">Runners enregistrés</h2>
+          <h2 class="runners-list__card-heading">{{ 'runners.registered' | transloco }}</h2>
         </span>
         @if (loaded() && rows().length > 0) {
           <gbt-badge [value]="rows().length" />
@@ -53,17 +53,17 @@
       </div>
 
       @if (!loaded()) {
-        <gbt-skeleton-list [rows]="3" loadingLabel="Chargement des runners…" />
+        <gbt-skeleton-list [rows]="3" [loadingLabel]="'runners.loading' | transloco" />
       } @else if (loadFailed()) {
         <!-- The error toast announces it, so this alert stays silent: one announcement, not two. -->
         <gbt-alert class="runners-list__failed" variant="error" appearance="subtle" live="off">
-          Impossible de charger les runners.
-          <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retryLoad()" />
+          {{ 'runners.loadFailed' | transloco }}
+          <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retryLoad()" />
         </gbt-alert>
       } @else if (rows().length === 0) {
         <div class="runners-list__empty">
-          <gbt-empty-state illustration="server" heading="Aucun runner enregistré" message="Enregistrez un runner : il prendra les jobs des pipelines dès qu'il interrogera le serveur.">
-            <gbt-button variant="secondary" iconName="plus" text="Enregistrer un runner" (clicked)="openRegister()" />
+          <gbt-empty-state illustration="server" [heading]="'runners.emptyTitle' | transloco" [message]="'runners.emptyMessage' | transloco">
+            <gbt-button variant="secondary" iconName="plus" [text]="'runners.register' | transloco" (clicked)="openRegister()" />
           </gbt-empty-state>
         </div>
       } @else {
@@ -79,17 +79,17 @@
                 @for (tag of row.runner.tags; track tag) {
                   <gbt-tag color="#6b7280">{{ tag }}</gbt-tag>
                 } @empty {
-                  <span class="runners-list__no-tags">Aucun tag</span>
+                  <span class="runners-list__no-tags">{{ 'runners.noTags' | transloco }}</span>
                 }
 
                 <span row-meta class="runners-list__meta">
                   @if (row.heartbeat; as heartbeat) {
                     <span class="runners-list__heartbeat">
-                      Dernier signal <time [attr.datetime]="heartbeat.iso" [title]="heartbeat.title">{{ heartbeat.label }}</time>
+                      {{ 'runners.lastSignal' | transloco }} <time [attr.datetime]="heartbeat.iso" [title]="heartbeat.title">{{ heartbeat.label }}</time>
                     </span>
                   }
                   <span class="runners-list__created">
-                    enregistré <time [attr.datetime]="row.created.iso" [title]="row.created.title">{{ row.created.label }}</time>
+                    {{ 'runners.registeredOn' | transloco }} <time [attr.datetime]="row.created.iso" [title]="row.created.title">{{ row.created.label }}</time>
                   </span>
                 </span>
 
@@ -103,19 +103,15 @@
   </div>
 
   <div page-aside class="runners-list__aside">
-    <gbt-panel heading="Comment ça marche" [headingLevel]="2">
+    <gbt-panel [heading]="'runners.howTitle' | transloco" [headingLevel]="2">
       <ol class="runners-list__steps">
-        <li>Enregistrez un runner : son jeton ne s'affiche qu'une fois.</li>
-        <li>
-          Lancez <code>ferrisgit-runner</code> sur la machine avec <code>FERRISGIT_SERVER_URL</code> et <code>FERRISGIT_RUNNER_TOKEN</code>.
-        </li>
-        <li>Il passe « en ligne » dès qu'il interroge le serveur, « hors ligne » après {{ onlineThresholdMinutes }} minutes sans nouvelles.</li>
+        <li>{{ 'runners.howRegister' | transloco }}</li>
+        <li [innerHTML]="'runners.howLaunch' | transloco"></li>
+        <li>{{ 'runners.howOnline' | transloco: { minutes: onlineThresholdMinutes } }}</li>
       </ol>
     </gbt-panel>
-    <gbt-panel heading="Tags" [headingLevel]="2">
-      <p class="runners-list__help">
-        Un job qui déclare des <code>tags:</code> ne part que sur un runner qui les porte tous. Un job sans tag peut partir sur n'importe quel runner.
-      </p>
+    <gbt-panel [heading]="'runners.tagsTitle' | transloco" [headingLevel]="2">
+      <p class="runners-list__help" [innerHTML]="'runners.tagsHelp' | transloco"></p>
     </gbt-panel>
   </div>
 </gbt-page-layout>
@@ -124,23 +120,23 @@
 @if (registerOpen()) {
   <!-- The form wraps the whole dialog because the submit button is in the footer slot, outside the body. -->
   <form (submit)="$event.preventDefault(); register()">
-    <gbt-modal [isOpen]="true" heading="Enregistrer un runner" closeLabel="Fermer" [busy]="registering()" busyLabel="Enregistrement en cours" (closed)="closeRegister()">
+    <gbt-modal [isOpen]="true" [heading]="'runners.register' | transloco" [closeLabel]="'common.close' | transloco" [busy]="registering()" [busyLabel]="'common.saving' | transloco" (closed)="closeRegister()">
       <div class="runners-list__register">
-        <gbt-input name="name" label="Nom du runner" placeholder="ex : vps-1" required [errorMessage]="nameError()" [ngModel]="newRunnerName()" (ngModelChange)="newRunnerName.set($event)" />
+        <gbt-input name="name" [label]="'runners.name' | transloco" [placeholder]="'runners.namePlaceholder' | transloco" required [errorMessage]="nameError()" [ngModel]="newRunnerName()" (ngModelChange)="newRunnerName.set($event)" />
         <div class="runners-list__register-field">
-          <gbt-tag-input name="tags" label="Tags" placeholder="ex : docker, linux" [removeLabel]="removeTagLabel" [ngModel]="newRunnerTags()" (ngModelChange)="newRunnerTags.set($event)" />
-          <p class="runners-list__register-hint">Entrée ou virgule pour ajouter un tag. Le runner ne prendra que les jobs dont il porte tous les tags.</p>
+          <gbt-tag-input name="tags" [label]="'runners.tags' | transloco" [placeholder]="'runners.tagsPlaceholder' | transloco" [removeLabel]="removeTagLabel" [ngModel]="newRunnerTags()" (ngModelChange)="newRunnerTags.set($event)" />
+          <p class="runners-list__register-hint">{{ 'runners.tagsHint' | transloco }}</p>
         </div>
 
         @if (registerError()) {
           <gbt-alert variant="error">
-            <p class="runners-list__register-error">Le runner n'a pas pu être enregistré. Réessayez.</p>
+            <p class="runners-list__register-error">{{ 'runners.registerFailed' | transloco }}</p>
           </gbt-alert>
         }
       </div>
       <div modal-footer>
-        <gbt-button variant="secondary" text="Annuler" [disabled]="registering()" (clicked)="closeRegister()" />
-        <gbt-button type="submit" iconName="plus" text="Enregistrer" [loading]="registering()" loadingLabel="Enregistrement en cours" />
+        <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="registering()" (clicked)="closeRegister()" />
+        <gbt-button type="submit" iconName="plus" [text]="'common.save' | transloco" [loading]="registering()" [loadingLabel]="'common.saving' | transloco" />
       </div>
     </gbt-modal>
   </form>

@@ -2,12 +2,14 @@ import { ChangeDetectionStrategy, Component, inject, output, viewChild } from '@
 import { Router } from '@angular/router';
 import { Autocomplete, AutocompleteSearchFn } from '@masmarino/gabarit/autocomplete';
 import { DocsSearchHit, DocsSearchService } from '../docs-search.service';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
 /** The search field above the docs navigation. Pages load on first focus, since most visits never search. */
 @Component({
   selector: 'fg-docs-search',
   standalone: true,
-  imports: [Autocomplete],
+  imports: [TranslocoPipe, Autocomplete],
   templateUrl: './docs-search.html',
   styleUrl: './docs-search.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -22,7 +24,7 @@ export class DocsSearch {
 
   protected readonly search: AutocompleteSearchFn<DocsSearchHit> = (query) => this.searchService.search(query);
   protected readonly label = (hit: DocsSearchHit) => hit.pageTitle;
-  protected readonly announce = (count: number) => (count === 0 ? 'Aucun résultat' : `${count} résultat${count > 1 ? 's' : ''}`);
+  protected readonly announce = (count: number) => (count === 0 ? t('common.noResults') : tn('common.results', count));
 
   protected prepare(): void {
     this.searchService.prepare();

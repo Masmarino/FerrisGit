@@ -21,6 +21,8 @@ import { CommandPaletteTrigger } from '@masmarino/gabarit/command-palette';
 import { Icon } from '@masmarino/gabarit/icon';
 import { Menu, MenuItem } from '@masmarino/gabarit/menu';
 import { Toaster } from '@masmarino/gabarit/toaster';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../shared/i18n/translator';
 
 interface NavItem {
   action: string;
@@ -33,7 +35,7 @@ interface NavItem {
 @Component({
   selector: 'fg-app-shell',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, Icon, NotificationBell, Toaster, GbtAppShell, AppShellNavGroup, QuickSearch, CommandPaletteTrigger, Breadcrumb, Menu, MenuItem, NgTemplateOutlet],
+  imports: [TranslocoPipe, RouterOutlet, RouterLink, RouterLinkActive, Icon, NotificationBell, Toaster, GbtAppShell, AppShellNavGroup, QuickSearch, CommandPaletteTrigger, Breadcrumb, Menu, MenuItem, NgTemplateOutlet],
   templateUrl: './app-shell.html',
   styleUrl: './app-shell.scss',
 })
@@ -63,23 +65,23 @@ export class AppShell implements OnInit {
 
   readonly navItems = computed<NavItem[]>(() => {
     const items: NavItem[] = [
-      { action: 'home', icon: 'home', link: '/home', text: 'Accueil' },
-      { action: 'repositories', icon: 'folder-git-2', link: '/repositories', text: 'Dépôts' },
+      { action: 'home', icon: 'home', link: '/home', text: t('nav.home') },
+      { action: 'repositories', icon: 'folder-git-2', link: '/repositories', text: t('nav.repositories') },
     ];
     if (this.settings.publicSettings()?.executionEngine === 'docker-runners') {
-      items.push({ action: 'runners', icon: 'server', link: '/runners', text: 'Runners' });
+      items.push({ action: 'runners', icon: 'server', link: '/runners', text: t('nav.runners') });
     }
     if (this.me.isAdmin()) {
       items.push({
         action: 'admin',
         icon: 'settings',
         link: '/admin',
-        text: 'Administration',
+        text: t('nav.administration'),
         children: [
-          { action: 'dashboard', icon: 'layout-dashboard', link: '/admin/dashboard', text: 'Tableau de bord' },
-          { action: 'users', icon: 'users', link: '/admin/users', text: 'Utilisateurs' },
-          { action: 'health', icon: 'activity', link: '/admin/health', text: 'Santé' },
-          { action: 'settings', icon: 'settings', link: '/admin/settings', text: 'Réglages' },
+          { action: 'dashboard', icon: 'layout-dashboard', link: '/admin/dashboard', text: t('nav.dashboard') },
+          { action: 'users', icon: 'users', link: '/admin/users', text: t('nav.users') },
+          { action: 'health', icon: 'activity', link: '/admin/health', text: t('nav.health') },
+          { action: 'settings', icon: 'settings', link: '/admin/settings', text: t('nav.settings') },
         ],
       });
     }

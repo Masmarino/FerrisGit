@@ -14,6 +14,8 @@ import { findAnchorTarget, MarkdownOutlineEntry, MarkdownView } from '../../shar
 import { hasOutline, WikiOutline } from '../../wiki/wiki-outline/wiki-outline';
 import { DocsNav } from '../docs-nav/docs-nav';
 import { DOCS_ROOT, DocsIndex, DocsLocation, docsPageCommands, DocsService, firstDocsPage, isNotFound, locateDocsPage } from '../docs.service';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 type DocsView =
   | { kind: 'loading' }
@@ -34,7 +36,7 @@ const keyOf = (section: string | null, page: string | null) => `${section}/${pag
 @Component({
   selector: 'fg-docs-page',
   standalone: true,
-  imports: [RouterLink, Alert, Breadcrumb, Button, Card, CardLink, EmptyState, PageLayout, Skeleton, MarkdownView, WikiOutline, DocsNav],
+  imports: [TranslocoPipe, RouterLink, Alert, Breadcrumb, Button, Card, CardLink, EmptyState, PageLayout, Skeleton, MarkdownView, WikiOutline, DocsNav],
   templateUrl: './docs-page.html',
   styleUrl: './docs-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -78,7 +80,7 @@ export class DocsPage {
   constructor() {
     effect(() => {
       const view = this.view();
-      this.pageTitle.set(view.kind === 'page' ? view.location.page.title : view.kind === 'not-found' ? 'Page introuvable' : 'Documentation');
+      this.pageTitle.set(view.kind === 'page' ? view.location.page.title : view.kind === 'not-found' ? t('docs.notFoundTitle') : t('docs.title'));
     });
 
     // Params and fragment change one after the other within a navigation, so wait for both. The first visit leaves the

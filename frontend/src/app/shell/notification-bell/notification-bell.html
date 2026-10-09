@@ -13,8 +13,8 @@
   </gbt-notification-dot>
   <div popover-content class="notification-bell__dropdown">
     <div class="notification-bell__header">
-      <span>Notifications</span>
-      <gbt-button variant="link" size="small" text="Tout marquer comme lu" (clicked)="markAllRead()" />
+      <span>{{ 'shell.notifications.title' | transloco }}</span>
+      <gbt-button variant="link" size="small" [text]="'shell.notifications.markAllRead' | transloco" (clicked)="markAllRead()" />
     </div>
     <ul class="notification-bell__list">
       @for (n of items(); track n.id) {
@@ -24,7 +24,7 @@
           </button>
         </li>
       } @empty {
-        <li class="notification-bell__empty">Aucune notification.</li>
+        <li class="notification-bell__empty">{{ 'shell.notifications.empty' | transloco }}</li>
       }
     </ul>
   </div>

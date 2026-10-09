@@ -5,6 +5,7 @@ import { Disclosure } from '@masmarino/gabarit/disclosure';
 import { NavTab, NavTabs } from '@masmarino/gabarit/nav-tabs';
 import { DocsSearch } from '../docs-search/docs-search';
 import { docsPageCommands, DocsIndex } from '../docs.service';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 let nextNavId = 0;
 
@@ -15,7 +16,7 @@ let nextNavId = 0;
 @Component({
   selector: 'fg-docs-nav',
   standalone: true,
-  imports: [RouterLink, Button, Disclosure, NavTab, NavTabs, DocsSearch],
+  imports: [TranslocoPipe, RouterLink, Button, Disclosure, NavTab, NavTabs, DocsSearch],
   templateUrl: './docs-nav.html',
   styleUrl: './docs-nav.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

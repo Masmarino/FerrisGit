@@ -10,6 +10,8 @@ import { SettingsService } from '../../settings/settings.service';
 import { NEW_PARAM } from '../../shared/open-when-asked';
 import { MeService } from '../me.service';
 import { RecentRepositoriesService } from './recent-repositories.service';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
 /** Where a choice leads: a page, or signing out. */
 export type QuickTarget = { link: string[]; queryParams?: Params } | { logout: true };
@@ -24,9 +26,12 @@ const EMPTY_RESPONSE: SearchResponse = { repositories: [], issues: [], mergeRequ
  * "Nouveau …" actions, filtered as one types, then what the server finds and a way to the full results page. Placed
  * outside the header, whose dark theme it would otherwise take on.
  */
+/** The words, in the active language, that also find an item: `shell.quickSearch.keywords.<name>`, comma-separated. */
+const keywords = (name: string): string[] => t(`shell.quickSearch.keywords.${name}`).split(',');
+
 @Component({
   selector: 'fg-quick-search',
-  imports: [CommandPalette],
+  imports: [TranslocoPipe, CommandPalette],
   templateUrl: './quick-search.html',
 })
 export class QuickSearch {
@@ -48,7 +53,7 @@ export class QuickSearch {
   private readonly query$ = new Subject<string>();
 
   protected readonly resultsAnnouncement = (count: number): string =>
-    count === 0 ? 'Aucun résultat' : `${count} résultat${count > 1 ? 's' : ''}`;
+    count === 0 ? t('common.noResults') : tn('common.results', count);
 
   protected readonly groups = computed<CommandGroup<QuickTarget>[]>(() => {
     const ctx = this.repoContext.current();
@@ -56,21 +61,21 @@ export class QuickSearch {
     const groups: CommandGroup<QuickTarget>[] = [];
     const recents = this.recentItems(ctx);
     if (recents.length > 0) {
-      groups.push({ label: 'Récents', items: recents });
+      groups.push({ label: t('shell.quickSearch.recent'), items: recents });
     }
     if (ctx) {
-      groups.push({ label: `Dans ${ctx.path[ctx.path.length - 1]}`, items: this.repositoryItems(ctx) });
+      groups.push({ label: t('shell.quickSearch.inRepository', { name: ctx.path[ctx.path.length - 1] }), items: this.repositoryItems(ctx) });
     }
-    groups.push({ label: 'Aller à', items: this.pageItems() });
-    groups.push({ label: 'Actions', items: this.actionItems() });
+    groups.push({ label: t('shell.quickSearch.goTo'), items: this.pageItems() });
+    groups.push({ label: t('shell.quickSearch.actions'), items: this.actionItems() });
     // Found by the server, so already matching: the palette mustn't filter them again on its own terms. They come after
     // the pages and actions, which show at once, so arriving results never move the option under the arrow keys.
     if (query) {
       groups.push(...this.serverGroups());
       groups.push({
-        label: 'Recherche',
+        label: t('shell.quickSearch.search'),
         filter: false,
-        items: [{ id: 'search-all', label: `Rechercher « ${query} » partout`, icon: 'search', data: { link: ['/search'], queryParams: { q: query } } }],
+        items: [{ id: 'search-all', label: t('shell.quickSearch.searchEverywhere', { query }), icon: 'search', data: { link: ['/search'], queryParams: { q: query } } }],
       });
     }
     return groups;
@@ -145,23 +150,23 @@ export class QuickSearch {
   private repositoryItems(ctx: RepositoryContext): QuickItem[] {
     const link = (...subPage: string[]): string[] => (subPage.length === 0 ? ['/repositories', ...ctx.path] : ['/repositories', ...ctx.path, '-', ...subPage]);
     const items: QuickItem[] = [
-      { id: 'repo:overview', label: 'Aperçu', icon: 'folder-git-2', keywords: ['code', 'fichiers', 'readme'], data: { link: link() } },
-      { id: 'repo:pipelines', label: 'Pipelines', icon: 'play', keywords: ['ci', 'jobs'], data: { link: link('pipelines') } },
-      { id: 'repo:merge-requests', label: 'Demandes de fusion', icon: 'git-pull-request', keywords: ['merge', 'mr'], data: { link: link('merge-requests') } },
-      { id: 'repo:issues', label: 'Tickets', icon: 'circle-dot', keywords: ['issues'], data: { link: link('issues') } },
-      { id: 'repo:board', label: 'Tableau des tickets', icon: 'kanban', keywords: ['kanban', 'board'], data: { link: link('issues', 'board') } },
-      { id: 'repo:releases', label: 'Releases', icon: 'tag', keywords: ['versions'], data: { link: link('releases') } },
-      { id: 'repo:wiki', label: 'Wiki', icon: 'book-open', data: { link: link('wiki') } },
+      { id: 'repo:overview', label: t('nav.overview'), icon: 'folder-git-2', keywords: keywords('overview'), data: { link: link() } },
+      { id: 'repo:pipelines', label: t('nav.pipelines'), icon: 'play', keywords: keywords('pipelines'), data: { link: link('pipelines') } },
+      { id: 'repo:merge-requests', label: t('nav.mergeRequests'), icon: 'git-pull-request', keywords: keywords('mergeRequests'), data: { link: link('merge-requests') } },
+      { id: 'repo:issues', label: t('nav.issues'), icon: 'circle-dot', keywords: keywords('issues'), data: { link: link('issues') } },
+      { id: 'repo:board', label: t('shell.quickSearch.issueBoard'), icon: 'kanban', keywords: keywords('board'), data: { link: link('issues', 'board') } },
+      { id: 'repo:releases', label: t('nav.releases'), icon: 'tag', keywords: keywords('releases'), data: { link: link('releases') } },
+      { id: 'repo:wiki', label: t('nav.wiki'), icon: 'book-open', data: { link: link('wiki') } },
     ];
     if (canMaintain(ctx.role)) {
-      items.push({ id: 'repo:settings', label: 'Réglages du dépôt', icon: 'settings', keywords: ['membres', 'webhooks', 'variables'], data: { link: link('settings') } });
+      items.push({ id: 'repo:settings', label: t('shell.quickSearch.repositorySettings'), icon: 'settings', keywords: keywords('settings'), data: { link: link('settings') } });
     }
     if (canWrite(ctx.role)) {
       items.push(
-        { id: 'repo:new-issue', label: 'Nouveau ticket', icon: 'plus', keywords: ['créer'], data: { link: link('issues'), queryParams: { [NEW_PARAM]: 'issue' } } },
-        { id: 'repo:new-merge-request', label: 'Nouvelle demande de fusion', icon: 'plus', keywords: ['créer', 'merge'], data: { link: link('merge-requests'), queryParams: { [NEW_PARAM]: 'merge-request' } } },
-        { id: 'repo:new-wiki-page', label: 'Nouvelle page de wiki', icon: 'plus', keywords: ['créer'], data: { link: link('wiki', 'new') } },
-        { id: 'repo:pipeline-editor', label: 'Éditer la pipeline', icon: 'pencil', keywords: ['ci', 'yaml', 'éditeur'], data: { link: link('pipelines', 'editor') } },
+        { id: 'repo:new-issue', label: t('shell.quickSearch.newIssue'), icon: 'plus', keywords: keywords('create'), data: { link: link('issues'), queryParams: { [NEW_PARAM]: 'issue' } } },
+        { id: 'repo:new-merge-request', label: t('shell.quickSearch.newMergeRequest'), icon: 'plus', keywords: keywords('createMerge'), data: { link: link('merge-requests'), queryParams: { [NEW_PARAM]: 'merge-request' } } },
+        { id: 'repo:new-wiki-page', label: t('shell.quickSearch.newWikiPage'), icon: 'plus', keywords: keywords('create'), data: { link: link('wiki', 'new') } },
+        { id: 'repo:pipeline-editor', label: t('shell.quickSearch.editPipeline'), icon: 'pencil', keywords: keywords('pipelineEditor'), data: { link: link('pipelines', 'editor') } },
       );
     }
     return items;
@@ -169,24 +174,24 @@ export class QuickSearch {
 
   private pageItems(): QuickItem[] {
     const items: QuickItem[] = [
-      { id: 'page:home', label: 'Accueil', icon: 'home', data: { link: ['/home'] } },
-      { id: 'page:repositories', label: 'Dépôts', icon: 'folder-git-2', data: { link: ['/repositories'] } },
-      { id: 'page:groups', label: 'Groupes', icon: 'folders', data: { link: ['/repositories'], queryParams: { tab: 'groups' } } },
-      { id: 'page:explore', label: 'Explorer', description: 'Les dépôts publics', icon: 'globe', keywords: ['catalogue', 'public'], data: { link: ['/explore'] } },
+      { id: 'page:home', label: t('nav.home'), icon: 'home', data: { link: ['/home'] } },
+      { id: 'page:repositories', label: t('nav.repositories'), icon: 'folder-git-2', data: { link: ['/repositories'] } },
+      { id: 'page:groups', label: t('nav.groups'), icon: 'folders', data: { link: ['/repositories'], queryParams: { tab: 'groups' } } },
+      { id: 'page:explore', label: t('nav.explore'), description: t('shell.quickSearch.publicRepositories'), icon: 'globe', keywords: keywords('explore'), data: { link: ['/explore'] } },
     ];
     if (this.settings.publicSettings()?.executionEngine === 'docker-runners') {
-      items.push({ id: 'page:runners', label: 'Runners', icon: 'server', data: { link: ['/runners'] } });
+      items.push({ id: 'page:runners', label: t('nav.runners'), icon: 'server', data: { link: ['/runners'] } });
     }
     items.push(
-      { id: 'page:account', label: 'Mon compte', icon: 'user', keywords: ['profil', 'mot de passe', 'sécurité', 'mfa', 'email'], data: { link: ['/account'] } },
-      { id: 'page:docs', label: 'Documentation', icon: 'book-open', keywords: ['aide'], data: { link: ['/docs'] } },
+      { id: 'page:account', label: t('nav.account'), icon: 'user', keywords: keywords('account'), data: { link: ['/account'] } },
+      { id: 'page:docs', label: t('nav.docs'), icon: 'book-open', keywords: keywords('docs'), data: { link: ['/docs'] } },
     );
     if (this.me.isAdmin()) {
       items.push(
-        { id: 'admin:dashboard', label: 'Tableau de bord', description: 'Administration', icon: 'layout-dashboard', keywords: ['admin'], data: { link: ['/admin/dashboard'] } },
-        { id: 'admin:users', label: 'Utilisateurs', description: 'Administration', icon: 'users', keywords: ['admin', 'comptes', 'inviter'], data: { link: ['/admin/users'] } },
-        { id: 'admin:health', label: 'Santé', description: 'Administration', icon: 'activity', keywords: ['admin', 'état'], data: { link: ['/admin/health'] } },
-        { id: 'admin:settings', label: "Réglages de l'instance", description: 'Administration', icon: 'settings', keywords: ['admin', 'smtp', 'kubernetes', 'docker'], data: { link: ['/admin/settings'] } },
+        { id: 'admin:dashboard', label: t('nav.dashboard'), description: t('nav.administration'), icon: 'layout-dashboard', keywords: keywords('admin'), data: { link: ['/admin/dashboard'] } },
+        { id: 'admin:users', label: t('nav.users'), description: t('nav.administration'), icon: 'users', keywords: keywords('users'), data: { link: ['/admin/users'] } },
+        { id: 'admin:health', label: t('nav.health'), description: t('nav.administration'), icon: 'activity', keywords: keywords('health'), data: { link: ['/admin/health'] } },
+        { id: 'admin:settings', label: t('shell.quickSearch.instanceSettings'), description: t('nav.administration'), icon: 'settings', keywords: keywords('instance'), data: { link: ['/admin/settings'] } },
       );
     }
     return items;
@@ -194,9 +199,9 @@ export class QuickSearch {
 
   private actionItems(): QuickItem[] {
     return [
-      { id: 'action:new-repository', label: 'Nouveau dépôt', icon: 'plus', keywords: ['créer'], data: { link: ['/repositories'], queryParams: { [NEW_PARAM]: 'repository' } } },
-      { id: 'action:new-group', label: 'Nouveau groupe', icon: 'folder', keywords: ['créer'], data: { link: ['/repositories'], queryParams: { [NEW_PARAM]: 'group' } } },
-      { id: 'action:logout', label: 'Déconnexion', icon: 'log-out', keywords: ['quitter', 'se déconnecter'], data: { logout: true } },
+      { id: 'action:new-repository', label: t('shell.quickSearch.newRepository'), icon: 'plus', keywords: keywords('create'), data: { link: ['/repositories'], queryParams: { [NEW_PARAM]: 'repository' } } },
+      { id: 'action:new-group', label: t('shell.quickSearch.newGroup'), icon: 'folder', keywords: keywords('create'), data: { link: ['/repositories'], queryParams: { [NEW_PARAM]: 'group' } } },
+      { id: 'action:logout', label: t('nav.logout'), icon: 'log-out', keywords: keywords('logout'), data: { logout: true } },
     ];
   }
 
@@ -204,12 +209,12 @@ export class QuickSearch {
     const r = this.response();
     const groups: CommandGroup<QuickTarget>[] = [
       {
-        label: 'Dépôts',
+        label: t('nav.repositories'),
         filter: false,
         items: r.repositories.map((repo) => ({ id: `repository:${repo.id}`, label: repo.name, description: repo.path.join('/'), icon: 'folder-git-2', data: { link: ['/repositories', ...repo.path] } })),
       },
       {
-        label: 'Tickets',
+        label: t('nav.issues'),
         filter: false,
         items: r.issues.map((issue) => ({
           id: `issue:${issue.id}`,
@@ -220,7 +225,7 @@ export class QuickSearch {
         })),
       },
       {
-        label: 'Demandes de fusion',
+        label: t('nav.mergeRequests'),
         filter: false,
         items: r.mergeRequests.map((mr) => ({
           id: `merge-request:${mr.id}`,
@@ -234,7 +239,7 @@ export class QuickSearch {
     // Only administrators have a page per user to go to.
     if (this.me.isAdmin()) {
       groups.push({
-        label: 'Utilisateurs',
+        label: t('nav.users'),
         filter: false,
         items: r.users.map((user) => ({ id: `user:${user.id}`, label: user.username, icon: 'user', data: { link: ['/admin/users', user.id] } })),
       });

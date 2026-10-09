@@ -1,10 +1,10 @@
 <gbt-app-shell
   navLabel="Navigation principale"
-  skipLabel="Aller au contenu principal"
-  openMenuLabel="Ouvrir le menu de navigation"
-  closeMenuLabel="Fermer le menu de navigation"
-  collapseLabel="Réduire la navigation"
-  expandLabel="Agrandir la navigation"
+  [skipLabel]="'shell.skip' | transloco"
+  [openMenuLabel]="'shell.openMenu' | transloco"
+  [closeMenuLabel]="'shell.closeMenu' | transloco"
+  [collapseLabel]="'shell.collapse' | transloco"
+  [expandLabel]="'shell.expand' | transloco"
   [versionLabel]="version.version()"
   [collapsed]="sidebarCollapse.collapsed()"
   (collapsedChange)="sidebarCollapse.set($event)"
@@ -20,7 +20,7 @@
         <li class="app-shell__context">
           <a routerLink="/repositories" class="gbt-app-shell__link app-shell__back">
             <gbt-icon name="arrow-left" />
-            <span>Dépôts</span>
+            <span>{{ 'nav.repositories' | transloco }}</span>
           </a>
           <div class="app-shell__repo" [hidden]="sidebarCollapse.collapsed()">
             <span class="app-shell__repo-owner">
@@ -38,44 +38,44 @@
         <li>
           <a [routerLink]="repoLink(ctx, [])" routerLinkActive ariaCurrentWhenActive="page" [routerLinkActiveOptions]="{ exact: true }" class="gbt-app-shell__link">
             <gbt-icon name="folder-git-2" />
-            <span>Aperçu</span>
+            <span>{{ 'nav.overview' | transloco }}</span>
           </a>
         </li>
         <li>
           <a [routerLink]="repoLink(ctx, ['pipelines'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
             <gbt-icon name="play" />
-            <span>Pipelines</span>
+            <span>{{ 'nav.pipelines' | transloco }}</span>
           </a>
         </li>
         <li>
           <a [routerLink]="repoLink(ctx, ['merge-requests'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
             <gbt-icon name="git-pull-request" />
-            <span>Demandes de fusion</span>
+            <span>{{ 'nav.mergeRequests' | transloco }}</span>
           </a>
         </li>
         <li>
           <a [routerLink]="repoLink(ctx, ['issues'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
             <gbt-icon name="circle-dot" />
-            <span>Tickets</span>
+            <span>{{ 'nav.issues' | transloco }}</span>
           </a>
         </li>
         <li>
           <a [routerLink]="repoLink(ctx, ['releases'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
             <gbt-icon name="tag" />
-            <span>Releases</span>
+            <span>{{ 'nav.releases' | transloco }}</span>
           </a>
         </li>
         <li>
           <a [routerLink]="repoLink(ctx, ['wiki'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
             <gbt-icon name="book-open" />
-            <span>Wiki</span>
+            <span>{{ 'nav.wiki' | transloco }}</span>
           </a>
         </li>
         @if (ctx.role === 'owner' || ctx.role === 'maintainer') {
           <li class="app-shell__nav-end">
             <a [routerLink]="repoLink(ctx, ['settings'])" routerLinkActive ariaCurrentWhenActive="page" class="gbt-app-shell__link">
               <gbt-icon name="settings" />
-              <span>Réglages</span>
+              <span>{{ 'nav.settings' | transloco }}</span>
             </a>
           </li>
         }
@@ -107,7 +107,7 @@
     }
   </ng-container>
   <div class="app-shell__header" shell-header [class.app-shell__header--rail]="sidebarCollapse.collapsed()">
-    <gbt-breadcrumb ariaLabel="Fil d'Ariane" class="app-shell__breadcrumb">
+    <gbt-breadcrumb [ariaLabel]="'common.breadcrumb' | transloco" class="app-shell__breadcrumb">
       <!-- A control-flow block only gets projected into a named slot when it has exactly one root element, so every item
            is its own top-level block. `ctx` is hoisted with `@let` so they can still share it. -->
       @let ctx = repoContext.current();
@@ -135,9 +135,9 @@
       <gbt-menu [label]="ctx.path[ctx.path.length - 1]" align="start" (opened)="onSwitcherOpen(ctx)">
         @if (switcher.loading()) {
           <!-- Never leave the menu empty: opened by keyboard, it would have nothing to focus. A disabled item is still focusable. -->
-          <a gbtMenuItem disabled>Chargement…</a>
+          <a gbtMenuItem disabled>{{ 'common.loading' | transloco }}</a>
         } @else if (switcher.groups().length === 0 && switcher.repositories().length === 0) {
-          <a gbtMenuItem disabled>Aucun élément</a>
+          <a gbtMenuItem disabled>{{ 'shell.noItem' | transloco }}</a>
         } @else {
           @for (group of switcher.groups(); track group.id) {
             <a gbtMenuItem [routerLink]="groupLink(ctx, group)">{{ group.name }}</a>
@@ -148,17 +148,17 @@
         }
       </gbt-menu>
     </ng-template>
-    <gbt-command-palette-trigger class="app-shell__search" label="Rechercher ou aller à…" [palette]="quickSearch" />
+    <gbt-command-palette-trigger class="app-shell__search" [label]="'shell.searchOrGo' | transloco" [palette]="quickSearch" />
     <div class="app-shell__header-end">
       <fg-notification-bell />
       <gbt-menu [label]="me.username() || 'Compte'" align="end">
-        <a gbtMenuItem icon="user" routerLink="/account">Mon compte</a>
-        <a gbtMenuItem icon="book-open" routerLink="/docs">Documentation</a>
-        <button gbtMenuItem icon="log-out" (click)="logout()">Déconnexion</button>
+        <a gbtMenuItem icon="user" routerLink="/account">{{ 'nav.account' | transloco }}</a>
+        <a gbtMenuItem icon="book-open" routerLink="/docs">{{ 'nav.docs' | transloco }}</a>
+        <button gbtMenuItem icon="log-out" (click)="logout()">{{ 'nav.logout' | transloco }}</button>
       </gbt-menu>
     </div>
   </div>
   <router-outlet />
 </gbt-app-shell>
 <fg-quick-search #quickSearch (logout)="logout()" />
-<gbt-toaster closeLabel="Fermer" />
+<gbt-toaster [closeLabel]="'common.close' | transloco" />

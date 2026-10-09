@@ -1,6 +1,6 @@
-<gbt-page-header heading="Accueil">
+<gbt-page-header [heading]="'nav.home' | transloco">
   @if (username()) {
-    <p header-meta class="home-page__greeting">Bonjour, <span class="home-page__username">{{ username() }}</span></p>
+    <p header-meta class="home-page__greeting">{{ 'home.greeting' | transloco }} <span class="home-page__username">{{ username() }}</span></p>
   }
 </gbt-page-header>
 
@@ -116,7 +116,7 @@
                   <span class="home-page__event-marker" aria-hidden="true"></span>
                   <a class="home-page__event-link" [routerLink]="n.link" [queryParams]="n.queryParams">
                     @if (!n.read) {
-                      <span class="sr-only">Non lue</span>
+                      <span class="sr-only">{{ 'home.unread' | transloco }}</span>
                     }
                     {{ n.sentence }}
                   </a>

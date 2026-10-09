@@ -1,4 +1,5 @@
 import { ActivatedRouteSnapshot } from '@angular/router';
+import { t } from '../shared/i18n/translator';
 
 /** One step above a page in the bar: a label, and a link when that step is a page of its own. */
 export interface Crumb {
@@ -20,4 +21,10 @@ export function pageTrail(root: ActivatedRouteSnapshot): Crumb[] {
 }
 
 /** The admin pages sit under the rail's Admin group. */
-export const ADMIN_TRAIL: Crumb[] = [{ label: 'Administration' }];
+export const ADMIN_TRAIL: Crumb[] = [
+  {
+    get label() {
+      return t('nav.administration');
+    },
+  },
+];

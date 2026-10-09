@@ -1,12 +1,12 @@
 <div class="docs-nav" [class.docs-nav--open]="navOpen()">
   <div class="docs-nav__header">
-    <h2 class="docs-nav__heading">Documentation</h2>
+    <h2 class="docs-nav__heading">{{ 'docs.title' | transloco }}</h2>
     <gbt-button
       class="docs-nav__toggle"
       variant="secondary"
       size="small"
       iconName="list"
-      [text]="navOpen() ? 'Masquer le sommaire' : 'Afficher le sommaire'"
+      [text]="(navOpen() ? 'docs.hideToc' : 'docs.showToc') | transloco"
       [ariaExpanded]="navOpen()"
       [ariaControls]="bodyId"
       (clicked)="navOpen.set(!navOpen())"

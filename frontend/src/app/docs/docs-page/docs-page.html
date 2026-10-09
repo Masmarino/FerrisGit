@@ -1,4 +1,4 @@
-<gbt-page-layout width="wide" asideWidth="sm" navLabel="Documentation" asideLabel="Sur cette page" stickyNav>
+<gbt-page-layout width="wide" asideWidth="sm" [navLabel]="'docs.title' | transloco" [asideLabel]="'docs.onThisPage' | transloco" stickyNav>
   <!-- One root per projected block: a control-flow block only gets projected into a named slot that way. -->
   @if (index(); as index) {
     <fg-docs-nav page-nav [index]="index" [section]="sectionSlug()" [page]="pageSlug()" />
@@ -6,8 +6,8 @@
 
   <div class="docs-page">
     @if (page(); as page) {
-      <gbt-breadcrumb class="docs-page__breadcrumb" ariaLabel="Fil d'Ariane">
-        <li breadcrumb-ancestor><a class="gbt-breadcrumb__item" [routerLink]="docsRoot">Documentation</a></li>
+      <gbt-breadcrumb class="docs-page__breadcrumb" [ariaLabel]="'common.breadcrumb' | transloco">
+        <li breadcrumb-ancestor><a class="gbt-breadcrumb__item" [routerLink]="docsRoot">{{ 'docs.title' | transloco }}</a></li>
         <li breadcrumb-ancestor><a class="gbt-breadcrumb__item" [routerLink]="sectionLink(page.location)">{{ page.location.section.title }}</a></li>
         {{ page.location.page.title }}
       </gbt-breadcrumb>
@@ -21,16 +21,16 @@
       </article>
 
       @if (page.location.previous || page.location.next) {
-        <nav class="docs-page__pager" aria-label="Pages voisines">
+        <nav class="docs-page__pager" [attr.aria-label]="'docs.neighbours' | transloco">
           @if (page.location.previous; as previous) {
             <gbt-card class="docs-page__neighbour" variant="outlined" hoverable>
-              <span class="docs-page__neighbour-label">Précédent · {{ previous.sectionTitle }}</span>
+              <span class="docs-page__neighbour-label">{{ 'docs.previous' | transloco: { section: previous.sectionTitle } }}</span>
               <a gbtCardLink class="docs-page__neighbour-link" [routerLink]="previous.commands">{{ previous.title }}</a>
             </gbt-card>
           }
           @if (page.location.next; as next) {
             <gbt-card class="docs-page__neighbour docs-page__neighbour--next" variant="outlined" hoverable>
-              <span class="docs-page__neighbour-label">Suivant · {{ next.sectionTitle }}</span>
+              <span class="docs-page__neighbour-label">{{ 'docs.next' | transloco: { section: next.sectionTitle } }}</span>
               <a gbtCardLink class="docs-page__neighbour-link" [routerLink]="next.commands">{{ next.title }}</a>
             </gbt-card>
           }
@@ -38,20 +38,20 @@
       }
     } @else if (notFound(); as notFound) {
       <gbt-card class="docs-page__not-found" variant="outlined">
-        <gbt-empty-state illustration="book" [headingLevel]="1" heading="Page introuvable" message="Cette page n’existe pas dans la documentation. Vérifiez l’adresse, ou repartez du début.">
+        <gbt-empty-state illustration="book" [headingLevel]="1" [heading]="'docs.notFoundTitle' | transloco" [message]="'docs.notFoundMessage' | transloco">
           @if (notFound.firstPage; as firstPage) {
-            <a gbtButton variant="primary" [routerLink]="firstPage">Aller au début de la documentation</a>
+            <a gbtButton variant="primary" [routerLink]="firstPage">{{ 'docs.goToStart' | transloco }}</a>
           }
         </gbt-empty-state>
       </gbt-card>
     } @else if (view().kind === 'failed') {
       <gbt-alert class="docs-page__failed" variant="error" appearance="subtle">
-        La documentation n’a pas pu être chargée.
-        <gbt-button alert-actions variant="secondary" size="small" iconName="refresh-cw" text="Réessayer" (clicked)="retry()" />
+        {{ 'docs.loadFailed' | transloco }}
+        <gbt-button alert-actions variant="secondary" size="small" iconName="refresh-cw" [text]="'common.retry' | transloco" (clicked)="retry()" />
       </gbt-alert>
     } @else {
       <div class="docs-page__loading" aria-busy="true">
-        <span class="sr-only" role="status">Chargement de la page…</span>
+        <span class="sr-only" role="status">{{ 'docs.loadingPage' | transloco }}</span>
         <gbt-card variant="outlined" [flush]="true" aria-hidden="true">
           <div class="docs-page__loading-card">
             @for (width of skeletonRows; track $index) {

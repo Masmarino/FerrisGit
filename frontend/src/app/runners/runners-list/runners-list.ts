@@ -22,7 +22,8 @@ import { TagInput } from '@masmarino/gabarit/tag-input';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RunnerSummary, RunnersService } from '../runners.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;
 const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;
@@ -50,9 +51,9 @@ interface ConnectivityPresentation {
 }
 
 const CONNECTIVITY: Record<RunnerConnectivity, ConnectivityPresentation> = {
-  online: { label: 'En ligne', variant: 'success', icon: 'circle-check' },
-  offline: { label: 'Hors ligne', variant: 'neutral', icon: 'circle-slash' },
-  never: { label: 'Jamais connecté', variant: 'neutral', icon: 'clock' },
+  online: { get label() { return t('runners.online'); }, variant: 'success', icon: 'circle-check' },
+  offline: { get label() { return t('runners.offline'); }, variant: 'neutral', icon: 'circle-slash' },
+  never: { get label() { return t('runners.never'); }, variant: 'neutral', icon: 'clock' },
 };
 
 interface RowDate {
@@ -71,14 +72,14 @@ interface RunnerRow {
 
 function rowDate(iso: string, now: Date): RowDate {
   const relative = formatRelativeTime(iso, activeLocale(), now, RELATIVE_OPTIONS);
-  return { iso, label: /^\d/.test(relative) ? `le ${relative}` : relative, title: formatDateTime(iso, activeLocale(), ABSOLUTE_OPTIONS) };
+  return { iso, label: /^\d/.test(relative) ? `${t('common.dateOn')}${relative}` : relative, title: formatDateTime(iso, activeLocale(), ABSOLUTE_OPTIONS) };
 }
 
 /** "En ligne" is derived from the last heartbeat when the list loads; the page doesn't poll. */
 @Component({
   selector: 'fg-runners-list',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     FormsModule,
     PageHeader,
     PageLayout,
@@ -143,7 +144,7 @@ export class RunnersList implements OnInit {
   protected nameError = signal<string | null>(null);
   protected registerError = signal(false);
   protected registering = signal(false);
-  protected readonly removeTagLabel = (tag: string) => `Retirer le tag ${tag}`;
+  protected readonly removeTagLabel = (tag: string) => t('runners.removeTag', { tag });
 
   protected revealed = signal<{ name: string; token: string } | null>(null);
   private tokenCard = viewChild<ElementRef<HTMLElement>>('tokenCard');
@@ -163,7 +164,7 @@ export class RunnersList implements OnInit {
       error: () => {
         this.loadFailed.set(true);
         this.loaded.set(true);
-        this.toast.show('Impossible de charger les runners. Réessayez plus tard.', 'error');
+        this.toast.show(t('runners.loadFailedToast'), 'error');
       },
     });
   }
@@ -203,7 +204,7 @@ export class RunnersList implements OnInit {
         this.registering.set(false);
         this.revealed.set({ name: res.name, token: res.token });
         this.closeRegister();
-        this.toast.show('Runner enregistré.');
+        this.toast.show(t('runners.registeredToast'));
         this.refresh();
         // The dialog gives focus back to its opener, so move it on to the token, the next thing to do.
         afterNextRender(() => this.tokenCard()?.nativeElement.focus(), { injector: this.injector });
@@ -211,7 +212,7 @@ export class RunnersList implements OnInit {
       error: () => {
         this.registering.set(false);
         this.registerError.set(true);
-        this.toast.show("Impossible d'enregistrer le runner.", 'error');
+        this.toast.show(t('runners.registerFailedToast'), 'error');
       },
     });
   }

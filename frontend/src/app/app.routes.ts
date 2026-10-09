@@ -7,6 +7,7 @@ import { providePublicRepositoryData } from './public/public-providers';
 import { ADMIN_TRAIL } from './shell/page-trail';
 import { DOCS_ROUTES } from './docs/docs.routes';
 import { pendingChangesGuard } from './shared/pending-changes';
+import { t } from './shared/i18n/translator';
 
 const explorePage = () => import('./public/explore-page/explore-page').then((m) => m.ExplorePage);
 
@@ -62,7 +63,7 @@ export const routes: Routes = [
 
       { path: 'admin/settings', data: { trail: ADMIN_TRAIL }, loadComponent: () => import('./settings/admin-settings/admin-settings').then((m) => m.AdminSettings) },
       { path: 'admin/users', data: { trail: ADMIN_TRAIL }, loadComponent: () => import('./admin/admin-users/admin-users').then((m) => m.AdminUsers) },
-      { path: 'admin/users/:id', data: { trail: [...ADMIN_TRAIL, { label: 'Utilisateurs', link: ['/admin', 'users'] }] }, loadComponent: () => import('./admin/admin-users/admin-user-detail/admin-user-detail').then((m) => m.AdminUserDetail) },
+      { path: 'admin/users/:id', data: { trail: [...ADMIN_TRAIL, { get label() { return t('nav.users'); }, link: ['/admin', 'users'] }] }, loadComponent: () => import('./admin/admin-users/admin-user-detail/admin-user-detail').then((m) => m.AdminUserDetail) },
       { path: 'admin/dashboard', data: { trail: ADMIN_TRAIL }, loadComponent: () => import('./admin/admin-dashboard/admin-dashboard').then((m) => m.AdminDashboard) },
       { path: 'admin/health', data: { trail: ADMIN_TRAIL }, loadComponent: () => import('./admin/admin-health/admin-health').then((m) => m.AdminHealth) },
     ],

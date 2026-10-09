@@ -5,13 +5,14 @@ import { notificationLink, notificationQueryParams, notificationSentence } from 
 import { Button } from '@masmarino/gabarit/button';
 import { NotificationDot } from '@masmarino/gabarit/notification-dot';
 import { Popover } from '@masmarino/gabarit/popover';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const POLL_INTERVAL_MS = 20000;
 
 @Component({
   selector: 'fg-notification-bell',
   standalone: true,
-  imports: [Button, Popover, NotificationDot],
+  imports: [TranslocoPipe, Button, Popover, NotificationDot],
   templateUrl: './notification-bell.html',
   styleUrl: './notification-bell.scss',
 })

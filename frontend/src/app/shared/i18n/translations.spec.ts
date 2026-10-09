@@ -1,6 +1,7 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import fr from '../../../../public/i18n/fr.json';
+import { t } from './translator';
 
 /**
  * The French file is the reference: every key the code names exists in it, and every key in it is used. Keys built at
@@ -9,6 +10,8 @@ import fr from '../../../../public/i18n/fr.json';
 const DYNAMIC_PREFIXES: string[] = [
   // notification-display.ts: the role a notification names.
   'notifications.roles.',
+  // quick-search.ts: the search words of each item.
+  'shell.quickSearch.keywords.',
 ];
 
 const SOURCE_ROOT = join(process.cwd(), 'src', 'app');
