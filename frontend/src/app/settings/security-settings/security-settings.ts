@@ -7,8 +7,9 @@ import { Switch } from '@masmarino/gabarit/switch';
 import { SettingsEditor } from '../settings-editor';
 import { SystemSettingsUpdate } from '../settings.service';
 import { SettingsSaveBar } from '../settings-save-bar/settings-save-bar';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
-const JWT_ERROR = "Entrez un nombre entier d'heures, 1 ou plus";
 
 /** A whole number of hours, 1 or more, as the server requires. `undefined`: invalid. */
 function parseHours(value: string): number | undefined {
@@ -24,7 +25,7 @@ function parseHours(value: string): number | undefined {
 @Component({
   selector: 'fg-security-settings',
   standalone: true,
-  imports: [FormsModule, Card, GbtInput, Slider, Switch, SettingsSaveBar],
+  imports: [TranslocoPipe, FormsModule, Card, GbtInput, Slider, Switch, SettingsSaveBar],
   templateUrl: './security-settings.html',
   styleUrl: './security-settings.scss',
 })
@@ -40,14 +41,14 @@ export class SecuritySettings {
   protected publicPages = linkedSignal(() => this.settings().publicPagesEnabled);
   protected seoIndexing = linkedSignal(() => this.settings().seoIndexingEnabled);
 
-  protected readonly maxPushSizeFormat = (mb: number): string => `${mb} Mio`;
+  protected readonly maxPushSizeFormat = (mb: number): string => t('settings.security.mebibytes', { value: mb });
 
   protected saving = signal(false);
   /** Errors show once the admin tried to save, then follow the value. */
   private submitted = signal(false);
 
   private jwtValue = computed(() => parseHours(this.jwt()));
-  protected jwtError = computed(() => (this.submitted() && this.jwtValue() === undefined ? JWT_ERROR : null));
+  protected jwtError = computed(() => (this.submitted() && this.jwtValue() === undefined ? t('settings.security.jwtError') : null));
   private invalid = computed(() => this.jwtValue() === undefined);
 
   /** What "Enregistrer" sends: the changes, and only those. */
@@ -85,7 +86,7 @@ export class SecuritySettings {
       return;
     }
     this.saving.set(true);
-    this.editor.saveSection(this.update(), 'Réglages de sécurité enregistrés', (saved) => {
+    this.editor.saveSection(this.update(), t('settings.security.saved'), (saved) => {
       this.saving.set(false);
       if (saved) {
         this.submitted.set(false);

@@ -1,7 +1,7 @@
 @switch (loadState()) {
   @case ('loading') {
     <div class="smtp-settings__loading" aria-busy="true">
-      <span class="sr-only" role="status">Chargement des réglages e-mail…</span>
+      <span class="sr-only" role="status">{{ 'settings.smtp.loading' | transloco }}</span>
       @for (help of skeletonCards; track $index) {
         <gbt-card class="smtp-settings__skeleton" variant="outlined" aria-hidden="true">
           <div card-header class="smtp-settings__skeleton-header">
@@ -20,56 +20,56 @@
     </div>
   }
   @case ('failed') {
-    <gbt-card variant="outlined" icon="mail" heading="Serveur SMTP">
+    <gbt-card variant="outlined" icon="mail" [heading]="'settings.smtp.server' | transloco">
       <gbt-alert variant="error" appearance="subtle" live="off">
-        Les réglages e-mail n'ont pas pu être chargés.
+        {{ 'settings.smtp.failed' | transloco }}
         <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="load()" />
       </gbt-alert>
     </gbt-card>
   }
   @default {
-    <gbt-card variant="outlined" icon="mail" heading="Serveur SMTP" description="Le serveur par lequel FerrisGit envoie ses e-mails (invitations, alertes de sécurité).">
+    <gbt-card variant="outlined" icon="mail" [heading]="'settings.smtp.server' | transloco" [description]="'settings.smtp.serverHelp' | transloco">
       <!-- ngNoForm keeps this a plain form so Enter submits from any field. Its fields are standalone ngModels. -->
       <form ngNoForm class="smtp-settings__form" novalidate (submit)="$event.preventDefault(); save()">
         <div class="smtp-settings__group" role="group" aria-labelledby="smtp-group-connection">
-          <h3 class="smtp-settings__group-title" id="smtp-group-connection">Connexion</h3>
+          <h3 class="smtp-settings__group-title" id="smtp-group-connection">{{ 'settings.smtp.connection' | transloco }}</h3>
           <div class="smtp-settings__row smtp-settings__row--server">
             <div class="smtp-settings__field" data-field="host">
-              <gbt-input label="Hôte (serveur SMTP)" mono placeholder="smtp.example.com" autocomplete="off" [errorMessage]="shown()?.host ?? null" [ngModel]="host()" (ngModelChange)="host.set($event)" />
+              <gbt-input [label]="'settings.smtp.host' | transloco" mono placeholder="smtp.example.com" autocomplete="off" [errorMessage]="shown()?.host ?? null" [ngModel]="host()" (ngModelChange)="host.set($event)" />
             </div>
             <div class="smtp-settings__field" data-field="port">
-              <gbt-input type="number" min="1" max="65535" label="Port" mono autocomplete="off" [errorMessage]="shown()?.port ?? null" [ngModel]="port()" (ngModelChange)="port.set($event)" />
+              <gbt-input type="number" min="1" max="65535" [label]="'settings.smtp.port' | transloco" mono autocomplete="off" [errorMessage]="shown()?.port ?? null" [ngModel]="port()" (ngModelChange)="port.set($event)" />
             </div>
           </div>
           <div class="smtp-settings__field" data-field="security">
-            <gbt-segmented-control label="Sécurité" tinted [options]="securityOptions" [value]="security()" (valueChange)="security.set($event)" />
+            <gbt-segmented-control [label]="'settings.sections.security' | transloco" tinted [options]="securityOptions" [value]="security()" (valueChange)="security.set($event)" />
             <p class="smtp-settings__hint">{{ securityHint() }}</p>
             @if (security() === 'none') {
-              <gbt-alert class="smtp-settings__warning" variant="warning" data-warning="no-encryption">Sans chiffrement, l'identifiant et le mot de passe transitent en clair. À réserver à un relais interne de confiance.</gbt-alert>
+              <gbt-alert class="smtp-settings__warning" variant="warning" data-warning="no-encryption">{{ 'settings.smtp.noEncryption' | transloco }}</gbt-alert>
             }
           </div>
         </div>
 
         <div class="smtp-settings__group" role="group" aria-labelledby="smtp-group-auth">
-          <h3 class="smtp-settings__group-title" id="smtp-group-auth">Authentification</h3>
+          <h3 class="smtp-settings__group-title" id="smtp-group-auth">{{ 'settings.smtp.authentication' | transloco }}</h3>
           <div class="smtp-settings__row">
             <div class="smtp-settings__field" data-field="username">
               <gbt-input
-                label="Identifiant"
+                [label]="'settings.smtp.username' | transloco"
                 autocomplete="off"
-                hint="Laissez vide si le serveur n'exige pas d'authentification."
+                [hint]="'settings.smtp.usernameHint' | transloco"
                 [ngModel]="username()"
                 (ngModelChange)="username.set($event)"
               />
             </div>
             <div class="smtp-settings__field" data-field="password">
               <gbt-input
-                label="Mot de passe"
+                [label]="'common.password' | transloco"
                 type="password"
                 autocomplete="new-password"
-                showPasswordLabel="Afficher le mot de passe"
-                hidePasswordLabel="Masquer le mot de passe"
-                hint="Chiffré dans la base, jamais réaffiché."
+                [showPasswordLabel]="'common.showPassword' | transloco"
+                [hidePasswordLabel]="'common.hidePassword' | transloco"
+                [hint]="'settings.smtp.passwordHint' | transloco"
                 [placeholder]="passwordPlaceholder()"
                 [errorMessage]="shown()?.password ?? null"
                 [ngModel]="password()"
@@ -80,11 +80,11 @@
         </div>
 
         <div class="smtp-settings__group" role="group" aria-labelledby="smtp-group-sender">
-          <h3 class="smtp-settings__group-title" id="smtp-group-sender">Expéditeur</h3>
+          <h3 class="smtp-settings__group-title" id="smtp-group-sender">{{ 'settings.smtp.sender' | transloco }}</h3>
           <div class="smtp-settings__row">
             <div class="smtp-settings__field" data-field="fromAddress">
               <gbt-input
-                label="Adresse d'expédition"
+                [label]="'settings.smtp.fromAddress' | transloco"
                 type="email"
                 placeholder="ferrisgit@example.com"
                 autocomplete="off"
@@ -94,7 +94,7 @@
               />
             </div>
             <div class="smtp-settings__field" data-field="fromName">
-              <gbt-input label="Nom d'expéditeur" placeholder="FerrisGit" autocomplete="off" [errorMessage]="shown()?.fromName ?? null" [ngModel]="fromName()" (ngModelChange)="fromName.set($event)" />
+              <gbt-input [label]="'settings.smtp.fromName' | transloco" placeholder="FerrisGit" autocomplete="off" [errorMessage]="shown()?.fromName ?? null" [ngModel]="fromName()" (ngModelChange)="fromName.set($event)" />
             </div>
           </div>
         </div>
@@ -103,23 +103,23 @@
           <!-- Always in the DOM: a live region only announces changes if it already exists. -->
           <p class="smtp-settings__summary" role="status" [attr.data-state]="dirty() ? 'dirty' : null">
             @if (dirty()) {
-              <gbt-icon name="circle-dot" aria-hidden="true" />Modifications non enregistrées
+              <gbt-icon name="circle-dot" aria-hidden="true" />{{ 'common.unsavedChanges' | transloco }}
             } @else if (!configured()) {
-              Aucun serveur configuré : FerrisGit n'envoie pas d'e-mails.
+              {{ 'settings.smtp.notConfigured' | transloco }}
             }
           </p>
-          <gbt-button type="submit" text="Enregistrer" loadingLabel="Enregistrement en cours" [loading]="saving()" [disabled]="saving() || !dirty()" />
+          <gbt-button type="submit" [text]="'common.save' | transloco" [loadingLabel]="'common.saving' | transloco" [loading]="saving()" [disabled]="saving() || !dirty()" />
         </div>
       </form>
     </gbt-card>
 
-    <gbt-card variant="outlined" icon="send" heading="Tester l'envoi" description="Vérifiez que le serveur accepte bien vos e-mails, avant qu'une invitation en dépende.">
+    <gbt-card variant="outlined" icon="send" [heading]="'settings.smtp.test' | transloco" [description]="'settings.smtp.testHelp' | transloco">
       <form ngNoForm class="smtp-settings__form" novalidate (submit)="$event.preventDefault(); sendTest()">
         <div class="smtp-settings__field smtp-settings__recipient" data-field="testRecipient">
           <gbt-input
-            label="Destinataire du test"
+            [label]="'settings.smtp.testRecipient' | transloco"
             type="email"
-            placeholder="vous@example.com"
+            [placeholder]="'settings.smtp.testPlaceholder' | transloco"
             autocomplete="email"
             [hint]="testHint()"
             [ngModel]="testRecipient()"
@@ -136,7 +136,7 @@
               </p>
             }
           </div>
-          <gbt-button type="submit" variant="secondary" text="Envoyer un e-mail de test" loadingLabel="Envoi en cours" [loading]="testing()" [disabled]="!canTest()" />
+          <gbt-button type="submit" variant="secondary" [text]="'settings.smtp.sendTest' | transloco" [loadingLabel]="'common.sending' | transloco" [loading]="testing()" [disabled]="!canTest()" />
         </div>
       </form>
     </gbt-card>

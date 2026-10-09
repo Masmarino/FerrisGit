@@ -15,13 +15,32 @@ import { SecuritySettings } from '../security-settings/security-settings';
 import { SettingsEditor } from '../settings-editor';
 import { SmtpSettings } from '../smtp-settings/smtp-settings';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 type SectionKey = 'execution' | 'security' | 'email';
 
 const SECTIONS: { key: SectionKey; label: string; icon: string }[] = [
-  { key: 'execution', label: 'Exécution', icon: 'server' },
-  { key: 'security', label: 'Sécurité', icon: 'lock' },
-  { key: 'email', label: 'E-mail', icon: 'mail' },
+  {
+    key: 'execution',
+    get label() {
+      return t('settings.sections.execution');
+    },
+    icon: 'server',
+  },
+  {
+    key: 'security',
+    get label() {
+      return t('settings.sections.security');
+    },
+    icon: 'lock',
+  },
+  {
+    key: 'email',
+    get label() {
+      return t('settings.sections.email');
+    },
+    icon: 'mail',
+  },
 ];
 
 const DEFAULT_SECTION: SectionKey = 'execution';
@@ -57,7 +76,7 @@ export class AdminSettings implements OnInit {
   });
 
   ngOnInit(): void {
-    this.pageTitle.set("Réglages de l'instance");
+    this.pageTitle.set(t('settings.title'));
     this.editor.load();
   }
 }

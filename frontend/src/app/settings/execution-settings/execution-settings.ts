@@ -8,16 +8,15 @@ import { RunnerRegistrationToken } from '../runner-registration-token/runner-reg
 import { SettingsSaveBar } from '../settings-save-bar/settings-save-bar';
 import { SettingsEditor } from '../settings-editor';
 import { SystemSettings, SystemSettingsUpdate } from '../settings.service';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 type Engine = SystemSettings['executionEngine'];
 
-const ENGINE_OPTIONS: SegmentedControlOption<Engine>[] = [
-  { value: 'docker-runners', label: 'Docker / runners' },
-  { value: 'kubernetes', label: 'Kubernetes' },
+const engineOptions = (): SegmentedControlOption<Engine>[] => [
+  { value: 'docker-runners', label: t('settings.execution.engineRunners') },
+  { value: 'kubernetes', label: t('settings.execution.kubernetes') },
 ];
-
-const MAX_JOBS_ERROR = 'Entrez un nombre entier, 1 ou plus, ou laissez vide pour ne pas limiter';
-const RETENTION_ERROR = 'Entrez un nombre entier de jours, 1 ou plus, ou laissez vide pour tout conserver';
 
 const configuredOrDetected = (configured: string | null, detected: string | null) => configured ?? detected ?? '';
 
@@ -41,7 +40,7 @@ const countText = (count: number | null) => String(count ?? '');
 @Component({
   selector: 'fg-execution-settings',
   standalone: true,
-  imports: [FormsModule, Card, GbtInput, Icon, SegmentedControl, RunnerRegistrationToken, SettingsSaveBar],
+  imports: [TranslocoPipe, FormsModule, Card, GbtInput, Icon, SegmentedControl, RunnerRegistrationToken, SettingsSaveBar],
   templateUrl: './execution-settings.html',
   styleUrl: './execution-settings.scss',
 })
@@ -49,7 +48,7 @@ export class ExecutionSettings {
   private editor = inject(SettingsEditor);
 
   protected settings = this.editor.saved;
-  protected readonly engineOptions = ENGINE_OPTIONS;
+  protected readonly engineOptions = engineOptions();
 
   // Drafts: each follows the saved value until edited, and again after a save.
   protected engine = linkedSignal<Engine>(() => this.settings().executionEngine);
@@ -74,8 +73,8 @@ export class ExecutionSettings {
 
   private maxJobsValue = computed(() => parseCount(this.maxJobs()));
   private retentionValue = computed(() => parseCount(this.retention()));
-  protected maxJobsError = computed(() => (this.submitted() && this.maxJobsValue() === undefined ? MAX_JOBS_ERROR : null));
-  protected retentionError = computed(() => (this.submitted() && this.retentionValue() === undefined ? RETENTION_ERROR : null));
+  protected maxJobsError = computed(() => (this.submitted() && this.maxJobsValue() === undefined ? t('settings.execution.maxJobsError') : null));
+  protected retentionError = computed(() => (this.submitted() && this.retentionValue() === undefined ? t('settings.execution.retentionError') : null));
   private invalid = computed(() => this.retentionValue() === undefined || (!this.onKubernetes() && this.maxJobsValue() === undefined));
 
   /** What "Enregistrer" sends: the changes to the fields shown, and only those. */
@@ -137,7 +136,7 @@ export class ExecutionSettings {
       return;
     }
     this.saving.set(true);
-    this.editor.saveSection(this.update(), "Réglages d'exécution enregistrés", (saved) => {
+    this.editor.saveSection(this.update(), t('settings.execution.saved'), (saved) => {
       this.saving.set(false);
       if (saved) {
         this.submitted.set(false);

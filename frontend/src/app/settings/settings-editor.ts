@@ -2,6 +2,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { SettingsService, SystemSettings, SystemSettingsUpdate } from './settings.service';
+import { t } from '../shared/i18n/translator';
 
 /**
  * A setting saved on its own, with its save state shown beside it. Only the runners' registration token is now: its
@@ -45,7 +46,7 @@ export class SettingsEditor {
       },
       error: () => {
         this.loadState.set('failed');
-        this.toast.show('Impossible de charger les réglages. Réessayez plus tard.', 'error');
+        this.toast.show(t('settings.loadFailed'), 'error');
       },
     });
   }
@@ -62,7 +63,7 @@ export class SettingsEditor {
       error: () => {
         rollback();
         this.setSaveState(field, 'error');
-        this.toast.show("Échec de l'enregistrement. Réessayez.", 'error');
+        this.toast.show(t('settings.saveFailed'), 'error');
       },
     });
   }
@@ -81,7 +82,7 @@ export class SettingsEditor {
       error: (err: unknown) => {
         // A 400 means the server refused a value the client rules let through: retrying would fail the same way.
         const refused = err instanceof HttpErrorResponse && err.status === 400;
-        this.toast.show(refused ? 'Réglages refusés : vérifiez les champs.' : "Échec de l'enregistrement. Réessayez.", 'error');
+        this.toast.show(refused ? t('settings.refused') : t('settings.saveFailed'), 'error');
         done(false);
       },
     });

@@ -1,10 +1,10 @@
-<gbt-page-header heading="Réglages de l'instance">
-  <p header-meta class="admin-settings__intro">Exécution des pipelines, sessions, limites et e-mails, pour tous les utilisateurs</p>
+<gbt-page-header [heading]="'settings.title' | transloco">
+  <p header-meta class="admin-settings__intro">{{ 'settings.intro' | transloco }}</p>
 </gbt-page-header>
 
-<gbt-page-layout width="wide" navLabel="Réglages de l'instance" [stickyNav]="true">
+<gbt-page-layout width="wide" [navLabel]="'settings.title' | transloco" [stickyNav]="true">
   <!-- The layout already wraps [page-nav] in a labelled <nav>, so the tab nav doesn't add a second landmark. -->
-  <gbt-nav-tabs page-nav orientation="vertical" ariaLabel="Réglages de l'instance" [landmark]="false">
+  <gbt-nav-tabs page-nav orientation="vertical" [ariaLabel]="'settings.title' | transloco" [landmark]="false">
     @for (section of sections; track section.key) {
       <a gbtNavTab [routerLink]="[]" [queryParams]="section.queryParams" [icon]="section.icon" [active]="section.key === activeSection()">{{ section.label }}</a>
     }
@@ -14,7 +14,7 @@
     @switch (editor.loadState()) {
       @case ('loading') {
         <div class="admin-settings__loading" aria-busy="true">
-          <span class="sr-only" role="status">Chargement des réglages…</span>
+          <span class="sr-only" role="status">{{ 'settings.loading' | transloco }}</span>
           @for (card of skeletonCards; track $index) {
             <gbt-card class="admin-settings__skeleton" variant="outlined" aria-hidden="true">
               <div card-header class="admin-settings__skeleton-header">
@@ -33,9 +33,9 @@
         </div>
       }
       @case ('failed') {
-        <gbt-card variant="outlined" icon="settings" heading="Réglages de l'instance">
+        <gbt-card variant="outlined" icon="settings" [heading]="'settings.title' | transloco">
           <gbt-alert variant="error" appearance="subtle" live="off">
-            Les réglages n'ont pas pu être chargés.
+            {{ 'settings.failed' | transloco }}
             <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="editor.load()" />
           </gbt-alert>
         </gbt-card>

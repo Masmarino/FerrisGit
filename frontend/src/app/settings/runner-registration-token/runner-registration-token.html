@@ -1,10 +1,10 @@
 <div class="admin-settings__field" data-field="runnerRegistrationToken">
   <div class="admin-settings__token-status">
-    <span class="admin-settings__token-label">Jeton d'enregistrement</span>
+    <span class="admin-settings__token-label">{{ 'settings.token.label' | transloco }}</span>
     @if (configured()) {
-      <gbt-badge variant="success" icon="check-circle">Configuré</gbt-badge>
+      <gbt-badge variant="success" icon="check-circle">{{ 'settings.token.configured' | transloco }}</gbt-badge>
     } @else {
-      <gbt-badge variant="neutral">Non configuré</gbt-badge>
+      <gbt-badge variant="neutral">{{ 'settings.token.notConfigured' | transloco }}</gbt-badge>
     }
   </div>
   <gbt-input
@@ -16,32 +16,29 @@
     (ngModelChange)="editor.runnerTokenDraft.set($event)"
   />
   <div class="admin-settings__token-actions">
-    <gbt-button variant="secondary" size="small" iconName="refresh-cw" [text]="configured() ? 'Générer un nouveau jeton' : 'Générer un jeton'" (clicked)="askGenerate()" />
+    <gbt-button variant="secondary" size="small" iconName="refresh-cw" [text]="(configured() ? 'settings.token.regenerate' : 'settings.token.generate') | transloco" (clicked)="askGenerate()" />
     @if (configured()) {
-      <gbt-button variant="danger" size="small" iconName="trash-2" text="Supprimer le jeton" (clicked)="askRemove()" />
+      <gbt-button variant="danger" size="small" iconName="trash-2" [text]="'settings.token.remove' | transloco" (clicked)="askRemove()" />
     }
   </div>
   @if (generatedToken(); as token) {
-    <div class="admin-settings__generated" role="group" aria-label="Jeton généré">
-      <p class="admin-settings__generated-warning">Copiez-le maintenant : il ne sera plus jamais affiché.</p>
+    <div class="admin-settings__generated" role="group" [attr.aria-label]="'settings.token.generated' | transloco">
+      <p class="admin-settings__generated-warning">{{ 'settings.token.copyNow' | transloco }}</p>
       <gbt-secret-reveal
         [value]="token"
         [revealed]="true"
-        showLabel="Afficher le jeton"
-        hideLabel="Masquer le jeton"
-        hiddenLabel="Jeton masqué"
-        copyLabel="Copier le jeton"
-        copiedText="Jeton copié"
-        failedText="Copie impossible, jeton sélectionné"
+        [showLabel]="'settings.token.show' | transloco"
+        [hideLabel]="'settings.token.hide' | transloco"
+        [hiddenLabel]="'settings.token.hidden' | transloco"
+        [copyLabel]="'settings.token.copy' | transloco"
+        [copiedText]="'settings.token.copied' | transloco"
+        [failedText]="'common.copyFailedSelected' | transloco"
       />
-      <gbt-button variant="secondary" size="small" text="J'ai copié le jeton" (clicked)="dismissGenerated()" />
+      <gbt-button variant="secondary" size="small" [text]="'settings.token.done' | transloco" (clicked)="dismissGenerated()" />
     </div>
   }
   <div class="admin-settings__field-footer">
-    <p class="admin-settings__hint">
-      Un runner qui le présente à <code>POST /api/runner/register</code> reçoit son propre jeton. Sans jeton d'enregistrement, cette route est désactivée. Le jeton est conservé haché : il n'est jamais
-      réaffiché. Les runners déjà enregistrés ne sont pas touchés.
-    </p>
+    <p class="admin-settings__hint" [innerHTML]="'settings.token.usage' | transloco"></p>
     <fg-field-save-state field="runnerRegistrationToken" />
   </div>
 </div>
@@ -49,13 +46,9 @@
 @if (pendingAction(); as action) {
   <gbt-confirm-danger-modal
     [isOpen]="true"
-    [heading]="action === 'remove' ? 'Supprimer le jeton d\'enregistrement' : 'Remplacer le jeton d\'enregistrement'"
-    [message]="
-      action === 'remove'
-        ? 'Les runners ne pourront plus s\'enregistrer eux-mêmes auprès de cette instance. Les runners déjà enregistrés continuent de fonctionner.'
-        : 'Le jeton actuel ne permettra plus d\'enregistrer de nouveaux runners. Les runners déjà enregistrés continuent de fonctionner. Le nouveau jeton ne sera affiché qu\'une seule fois.'
-    "
-    [confirmLabel]="action === 'remove' ? 'Supprimer le jeton' : 'Générer un jeton'"
+    [heading]="(action === 'remove' ? 'settings.token.removeTitle' : 'settings.token.replaceTitle') | transloco"
+    [message]="(action === 'remove' ? 'settings.token.removeMessage' : 'settings.token.replaceMessage') | transloco"
+    [confirmLabel]="(action === 'remove' ? 'settings.token.remove' : 'settings.token.generate') | transloco"
     [confirmIcon]="action === 'remove' ? 'trash-2' : 'refresh-cw'"
     [tone]="action === 'remove' ? 'danger' : 'warning'"
     [cancelLabel]="'common.cancel' | transloco"

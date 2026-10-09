@@ -11,20 +11,19 @@ import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { SettingsService, SmtpSecurity, SmtpSettings as SmtpSettingsData, SmtpSettingsUpdate } from '../settings.service';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
-const SECURITY_OPTIONS: SegmentedControlOption<SmtpSecurity>[] = [
-  { value: 'none', label: 'Aucune' },
+const securityOptions = (): SegmentedControlOption<SmtpSecurity>[] => [
+  { value: 'none', label: t('settings.smtp.securityNone') },
   { value: 'starttls', label: 'STARTTLS' },
   { value: 'tls', label: 'TLS' },
 ];
 
 const SECURITY_HINTS: Record<SmtpSecurity, string> = {
-  none: 'Connexion en clair, généralement sur le port 25.',
-  starttls: 'La connexion démarre en clair puis passe en chiffré, généralement sur le port 587.',
-  tls: 'Connexion chiffrée dès le départ, généralement sur le port 465.',
+  none: 'settings.smtp.hintNone',
+  starttls: 'settings.smtp.hintStarttls',
+  tls: 'settings.smtp.hintTls',
 };
-
-const TEST_FAILED = "Échec de l'envoi : le serveur n'a pas pu traiter la demande. Réessayez plus tard.";
 
 /** The form as typed: the port as text, the password only what the user typed (never the stored one). */
 export interface SmtpFormValues {
@@ -58,19 +57,19 @@ export function validateSmtpForm(values: SmtpFormValues): SmtpFormErrors {
   const validPort = /^\d+$/.test(port) && portNumber >= 1 && portNumber <= 65535;
   return {
     host: hostError(values.host),
-    port: validPort ? null : 'Entre 1 et 65535',
-    password: values.username.trim() && !values.passwordSet && !values.password ? 'Indiquez le mot de passe de ce compte' : null,
-    fromAddress: isValidMailbox(values.fromAddress) ? null : 'Entrez une adresse e-mail valide',
-    fromName: [...values.fromName.trim()].length > FROM_NAME_MAX ? `${FROM_NAME_MAX} caractères au maximum` : null,
+    port: validPort ? null : t('settings.smtp.portError'),
+    password: values.username.trim() && !values.passwordSet && !values.password ? t('settings.smtp.passwordRequired') : null,
+    fromAddress: isValidMailbox(values.fromAddress) ? null : t('settings.smtp.addressInvalid'),
+    fromName: [...values.fromName.trim()].length > FROM_NAME_MAX ? t('settings.smtp.maxLength', { max: FROM_NAME_MAX }) : null,
   };
 }
 
 function hostError(host: string): string | null {
   const trimmed = host.trim();
   if (!trimmed) {
-    return 'Indiquez le serveur SMTP';
+    return t('settings.smtp.hostRequired');
   }
-  return /\s/.test(trimmed) ? "Le serveur ne peut pas contenir d'espace" : null;
+  return /\s/.test(trimmed) ? t('settings.smtp.hostSpaces') : null;
 }
 
 /** The password is write-only: sent only when typed, never returned. */
@@ -85,7 +84,7 @@ export class SmtpSettings implements OnInit {
   private settings = inject(SettingsService);
   private toast = inject(GbtToastService);
 
-  protected readonly securityOptions = SECURITY_OPTIONS;
+  protected readonly securityOptions = securityOptions();
   protected readonly skeletonCards = ['9rem', '7rem'];
 
   protected loadState = signal<'loading' | 'loaded' | 'failed'>('loading');
@@ -107,8 +106,8 @@ export class SmtpSettings implements OnInit {
 
   protected passwordSet = computed(() => this.loaded()?.passwordSet ?? false);
   protected configured = computed(() => this.loaded()?.configured ?? false);
-  protected securityHint = computed(() => SECURITY_HINTS[this.security()]);
-  protected passwordPlaceholder = computed(() => (this.passwordSet() && !this.password() ? '•••••••• (inchangé)' : ''));
+  protected securityHint = computed(() => t(SECURITY_HINTS[this.security()]));
+  protected passwordPlaceholder = computed(() => (this.passwordSet() && !this.password() ? t('settings.smtp.passwordUnchanged') : ''));
 
   protected dirty = computed(() => {
     const s = this.loaded();
@@ -138,7 +137,7 @@ export class SmtpSettings implements OnInit {
   protected shown = computed(() => (this.submitted() ? this.errors() : null));
 
   protected canTest = computed(() => isValidMailbox(this.testRecipient()) && !this.testing() && !this.dirty() && this.configured());
-  protected testHint = computed(() => (this.dirty() || !this.configured() ? 'Enregistrez les réglages avant de tester.' : 'Le test utilise les réglages enregistrés.'));
+  protected testHint = computed(() => (this.dirty() || !this.configured() ? t('settings.smtp.saveTestFirst') : t('settings.smtp.testUsesSaved')));
 
   ngOnInit(): void {
     this.load();
@@ -153,7 +152,7 @@ export class SmtpSettings implements OnInit {
       },
       error: () => {
         this.loadState.set('failed');
-        this.toast.show('Impossible de charger les réglages e-mail. Réessayez plus tard.', 'error');
+        this.toast.show(t('settings.smtp.loadFailed'), 'error');
       },
     });
   }
@@ -181,12 +180,12 @@ export class SmtpSettings implements OnInit {
       next: (s) => {
         this.saving.set(false);
         this.hydrate(s);
-        this.toast.show('Réglages e-mail enregistrés');
+        this.toast.show(t('settings.smtp.saved'));
       },
       error: (err: HttpErrorResponse) => {
         this.saving.set(false);
         // A 400 means the server refused a value the client rules let through, so retrying would fail the same way.
-        this.toast.show(err.status === 400 ? 'Réglages refusés : vérifiez les champs.' : "Échec de l'enregistrement. Réessayez.", 'error');
+        this.toast.show(err.status === 400 ? t('settings.refused') : t('settings.saveFailed'), 'error');
       },
     });
   }
@@ -203,13 +202,13 @@ export class SmtpSettings implements OnInit {
         this.testing.set(false);
         this.testResult.set(
           result.sent
-            ? { sent: true, message: `E-mail de test envoyé à ${to}` }
-            : { sent: false, message: `Échec de l'envoi : ${result.error ?? 'erreur inconnue'}` },
+            ? { sent: true, message: t('settings.smtp.testSent', { to }) }
+            : { sent: false, message: t('settings.smtp.sendFailed', { reason: result.error ?? t('settings.smtp.unknownError') }) },
         );
       },
       error: () => {
         this.testing.set(false);
-        this.testResult.set({ sent: false, message: TEST_FAILED });
+        this.testResult.set({ sent: false, message: t('settings.smtp.testFailed') });
       },
     });
   }
