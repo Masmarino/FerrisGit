@@ -3,6 +3,7 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { marked, Token } from 'marked';
 import DOMPurify, { Config } from 'dompurify';
+import { t } from '../i18n/translator';
 
 // Markdown comes from any collaborator, so it's sanitised harder than DOMPurify's default: no restyling the page
 // (<style>, style="…"), no fake UI (forms, buttons, dialogs), no colliding ids. A dedicated instance keeps these hooks
@@ -147,11 +148,11 @@ export function makeScrollableBlocksFocusable(container: HTMLElement): void {
   for (const pre of Array.from(container.querySelectorAll('pre'))) {
     pre.setAttribute('tabindex', '0');
     pre.setAttribute('role', 'region');
-    pre.setAttribute('aria-label', 'Bloc de code');
+    pre.setAttribute('aria-label', t('markdown.codeBlock'));
   }
   for (const table of Array.from(container.querySelectorAll('table'))) {
     table.setAttribute('tabindex', '0');
-    table.setAttribute('aria-label', 'Tableau');
+    table.setAttribute('aria-label', t('markdown.table'));
   }
 }
 

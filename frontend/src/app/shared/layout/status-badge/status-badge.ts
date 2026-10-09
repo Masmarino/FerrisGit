@@ -4,6 +4,7 @@ import { Issue } from '../../../issues/issues.service';
 import { MergeRequestSummary } from '../../../merge-requests/merge-requests.service';
 import { PipelineSummary } from '../../../pipelines/pipelines.service';
 import { ReleaseStatus } from '../../../releases/releases.service';
+import { t } from '../../i18n/translator';
 
 export type StatusKind = 'issue' | 'merge-request' | 'pipeline' | 'release';
 
@@ -15,31 +16,31 @@ export interface StatusPresentation {
 
 // Issues: a ring that fills with progress; the label says it in words.
 const ISSUE_STATUSES: Record<Issue['status'], StatusPresentation> = {
-  todo: { label: 'À faire', variant: 'neutral', icon: 'circle-dot' },
-  in_progress: { label: 'En cours', variant: 'info', icon: 'circle-half' },
-  in_review: { label: 'En revue', variant: 'warning', icon: 'circle-three-quarters' },
-  done: { label: 'Terminé', variant: 'success', icon: 'circle-check' },
+  todo: { get label() { return t('status.issue.todo'); }, variant: 'neutral', icon: 'circle-dot' },
+  in_progress: { get label() { return t('status.issue.in_progress'); }, variant: 'info', icon: 'circle-half' },
+  in_review: { get label() { return t('status.issue.in_review'); }, variant: 'warning', icon: 'circle-three-quarters' },
+  done: { get label() { return t('status.issue.done'); }, variant: 'success', icon: 'circle-check' },
 };
 
 const MERGE_REQUEST_STATUSES: Record<MergeRequestSummary['status'], StatusPresentation> = {
-  open: { label: 'Ouverte', variant: 'info', icon: 'git-pull-request' },
-  merged: { label: 'Fusionnée', variant: 'success', icon: 'git-merge' },
-  closed: { label: 'Fermée', variant: 'neutral', icon: 'git-pull-request-closed' },
+  open: { get label() { return t('status.mergeRequest.open'); }, variant: 'info', icon: 'git-pull-request' },
+  merged: { get label() { return t('status.mergeRequest.merged'); }, variant: 'success', icon: 'git-merge' },
+  closed: { get label() { return t('status.mergeRequest.closed'); }, variant: 'neutral', icon: 'git-pull-request-closed' },
 };
 
 // Pipelines: one circled glyph per outcome, and only a failure is red.
 const PIPELINE_STATUSES: Record<PipelineSummary['status'], StatusPresentation> = {
-  pending: { label: 'En attente', variant: 'neutral', icon: 'clock' },
-  running: { label: 'En cours', variant: 'info', icon: 'circle-play' },
-  success: { label: 'Réussie', variant: 'success', icon: 'circle-check' },
-  failed: { label: 'Échouée', variant: 'error', icon: 'circle-x' },
-  canceled: { label: 'Annulée', variant: 'neutral', icon: 'circle-slash' },
+  pending: { get label() { return t('status.pipeline.pending'); }, variant: 'neutral', icon: 'clock' },
+  running: { get label() { return t('status.pipeline.running'); }, variant: 'info', icon: 'circle-play' },
+  success: { get label() { return t('status.pipeline.success'); }, variant: 'success', icon: 'circle-check' },
+  failed: { get label() { return t('status.pipeline.failed'); }, variant: 'error', icon: 'circle-x' },
+  canceled: { get label() { return t('status.pipeline.canceled'); }, variant: 'neutral', icon: 'circle-slash' },
 };
 
 const RELEASE_STATUSES: Record<ReleaseStatus, StatusPresentation> = {
-  draft: { label: 'Brouillon', variant: 'neutral', icon: 'pencil' },
-  prerelease: { label: 'Pré-version', variant: 'warning', icon: 'flask-conical' },
-  published: { label: 'Publiée', variant: 'success', icon: 'tag' },
+  draft: { get label() { return t('status.release.draft'); }, variant: 'neutral', icon: 'pencil' },
+  prerelease: { get label() { return t('status.release.prerelease'); }, variant: 'warning', icon: 'flask-conical' },
+  published: { get label() { return t('status.release.published'); }, variant: 'success', icon: 'tag' },
 };
 
 const STATUSES: Record<StatusKind, Record<string, StatusPresentation>> = {

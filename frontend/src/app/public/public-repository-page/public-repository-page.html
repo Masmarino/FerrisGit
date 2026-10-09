@@ -10,10 +10,10 @@
       {{ pageTitle.title() || h.name }}
     </gbt-breadcrumb>
 
-    <gbt-nav-tabs class="public-repository-page__tabs" ariaLabel="Sections du dépôt">
-      <a gbtNavTab icon="folder-git-2" [routerLink]="h.overviewLink" [active]="section() === 'overview'">Aperçu</a>
-      <a gbtNavTab icon="git-commit" [routerLink]="h.commitsLink" [active]="section() === 'commits'">Commits</a>
-      <a gbtNavTab icon="tag" [routerLink]="h.releasesLink" [active]="section() === 'releases'">Releases</a>
+    <gbt-nav-tabs class="public-repository-page__tabs" [ariaLabel]="'public.repository.sections' | transloco">
+      <a gbtNavTab icon="folder-git-2" [routerLink]="h.overviewLink" [active]="section() === 'overview'">{{ 'nav.overview' | transloco }}</a>
+      <a gbtNavTab icon="git-commit" [routerLink]="h.commitsLink" [active]="section() === 'commits'">{{ 'common.commits' | transloco }}</a>
+      <a gbtNavTab icon="tag" [routerLink]="h.releasesLink" [active]="section() === 'releases'">{{ 'nav.releases' | transloco }}</a>
     </gbt-nav-tabs>
   </div>
 }
@@ -21,7 +21,7 @@
 @switch (view().kind) {
   @case ('loading') {
     <div class="public-repository-page__status">
-      <gbt-spinner size="lg" label="Chargement…" />
+      <gbt-spinner size="lg" [label]="'common.loading' | transloco" />
     </div>
   }
   @case ('notFound') {
@@ -29,13 +29,13 @@
   }
   @case ('rateLimited') {
     <gbt-alert class="public-repository-page__alert" variant="warning" appearance="subtle">
-      Trop de requêtes en peu de temps. Patientez une minute avant de réessayer.
+      {{ 'public.repository.rateLimited' | transloco }}
       <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry()" />
     </gbt-alert>
   }
   @case ('error') {
     <gbt-alert class="public-repository-page__alert" variant="error" appearance="subtle">
-      Ce dépôt n'a pas pu être chargé.
+      {{ 'public.repository.failed' | transloco }}
       <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry()" />
     </gbt-alert>
   }

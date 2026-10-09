@@ -1,18 +1,18 @@
 <div class="public-layout">
   <header class="public-layout__header">
-    <a class="public-layout__home" routerLink="/explore" aria-label="FerrisGit, explorer les dépôts publics">
+    <a class="public-layout__home" routerLink="/explore" [attr.aria-label]="'public.layout.home' | transloco">
       <!-- The light version of the logo, drawn for the graphite bar, as in the app's rail. -->
       <img class="public-layout__logo" src="Logo_horizontal_dark.png" alt="" />
     </a>
 
-    <form ngNoForm class="public-layout__search" role="search" aria-label="Recherche rapide" (submit)="$event.preventDefault(); search()">
+    <form ngNoForm class="public-layout__search" role="search" [attr.aria-label]="'public.layout.quickSearch' | transloco" (submit)="$event.preventDefault(); search()">
       <gbt-input
         type="search"
         size="sm"
         leadingIcon="search"
-        label="Rechercher un dépôt public"
+        [label]="'public.layout.searchLabel' | transloco"
         hideLabel
-        placeholder="Rechercher un dépôt…"
+        [placeholder]="'public.layout.searchPlaceholder' | transloco"
         enterkeyhint="search"
         [maxlength]="maxQueryLength"
         [ngModel]="query()"
@@ -21,17 +21,17 @@
     </form>
 
     <div class="public-layout__end">
-      <a gbtButton class="public-layout__github" variant="ghost" size="small" iconName="github" [href]="repositoryUrl" target="_blank" rel="noopener" aria-label="FerrisGit sur GitHub (nouvel onglet)"
+      <a gbtButton class="public-layout__github" variant="ghost" size="small" iconName="github" [href]="repositoryUrl" target="_blank" rel="noopener" [attr.aria-label]="'public.layout.github' | transloco"
         ><span class="public-layout__link-label">GitHub</span></a
       >
       <a gbtButton class="public-layout__docs" variant="ghost" size="small" iconName="book-open" routerLink="/docs" routerLinkActive ariaCurrentWhenActive="page"
-        ><span class="public-layout__link-label">Documentation</span></a
+        ><span class="public-layout__link-label">{{ 'nav.docs' | transloco }}</span></a
       >
       <div class="public-layout__account">
         @if (isAuthenticated()) {
-          <a gbtButton class="public-layout__account-link" variant="secondary" size="small" routerLink="/repositories">Mes dépôts</a>
+          <a gbtButton class="public-layout__account-link" variant="secondary" size="small" routerLink="/repositories">{{ 'common.myRepositories' | transloco }}</a>
         } @else {
-          <a gbtButton class="public-layout__account-link" variant="primary" size="small" [routerLink]="login().commands" [queryParams]="login().queryParams">Se connecter</a>
+          <a gbtButton class="public-layout__account-link" variant="primary" size="small" [routerLink]="login().commands" [queryParams]="login().queryParams">{{ 'auth.signIn' | transloco }}</a>
         }
       </div>
     </div>

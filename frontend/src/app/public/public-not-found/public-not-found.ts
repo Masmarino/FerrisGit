@@ -5,12 +5,14 @@ import { Card } from '@masmarino/gabarit/card';
 import { EmptyState } from '@masmarino/gabarit/empty-state';
 import { PageTitleService } from '../../shell/page-title.service';
 import { loginLink } from '../../auth/login-link';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 /** One answer for an unknown page, an unknown repository and a private one, so a visitor can't tell which. */
 @Component({
   selector: 'fg-public-not-found',
   standalone: true,
-  imports: [RouterLink, Button, Card, EmptyState],
+  imports: [TranslocoPipe, RouterLink, Button, Card, EmptyState],
   templateUrl: './public-not-found.html',
   styleUrl: './public-not-found.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,
@@ -20,6 +22,6 @@ export class PublicNotFound implements OnInit {
   protected readonly login = loginLink(inject(Router).url);
 
   ngOnInit(): void {
-    this.pageTitle.set('Introuvable');
+    this.pageTitle.set(t('common.notFound'));
   }
 }

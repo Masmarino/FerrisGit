@@ -48,7 +48,19 @@
     "storage": "Stockage",
     "refresh": "Actualiser",
     "pipelines": "Pipelines",
-    "date": "Date"
+    "date": "Date",
+    "stars_one": "{{ count }} étoile",
+    "stars_other": "{{ count }} étoiles",
+    "repositoryCount_one": "{{ count }} dépôt",
+    "repositoryCount_other": "{{ count }} dépôts",
+    "pageOf": "Page {{ page }} sur {{ total }}",
+    "myRepositories": "Mes dépôts",
+    "exploreRepositories": "Explorer les dépôts publics",
+    "loadingRepositories": "Chargement des dépôts…",
+    "previous": "Précédente",
+    "next": "Suivante",
+    "commits": "Commits",
+    "notFound": "Introuvable"
   },
   "apiTokens": {
     "list": {
@@ -240,8 +252,10 @@
         "health": "admin,état",
         "instance": "admin,smtp,kubernetes,docker",
         "logout": "quitter,se déconnecter"
-      }
-    }
+      },
+      "navigate": "Naviguer"
+    },
+    "mainNav": "Navigation principale"
   },
   "docs": {
     "title": "Documentation",
@@ -256,7 +270,9 @@
     "goToStart": "Aller au début de la documentation",
     "loadingPage": "Chargement de la page…",
     "hideToc": "Masquer le sommaire",
-    "showToc": "Afficher le sommaire"
+    "showToc": "Afficher le sommaire",
+    "searching": "Recherche…",
+    "noMatch": "Aucune page ne correspond."
   },
   "runners": {
     "register": "Enregistrer un runner",
@@ -564,6 +580,79 @@
       "storageCaption": "Stockage total par relevé",
       "countsChart": "Évolution des utilisateurs et dépôts",
       "countsCaption": "Utilisateurs et dépôts par relevé"
+    }
+  },
+  "status": {
+    "issue": {
+      "todo": "À faire",
+      "in_progress": "En cours",
+      "in_review": "En revue",
+      "done": "Terminé"
+    },
+    "mergeRequest": {
+      "open": "Ouverte",
+      "merged": "Fusionnée",
+      "closed": "Fermée"
+    },
+    "pipeline": {
+      "pending": "En attente",
+      "running": "En cours",
+      "success": "Réussie",
+      "failed": "Échouée",
+      "canceled": "Annulée"
+    },
+    "release": {
+      "draft": "Brouillon",
+      "prerelease": "Pré-version",
+      "published": "Publiée"
+    }
+  },
+  "markdown": {
+    "codeBlock": "Bloc de code",
+    "table": "Tableau"
+  },
+  "public": {
+    "explore": {
+      "resultsFor": "Résultats pour « {{ query }} »",
+      "sortStars": "Populaires",
+      "sortName": "Nom",
+      "sortCreated": "Récents",
+      "noRepository": "Aucun dépôt",
+      "intro": "Les projets que leurs auteurs ont rendus publics sur cette instance. Pas besoin de compte pour les lire ou les cloner.",
+      "disabledTitle": "Les pages publiques sont désactivées",
+      "disabledMessage": "Cette instance n'ouvre pas ses dépôts aux visiteurs sans compte.",
+      "searchCatalog": "Rechercher dans le catalogue",
+      "searchPlaceholder": "Nom, chemin ou description",
+      "rateLimited": "Trop de recherches en peu de temps. Patientez une minute avant de réessayer.",
+      "failed": "Le catalogue n'a pas pu être chargé.",
+      "emptyTitle": "Aucun dépôt public pour l'instant",
+      "emptyMessage": "Les dépôts rendus publics sur cette instance apparaîtront ici.",
+      "noMatchTitle": "Aucun dépôt ne correspond à cette recherche",
+      "noMatchMessage": "Essayez un autre mot, ou une partie du nom.",
+      "clearSearch": "Effacer la recherche",
+      "noPageTitle": "Cette page n'existe pas",
+      "noPageMessage": "La recherche a moins de pages.",
+      "firstPage": "Revenir à la première page",
+      "pages": "Pages de résultats",
+      "recent": "Dépôts récents",
+      "all": "Tous les dépôts",
+      "popular": "Dépôts populaires"
+    },
+    "notFound": {
+      "title": "Ce dépôt n'existe pas ou n'est pas public",
+      "message": "Vérifiez l'adresse. Si vous avez accès à ce dépôt, connectez-vous pour le voir."
+    },
+    "layout": {
+      "home": "FerrisGit, explorer les dépôts publics",
+      "quickSearch": "Recherche rapide",
+      "searchLabel": "Rechercher un dépôt public",
+      "searchPlaceholder": "Rechercher un dépôt…",
+      "github": "FerrisGit sur GitHub (nouvel onglet)"
+    },
+    "repository": {
+      "sections": "Sections du dépôt",
+      "rateLimited": "Trop de requêtes en peu de temps. Patientez une minute avant de réessayer.",
+      "failed": "Ce dépôt n'a pas pu être chargé."
     }
   }
 }

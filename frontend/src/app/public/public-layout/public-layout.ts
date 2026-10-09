@@ -10,6 +10,7 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { currentUrl } from '../../shared/current-url';
 import { loginLink } from '../../auth/login-link';
 import { PUBLIC_CATALOG_MAX_QUERY_LENGTH as MAX_QUERY_LENGTH } from '../public-repositories.service';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const APP_NAME = 'FerrisGit';
 const REPOSITORY_URL = 'https://github.com/Masmarino/FerrisGit';
@@ -18,7 +19,7 @@ const REPOSITORY_URL = 'https://github.com/Masmarino/FerrisGit';
 @Component({
   selector: 'fg-public-layout',
   standalone: true,
-  imports: [FormsModule, RouterLink, RouterLinkActive, RouterOutlet, Button, GbtInput],
+  imports: [TranslocoPipe, FormsModule, RouterLink, RouterLinkActive, RouterOutlet, Button, GbtInput],
   templateUrl: './public-layout.html',
   styleUrl: './public-layout.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

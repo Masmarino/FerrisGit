@@ -19,15 +19,16 @@ import { PublicConfigService } from '../public-config.service';
 import { PUBLIC_CATALOG_MAX_QUERY_LENGTH as MAX_QUERY_LENGTH, PUBLIC_CATALOG_PAGE_SIZE, PublicCatalogPage, PublicCatalogQuery, PublicCatalogSort, PublicRepositoriesService, PublicRepositorySummary } from '../public-repositories.service';
 import { loginLink } from '../../auth/login-link';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
 export const SEARCH_DEBOUNCE_MS = 300;
 const SORTS: PublicCatalogSort[] = ['stars', 'name', 'created'];
 const DEFAULT_SORT: PublicCatalogSort = 'stars';
 
-const SORT_OPTIONS: SegmentedControlOption<PublicCatalogSort>[] = [
-  { value: 'stars', label: 'Populaires' },
-  { value: 'name', label: 'Nom' },
-  { value: 'created', label: 'Récents' },
+const sortOptions = (): SegmentedControlOption<PublicCatalogSort>[] => [
+  { value: 'stars', label: t('public.explore.sortStars') },
+  { value: 'name', label: t('public.explore.sortName') },
+  { value: 'created', label: t('public.explore.sortCreated') },
 ];
 
 export type ExploreState =
@@ -81,7 +82,7 @@ export class ExplorePage implements OnInit {
   private destroyRef = inject(DestroyRef);
   protected isAuthenticated = inject(AuthService).isAuthenticated;
 
-  protected readonly sortOptions = SORT_OPTIONS;
+  protected readonly sortOptions = sortOptions();
   protected readonly maxQueryLength = MAX_QUERY_LENGTH;
   protected readonly skeletonCards = ['46%', '32%', '58%', '40%'];
   protected readonly login = loginLink('/explore');
@@ -118,7 +119,7 @@ export class ExplorePage implements OnInit {
       repository,
       link: ['/repositories', ...repository.path],
       fullPath: repository.path.join(' / '),
-      starsLabel: `${repository.stars} ${repository.stars > 1 ? 'étoiles' : 'étoile'}`,
+      starsLabel: tn('common.stars', repository.stars),
     })),
   );
   protected totalPages = computed(() => {
@@ -128,21 +129,21 @@ export class ExplorePage implements OnInit {
   protected countLabel = computed(() => {
     const total = this.result()?.total;
     if (total === undefined) return '';
-    return total === 0 ? 'Aucun dépôt' : `${total} ${total > 1 ? 'dépôts' : 'dépôt'}`;
+    return total === 0 ? t('public.explore.noRepository') : tn('common.repositoryCount', total);
   });
   protected heading = computed(() => {
     const q = this.query().q;
-    if (q) return `Résultats pour « ${q} »`;
-    return this.query().sort === 'created' ? 'Dépôts récents' : this.query().sort === 'name' ? 'Tous les dépôts' : 'Dépôts populaires';
+    if (q) return t('public.explore.resultsFor', { query: q });
+    return this.query().sort === 'created' ? t('public.explore.recent') : this.query().sort === 'name' ? t('public.explore.all') : t('public.explore.popular');
   });
-  protected pageLabel = computed(() => `Page ${this.query().page} sur ${this.totalPages()}`);
+  protected pageLabel = computed(() => t('common.pageOf', { page: this.query().page, total: this.totalPages() }));
 
   constructor() {
     this.typed$.pipe(debounceTime(SEARCH_DEBOUNCE_MS), takeUntilDestroyed(this.destroyRef)).subscribe((text) => this.applySearch(text));
   }
 
   ngOnInit(): void {
-    this.pageTitle.set('Explorer');
+    this.pageTitle.set(t('nav.explore'));
   }
 
   protected onTextChange(value: string): void {
