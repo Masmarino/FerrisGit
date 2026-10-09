@@ -7,6 +7,8 @@ import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { RepositoriesService, Repository, StarResponse } from '../repositories.service';
 import { BranchSwitcher } from '../branch-switcher/branch-switcher';
 import { READ_ONLY_REPOSITORY } from '../read-only-repository';
+import { t } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /** Id of the clone box on the overview; the "Cloner" action and the `#cloner` fragment lead there. */
 export const CLONE_PANEL_ID = 'cloner';
@@ -26,7 +28,7 @@ export function revealClonePanel(doc: Document): boolean {
 @Component({
   selector: 'fg-repository-header',
   standalone: true,
-  imports: [BranchSwitcher, Badge, Button, Skeleton, PageHeader],
+  imports: [TranslocoPipe, BranchSwitcher, Badge, Button, Skeleton, PageHeader],
   templateUrl: './repository-header.html',
   styleUrl: './repository-header.scss',
 })
@@ -46,7 +48,7 @@ export class RepositoryHeader {
   protected isStarred = computed(() => this.starOverride()?.isStarred ?? this.repo()?.isStarred ?? false);
   protected starText = computed(() => String(this.starCount()));
   /** Same label either way: aria-pressed carries the state, a flipping label would announce it twice. */
-  protected starLabel = computed(() => `Favoris (${this.starCount()})`);
+  protected starLabel = computed(() => t('repositories.favoritesCount', { count: this.starCount() }));
 
   protected toggleStar(): void {
     const r = this.repo();

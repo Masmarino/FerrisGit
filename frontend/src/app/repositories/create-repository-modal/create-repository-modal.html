@@ -1,14 +1,14 @@
 <form (submit)="$event.preventDefault(); submit()">
-  <gbt-modal [isOpen]="true" heading="Nouveau dépôt" [closeLabel]="'common.close' | transloco" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
+  <gbt-modal [isOpen]="true" [heading]="'common.newRepository' | transloco" [closeLabel]="'common.close' | transloco" [busy]="creating()" [busyLabel]="'common.creating' | transloco" (closed)="close.emit()">
     <div class="create-repository">
       <div class="create-repository__path">
         <!-- Shared label row so the fields line up; their own labels differ in height and are for screen readers only. -->
-        <span class="create-repository__path-label create-repository__path-label--location" aria-hidden="true">Emplacement</span>
-        <span class="create-repository__path-label create-repository__path-label--name" aria-hidden="true">Nom du dépôt *</span>
+        <span class="create-repository__path-label create-repository__path-label--location" aria-hidden="true">{{ 'repositories.create.location' | transloco }}</span>
+        <span class="create-repository__path-label create-repository__path-label--name" aria-hidden="true">{{ 'repositories.create.nameRequiredMark' | transloco }}</span>
         <gbt-select
           class="create-repository__location"
           name="location"
-          label="Emplacement"
+          [label]="'repositories.create.location' | transloco"
           hideLabel
           fullWidth
           [options]="locationOptions()"
@@ -19,10 +19,10 @@
         <gbt-input
           class="create-repository__name"
           name="name"
-          label="Nom du dépôt"
+          [label]="'repositories.create.name' | transloco"
           hideLabel
-          placeholder="mon-projet"
-          hint="Lettres, chiffres, - et _ uniquement."
+          [placeholder]="'repositories.create.namePlaceholder' | transloco"
+          [hint]="'repositories.create.nameHint' | transloco"
           required
           [errorMessage]="nameError()"
           [ngModel]="name()"
@@ -33,8 +33,8 @@
       <gbt-textarea
         class="create-repository__description"
         name="description"
-        label="Description"
-        placeholder="À quoi sert ce dépôt (optionnel)"
+        [label]="'common.description' | transloco"
+        [placeholder]="'repositories.create.purpose' | transloco"
         [rows]="3"
         [ngModel]="description()"
         (ngModelChange)="description.set($event)"
@@ -43,7 +43,7 @@
       <div class="create-repository__visibility-field">
         <gbt-segmented-control
           class="create-repository__visibility"
-          label="Visibilité"
+          [label]="'common.visibility' | transloco"
           tinted
           [options]="visibilityOptions"
           [value]="visibility()"
@@ -64,23 +64,23 @@
           (click)="advancedOpen.set(!advancedOpen())"
         >
           <gbt-icon class="create-repository__chevron" [class.create-repository__chevron--open]="advancedOpen()" name="chevron-right" aria-hidden="true" />
-          <span>Options avancées</span>
+          <span>{{ 'repositories.create.advanced' | transloco }}</span>
         </button>
         @if (advancedOpen()) {
           <div id="create-repository-modal-advanced" class="create-repository__advanced-body">
-            <gbt-switch name="ciEnabled" label="CI activée" [ngModel]="ciEnabled()" (ngModelChange)="ciEnabled.set($event)" />
+            <gbt-switch name="ciEnabled" [label]="'repositories.create.ciEnabled' | transloco" [ngModel]="ciEnabled()" (ngModelChange)="ciEnabled.set($event)" />
             <div class="create-repository__advanced-grid">
               <gbt-input
                 class="create-repository__approvals"
                 name="requiredApprovals"
-                label="Approbations requises avant fusion"
+                [label]="'repositories.create.approvals' | transloco"
                 [ngModel]="requiredApprovals()"
                 (ngModelChange)="requiredApprovals.set($event)"
               />
               <gbt-input
                 class="create-repository__pipeline-file"
                 name="pipelineFilePath"
-                label="Chemin du fichier pipeline"
+                [label]="'repositories.create.pipelinePath' | transloco"
                 [ngModel]="pipelineFilePath()"
                 (ngModelChange)="pipelineFilePath.set($event)"
               />
@@ -96,7 +96,7 @@
 
     <div modal-footer>
       <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="creating()" (clicked)="close.emit()" />
-      <gbt-button type="submit" iconName="plus" text="Créer le dépôt" [loading]="creating()" loadingLabel="Création en cours" />
+      <gbt-button type="submit" iconName="plus" [text]="'repositories.create.submit' | transloco" [loading]="creating()" [loadingLabel]="'common.creating' | transloco" />
     </div>
   </gbt-modal>
 </form>

@@ -11,8 +11,9 @@ import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Repository, RepositoriesService } from '../repositories.service';
-import { RepositoryVisibility, VISIBILITY_OPTIONS } from '../repository-visibility';
+import { RepositoryVisibility, visibilityOptions } from '../repository-visibility';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 type Field = 'description' | 'visibility';
 type SaveState = 'saving' | 'saved' | 'error';
@@ -34,7 +35,7 @@ export class RepositoryGeneralSettings implements OnInit {
   private repositories = inject(RepositoriesService);
   private toast = inject(GbtToastService);
 
-  protected readonly visibilityOptions = VISIBILITY_OPTIONS;
+  protected readonly visibilityOptions = visibilityOptions();
 
   protected repository = signal<Repository | null>(null);
   protected loadState = signal<'loading' | 'loaded' | 'failed'>('loading');
@@ -42,11 +43,11 @@ export class RepositoryGeneralSettings implements OnInit {
   protected visibilityShown = linkedSignal<RepositoryVisibility>(() => this.repository()?.visibility ?? 'private');
   protected pendingVisibility = signal<RepositoryVisibility | null>(null);
 
-  protected confirmHeading = computed(() => (this.pendingVisibility() === 'public' ? 'Rendre ce dépôt public' : 'Rendre ce dépôt privé'));
+  protected confirmHeading = computed(() => (this.pendingVisibility() === 'public' ? t('repositories.general.makePublicTitle') : t('repositories.general.makePrivateTitle')));
   protected confirmMessage = computed(() =>
     this.pendingVisibility() === 'public'
-      ? "Il apparaîtra dans le catalogue public, et toute personne pourra lire son code, ses commits et ses releases sans compte (tant que les pages publiques de l'instance sont activées). Les personnes qui y ont déjà accès le gardent."
-      : 'Il disparaîtra du catalogue public et de l\'API publique, et les visiteurs sans compte ne pourront plus le lire : leurs liens cesseront de fonctionner. Seules les personnes qui y ont accès directement ou par un groupe continueront de le voir.',
+      ? t('repositories.general.makePublicMessage')
+      : t('repositories.general.makePrivateMessage'),
   );
 
   ngOnInit(): void {
@@ -62,7 +63,7 @@ export class RepositoryGeneralSettings implements OnInit {
       },
       error: () => {
         this.loadState.set('failed');
-        this.toast.show('Impossible de charger les informations du dépôt. Réessayez plus tard.', 'error');
+        this.toast.show(t('repositories.general.loadFailed'), 'error');
       },
     });
   }
@@ -73,7 +74,7 @@ export class RepositoryGeneralSettings implements OnInit {
     if (description === this.repository()?.description) {
       return;
     }
-    this.save('description', { description }, "Impossible de mettre à jour la description.");
+    this.save('description', { description }, t('repositories.general.descriptionFailed'));
   }
 
   protected askVisibility(visibility: RepositoryVisibility): void {
@@ -90,7 +91,7 @@ export class RepositoryGeneralSettings implements OnInit {
     if (!visibility) {
       return;
     }
-    this.save('visibility', { visibility }, 'Impossible de changer la visibilité du dépôt.', () => this.visibilityShown.set(this.repository()?.visibility ?? 'private'));
+    this.save('visibility', { visibility }, t('repositories.general.visibilityFailed'), () => this.visibilityShown.set(this.repository()?.visibility ?? 'private'));
   }
 
   protected cancelVisibility(): void {

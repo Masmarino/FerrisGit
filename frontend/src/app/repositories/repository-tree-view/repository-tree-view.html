@@ -8,18 +8,18 @@
           icon="folder-git-2"
           [headingLevel]="2"
           headingId="repository-empty-title"
-          heading="Ce dépôt est vide"
-          message="Poussez un premier commit depuis votre machine pour voir vos fichiers ici."
+          [heading]="'repositories.emptyTitle' | transloco"
+          [message]="'repositories.emptyMessage' | transloco"
         />
 
         @if (cloneUrl(); as url) {
           <div class="repository-tree-view__steps">
             <div class="repository-tree-view__step" [attr.id]="clonePanelId">
-              <h3 class="repository-tree-view__step-title">Adresse du dépôt</h3>
-              <gbt-copy-field [value]="url" copyLabel="Copier l'URL de clonage" [copiedText]="'common.copied' | transloco" failedText="Copie impossible, URL sélectionnée" />
+              <h3 class="repository-tree-view__step-title">{{ 'repositories.cloneAddress' | transloco }}</h3>
+              <gbt-copy-field [value]="url" [copyLabel]="'repositories.copyCloneUrl' | transloco" [copiedText]="'common.copied' | transloco" [failedText]="'repositories.cloneUrlFailed' | transloco" />
             </div>
             <div class="repository-tree-view__step">
-              <h3 class="repository-tree-view__step-title">Créer un nouveau dépôt en local</h3>
+              <h3 class="repository-tree-view__step-title">{{ 'repositories.cloneNew' | transloco }}</h3>
               <pre class="repository-tree-view__command"><code>git init -b main
 git add .
 git commit -m "Premier commit"
@@ -27,7 +27,7 @@ git remote add origin @for (segment of cloneUrlSegments(); track $index) {{{ seg
 git push -u origin main</code></pre>
             </div>
             <div class="repository-tree-view__step">
-              <h3 class="repository-tree-view__step-title">Pousser un dépôt existant</h3>
+              <h3 class="repository-tree-view__step-title">{{ 'repositories.pushExisting' | transloco }}</h3>
               <pre class="repository-tree-view__command"><code>git remote add origin @for (segment of cloneUrlSegments(); track $index) {{{ segment }}<wbr />}
 git push -u origin main</code></pre>
             </div>
@@ -42,16 +42,16 @@ git push -u origin main</code></pre>
     </section>
   } @else if (isNotFound()) {
     <gbt-card class="repository-tree-view__not-found" variant="outlined" [flush]="true">
-      <gbt-empty-state illustration="folder" heading="Cette branche, ce tag ou ce chemin n'existe pas" message="Vérifiez l'adresse, ou repartez de la racine du dépôt.">
+      <gbt-empty-state illustration="folder" [heading]="'repositories.pathNotFound' | transloco" [message]="'repositories.pathNotFoundMessage' | transloco">
         @if (rootLink(); as link) {
-          <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="link">Retour à la racine du dépôt</a>
+          <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="link">{{ 'repositories.backToRoot' | transloco }}</a>
         }
       </gbt-empty-state>
     </gbt-card>
   } @else {
     <div class="repository-tree-view__main">
       @if (treePath().length > 0 && repo()) {
-        <gbt-breadcrumb class="repository-tree-view__path" ariaLabel="Chemin dans le dépôt">
+        <gbt-breadcrumb class="repository-tree-view__path" [ariaLabel]="'repositories.pathInRepository' | transloco">
           @for (segment of breadcrumbAncestors(); track $index) {
             <li breadcrumb-ancestor>
               <a class="gbt-breadcrumb__item" [routerLink]="segment.link">{{ segment.name }}</a>
@@ -66,7 +66,7 @@ git push -u origin main</code></pre>
           <div card-header class="repository-tree-view__files-header">
             @if (latestCommit(); as commit) {
               <div class="repository-tree-view__latest">
-                <span class="sr-only">Dernier commit :</span>
+                <span class="sr-only">{{ 'repositories.lastCommitColon' | transloco }}</span>
                 <gbt-user-chip class="repository-tree-view__latest-author" [name]="commit.authorName" />
                 <span class="repository-tree-view__latest-message" [title]="commit.message">{{ commitTitle(commit.message) }}</span>
                 <gbt-badge mono class="repository-tree-view__sha" [fullText]="commit.sha">{{ shortSha(commit.sha) }}</gbt-badge>
@@ -75,19 +75,19 @@ git push -u origin main</code></pre>
             } @else {
               <span class="repository-tree-view__card-title">
                 <gbt-icon name="folder" aria-hidden="true" />
-                <span>Fichiers</span>
+                <span>{{ 'common.files' | transloco }}</span>
               </span>
             }
           </div>
 
           <table class="repository-tree-view__table">
-            <caption class="sr-only">Fichiers</caption>
+            <caption class="sr-only">{{ 'common.files' | transloco }}</caption>
             <!-- Zero-height but still in the layout: with table-layout: fixed these cells set the column widths. -->
             <thead class="repository-tree-view__head">
               <tr>
-                <th scope="col" class="repository-tree-view__col-name"><span class="sr-only">Nom</span></th>
-                <th scope="col" class="repository-tree-view__col-message"><span class="sr-only">Dernier commit</span></th>
-                <th scope="col" class="repository-tree-view__col-date"><span class="sr-only">Date</span></th>
+                <th scope="col" class="repository-tree-view__col-name"><span class="sr-only">{{ 'common.name' | transloco }}</span></th>
+                <th scope="col" class="repository-tree-view__col-message"><span class="sr-only">{{ 'repositories.lastCommit' | transloco }}</span></th>
+                <th scope="col" class="repository-tree-view__col-date"><span class="sr-only">{{ 'common.date' | transloco }}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -102,7 +102,7 @@ git push -u origin main</code></pre>
                           [class.repository-tree-view__toggle--expanded]="isExpanded(row)"
                           (click)="toggleDir(row)"
                           [attr.aria-expanded]="isExpanded(row)"
-                          [attr.aria-label]="(isExpanded(row) ? 'Réduire' : 'Déplier') + ' ' + row.entry.name"
+                          [attr.aria-label]="'repositories.tree.toggle' | transloco: { action: ((isExpanded(row) ? 'common.collapse' : 'common.expand') | transloco), name: row.entry.name }"
                         >
                           <gbt-icon name="chevron-right" />
                         </button>
@@ -116,7 +116,7 @@ git push -u origin main</code></pre>
                       />
                       <a [routerLink]="row.link" class="repository-tree-view__entry-name" [title]="row.entry.name">{{ row.entry.name }}</a>
                       @if (isLoading(row)) {
-                        <gbt-spinner class="repository-tree-view__loading" size="sm" label="Chargement…" />
+                        <gbt-spinner class="repository-tree-view__loading" size="sm" [label]="'common.loading' | transloco" />
                       }
                     </div>
                   </td>
@@ -133,7 +133,7 @@ git push -u origin main</code></pre>
                 </tr>
               } @empty {
                 <tr>
-                  <td colspan="3" class="repository-tree-view__empty-folder">Ce dossier est vide.</td>
+                  <td colspan="3" class="repository-tree-view__empty-folder">{{ 'repositories.emptyFolder' | transloco }}</td>
                 </tr>
               }
             </tbody>
@@ -148,10 +148,10 @@ git push -u origin main</code></pre>
           </gbt-card>
         }
       } @else if (loadFailed()) {
-        <gbt-alert variant="error" appearance="subtle" live="off">Les fichiers n'ont pas pu être chargés.</gbt-alert>
+        <gbt-alert variant="error" appearance="subtle" live="off">{{ 'repositories.filesFailed' | transloco }}</gbt-alert>
       } @else {
         <gbt-card class="repository-tree-view__files repository-tree-view__files--loading" variant="outlined" [flush]="true" aria-busy="true">
-          <span class="sr-only" role="status">Chargement des fichiers…</span>
+          <span class="sr-only" role="status">{{ 'repositories.loadingFiles' | transloco }}</span>
           <div card-header class="repository-tree-view__files-header" aria-hidden="true">
             <gbt-skeleton variant="circle" width="24px" />
             <gbt-skeleton width="45%" height="0.75rem" />
@@ -170,12 +170,12 @@ git push -u origin main</code></pre>
   }
 
   <div page-aside class="repository-tree-view__sidebar">
-    <gbt-panel class="repository-tree-view__about" heading="À propos" [headingLevel]="2">
+    <gbt-panel class="repository-tree-view__about" [heading]="'common.about' | transloco" [headingLevel]="2">
       @if (repo(); as r) {
         @if (r.description) {
           <p class="repository-tree-view__description">{{ r.description }}</p>
         } @else {
-          <p class="repository-tree-view__description repository-tree-view__description--none">Aucune description</p>
+          <p class="repository-tree-view__description repository-tree-view__description--none">{{ 'repositories.noDescription' | transloco }}</p>
         }
         <gbt-description-list class="repository-tree-view__facts" layout="inline" valueAlign="end" [items]="facts()" />
       } @else {
@@ -188,17 +188,17 @@ git push -u origin main</code></pre>
     </gbt-panel>
 
     @if (!isEmptyRepository() && !isNotFound()) {
-      <gbt-panel heading="Cloner" [headingLevel]="2" [attr.id]="clonePanelId">
+      <gbt-panel [heading]="'repositories.clone' | transloco" [headingLevel]="2" [attr.id]="clonePanelId">
         @if (cloneUrl(); as url) {
-          <gbt-copy-field [value]="url" copyLabel="Copier l'URL de clonage" [copiedText]="'common.copied' | transloco" failedText="Copie impossible, URL sélectionnée" />
+          <gbt-copy-field [value]="url" [copyLabel]="'repositories.copyCloneUrl' | transloco" [copiedText]="'common.copied' | transloco" [failedText]="'repositories.cloneUrlFailed' | transloco" />
         } @else {
           <gbt-skeleton height="30px" aria-hidden="true" />
         }
       </gbt-panel>
-      <gbt-panel heading="Langages" [headingLevel]="2">
+      <gbt-panel [heading]="'repositories.languages' | transloco" [headingLevel]="2">
         <fg-language-bar [repositoryId]="repositoryId()" [ref]="ref()" />
       </gbt-panel>
-      <gbt-panel heading="Contributeurs" [headingLevel]="2">
+      <gbt-panel [heading]="'wiki.contributors' | transloco" [headingLevel]="2">
         <fg-contributor-avatars [repositoryId]="repositoryId()" [ref]="ref()" />
       </gbt-panel>
     }

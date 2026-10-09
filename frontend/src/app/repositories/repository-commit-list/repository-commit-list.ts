@@ -10,6 +10,7 @@ import { CommitInfo, RepositoriesService } from '../repositories.service';
 import { commitTitle, shortSha } from '../commit-format';
 import { PageTitleService } from '../../shell/page-title.service';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 /** The latest commits of a ref, newest first. */
 @Component({
@@ -34,11 +35,11 @@ export class RepositoryCommitList implements OnInit {
     if (state !== 'loaded') return state;
     return this.commits().length === 0 ? 'empty' : 'ready';
   });
-  protected refLabel = computed(() => (this.ref() === 'HEAD' ? 'la branche par défaut' : this.ref()));
+  protected refLabel = computed(() => (this.ref() === 'HEAD' ? t('repositories.commits.defaultBranch') : this.ref()));
   protected commitTitle = commitTitle;
 
   ngOnInit(): void {
-    this.pageTitle.set('Commits');
+    this.pageTitle.set(t('common.commits'));
     this.load();
   }
 

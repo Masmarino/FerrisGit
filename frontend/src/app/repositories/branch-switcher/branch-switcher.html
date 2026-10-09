@@ -1,2 +1,2 @@
 <!-- The icon already says what this is, so the label is for screen readers only. -->
-<gbt-select class="branch-switcher" size="sm" label="Branche ou tag" hideLabel placeholder="Branche ou tag" [options]="refOptions()" [ngModel]="selectedRef()" (ngModelChange)="navigateToRef($event)" />
+<gbt-select class="branch-switcher" size="sm" [label]="'repositories.branchOrTag' | transloco" hideLabel [placeholder]="'repositories.branchOrTag' | transloco" [options]="refOptions()" [ngModel]="selectedRef()" (ngModelChange)="navigateToRef($event)" />

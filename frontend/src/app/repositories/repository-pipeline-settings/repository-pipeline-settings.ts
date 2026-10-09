@@ -12,6 +12,7 @@ import { Switch } from '@masmarino/gabarit/switch';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RepositorySettings as RepositorySettingsModel, RepositorySettingsService } from '../repository-settings.service';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 type Field = 'ciEnabled' | 'pipelineFilePath' | 'requiredApprovals';
 type SaveState = 'saving' | 'saved' | 'error';
@@ -55,7 +56,7 @@ export class RepositoryPipelineSettings implements OnInit {
       },
       error: () => {
         this.loadState.set('failed');
-        this.toast.show('Impossible de charger les réglages. Réessayez plus tard.', 'error');
+        this.toast.show(t('repositories.loadSettingsFailed'), 'error');
       },
     });
   }
@@ -65,7 +66,7 @@ export class RepositoryPipelineSettings implements OnInit {
       return;
     }
     this.ciEnabledShown.set(enabled);
-    this.save('ciEnabled', this.repositorySettings.update(this.repositoryId(), { ciEnabled: enabled }), 'Impossible de mettre à jour la pipeline.', () =>
+    this.save('ciEnabled', this.repositorySettings.update(this.repositoryId(), { ciEnabled: enabled }), t('repositories.pipeline.updateFailed'), () =>
       this.ciEnabledShown.set(!enabled),
     );
   }
@@ -78,28 +79,28 @@ export class RepositoryPipelineSettings implements OnInit {
   updatePipelineFilePath(path: string): void {
     const trimmed = path.trim();
     if (!trimmed) {
-      this.pathError.set('Indiquez le chemin du fichier pipeline');
+      this.pathError.set(t('repositories.pipeline.pathRequired'));
       return;
     }
     this.pathError.set(null);
     if (trimmed === this.settings()?.pipelineFilePath) {
       return;
     }
-    this.save('pipelineFilePath', this.repositorySettings.update(this.repositoryId(), { pipelineFilePath: trimmed }), 'Impossible de mettre à jour le chemin de la pipeline.');
+    this.save('pipelineFilePath', this.repositorySettings.update(this.repositoryId(), { pipelineFilePath: trimmed }), t('repositories.pipeline.pathFailed'));
   }
 
   updateRequiredApprovals(value: string): void {
     const trimmed = value.trim();
     const parsed = Number(trimmed);
     if (!/^\d+$/.test(trimmed) || !Number.isSafeInteger(parsed)) {
-      this.approvalsError.set('Entrez un nombre entier, 0 ou plus');
+      this.approvalsError.set(t('repositories.pipeline.approvalsError'));
       return;
     }
     this.approvalsError.set(null);
     if (parsed === this.settings()?.requiredApprovals) {
       return;
     }
-    this.save('requiredApprovals', this.repositorySettings.update(this.repositoryId(), { requiredApprovals: parsed }), "Impossible de mettre à jour le nombre d'approbations requises.");
+    this.save('requiredApprovals', this.repositorySettings.update(this.repositoryId(), { requiredApprovals: parsed }), t('repositories.pipeline.approvalsFailed'));
   }
 
   private save(field: Field, request: Observable<RepositorySettingsModel>, errorMessage: string, onError?: () => void): void {

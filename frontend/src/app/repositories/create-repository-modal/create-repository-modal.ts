@@ -1,7 +1,7 @@
 import { Component, computed, inject, input, output, signal, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RepositoriesService } from '../repositories.service';
-import { RepositoryVisibility, VISIBILITY_OPTIONS } from '../repository-visibility';
+import { RepositoryVisibility, visibilityOptions } from '../repository-visibility';
 import { GroupsService, WritableGroup } from '../../groups/groups.service';
 import { Alert } from '@masmarino/gabarit/alert';
 import { Button } from '@masmarino/gabarit/button';
@@ -14,8 +14,9 @@ import { Switch } from '@masmarino/gabarit/switch';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
-const NAME_REQUIRED = 'Le nom est requis';
+const nameRequired = (): string => t('groups.create.nameRequired');
 
 /** The parent renders this under `@if`, so each opening starts with an empty draft. A failed creation keeps the dialog open. */
 @Component({
@@ -45,14 +46,14 @@ export class CreateRepositoryModal implements OnInit {
   protected writableGroups = signal<WritableGroup[]>([]);
   location = signal<string>('');
   protected locationOptions = computed<SelectOption<string>[]>(() => [
-    { value: '', label: 'Personnel' },
+    { value: '', label: t('repositories.personal') },
     ...this.writableGroups().map((g) => ({ value: g.path, label: g.path })),
   ]);
-  protected readonly visibilityOptions = VISIBILITY_OPTIONS;
+  protected readonly visibilityOptions = visibilityOptions();
   protected visibility = computed<RepositoryVisibility>(() => (this.isPublic() ? 'public' : 'private'));
 
-  protected nameError = computed(() => (this.error() === NAME_REQUIRED ? NAME_REQUIRED : null));
-  protected formError = computed(() => (this.error() && this.error() !== NAME_REQUIRED ? this.error() : null));
+  protected nameError = computed(() => (this.error() === nameRequired() ? nameRequired() : null));
+  protected formError = computed(() => (this.error() && this.error() !== nameRequired() ? this.error() : null));
 
   protected ciEnabled = signal(true);
   requiredApprovals = signal('0');
@@ -73,7 +74,7 @@ export class CreateRepositoryModal implements OnInit {
 
   protected onNameChange(value: string): void {
     this.name.set(value);
-    if (this.error() === NAME_REQUIRED && value.trim()) {
+    if (this.error() === nameRequired() && value.trim()) {
       this.error.set('');
     }
   }
@@ -83,7 +84,7 @@ export class CreateRepositoryModal implements OnInit {
       return;
     }
     if (!this.name().trim()) {
-      this.error.set(NAME_REQUIRED);
+      this.error.set(nameRequired());
       return;
     }
     const requiredApprovals = Number(this.requiredApprovals());
@@ -100,17 +101,17 @@ export class CreateRepositoryModal implements OnInit {
       .subscribe({
         next: () => {
           this.creating.set(false);
-          this.toast.show('Dépôt créé.');
+          this.toast.show(t('repositories.created'));
           this.created.emit();
         },
         error: (err: { status?: number }) => {
           this.creating.set(false);
           if (err.status === 409) {
-            this.error.set('Ce nom est déjà utilisé');
+            this.error.set(t('groups.nameTaken'));
           } else if (err.status === 400) {
-            this.error.set('Nom invalide : lettres, chiffres, - et _ uniquement');
+            this.error.set(t('groups.invalidName'));
           } else {
-            this.error.set('Impossible de créer le dépôt. Réessayez plus tard.');
+            this.error.set(t('repositories.createFailed'));
           }
         },
       });

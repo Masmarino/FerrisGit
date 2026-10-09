@@ -1,34 +1,34 @@
-<gbt-card variant="outlined" icon="plus" heading="Ajouter une variable" description="Disponible dans chaque job de la pipeline. Sa valeur n'est plus jamais réaffichée une fois enregistrée.">
+<gbt-card variant="outlined" icon="plus" [heading]="'repositories.variables.add' | transloco" [description]="'repositories.variables.addHelp' | transloco">
   <form class="repository-ci-variables__form" (submit)="$event.preventDefault(); addVariable()">
     <div class="repository-ci-variables__fields">
-      <gbt-input name="key" label="Nom" mono placeholder="API_KEY" autocomplete="off" [errorMessage]="keyProblem()" [ngModel]="newVariableKey()" (ngModelChange)="newVariableKey.set($event)" />
+      <gbt-input name="key" [label]="'common.name' | transloco" mono placeholder="API_KEY" autocomplete="off" [errorMessage]="keyProblem()" [ngModel]="newVariableKey()" (ngModelChange)="newVariableKey.set($event)" />
       <gbt-input
         class="repository-ci-variables__value-input"
         name="value"
-        label="Valeur"
+        [label]="'repositories.variables.value' | transloco"
         type="password"
-        hint="La valeur est masquée dans les journaux des jobs."
+        [hint]="'repositories.variables.valueHint' | transloco"
         autocomplete="new-password"
-        showPasswordLabel="Afficher la valeur"
-        hidePasswordLabel="Masquer la valeur"
+        [showPasswordLabel]="'repositories.variables.show' | transloco"
+        [hidePasswordLabel]="'repositories.variables.hide' | transloco"
         [ngModel]="newVariableValue()"
         (ngModelChange)="newVariableValue.set($event)"
       />
     </div>
     <div class="repository-ci-variables__actions">
-      <gbt-button type="submit" iconName="plus" text="Ajouter la variable" [disabled]="!newVariableKey().trim() || !newVariableValue() || keyProblem() !== null" />
+      <gbt-button type="submit" iconName="plus" [text]="'repositories.variables.submit' | transloco" [disabled]="!newVariableKey().trim() || !newVariableValue() || keyProblem() !== null" />
     </div>
   </form>
 </gbt-card>
 
-<gbt-card variant="outlined" icon="key" heading="Variables" description="Les variables définies pour ce dépôt, par ordre de création." [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+<gbt-card variant="outlined" icon="key" [heading]="'repositories.variables.title' | transloco" [description]="'repositories.variables.listHelp' | transloco" [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
   @switch (list.state()) {
     @case ('loading') {
-      <gbt-skeleton-list [rows]="3" leadingSize="1rem" [lines]="1" loadingLabel="Chargement des variables…" />
+      <gbt-skeleton-list [rows]="3" leadingSize="1rem" [lines]="1" [loadingLabel]="'repositories.variables.loading' | transloco" />
     }
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
-        Les variables n'ont pas pu être chargées.
+        {{ 'repositories.variables.loadFailed' | transloco }}
         <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="list.retry()" />
       </gbt-alert>
     }
@@ -37,11 +37,11 @@
         <gbt-empty-state
           size="compact"
           icon="key"
-          heading="Aucune variable définie"
-          message="Ajoutez des jetons, des URL de service ou des options de build : chaque job de la pipeline les reçoit en variables d'environnement."
+          [heading]="'repositories.variables.emptyTitle' | transloco"
+          [message]="'repositories.variables.emptyMessage' | transloco"
         />
       } @else {
-        <ul class="repository-ci-variables__rows" aria-label="Variables CI/CD">
+        <ul class="repository-ci-variables__rows" [attr.aria-label]="'repositories.sections.variables' | transloco">
           @for (variable of list.items(); track variable.id) {
             <li>
               <gbt-list-row>
@@ -49,9 +49,9 @@
                 <span class="repository-ci-variables__key" [title]="variable.key">{{ variable.key }}</span>
                 <gbt-badge row-trailing class="repository-ci-variables__value" [variant]="variable.masked ? 'neutral' : 'warning'" [icon]="variable.masked ? 'lock' : 'eye'">
                   @if (variable.masked) {
-                    <span class="repository-ci-variables__dots" aria-hidden="true">••••••••</span><span class="repository-ci-variables__value-text">Masquée</span>
+                    <span class="repository-ci-variables__dots" aria-hidden="true">••••••••</span><span class="repository-ci-variables__value-text">{{ 'repositories.variables.masked' | transloco }}</span>
                   } @else {
-                    <span class="repository-ci-variables__value-text">Visible dans les journaux</span>
+                    <span class="repository-ci-variables__value-text">{{ 'repositories.variables.visibleInLogs' | transloco }}</span>
                   }
                 </gbt-badge>
                 <gbt-button
@@ -61,8 +61,8 @@
                   size="medium"
                   [iconOnly]="true"
                   iconName="trash-2"
-                  title="Supprimer"
-                  [ariaLabel]="'Supprimer la variable ' + variable.key"
+                  [title]="'common.delete' | transloco"
+                  [ariaLabel]="'repositories.variables.deleteNamed' | transloco: { name: variable.key }"
                   (clicked)="confirmDeleteVariable(variable)"
                 />
               </gbt-list-row>
@@ -77,13 +77,13 @@
 @if (variablePendingDelete(); as variable) {
   <gbt-confirm-danger-modal
     [isOpen]="true"
-    heading="Supprimer la variable"
-    [message]="'Les prochains jobs de la pipeline ne recevront plus « ' + variable.key + ' » et sa valeur sera perdue.'"
-    confirmLabel="Supprimer"
+    [heading]="'repositories.variables.deleteTitle' | transloco"
+    [message]="'repositories.variables.deleteMessage' | transloco: { name: variable.key }"
+    [confirmLabel]="'common.delete' | transloco"
     confirmIcon="trash-2"
     [cancelLabel]="'common.cancel' | transloco"
     [closeLabel]="'common.close' | transloco"
-    busyLabel="Suppression en cours"
+    [busyLabel]="'common.deleting' | transloco"
     [busy]="deleting()"
     (confirmed)="deleteVariable(variable.id)"
     (closed)="variablePendingDelete.set(null)"

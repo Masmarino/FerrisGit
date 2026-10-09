@@ -1,6 +1,7 @@
 import { inject, signal } from '@angular/core';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Observable } from 'rxjs';
+import { t } from '../shared/i18n/translator';
 
 /** If a refresh fails after a first load, the old list stays and a toast reports it. Needs an injection context. */
 export function createSettingsList<T>(fetch: () => Observable<T[]>) {
@@ -18,7 +19,7 @@ export function createSettingsList<T>(fetch: () => Observable<T[]>) {
         if (state() !== 'loaded') {
           state.set('failed');
         }
-        toast.show('Impossible de charger les réglages. Réessayez plus tard.', 'error');
+        toast.show(t('repositories.loadSettingsFailed'), 'error');
       },
     });
   }

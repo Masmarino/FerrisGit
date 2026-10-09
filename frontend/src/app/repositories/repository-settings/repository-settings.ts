@@ -13,17 +13,61 @@ import { RepositoryMilestonesSettings } from '../repository-milestones-settings/
 import { NavTab, NavTabs } from '@masmarino/gabarit/nav-tabs';
 import { PageHeader } from '@masmarino/gabarit/page-header';
 import { PageLayout } from '@masmarino/gabarit/page-layout';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 export type SettingsSectionKey = 'general' | 'pipeline' | 'variables' | 'webhooks' | 'collaborators' | 'labels' | 'milestones';
 
 const SECTIONS: { key: SettingsSectionKey; label: string; icon: string }[] = [
-  { key: 'general', label: 'Informations', icon: 'info' },
-  { key: 'pipeline', label: 'Pipeline', icon: 'play' },
-  { key: 'variables', label: 'Variables CI/CD', icon: 'key' },
-  { key: 'webhooks', label: 'Webhooks', icon: 'globe' },
-  { key: 'collaborators', label: 'Collaborateurs', icon: 'user' },
-  { key: 'labels', label: 'Labels', icon: 'tag' },
-  { key: 'milestones', label: 'Milestones', icon: 'flag' },
+  {
+    key: 'general',
+    get label() {
+      return t('repositories.sections.general');
+    },
+    icon: 'info',
+  },
+  {
+    key: 'pipeline',
+    get label() {
+      return t('repositories.sections.pipeline');
+    },
+    icon: 'play',
+  },
+  {
+    key: 'variables',
+    get label() {
+      return t('repositories.sections.variables');
+    },
+    icon: 'key',
+  },
+  {
+    key: 'webhooks',
+    get label() {
+      return t('repositories.sections.webhooks');
+    },
+    icon: 'globe',
+  },
+  {
+    key: 'collaborators',
+    get label() {
+      return t('repositories.sections.collaborators');
+    },
+    icon: 'user',
+  },
+  {
+    key: 'labels',
+    get label() {
+      return t('repositories.sections.labels');
+    },
+    icon: 'tag',
+  },
+  {
+    key: 'milestones',
+    get label() {
+      return t('repositories.sections.milestones');
+    },
+    icon: 'flag',
+  },
 ];
 
 const DEFAULT_SECTION: SettingsSectionKey = 'general';
@@ -31,7 +75,7 @@ const DEFAULT_SECTION: SettingsSectionKey = 'general';
 @Component({
   selector: 'fg-repository-settings',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     PageHeader,
     PageLayout,
     NavTab,
@@ -67,6 +111,6 @@ export class RepositorySettings implements OnInit {
   });
 
   ngOnInit(): void {
-    this.pageTitle.set('Réglages');
+    this.pageTitle.set(t('nav.settings'));
   }
 }

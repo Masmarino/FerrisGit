@@ -1,10 +1,10 @@
-<gbt-page-header heading="Réglages">
-  <p header-meta class="repository-settings__intro">Informations, intégration continue, accès et organisation du dépôt</p>
+<gbt-page-header [heading]="'nav.settings' | transloco">
+  <p header-meta class="repository-settings__intro">{{ 'repositories.settingsIntro' | transloco }}</p>
 </gbt-page-header>
 
-<gbt-page-layout class="repository-settings__layout" width="wide" navLabel="Réglages du dépôt">
+<gbt-page-layout class="repository-settings__layout" width="wide" [navLabel]="'repositories.settingsNav' | transloco">
   <!-- The layout already wraps [page-nav] in a labelled <nav>, so no second landmark here. -->
-  <gbt-nav-tabs page-nav orientation="vertical" ariaLabel="Réglages du dépôt" [landmark]="false">
+  <gbt-nav-tabs page-nav orientation="vertical" [ariaLabel]="'repositories.settingsNav' | transloco" [landmark]="false">
     @for (section of sections; track section.key) {
       <a gbtNavTab [routerLink]="[]" [queryParams]="section.queryParams" [icon]="section.icon" [active]="section.key === activeSection()">{{ section.label }}</a>
     }

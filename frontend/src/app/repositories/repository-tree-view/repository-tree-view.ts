@@ -24,7 +24,7 @@ import { ContributorAvatars } from '../contributor-avatars/contributor-avatars';
 import { LanguageBar } from '../language-bar/language-bar';
 import { commitTitle, shortSha } from '../commit-format';
 import { pathBreadcrumb, repositoryLink, sortEntries } from '../repository-links';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 interface TreeRow {
@@ -145,12 +145,12 @@ export class RepositoryTreeView implements OnInit {
     const r = this.repo();
     if (!r) return [];
     const entries: DescriptionListEntry[] = [
-      { term: 'Visibilité', value: r.visibility === 'public' ? 'Public' : 'Privé' },
-      { term: 'Propriétaire', value: r.owner },
-      { term: 'Créé le', value: this.createdTemplate() },
+      { term: t('common.visibility'), value: r.visibility === 'public' ? t('common.public') : t('common.private') },
+      { term: t('common.owner'), value: r.owner },
+      { term: t('common.createdOnLabel'), value: this.createdTemplate() },
     ];
-    if (this.sizeLabel()) entries.push({ term: 'Taille', value: this.sizeLabel() });
-    entries.push({ term: 'Favoris', value: String(r.starCount ?? 0) });
+    if (this.sizeLabel()) entries.push({ term: t('common.size'), value: this.sizeLabel() });
+    entries.push({ term: t('repositories.tabs.starred'), value: String(r.starCount ?? 0) });
     return entries;
   });
 
@@ -234,7 +234,7 @@ export class RepositoryTreeView implements OnInit {
           afterNextRender(() => revealClonePanel(this.document), { injector: this.injector });
         }
       },
-      error: () => this.toast.show('Impossible de charger ce dépôt. Réessayez plus tard.', 'error'),
+      error: () => this.toast.show(t('repositories.loadOneFailed'), 'error'),
     });
 
     this.repositories.treeAt(this.repositoryId(), this.ref(), this.treePath()).subscribe({
@@ -242,7 +242,7 @@ export class RepositoryTreeView implements OnInit {
       error: (err: HttpErrorResponse) => {
         if (err.status !== 404) {
           this.loadFailed.set(true);
-          this.toast.show('Impossible de charger ce dépôt. Réessayez plus tard.', 'error');
+          this.toast.show(t('repositories.loadOneFailed'), 'error');
         } else if (this.ref() === 'HEAD' && this.treePath().length === 0) {
           this.isEmptyRepository.set(true);
         } else {

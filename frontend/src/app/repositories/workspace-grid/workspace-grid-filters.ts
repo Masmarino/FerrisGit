@@ -5,10 +5,12 @@ import { Panel } from '@masmarino/gabarit/panel';
 import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
 import { Select, SelectOption } from '@masmarino/gabarit/select';
 import { WorkspaceGrid, WorkspaceSortKey } from './workspace-grid';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
-const DIRECTION_OPTIONS: SegmentedControlOption<'asc' | 'desc'>[] = [
-  { value: 'asc', label: 'Croissant' },
-  { value: 'desc', label: 'Décroissant' },
+const directionOptions = (): SegmentedControlOption<'asc' | 'desc'>[] => [
+  { value: 'asc', label: t('common.ascending') },
+  { value: 'desc', label: t('common.descending') },
 ];
 
 /**
@@ -18,14 +20,14 @@ const DIRECTION_OPTIONS: SegmentedControlOption<'asc' | 'desc'>[] = [
 @Component({
   selector: 'fg-workspace-grid-filters',
   standalone: true,
-  imports: [FormsModule, GbtInput, Select, SegmentedControl, Panel],
+  imports: [TranslocoPipe, FormsModule, GbtInput, Select, SegmentedControl, Panel],
   templateUrl: './workspace-grid-filters.html',
   styleUrl: './workspace-grid-filters.scss',
 })
 export class WorkspaceGridFilters {
   grid = input.required<WorkspaceGrid>();
 
-  protected readonly directionOptions = DIRECTION_OPTIONS;
+  protected readonly directionOptions = directionOptions();
 
   protected sortOptions(): SelectOption<WorkspaceSortKey>[] {
     return this.grid().sortOptions as SelectOption<WorkspaceSortKey>[];

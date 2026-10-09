@@ -18,47 +18,50 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RepositorySettingsService, WebhookDelivery, WebhookSummary, WEBHOOK_EVENT_OPTIONS } from '../repository-settings.service';
 import { createSettingsList } from '../settings-list';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
 type WebhookEvent = (typeof WEBHOOK_EVENT_OPTIONS)[number];
 
 /** `label` is the short form inside a group (checkboxes), `full` the standalone one (rows, history). */
-const EVENT_GROUPS: { label: string; events: { value: WebhookEvent; label: string; full: string }[] }[] = [
+const eventGroups = (): { label: string; events: { value: WebhookEvent; label: string; full: string }[] }[] => [
   {
-    label: 'Demandes de fusion',
+    label: t('repositories.webhooks.groupMergeRequests'),
     events: [
-      { value: 'merge_request_approved', label: 'Approuvée', full: 'Demande de fusion approuvée' },
-      { value: 'merge_request_changes_requested', label: 'Modifications demandées', full: 'Modifications demandées' },
-      { value: 'merge_request_commented', label: 'Commentée', full: 'Demande de fusion commentée' },
-      { value: 'merge_request_merged', label: 'Fusionnée', full: 'Demande de fusion fusionnée' },
-      { value: 'merge_request_closed', label: 'Fermée', full: 'Demande de fusion fermée' },
+      { value: 'merge_request_approved', label: t('repositories.webhooks.mrApproved'), full: t('repositories.webhooks.mrApprovedFull') },
+      { value: 'merge_request_changes_requested', label: t('repositories.webhooks.mrChanges'), full: t('repositories.webhooks.mrChanges') },
+      { value: 'merge_request_commented', label: t('repositories.webhooks.mrCommented'), full: t('repositories.webhooks.mrCommentedFull') },
+      { value: 'merge_request_merged', label: t('repositories.webhooks.mrMerged'), full: t('repositories.webhooks.mrMergedFull') },
+      { value: 'merge_request_closed', label: t('repositories.webhooks.mrClosed'), full: t('repositories.webhooks.mrClosedFull') },
     ],
   },
   {
-    label: 'Tickets',
+    label: t('repositories.webhooks.groupIssues'),
     events: [
-      { value: 'issue_assigned', label: 'Assigné', full: 'Ticket assigné' },
-      { value: 'issue_commented', label: 'Commenté', full: 'Ticket commenté' },
-      { value: 'issue_closed', label: 'Fermé', full: 'Ticket fermé' },
+      { value: 'issue_assigned', label: t('repositories.webhooks.issueAssigned'), full: t('repositories.webhooks.issueAssignedFull') },
+      { value: 'issue_commented', label: t('repositories.webhooks.issueCommented'), full: t('repositories.webhooks.issueCommentedFull') },
+      { value: 'issue_closed', label: t('repositories.webhooks.issueClosed'), full: t('repositories.webhooks.issueClosedFull') },
     ],
   },
   {
-    label: 'Pipelines',
-    events: [{ value: 'pipeline_failed', label: 'Échouée', full: 'Pipeline échouée' }],
+    label: t('repositories.webhooks.groupPipelines'),
+    events: [
+      { value: 'pipeline_failed', label: t('repositories.webhooks.pipelineFailed'), full: t('repositories.webhooks.pipelineFailedFull') },
+    ],
   },
   {
-    label: 'Collaborateurs',
+    label: t('repositories.webhooks.groupCollaborators'),
     events: [
-      { value: 'collaborator_added', label: 'Ajouté', full: 'Collaborateur ajouté' },
-      { value: 'collaborator_role_changed', label: 'Rôle modifié', full: 'Rôle de collaborateur modifié' },
-      { value: 'collaborator_removed', label: 'Retiré', full: 'Collaborateur retiré' },
+      { value: 'collaborator_added', label: t('repositories.webhooks.collaboratorAdded'), full: t('repositories.webhooks.collaboratorAddedFull') },
+      { value: 'collaborator_role_changed', label: t('repositories.webhooks.roleChanged'), full: t('repositories.webhooks.roleChangedFull') },
+      { value: 'collaborator_removed', label: t('repositories.webhooks.collaboratorRemoved'), full: t('repositories.webhooks.collaboratorRemovedFull') },
     ],
   },
 ];
 
-const EVENT_LABELS = new Map<string, string>(EVENT_GROUPS.flatMap((group) => group.events.map((event) => [event.value, event.full] as const)));
-
 function eventLabel(event: string): string {
-  return EVENT_LABELS.get(event) ?? event;
+  return eventGroups()
+    .flatMap((group) => group.events)
+    .find((candidate) => candidate.value === event)?.full ?? event;
 }
 
 const VISIBLE_EVENTS = 3;
@@ -77,7 +80,7 @@ export class RepositoryWebhooks implements OnInit {
   private toast = inject(GbtToastService);
 
   protected readonly skeletonRows = ['46%', '34%'];
-  protected readonly eventSections: CheckboxGroupSection<WebhookEvent>[] = EVENT_GROUPS.map((group) => ({
+  protected readonly eventSections: CheckboxGroupSection<WebhookEvent>[] = eventGroups().map((group) => ({
     label: group.label,
     options: group.events.map((event) => ({ value: event.value, label: event.label })),
   }));
@@ -90,7 +93,7 @@ export class RepositoryWebhooks implements OnInit {
   protected expandedWebhookId = signal<string | null>(null);
   protected expandedWebhookHeading = computed(() => {
     const webhook = this.list.items().find((w) => w.id === this.expandedWebhookId());
-    return webhook ? `Historique — ${webhook.url}` : 'Historique';
+    return webhook ? t('repositories.webhooks.historyOf', { url: webhook.url }) : t('common.history');
   });
   protected deliveriesByWebhook = signal<Record<string, WebhookDelivery[] | undefined>>({});
   protected expandedDeliveries = computed(() => {
@@ -105,10 +108,7 @@ export class RepositoryWebhooks implements OnInit {
 
   protected selectionSummary = computed(() => {
     const count = this.newWebhookEvents().length;
-    if (count === 0) {
-      return 'Aucun événement sélectionné';
-    }
-    return count === 1 ? '1 événement sélectionné' : `${count} événements sélectionnés`;
+    return count === 0 ? t('repositories.webhooks.noneSelected') : tn('repositories.webhooks.selected', count);
   });
 
   protected rows = computed(() =>
@@ -136,9 +136,9 @@ export class RepositoryWebhooks implements OnInit {
         this.newWebhookSecret.set('');
         this.newWebhookEvents.set([]);
         this.list.refresh();
-        this.toast.show('Webhook ajouté.');
+        this.toast.show(t('repositories.webhooks.added'));
       },
-      error: () => this.toast.show("Impossible d'ajouter ce webhook (URL invalide ou pointant vers une adresse interdite).", 'error'),
+      error: () => this.toast.show(t('repositories.webhooks.addFailed'), 'error'),
     });
   }
 
@@ -156,13 +156,13 @@ export class RepositoryWebhooks implements OnInit {
         this.deleting.set(false);
         this.webhookPendingDelete.set(null);
         this.list.refresh();
-        this.toast.show('Webhook supprimé.');
+        this.toast.show(t('repositories.webhooks.deleted'));
       },
       // Close the confirmation first, it covers the page and would hide the error.
       error: () => {
         this.deleting.set(false);
         this.webhookPendingDelete.set(null);
-        this.toast.show('Impossible de supprimer ce webhook.', 'error');
+        this.toast.show(t('repositories.webhooks.deleteFailed'), 'error');
       },
     });
   }
@@ -178,7 +178,7 @@ export class RepositoryWebhooks implements OnInit {
       next: (deliveries) => this.deliveriesByWebhook.update((current) => ({ ...current, [id]: deliveries })),
       error: () => {
         this.deliveriesFailedFor.set(id);
-        this.toast.show("Impossible de charger l'historique des livraisons.", 'error');
+        this.toast.show(t('repositories.webhooks.historyFailed'), 'error');
       },
     });
   }

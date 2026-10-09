@@ -1,7 +1,7 @@
 @switch (loadState()) {
   @case ('loading') {
     <div class="repository-general-settings__loading" aria-busy="true">
-      <span class="sr-only" role="status">Chargement des informations du dépôt…</span>
+      <span class="sr-only" role="status">{{ 'repositories.general.loading' | transloco }}</span>
       <gbt-card class="repository-general-settings__skeleton" variant="outlined" aria-hidden="true">
         <div card-header class="repository-general-settings__skeleton-header">
           <gbt-skeleton width="2rem" height="2rem" variant="rect" />
@@ -18,9 +18,9 @@
     </div>
   }
   @case ('failed') {
-    <gbt-card variant="outlined" icon="info" heading="Informations">
+    <gbt-card variant="outlined" icon="info" [heading]="'repositories.sections.general' | transloco">
       <gbt-alert variant="error" appearance="subtle" live="off">
-        Les informations du dépôt n'ont pas pu être chargées.
+        {{ 'repositories.general.failed' | transloco }}
         <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="refresh()" />
       </gbt-alert>
     </gbt-card>
@@ -30,27 +30,27 @@
       <gbt-card
         variant="outlined"
         icon="info"
-        heading="Informations"
-        description="Ce que les visiteurs lisent sur le dépôt et qui peut le voir. Chaque réglage est enregistré dès que vous le modifiez. Le nom et le propriétaire ne se modifient pas : ils font partie de l'URL de clonage."
+        [heading]="'repositories.sections.general' | transloco"
+        [description]="'repositories.general.help' | transloco"
       >
         <div class="repository-general-settings__form">
           <div class="repository-general-settings__field" data-field="description">
             <!-- (committed), not (ngModelChange): that would save every half-typed text. -->
-            <gbt-textarea label="Description" [rows]="3" placeholder="À quoi sert ce dépôt ?" [ngModel]="repo.description" (committed)="updateDescription($event)" />
+            <gbt-textarea [label]="'common.description' | transloco" [rows]="3" [placeholder]="'repositories.general.descriptionPlaceholder' | transloco" [ngModel]="repo.description" (committed)="updateDescription($event)" />
             <div class="repository-general-settings__field-footer">
-              <p class="repository-general-settings__hint">Affichée sous le nom du dépôt et dans les listes.</p>
+              <p class="repository-general-settings__hint">{{ 'repositories.general.descriptionHint' | transloco }}</p>
               <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().description }" />
             </div>
           </div>
 
           <div class="repository-general-settings__field" data-field="visibility">
-            <gbt-segmented-control label="Visibilité" ariaLabel="Visibilité du dépôt" tinted [options]="visibilityOptions" [value]="visibilityShown()" (valueChange)="askVisibility($event)" />
+            <gbt-segmented-control [label]="'common.visibility' | transloco" [ariaLabel]="'repositories.general.visibilityLabel' | transloco" tinted [options]="visibilityOptions" [value]="visibilityShown()" (valueChange)="askVisibility($event)" />
             <div class="repository-general-settings__field-footer">
               <p class="repository-general-settings__hint">
                 {{
                   repo.visibility === 'public'
-                    ? 'Public : visible sans compte dans le catalogue public, tant que les pages publiques de l\'instance sont activées.'
-                    : 'Privé : visible uniquement par les personnes qui y ont accès, directement ou par un groupe.'
+                    ? ('repositories.general.publicHint' | transloco)
+                    : ('repositories.general.privateHint' | transloco)
                 }}
               </p>
               <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().visibility }" />
@@ -64,7 +64,7 @@
           [isOpen]="true"
           [heading]="confirmHeading()"
           [message]="confirmMessage()"
-          [confirmLabel]="pendingVisibility() === 'public' ? 'Rendre public' : 'Rendre privé'"
+          [confirmLabel]="(pendingVisibility() === 'public' ? 'repositories.general.makePublic' : 'repositories.general.makePrivate') | transloco"
           [tone]="pendingVisibility() === 'public' ? 'warning' : 'danger'"
           [cancelLabel]="'common.cancel' | transloco"
           [closeLabel]="'common.close' | transloco"
@@ -78,5 +78,5 @@
 
 <!-- Always in the DOM, because a live region added already filled isn't announced reliably. -->
 <ng-template #saveState let-state>
-  <gbt-save-status class="repository-general-settings__save-state" [state]="state ?? 'idle'" savingLabel="Enregistrement…" savedLabel="Enregistré" errorLabel="Non enregistré" />
+  <gbt-save-status class="repository-general-settings__save-state" [state]="state ?? 'idle'" [savingLabel]="'common.savingShort' | transloco" [savedLabel]="'common.saved' | transloco" [errorLabel]="'common.notSaved' | transloco" />
 </ng-template>

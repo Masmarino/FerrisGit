@@ -2,13 +2,15 @@ import { Component, computed, inject, input, OnInit, signal } from '@angular/cor
 import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { UserChip } from '@masmarino/gabarit/user-chip';
 import { Contributor, RepositoriesService } from '../repositories.service';
+import { TranslocoCountPipe } from '../../shared/i18n/transloco-count.pipe';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const MAX_VISIBLE_CONTRIBUTORS = 8;
 
 @Component({
   selector: 'fg-contributor-avatars',
   standalone: true,
-  imports: [Skeleton, UserChip],
+  imports: [TranslocoPipe, TranslocoCountPipe, Skeleton, UserChip],
   templateUrl: './contributor-avatars.html',
   styleUrl: './contributor-avatars.scss',
 })

@@ -22,7 +22,8 @@ import { RepositoryHeader } from '../repository-header/repository-header';
 import { pathBreadcrumb, repositoryLink, sortEntries } from '../repository-links';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { CodeView, lineCount } from '../../shared/code-view/code-view';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type MarkdownMode = 'preview' | 'source';
 
@@ -48,7 +49,7 @@ const NAMES_ONLY = { lastCommit: false } as const;
 @Component({
   selector: 'fg-repository-blob-view',
   standalone: true,
-  imports: [RouterLink, Alert, Breadcrumb, Button, Card, CardHeader, CopyButton, EmptyState, Icon, SegmentedControl, Skeleton, Tree, RepositoryHeader, MarkdownView, CodeView, PageLayout, Panel],
+  imports: [TranslocoPipe, RouterLink, Alert, Breadcrumb, Button, Card, CardHeader, CopyButton, EmptyState, Icon, SegmentedControl, Skeleton, Tree, RepositoryHeader, MarkdownView, CodeView, PageLayout, Panel],
   templateUrl: './repository-blob-view.html',
   styleUrl: './repository-blob-view.scss',
 })
@@ -65,8 +66,8 @@ export class RepositoryBlobView implements OnInit {
   protected readonly skeletonLines = ['42%', '68%', '55%', '74%', '38%', '61%', '47%', '30%'];
   protected readonly navSkeletonLines = ['55%', '40%', '62%', '48%', '35%', '58%'];
   protected readonly markdownModes: SegmentedControlOption<MarkdownMode>[] = [
-    { value: 'preview', label: 'Aperçu' },
-    { value: 'source', label: 'Code source' },
+    { value: 'preview', label: t('repositories.blob.preview') },
+    { value: 'source', label: t('repositories.blob.source') },
   ];
 
   protected repo = signal<Repository | null>(null);
@@ -115,7 +116,7 @@ export class RepositoryBlobView implements OnInit {
   ngOnInit(): void {
     this.repositories.getById(this.repositoryId()).subscribe({
       next: (repo) => this.repo.set(repo),
-      error: () => this.toast.show('Impossible de charger ce dépôt. Réessayez plus tard.', 'error'),
+      error: () => this.toast.show(t('repositories.loadOneFailed'), 'error'),
     });
 
     this.repositories.blobAt(this.repositoryId(), this.ref(), this.blobPath()).subscribe({
@@ -130,7 +131,7 @@ export class RepositoryBlobView implements OnInit {
           this.tryRedirectToTree();
         } else {
           this.loadFailed.set(true);
-          this.toast.show('Impossible de charger ce dépôt. Réessayez plus tard.', 'error');
+          this.toast.show(t('repositories.loadOneFailed'), 'error');
         }
       },
     });
@@ -185,7 +186,7 @@ export class RepositoryBlobView implements OnInit {
       let listing = levels.get(key);
       if (!listing) {
         if (!isOnPath(folder, filePath)) {
-          return [{ id: `${key}${PLACEHOLDER_SUFFIX}`, label: 'Chargement…' }];
+          return [{ id: `${key}${PLACEHOLDER_SUFFIX}`, label: t('common.loading') }];
         }
         const next = filePath[folder.length];
         listing = [{ name: next, isDir: folder.length < filePath.length - 1, lastCommit: null }];

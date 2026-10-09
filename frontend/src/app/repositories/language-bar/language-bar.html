@@ -17,7 +17,7 @@
       </ul>
     </div>
   } @else {
-    <p class="language-bar__empty">Aucun langage détecté</p>
+    <p class="language-bar__empty">{{ 'repositories.noLanguage' | transloco }}</p>
   }
 } @else {
   <div class="language-bar__loading" aria-hidden="true">

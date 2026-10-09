@@ -1,29 +1,29 @@
 <fg-repository-header [repo]="repo()" [ref]="ref()" />
 
-<gbt-page-layout class="repository-blob-view__layout" width="full" navLabel="Fichiers du dépôt">
+<gbt-page-layout class="repository-blob-view__layout" width="full" [navLabel]="'repositories.blob.files' | transloco">
   @if (!isNotFound()) {
     <div page-nav class="repository-blob-view__nav" [class.repository-blob-view__nav--open]="navOpen()">
       <button type="button" class="repository-blob-view__nav-toggle" [attr.aria-expanded]="navOpen()" aria-controls="repository-blob-view-files" (click)="toggleNav()">
         <gbt-icon name="folder" class="repository-blob-view__nav-toggle-icon" aria-hidden="true" />
-        <span class="repository-blob-view__nav-toggle-label">Fichiers</span>
+        <span class="repository-blob-view__nav-toggle-label">{{ 'common.files' | transloco }}</span>
         <gbt-icon name="chevron-down" class="repository-blob-view__nav-chevron" aria-hidden="true" />
       </button>
       <div id="repository-blob-view-files" class="repository-blob-view__nav-panel" [class.repository-blob-view__nav-panel--open]="navOpen()">
-        <gbt-panel class="repository-blob-view__navigator" heading="Fichiers" [headingLevel]="2">
+        <gbt-panel class="repository-blob-view__navigator" [heading]="'common.files' | transloco" [headingLevel]="2">
           @if (navigatorLoaded()) {
             <gbt-tree
               [items]="navigatorItems()"
-              ariaLabel="Fichiers du dépôt"
+              [ariaLabel]="'repositories.blob.files' | transloco"
               [selectedId]="currentFileId()"
               (selectedIdChange)="openNode($event)"
               [expandedIds]="expandedIds()"
               (expandedIdsChange)="onExpandedChange($event)"
-              expandLabel="Déplier"
-              collapseLabel="Réduire"
+              [expandLabel]="'common.expand' | transloco"
+              [collapseLabel]="'common.collapse' | transloco"
             />
           } @else {
             <div class="repository-blob-view__nav-loading" aria-busy="true">
-              <span class="sr-only" role="status">Chargement des fichiers…</span>
+              <span class="sr-only" role="status">{{ 'repositories.loadingFiles' | transloco }}</span>
               @for (width of navSkeletonLines; track $index) {
                 <div class="repository-blob-view__nav-skeleton" aria-hidden="true">
                   <gbt-skeleton width="1rem" height="1rem" />
@@ -39,9 +39,9 @@
 
   @if (isNotFound()) {
     <gbt-card class="repository-blob-view__card repository-blob-view__not-found" variant="outlined" [flush]="true">
-      <gbt-empty-state illustration="folder" heading="Cette branche, ce tag ou ce chemin n'existe pas" message="Vérifiez l'adresse, ou repartez de la racine du dépôt.">
+      <gbt-empty-state illustration="folder" [heading]="'repositories.pathNotFound' | transloco" [message]="'repositories.pathNotFoundMessage' | transloco">
         @if (rootLink(); as link) {
-          <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="link">Retour à la racine du dépôt</a>
+          <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="link">{{ 'repositories.backToRoot' | transloco }}</a>
         }
       </gbt-empty-state>
     </gbt-card>
@@ -52,7 +52,7 @@
         <div card-header class="repository-blob-view__file-header">
           <div class="repository-blob-view__path">
             @if (repo()) {
-              <gbt-breadcrumb ariaLabel="Chemin du fichier">
+              <gbt-breadcrumb [ariaLabel]="'repositories.blob.filePath' | transloco">
                 @for (segment of breadcrumbAncestors(); track $index) {
                   <li breadcrumb-ancestor>
                     <a class="gbt-breadcrumb__item" [routerLink]="segment.link">{{ segment.name }}</a>
@@ -75,7 +75,7 @@
                 <span>{{ sizeLabel() }}</span>
               </span>
               @if (isMarkdown() && hasText()) {
-                <gbt-segmented-control class="repository-blob-view__mode" ariaLabel="Affichage du fichier" size="sm" tinted [options]="markdownModes" [value]="markdownMode()" (valueChange)="markdownMode.set($event)" />
+                <gbt-segmented-control class="repository-blob-view__mode" [ariaLabel]="'repositories.blob.display' | transloco" size="sm" tinted [options]="markdownModes" [value]="markdownMode()" (valueChange)="markdownMode.set($event)" />
               }
               @if (showsSource()) {
                 <!-- Feedback is spoken only (feedback="hidden"): a bubble would cover the path on a phone. -->
@@ -84,9 +84,9 @@
                   variant="secondary"
                   size="small"
                   feedback="hidden"
-                  text="Copier"
-                  copiedText="Contenu copié"
-                  failedText="Copie impossible, contenu sélectionné"
+                  [text]="'common.copy' | transloco"
+                  [copiedText]="'repositories.blob.copied' | transloco"
+                  [failedText]="'repositories.blob.copyFailed' | transloco"
                   [value]="contentToCopy"
                   (copyFailed)="selectCode()"
                 />
@@ -97,10 +97,10 @@
 
         <div #codeBody class="repository-blob-view__body">
           @if (loadFailed()) {
-            <gbt-alert class="repository-blob-view__load-error" variant="error" appearance="subtle" live="off" heading="Le fichier n'a pas pu être chargé">Réessayez dans un instant.</gbt-alert>
+            <gbt-alert class="repository-blob-view__load-error" variant="error" appearance="subtle" live="off" [heading]="'repositories.blob.loadFailed' | transloco">{{ 'repositories.commits.failedMessage' | transloco }}</gbt-alert>
           } @else if (!isLoaded()) {
             <div class="repository-blob-view__loading" aria-busy="true">
-              <span class="sr-only" role="status">Chargement du fichier…</span>
+              <span class="sr-only" role="status">{{ 'repositories.blob.loading' | transloco }}</span>
               @for (width of skeletonLines; track $index) {
                 <div class="repository-blob-view__skeleton-line" aria-hidden="true">
                   <gbt-skeleton width="1.25rem" height="0.625rem" />
@@ -111,14 +111,14 @@
           } @else if (isBinary()) {
             <gbt-empty-state
               icon="file"
-              heading="Fichier binaire, aperçu non disponible"
-              message="Ce type de fichier ne peut pas être affiché comme du texte."
+              [heading]="'repositories.blob.binaryTitle' | transloco"
+              [message]="'repositories.blob.binaryMessage' | transloco"
             />
           } @else if (isTooLarge()) {
             <gbt-empty-state
               icon="file"
-              heading="Ce fichier est trop volumineux pour être affiché"
-              [message]="'Avec ' + sizeLabel() + ', il dépasse la taille maximale de l\'aperçu.'"
+              [heading]="'repositories.blob.tooLargeTitle' | transloco"
+              [message]="'repositories.blob.tooLargeMessage' | transloco: { size: sizeLabel() }"
             />
           } @else if (content(); as text) {
             @if (showsSource()) {
@@ -129,7 +129,7 @@
               </div>
             }
           } @else {
-            <p class="repository-blob-view__empty-file">Ce fichier est vide.</p>
+            <p class="repository-blob-view__empty-file">{{ 'repositories.blob.emptyFile' | transloco }}</p>
           }
         </div>
       </gbt-card>

@@ -17,26 +17,31 @@ import { PageTitleService } from '../../shell/page-title.service';
 import { openWhenAsked } from '../../shared/open-when-asked';
 import { WorkspaceGrid, WorkspaceGroupItem } from '../workspace-grid/workspace-grid';
 import { WorkspaceGridFilters } from '../workspace-grid/workspace-grid-filters';
+import { t } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type TabId = 'all' | 'groups' | 'mine' | 'starred';
 
-const TAB_TEXTS: Record<TabId, { label: string; searchLabel: string; emptyHeading: string; emptyMessage: string }> = {
+const tabTexts = (): Record<TabId, { label: string; searchLabel: string; emptyHeading: string; emptyMessage: string }> => ({
   all: {
-    label: 'Tous',
-    searchLabel: 'Rechercher un dépôt ou un groupe',
-    emptyHeading: "Aucun dépôt ni groupe pour l'instant",
-    emptyMessage: 'Créez votre premier dépôt pour commencer.',
+    label: t('repositories.tabs.all'),
+    searchLabel: t('repositories.tabs.allSearch'),
+    emptyHeading: t('repositories.tabs.allEmpty'),
+    emptyMessage: t('repositories.tabs.allEmptyMessage'),
   },
-  mine: { label: 'Mes dépôts', searchLabel: 'Rechercher un dépôt', emptyHeading: "Vous ne possédez aucun dépôt pour l'instant", emptyMessage: '' },
-  starred: { label: 'Favoris', searchLabel: 'Rechercher un dépôt', emptyHeading: "Aucun favori pour l'instant", emptyMessage: 'Étoilez un dépôt pour le retrouver ici.' },
-  groups: { label: 'Groupes', searchLabel: 'Rechercher un groupe', emptyHeading: "Vous n'appartenez à aucun groupe pour l'instant", emptyMessage: '' },
-};
+  mine: { label: t('repositories.tabs.mine'), searchLabel: t('repositories.tabs.repoSearch'), emptyHeading: t('repositories.tabs.mineEmpty'), emptyMessage: '' },
+  starred: {
+    label: t('repositories.tabs.starred'),
+    searchLabel: t('repositories.tabs.repoSearch'),
+    emptyHeading: t('repositories.tabs.starredEmpty'),
+    emptyMessage: t('repositories.tabs.starredEmptyMessage'),
+  },
+  groups: { label: t('repositories.tabs.groups'), searchLabel: t('repositories.tabs.groupSearch'), emptyHeading: t('repositories.tabs.groupsEmpty'), emptyMessage: '' },
+});
 
 const TAB_ORDER: TabId[] = ['all', 'mine', 'starred', 'groups'];
 
 const GROUP_SHORTCUTS = 6;
-
-const LOAD_REPOSITORIES_ERROR = 'Impossible de charger les dépôts. Réessayez plus tard.';
 
 const NO_GROUPS: WorkspaceGroupItem[] = [];
 const NO_REPOSITORIES: Repository[] = [];
@@ -48,7 +53,7 @@ function toWorkspaceGroupItem(g: GroupMembership): WorkspaceGroupItem {
 @Component({
   selector: 'fg-workspace-page',
   standalone: true,
-  imports: [RouterLink, Button, Icon, SegmentedControl, PageHeader, PageLayout, Panel, CreateGroupModal, CreateRepositoryModal, WorkspaceGrid, WorkspaceGridFilters],
+  imports: [TranslocoPipe, RouterLink, Button, Icon, SegmentedControl, PageHeader, PageLayout, Panel, CreateGroupModal, CreateRepositoryModal, WorkspaceGrid, WorkspaceGridFilters],
   templateUrl: './workspace-page.html',
   styleUrl: './workspace-page.scss',
 })
@@ -87,7 +92,7 @@ export class WorkspacePage implements OnInit {
   private failedTabs = signal<ReadonlySet<TabId>>(new Set());
   private loadedTabs = new Set<TabId>();
 
-  protected texts = computed(() => TAB_TEXTS[this.activeTab()]);
+  protected texts = computed(() => tabTexts()[this.activeTab()]);
   protected activeGroups = computed(() => {
     switch (this.activeTab()) {
       case 'all':
@@ -137,7 +142,7 @@ export class WorkspacePage implements OnInit {
   });
   protected tabOptions = computed<SegmentedControlOption<TabId>[]>(() => {
     const counts = this.counts();
-    return TAB_ORDER.map((tab) => ({ value: tab, label: counts[tab] === null ? TAB_TEXTS[tab].label : `${TAB_TEXTS[tab].label} (${counts[tab]})` }));
+    return TAB_ORDER.map((tab) => ({ value: tab, label: counts[tab] === null ? tabTexts()[tab].label : t('repositories.tabs.withCount', { label: tabTexts()[tab].label, count: counts[tab] }) }));
   });
 
   protected showFilters = computed(() => !this.activeLoading() && !this.activeFailed() && this.activeGroups().length + this.activeRepositories().length > 0);
@@ -148,7 +153,7 @@ export class WorkspacePage implements OnInit {
   protected readonly groupsTabQuery = { tab: 'groups' };
 
   ngOnInit(): void {
-    this.pageTitle.set('Dépôts');
+    this.pageTitle.set(t('nav.repositories'));
     this.route.queryParamMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       const tab = params.get('tab');
       const resolved: TabId = (TAB_ORDER as string[]).includes(tab ?? '') ? (tab as TabId) : 'all';
@@ -214,17 +219,17 @@ export class WorkspacePage implements OnInit {
             this.allRepos.set(repos);
             this.allGroups.set(groups.map(toWorkspaceGroupItem));
           },
-          LOAD_REPOSITORIES_ERROR,
+          t('repositories.loadFailed'),
         );
         break;
       case 'groups':
-        this.fetchTab('groups', this.groupsLoading, this.groups.listMember(), (groups) => this.groupsList.set(groups.map(toWorkspaceGroupItem)), 'Impossible de charger les groupes. Réessayez plus tard.');
+        this.fetchTab('groups', this.groupsLoading, this.groups.listMember(), (groups) => this.groupsList.set(groups.map(toWorkspaceGroupItem)), t('repositories.groupsLoadFailed'));
         break;
       case 'mine':
-        this.fetchTab('mine', this.mineLoading, this.repositories.list(), (repos) => this.mineRepos.set(repos.filter((r) => r.role === 'owner')), LOAD_REPOSITORIES_ERROR);
+        this.fetchTab('mine', this.mineLoading, this.repositories.list(), (repos) => this.mineRepos.set(repos.filter((r) => r.role === 'owner')), t('repositories.loadFailed'));
         break;
       case 'starred':
-        this.fetchTab('starred', this.starredLoading, this.repositories.list({ starred: true }), (repos) => this.starredRepos.set(repos), LOAD_REPOSITORIES_ERROR);
+        this.fetchTab('starred', this.starredLoading, this.repositories.list({ starred: true }), (repos) => this.starredRepos.set(repos), t('repositories.loadFailed'));
         break;
     }
   }

@@ -24,6 +24,7 @@ import { RepositoryTreeView } from '../repository-tree-view/repository-tree-view
 import { RepositoryBlobView } from '../repository-blob-view/repository-blob-view';
 import { EmptyState } from '@masmarino/gabarit/empty-state';
 import { Spinner } from '@masmarino/gabarit/spinner';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 interface RepositoryViewBase {
   repositoryId: string;
@@ -57,7 +58,7 @@ type View =
 @Component({
   selector: 'fg-repository-path-resolver',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     RepositoryDetail,
     GroupDetail,
     PipelineList,

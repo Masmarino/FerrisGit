@@ -15,6 +15,7 @@ import { UserChip } from '@masmarino/gabarit/user-chip';
 import { CollaboratorSummary, RepositorySettingsService } from '../repository-settings.service';
 import { createSettingsList } from '../settings-list';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 type Role = CollaboratorSummary['role'];
 
@@ -40,9 +41,9 @@ export class RepositoryCollaboratorsSettings implements OnInit {
   /** Role picked per row (by user id) while it saves. Dropping the entry on failure makes NgModel put the old role back in the select. */
   protected pendingRoles = signal<ReadonlyMap<string, Role>>(new Map());
   protected readonly roleOptions: SelectOption<Role>[] = [
-    { value: 'reader', label: 'Lecteur' },
-    { value: 'contributor', label: 'Contributeur' },
-    { value: 'maintainer', label: 'Mainteneur' },
+    { value: 'reader', label: t('common.reader') },
+    { value: 'contributor', label: t('common.contributor') },
+    { value: 'maintainer', label: t('common.maintainer') },
   ];
 
   ngOnInit(): void {
@@ -58,9 +59,9 @@ export class RepositoryCollaboratorsSettings implements OnInit {
       next: () => {
         this.newCollaboratorUsername.set('');
         this.list.refresh();
-        this.toast.show('Collaborateur ajouté.');
+        this.toast.show(t('repositories.collaborators.added'));
       },
-      error: () => this.toast.show("Impossible d'ajouter ce collaborateur (nom d'utilisateur inconnu, ou vous n'êtes pas le propriétaire de ce dépôt).", 'error'),
+      error: () => this.toast.show(t('repositories.collaborators.addFailed'), 'error'),
     });
   }
 
@@ -78,13 +79,13 @@ export class RepositoryCollaboratorsSettings implements OnInit {
         this.removing.set(false);
         this.collaboratorPendingRemoval.set(null);
         this.list.refresh();
-        this.toast.show('Collaborateur retiré.');
+        this.toast.show(t('repositories.collaborators.removed'));
       },
       // Close the confirmation first, it covers the page and would hide the error.
       error: () => {
         this.removing.set(false);
         this.collaboratorPendingRemoval.set(null);
-        this.toast.show("Impossible de retirer ce collaborateur (vous n'êtes peut-être pas le propriétaire de ce dépôt).", 'error');
+        this.toast.show(t('repositories.collaborators.removeFailed'), 'error');
       },
     });
   }
@@ -96,11 +97,11 @@ export class RepositoryCollaboratorsSettings implements OnInit {
       next: () => {
         this.list.items.update((list) => list.map((c) => (c.userId === userId ? { ...c, role } : c)));
         this.setPendingRole(userId, null);
-        this.toast.show('Rôle mis à jour.');
+        this.toast.show(t('groups.members.roleUpdated'));
       },
       error: () => {
         this.setPendingRole(userId, null);
-        this.toast.show("Impossible de modifier le rôle de ce collaborateur (vous n'êtes peut-être pas mainteneur de ce dépôt).", 'error');
+        this.toast.show(t('repositories.collaborators.roleFailed'), 'error');
       },
     });
   }

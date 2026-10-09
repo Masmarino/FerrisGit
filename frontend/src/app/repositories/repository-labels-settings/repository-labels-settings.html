@@ -1,15 +1,15 @@
-<gbt-card variant="outlined" icon="plus" heading="Nouveau label" description="Les labels classent les tickets et les demandes de fusion de ce dépôt.">
+<gbt-card variant="outlined" icon="plus" [heading]="'repositories.labels.new' | transloco" [description]="'repositories.labels.newHelp' | transloco">
   <form class="repository-labels-settings__form" (submit)="$event.preventDefault(); addLabel()">
     <div class="repository-labels-settings__fields">
-      <gbt-input name="name" label="Nom du label" placeholder="bug, documentation…" autocomplete="off" [ngModel]="newLabelName()" (ngModelChange)="newLabelName.set($event)" />
+      <gbt-input name="name" [label]="'repositories.labels.name' | transloco" [placeholder]="'repositories.labels.namePlaceholder' | transloco" autocomplete="off" [ngModel]="newLabelName()" (ngModelChange)="newLabelName.set($event)" />
       <div class="repository-labels-settings__preview">
-        <span class="repository-labels-settings__preview-label" aria-hidden="true">Aperçu</span>
-        <gbt-tag [color]="newLabelColor()">{{ newLabelName().trim() || 'Aperçu' }}</gbt-tag>
+        <span class="repository-labels-settings__preview-label" aria-hidden="true">{{ 'nav.overview' | transloco }}</span>
+        <gbt-tag [color]="newLabelColor()">{{ newLabelName().trim() || ('nav.overview' | transloco) }}</gbt-tag>
       </div>
     </div>
 
     <fieldset class="repository-labels-settings__palette">
-      <legend class="repository-labels-settings__legend">Couleur</legend>
+      <legend class="repository-labels-settings__legend">{{ 'repositories.labels.color' | transloco }}</legend>
       <div class="repository-labels-settings__swatches">
         @for (swatch of labelPalette; track swatch.color) {
           <input
@@ -28,16 +28,16 @@
     </fieldset>
 
     <div class="repository-labels-settings__actions">
-      <gbt-button type="submit" iconName="plus" text="Créer le label" [disabled]="!newLabelName().trim()" />
+      <gbt-button type="submit" iconName="plus" [text]="'repositories.labels.create' | transloco" [disabled]="!newLabelName().trim()" />
     </div>
   </form>
 </gbt-card>
 
-<gbt-card variant="outlined" icon="tag" heading="Labels" description="Les labels de ce dépôt, proposés sur ses tickets et ses demandes de fusion." [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+<gbt-card variant="outlined" icon="tag" [heading]="'common.labels' | transloco" [description]="'repositories.labels.listHelp' | transloco" [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
   @switch (list.state()) {
     @case ('loading') {
       <div class="repository-labels-settings__loading" aria-busy="true">
-        <span class="sr-only" role="status">Chargement des labels…</span>
+        <span class="sr-only" role="status">{{ 'repositories.labels.loading' | transloco }}</span>
         @for (width of skeletonRows; track $index) {
           <div class="repository-labels-settings__skeleton" aria-hidden="true">
             <gbt-skeleton variant="rect" [width]="width" height="1.375rem" />
@@ -47,7 +47,7 @@
     }
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
-        Les labels n'ont pas pu être chargés.
+        {{ 'repositories.labels.loadFailed' | transloco }}
         <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="list.retry()" />
       </gbt-alert>
     }
@@ -56,11 +56,11 @@
         <gbt-empty-state
           size="compact"
           icon="tag"
-          heading="Aucun label pour l'instant"
-          message="Créez « bug », « documentation » ou « urgent » pour trier les tickets et les demandes de fusion d'un coup d'œil."
+          [heading]="'repositories.labels.emptyTitle' | transloco"
+          [message]="'repositories.labels.emptyMessage' | transloco"
         />
       } @else {
-        <ul class="repository-labels-settings__rows" aria-label="Labels">
+        <ul class="repository-labels-settings__rows" [attr.aria-label]="'common.labels' | transloco">
           @for (label of list.items(); track label.id) {
             <li>
               <gbt-list-row>
@@ -73,8 +73,8 @@
                   size="medium"
                   [iconOnly]="true"
                   iconName="trash-2"
-                  title="Supprimer"
-                  [ariaLabel]="'Supprimer le label ' + label.name"
+                  [title]="'common.delete' | transloco"
+                  [ariaLabel]="'repositories.labels.deleteNamed' | transloco: { name: label.name }"
                   (clicked)="confirmDeleteLabel(label)"
                 />
               </gbt-list-row>
@@ -89,11 +89,11 @@
 @if (labelPendingDelete(); as label) {
   <gbt-confirm-danger-modal
     [isOpen]="true"
-    heading="Supprimer ce label"
-    message="Ce label sera retiré de tous les tickets et de toutes les demandes de fusion qui l'utilisent. Cette action est irréversible."
+    [heading]="'repositories.labels.deleteTitle' | transloco"
+    [message]="'repositories.labels.deleteMessage' | transloco"
     [confirmText]="label.name"
-    confirmInputLabel="Tapez le nom du label pour confirmer"
-    confirmLabel="Supprimer"
+    [confirmInputLabel]="'repositories.labels.typeName' | transloco"
+    [confirmLabel]="'common.delete' | transloco"
     [cancelLabel]="'common.cancel' | transloco"
     [closeLabel]="'common.close' | transloco"
     (confirmed)="deleteLabel()"

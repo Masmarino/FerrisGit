@@ -14,7 +14,7 @@ import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { createSettingsList } from '../settings-list';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 // A due date is a calendar day stored as UTC midnight. Formatting in local time would show the
@@ -47,7 +47,7 @@ export class RepositoryMilestonesSettings implements OnInit {
       const validDue = due && !Number.isNaN(due.getTime()) ? due : null;
       return {
         milestone,
-        due: validDue ? `Échéance le ${dueDate().format(validDue)}` : 'Sans échéance',
+        due: validDue ? t('repositories.milestones.due', { date: dueDate().format(validDue) }) : t('repositories.milestones.noDue'),
         late: milestone.state === 'open' && validDue !== null && validDue.getTime() < today,
       };
     });
@@ -82,9 +82,9 @@ export class RepositoryMilestonesSettings implements OnInit {
         this.newMilestoneTitle.set('');
         this.newMilestoneDueDate.set(null);
         this.list.refresh();
-        this.toast.show('Milestone créé.');
+        this.toast.show(t('repositories.milestones.created'));
       },
-      error: () => this.toast.show('Impossible de créer ce milestone.', 'error'),
+      error: () => this.toast.show(t('repositories.milestones.createFailed'), 'error'),
     });
   }
 
@@ -101,11 +101,11 @@ export class RepositoryMilestonesSettings implements OnInit {
       next: () => {
         this.milestonePendingDelete.set(null);
         this.list.refresh();
-        this.toast.show('Milestone supprimé.');
+        this.toast.show(t('repositories.milestones.deleted'));
       },
       error: () => {
         this.milestonePendingDelete.set(null);
-        this.toast.show('Impossible de supprimer ce milestone.', 'error');
+        this.toast.show(t('repositories.milestones.deleteFailed'), 'error');
       },
     });
   }

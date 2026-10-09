@@ -1,20 +1,20 @@
-<gbt-panel heading="Recherche" [headingLevel]="2">
+<gbt-panel [heading]="'common.searchTitle' | transloco" [headingLevel]="2">
   <gbt-input
     class="workspace-grid-filters__search"
     [label]="grid().searchLabel()"
     hideLabel
-    placeholder="Nom ou chemin"
+    [placeholder]="'repositories.search' | transloco"
     [ngModel]="grid().search()"
     (ngModelChange)="grid().search.set($event)"
   />
 </gbt-panel>
 
-<gbt-panel heading="Trier" [headingLevel]="2">
+<gbt-panel [heading]="'common.sort' | transloco" [headingLevel]="2">
   <div class="workspace-grid-filters__sort">
-    <gbt-select label="Trier par" hideLabel fullWidth [options]="sortOptions()" [ngModel]="grid().sortValue()" (ngModelChange)="grid().sortValue.set($event)" />
+    <gbt-select [label]="'common.sortBy' | transloco" hideLabel fullWidth [options]="sortOptions()" [ngModel]="grid().sortValue()" (ngModelChange)="grid().sortValue.set($event)" />
     <gbt-segmented-control
       class="workspace-grid-filters__direction"
-      ariaLabel="Sens du tri"
+      [ariaLabel]="'common.sortDirection' | transloco"
       tinted
       fullWidth
       [options]="directionOptions"

@@ -1,7 +1,7 @@
 @switch (loadState()) {
   @case ('loading') {
     <div class="repository-pipeline-settings__loading" aria-busy="true">
-      <span class="sr-only" role="status">Chargement des réglages de la pipeline…</span>
+      <span class="sr-only" role="status">{{ 'repositories.pipeline.loading' | transloco }}</span>
       @for (card of skeletonCards; track $index) {
         <gbt-card class="repository-pipeline-settings__skeleton" variant="outlined" aria-hidden="true">
           <div card-header class="repository-pipeline-settings__skeleton-header">
@@ -20,19 +20,19 @@
     </div>
   }
   @case ('failed') {
-    <gbt-card variant="outlined" icon="play" heading="Intégration continue">
+    <gbt-card variant="outlined" icon="play" [heading]="'repositories.pipeline.ci' | transloco">
       <gbt-alert variant="error" appearance="subtle" live="off">
-        Les réglages de la pipeline n'ont pas pu être chargés.
+        {{ 'repositories.pipeline.failed' | transloco }}
         <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="refresh()" />
       </gbt-alert>
     </gbt-card>
   }
   @default {
     @if (settings(); as s) {
-      <gbt-card variant="outlined" icon="play" heading="Intégration continue" description="Lance une pipeline à chaque push. Chaque réglage est enregistré dès que vous le modifiez.">
+      <gbt-card variant="outlined" icon="play" [heading]="'repositories.pipeline.ci' | transloco" [description]="'repositories.pipeline.ciHelp' | transloco">
         <div class="repository-pipeline-settings__form">
           <div class="repository-pipeline-settings__field repository-pipeline-settings__switch" data-field="ciEnabled">
-            <gbt-switch label="CI activée pour ce dépôt" [ngModel]="ciEnabledShown()" (ngModelChange)="setPipelineEnabled($event)" />
+            <gbt-switch [label]="'repositories.pipeline.ciEnabled' | transloco" [ngModel]="ciEnabledShown()" (ngModelChange)="setPipelineEnabled($event)" />
             <div class="repository-pipeline-settings__field-footer">
               <p class="repository-pipeline-settings__hint repository-pipeline-settings__switch-hint">
                 {{ s.ciEnabled ? 'Une pipeline est lancée à chaque push, si le fichier ci-dessous existe sur la branche par défaut.' : "Aucune pipeline n'est lancée tant que la CI est désactivée." }}
@@ -43,20 +43,20 @@
 
           <div class="repository-pipeline-settings__field repository-pipeline-settings__path" data-field="pipelineFilePath">
             <!-- (committed), not (ngModelChange): that would save every half-typed path. -->
-            <gbt-input label="Chemin du fichier pipeline" mono placeholder=".ferrisgit-ci.yml" [errorMessage]="pathError()" [ngModel]="s.pipelineFilePath" (committed)="updatePipelineFilePath($event)" />
+            <gbt-input [label]="'repositories.create.pipelinePath' | transloco" mono placeholder=".ferrisgit-ci.yml" [errorMessage]="pathError()" [ngModel]="s.pipelineFilePath" (committed)="updatePipelineFilePath($event)" />
             <div class="repository-pipeline-settings__field-footer">
-              <p class="repository-pipeline-settings__hint">Relatif à la racine du dépôt. Il est lu sur la branche par défaut après chaque push.</p>
+              <p class="repository-pipeline-settings__hint">{{ 'repositories.pipeline.pathHint' | transloco }}</p>
               <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().pipelineFilePath }" />
             </div>
           </div>
         </div>
       </gbt-card>
 
-      <gbt-card variant="outlined" icon="git-pull-request" heading="Demandes de fusion" description="Les conditions à remplir avant de pouvoir fusionner une demande de fusion.">
+      <gbt-card variant="outlined" icon="git-pull-request" [heading]="'nav.mergeRequests' | transloco" [description]="'repositories.pipeline.mergeHelp' | transloco">
         <div class="repository-pipeline-settings__field repository-pipeline-settings__approvals" data-field="requiredApprovals">
-          <gbt-input type="number" min="0" label="Approbations requises avant fusion" [errorMessage]="approvalsError()" [ngModel]="s.requiredApprovals.toString()" (committed)="updateRequiredApprovals($event)" />
+          <gbt-input type="number" min="0" [label]="'repositories.create.approvals' | transloco" [errorMessage]="approvalsError()" [ngModel]="s.requiredApprovals.toString()" (committed)="updateRequiredApprovals($event)" />
           <div class="repository-pipeline-settings__field-footer">
-            <p class="repository-pipeline-settings__hint">0 pour fusionner sans approbation.</p>
+            <p class="repository-pipeline-settings__hint">{{ 'repositories.pipeline.zeroApprovals' | transloco }}</p>
             <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().requiredApprovals }" />
           </div>
         </div>
@@ -67,5 +67,5 @@
 
 <!-- Always in the DOM, because a live region added already filled isn't announced reliably. -->
 <ng-template #saveState let-state>
-  <gbt-save-status class="repository-pipeline-settings__save-state" [state]="state ?? 'idle'" savingLabel="Enregistrement…" savedLabel="Enregistré" errorLabel="Non enregistré" />
+  <gbt-save-status class="repository-pipeline-settings__save-state" [state]="state ?? 'idle'" [savingLabel]="'common.savingShort' | transloco" [savedLabel]="'common.saved' | transloco" [errorLabel]="'common.notSaved' | transloco" />
 </ng-template>

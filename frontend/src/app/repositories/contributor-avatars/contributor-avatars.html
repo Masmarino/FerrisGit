@@ -9,10 +9,10 @@
       }
     </ol>
     @if (hiddenCount() > 0) {
-      <p class="contributor-avatars__more">+{{ hiddenCount() }} autre{{ hiddenCount() > 1 ? 's' : '' }}</p>
+      <p class="contributor-avatars__more">{{ 'repositories.contributors.more' | translocoCount: hiddenCount() }}</p>
     }
   } @else {
-    <p class="contributor-avatars__empty">Aucun contributeur</p>
+    <p class="contributor-avatars__empty">{{ 'repositories.contributors.none' | transloco }}</p>
   }
 } @else {
   <div class="contributor-avatars__loading" aria-hidden="true">

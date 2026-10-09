@@ -15,6 +15,7 @@ import { CiVariableSummary, RepositorySettingsService } from '../repository-sett
 import { createSettingsList } from '../settings-list';
 import { envNameProblem } from '../ci-variable-name';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 @Component({
   selector: 'fg-repository-ci-variables',
@@ -67,9 +68,9 @@ export class RepositoryCiVariables implements OnInit {
         this.newVariableValue.set('');
         this.list.refresh();
         this.changed.emit();
-        this.toast.show('Variable ajoutée.');
+        this.toast.show(t('repositories.variables.added'));
       },
-      error: () => this.toast.show("Impossible d'ajouter la variable.", 'error'),
+      error: () => this.toast.show(t('repositories.variables.addFailed'), 'error'),
     });
   }
 
@@ -88,13 +89,13 @@ export class RepositoryCiVariables implements OnInit {
         this.variablePendingDelete.set(null);
         this.list.refresh();
         this.changed.emit();
-        this.toast.show('Variable supprimée.');
+        this.toast.show(t('repositories.variables.deleted'));
       },
       // Close the confirmation first, it covers the page and would hide the error.
       error: () => {
         this.deleting.set(false);
         this.variablePendingDelete.set(null);
-        this.toast.show('Impossible de supprimer la variable.', 'error');
+        this.toast.show(t('repositories.variables.deleteFailed'), 'error');
       },
     });
   }

@@ -17,7 +17,7 @@
         (clicked)="toggleStar()"
       />
     }
-    <gbt-button header-actions class="repository-header__clone" variant="primary" size="small" iconName="download" text="Cloner" (clicked)="showClonePanel()" />
+    <gbt-button header-actions class="repository-header__clone" variant="primary" size="small" iconName="download" [text]="'repositories.clone' | transloco" (clicked)="showClonePanel()" />
   </gbt-page-header>
 } @else {
   <!-- Same size as the header, so nothing jumps when the repository arrives. -->

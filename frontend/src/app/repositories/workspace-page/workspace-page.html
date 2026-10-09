@@ -1,6 +1,6 @@
-<gbt-page-header heading="Dépôts">
-  <gbt-button header-actions variant="secondary" iconName="folder" text="Nouveau groupe" (clicked)="createGroupOpen.set(true)" />
-  <gbt-button header-actions iconName="plus" text="Nouveau dépôt" (clicked)="createModalOpen.set(true)" />
+<gbt-page-header [heading]="'nav.repositories' | transloco">
+  <gbt-button header-actions variant="secondary" iconName="folder" [text]="'groups.create.title' | transloco" (clicked)="createGroupOpen.set(true)" />
+  <gbt-button header-actions iconName="plus" [text]="'common.newRepository' | transloco" (clicked)="createModalOpen.set(true)" />
 </gbt-page-header>
 
 <gbt-page-layout width="wide" asideWidth="sm">
@@ -18,7 +18,7 @@
     (changed)="reloadLoaded()"
     (retry)="reload(activeTab())"
   >
-    <gbt-segmented-control grid-tabs class="workspace-page__tabs" ariaLabel="Dépôts affichés" tinted [options]="tabOptions()" [value]="activeTab()" (valueChange)="selectTab($event)" />
+    <gbt-segmented-control grid-tabs class="workspace-page__tabs" [ariaLabel]="'repositories.tabsLabel' | transloco" tinted [options]="tabOptions()" [value]="activeTab()" (valueChange)="selectTab($event)" />
   </fg-workspace-grid>
 
   @if (showFilters() || groupShortcuts().length > 0) {
@@ -27,7 +27,7 @@
         <fg-workspace-grid-filters [grid]="grid" />
       }
       @if (groupShortcuts().length > 0) {
-        <gbt-panel heading="Groupes" [headingLevel]="2">
+        <gbt-panel [heading]="'nav.groups' | transloco" [headingLevel]="2">
           <ul class="workspace-page__groups">
             @for (group of groupShortcuts(); track group.id) {
               <li>

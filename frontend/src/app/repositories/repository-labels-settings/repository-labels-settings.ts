@@ -13,20 +13,81 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Label, LabelsService } from '../../labels/labels.service';
 import { createSettingsList } from '../settings-list';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 const LABEL_PALETTE: { color: string; name: string }[] = [
-  { color: '#dc2626', name: 'Rouge' },
-  { color: '#ea580c', name: 'Orange' },
-  { color: '#ca8a04', name: 'Jaune' },
-  { color: '#16a34a', name: 'Vert' },
-  { color: '#0d9488', name: 'Sarcelle' },
-  { color: '#2563eb', name: 'Bleu' },
-  { color: '#4f46e5', name: 'Indigo' },
-  { color: '#7c3aed', name: 'Violet' },
-  { color: '#c026d3', name: 'Fuchsia' },
-  { color: '#db2777', name: 'Rose' },
-  { color: '#57534e', name: 'Brun' },
-  { color: '#6b7280', name: 'Gris' },
+  {
+    color: '#dc2626',
+    get name() {
+      return t('repositories.colors.red');
+    },
+  },
+  {
+    color: '#ea580c',
+    get name() {
+      return t('repositories.colors.orange');
+    },
+  },
+  {
+    color: '#ca8a04',
+    get name() {
+      return t('repositories.colors.yellow');
+    },
+  },
+  {
+    color: '#16a34a',
+    get name() {
+      return t('repositories.colors.green');
+    },
+  },
+  {
+    color: '#0d9488',
+    get name() {
+      return t('repositories.colors.teal');
+    },
+  },
+  {
+    color: '#2563eb',
+    get name() {
+      return t('repositories.colors.blue');
+    },
+  },
+  {
+    color: '#4f46e5',
+    get name() {
+      return t('repositories.colors.indigo');
+    },
+  },
+  {
+    color: '#7c3aed',
+    get name() {
+      return t('repositories.colors.violet');
+    },
+  },
+  {
+    color: '#c026d3',
+    get name() {
+      return t('repositories.colors.fuchsia');
+    },
+  },
+  {
+    color: '#db2777',
+    get name() {
+      return t('repositories.colors.pink');
+    },
+  },
+  {
+    color: '#57534e',
+    get name() {
+      return t('repositories.colors.brown');
+    },
+  },
+  {
+    color: '#6b7280',
+    get name() {
+      return t('repositories.colors.grey');
+    },
+  },
 ];
 
 let nextId = 0;
@@ -66,9 +127,9 @@ export class RepositoryLabelsSettings implements OnInit {
       next: () => {
         this.newLabelName.set('');
         this.list.refresh();
-        this.toast.show('Label ajouté.');
+        this.toast.show(t('repositories.labels.added'));
       },
-      error: () => this.toast.show('Impossible de créer ce label.', 'error'),
+      error: () => this.toast.show(t('repositories.labels.createFailed'), 'error'),
     });
   }
 
@@ -85,12 +146,12 @@ export class RepositoryLabelsSettings implements OnInit {
       next: () => {
         this.labelPendingDelete.set(null);
         this.list.refresh();
-        this.toast.show('Label supprimé.');
+        this.toast.show(t('repositories.labels.deleted'));
       },
       // Close the modal first, it covers the card and would hide the error.
       error: () => {
         this.labelPendingDelete.set(null);
-        this.toast.show('Impossible de supprimer ce label.', 'error');
+        this.toast.show(t('repositories.labels.deleteFailed'), 'error');
       },
     });
   }

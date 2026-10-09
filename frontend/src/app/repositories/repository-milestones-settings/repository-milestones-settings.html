@@ -1,37 +1,37 @@
-<gbt-card variant="outlined" icon="plus" heading="Nouveau milestone" description="Un milestone regroupe des tickets et des demandes de fusion autour d'un objectif et d'une échéance.">
+<gbt-card variant="outlined" icon="plus" [heading]="'repositories.milestones.new' | transloco" [description]="'repositories.milestones.newHelp' | transloco">
   <form class="repository-milestones-settings__form" (submit)="$event.preventDefault(); addMilestone()">
     <div class="repository-milestones-settings__fields">
-      <gbt-input name="title" label="Titre" placeholder="v1.2 — refonte des pipelines" autocomplete="off" [ngModel]="newMilestoneTitle()" (ngModelChange)="newMilestoneTitle.set($event)" />
+      <gbt-input name="title" [label]="'common.title' | transloco" [placeholder]="'repositories.milestones.titlePlaceholder' | transloco" autocomplete="off" [ngModel]="newMilestoneTitle()" (ngModelChange)="newMilestoneTitle.set($event)" />
       <gbt-date-picker
         class="repository-milestones-settings__date"
         name="dueDate"
-        label="Date d'échéance (facultative)"
-        placeholder="Choisir une date"
+        [label]="'repositories.milestones.dueLabel' | transloco"
+        [placeholder]="'common.chooseDate' | transloco"
         [locale]="locale()"
-        previousMonthLabel="Mois précédent"
-        nextMonthLabel="Mois suivant"
-        monthSelectLabel="Mois"
-        yearSelectLabel="Année"
-        clearLabel="Effacer la date"
+        [previousMonthLabel]="'common.previousMonth' | transloco"
+        [nextMonthLabel]="'common.nextMonth' | transloco"
+        [monthSelectLabel]="'common.month' | transloco"
+        [yearSelectLabel]="'common.year' | transloco"
+        [clearLabel]="'common.clearDate' | transloco"
         clearable
         [ngModel]="newMilestoneDueDate()"
         (ngModelChange)="newMilestoneDueDate.set($event)"
       />
     </div>
     <div class="repository-milestones-settings__actions">
-      <gbt-button type="submit" iconName="plus" text="Créer le milestone" [disabled]="!newMilestoneTitle().trim()" />
+      <gbt-button type="submit" iconName="plus" [text]="'repositories.milestones.create' | transloco" [disabled]="!newMilestoneTitle().trim()" />
     </div>
   </form>
 </gbt-card>
 
-<gbt-card variant="outlined" icon="flag" heading="Milestones" description="Les milestones de ce dépôt, ouverts comme fermés." [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+<gbt-card variant="outlined" icon="flag" [heading]="'repositories.sections.milestones' | transloco" [description]="'repositories.milestones.listHelp' | transloco" [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
   @switch (list.state()) {
     @case ('loading') {
-      <gbt-skeleton-list [rows]="3" leadingSize="1rem" loadingLabel="Chargement des milestones…" />
+      <gbt-skeleton-list [rows]="3" leadingSize="1rem" [loadingLabel]="'repositories.milestones.loading' | transloco" />
     }
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
-        Les milestones n'ont pas pu être chargés.
+        {{ 'repositories.milestones.loadFailed' | transloco }}
         <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="list.retry()" />
       </gbt-alert>
     }
@@ -40,11 +40,11 @@
         <gbt-empty-state
           size="compact"
           icon="flag"
-          heading="Aucun milestone pour l'instant"
-          message="Planifiez une version ou un sprint : ses tickets et ses demandes de fusion se suivent ensuite d'un coup d'œil."
+          [heading]="'repositories.milestones.emptyTitle' | transloco"
+          [message]="'repositories.milestones.emptyMessage' | transloco"
         />
       } @else {
-        <ul class="repository-milestones-settings__rows" aria-label="Milestones">
+        <ul class="repository-milestones-settings__rows" [attr.aria-label]="'repositories.sections.milestones' | transloco">
           @for (row of rows(); track row.milestone.id) {
             <li>
               <gbt-list-row [tone]="row.milestone.state === 'open' ? 'info' : 'success'">
@@ -52,7 +52,7 @@
                 <span class="repository-milestones-settings__title" [title]="row.milestone.title">{{ row.milestone.title }}</span>
                 <gbt-badge class="repository-milestones-settings__state" [variant]="row.milestone.state === 'open' ? 'info' : 'success'">{{ row.milestone.state === 'open' ? 'Ouvert' : 'Fermé' }}</gbt-badge>
                 @if (row.late) {
-                  <gbt-badge class="repository-milestones-settings__late" variant="warning" icon="clock">En retard</gbt-badge>
+                  <gbt-badge class="repository-milestones-settings__late" variant="warning" icon="clock">{{ 'repositories.milestones.late' | transloco }}</gbt-badge>
                 }
                 <span row-meta>{{ row.due }}</span>
                 <gbt-button
@@ -62,8 +62,8 @@
                   size="medium"
                   [iconOnly]="true"
                   iconName="trash-2"
-                  title="Supprimer"
-                  [ariaLabel]="'Supprimer le milestone ' + row.milestone.title"
+                  [title]="'common.delete' | transloco"
+                  [ariaLabel]="'repositories.milestones.deleteNamed' | transloco: { name: row.milestone.title }"
                   (clicked)="confirmDeleteMilestone(row.milestone)"
                 />
               </gbt-list-row>
@@ -78,11 +78,11 @@
 @if (milestonePendingDelete(); as milestone) {
   <gbt-confirm-danger-modal
     [isOpen]="true"
-    heading="Supprimer ce milestone"
-    message="Ce milestone sera retiré de tous les tickets et de toutes les demandes de fusion qui l'utilisent. Cette action est irréversible."
+    [heading]="'repositories.milestones.deleteTitle' | transloco"
+    [message]="'repositories.milestones.deleteMessage' | transloco"
     [confirmText]="milestone.title"
-    confirmInputLabel="Tapez le titre du milestone pour confirmer"
-    confirmLabel="Supprimer"
+    [confirmInputLabel]="'repositories.milestones.typeTitle' | transloco"
+    [confirmLabel]="'common.delete' | transloco"
     [cancelLabel]="'common.cancel' | transloco"
     [closeLabel]="'common.close' | transloco"
     (confirmed)="deleteMilestone()"

@@ -1,14 +1,14 @@
-<gbt-card variant="outlined" icon="plus" heading="Ajouter un webhook" description="FerrisGit envoie une requête POST signée avec le secret à cette URL quand un des événements choisis se produit.">
+<gbt-card variant="outlined" icon="plus" [heading]="'repositories.webhooks.add' | transloco" [description]="'repositories.webhooks.addHelp' | transloco">
   <form class="repository-webhooks__form" (submit)="$event.preventDefault(); addWebhook()">
     <div class="repository-webhooks__fields">
-      <gbt-input name="url" label="URL" mono placeholder="https://exemple.fr/hooks/ferrisgit" autocomplete="off" [ngModel]="newWebhookUrl()" (ngModelChange)="newWebhookUrl.set($event)" />
+      <gbt-input name="url" [label]="'repositories.webhooks.url' | transloco" mono [placeholder]="'repositories.webhooks.urlPlaceholder' | transloco" autocomplete="off" [ngModel]="newWebhookUrl()" (ngModelChange)="newWebhookUrl.set($event)" />
       <gbt-input
         name="secret"
-        label="Secret"
+        [label]="'repositories.webhooks.secret' | transloco"
         type="password"
         autocomplete="new-password"
-        showPasswordLabel="Afficher le secret"
-        hidePasswordLabel="Masquer le secret"
+        [showPasswordLabel]="'repositories.webhooks.showSecret' | transloco"
+        [hidePasswordLabel]="'repositories.webhooks.hideSecret' | transloco"
         [ngModel]="newWebhookSecret()"
         (ngModelChange)="newWebhookSecret.set($event)"
       />
@@ -16,7 +16,7 @@
 
     <gbt-checkbox-group
       class="repository-webhooks__webhook-events"
-      legend="Événements"
+      [legend]="'repositories.webhooks.events' | transloco"
       columns="auto"
       [groups]="eventSections"
       [value]="newWebhookEvents()"
@@ -25,19 +25,19 @@
 
     <div class="repository-webhooks__actions">
       <p class="repository-webhooks__summary" aria-live="polite">{{ selectionSummary() }}</p>
-      <gbt-button type="submit" iconName="plus" text="Ajouter le webhook" [disabled]="!newWebhookUrl().trim() || !newWebhookSecret() || newWebhookEvents().length === 0" />
+      <gbt-button type="submit" iconName="plus" [text]="'repositories.webhooks.submit' | transloco" [disabled]="!newWebhookUrl().trim() || !newWebhookSecret() || newWebhookEvents().length === 0" />
     </div>
   </form>
 </gbt-card>
 
-<gbt-card variant="outlined" icon="globe" heading="Webhooks" description="Les adresses prévenues des événements de ce dépôt." [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+<gbt-card variant="outlined" icon="globe" [heading]="'repositories.sections.webhooks' | transloco" [description]="'repositories.webhooks.listHelp' | transloco" [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
   @switch (list.state()) {
     @case ('loading') {
-      <gbt-skeleton-list [rows]="2" leadingSize="1rem" loadingLabel="Chargement des webhooks…" />
+      <gbt-skeleton-list [rows]="2" leadingSize="1rem" [loadingLabel]="'repositories.webhooks.loading' | transloco" />
     }
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
-        Les webhooks n'ont pas pu être chargés.
+        {{ 'repositories.webhooks.loadFailed' | transloco }}
         <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="list.retry()" />
       </gbt-alert>
     }
@@ -46,11 +46,11 @@
         <gbt-empty-state
           size="compact"
           icon="globe"
-          heading="Aucun webhook configuré"
-          message="Prévenez un chat, une CI externe ou un outil d'audit quand une demande de fusion est fusionnée, une pipeline échoue…"
+          [heading]="'repositories.webhooks.emptyTitle' | transloco"
+          [message]="'repositories.webhooks.emptyMessage' | transloco"
         />
       } @else {
-        <ul class="repository-webhooks__rows" aria-label="Webhooks">
+        <ul class="repository-webhooks__rows" [attr.aria-label]="'repositories.sections.webhooks' | transloco">
           @for (row of rows(); track row.webhook.id) {
             <li>
               <gbt-list-row>
@@ -68,7 +68,7 @@
                     }
                   </span>
                   <span class="repository-webhooks__created">
-                    ajouté <time [attr.datetime]="row.webhook.createdAt" [title]="row.webhook.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.webhook.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                    {{ 'common.added' | transloco }} <time [attr.datetime]="row.webhook.createdAt" [title]="row.webhook.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.webhook.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
                   </span>
                 </span>
                 <gbt-button
@@ -78,8 +78,8 @@
                   size="medium"
                   [iconOnly]="true"
                   iconName="clock"
-                  title="Historique des livraisons"
-                  [ariaLabel]="'Historique des livraisons de ' + row.webhook.url"
+                  [title]="'repositories.webhooks.history' | transloco"
+                  [ariaLabel]="'repositories.webhooks.historyFor' | transloco: { url: row.webhook.url }"
                   (clicked)="toggleDeliveries(row.webhook.id)"
                 />
                 <gbt-button
@@ -89,8 +89,8 @@
                   size="medium"
                   [iconOnly]="true"
                   iconName="trash-2"
-                  title="Supprimer"
-                  [ariaLabel]="'Supprimer le webhook ' + row.webhook.url"
+                  [title]="'common.delete' | transloco"
+                  [ariaLabel]="'repositories.webhooks.deleteNamed' | transloco: { url: row.webhook.url }"
                   (clicked)="confirmDeleteWebhook(row.webhook)"
                 />
               </gbt-list-row>
@@ -106,9 +106,9 @@
   @if (expandedWebhookId() !== null) {
     @if (expandedDeliveries(); as deliveries) {
       @if (deliveries.length === 0) {
-        <p class="repository-webhooks__deliveries-empty">Aucune livraison pour l'instant.</p>
+        <p class="repository-webhooks__deliveries-empty">{{ 'repositories.webhooks.noDelivery' | transloco }}</p>
       } @else {
-        <ul class="repository-webhooks__webhook-deliveries" aria-label="Livraisons">
+        <ul class="repository-webhooks__webhook-deliveries" [attr.aria-label]="'repositories.webhooks.deliveries' | transloco">
           @for (delivery of deliveries; track delivery.id) {
             <li class="repository-webhooks__delivery">
               <gbt-badge [variant]="delivery.success ? 'success' : 'error'" [icon]="delivery.success ? 'circle-check' : 'circle-x'">{{ delivery.success ? 'Succès' : 'Échec' }}</gbt-badge>
@@ -129,10 +129,10 @@
         </ul>
       }
     } @else if (deliveriesFailedFor() === expandedWebhookId()) {
-      <gbt-alert variant="error" appearance="subtle" live="off" size="sm">L'historique n'a pas pu être chargé.</gbt-alert>
+      <gbt-alert variant="error" appearance="subtle" live="off" size="sm">{{ 'repositories.webhooks.historyLoadFailed' | transloco }}</gbt-alert>
     } @else {
       <div class="repository-webhooks__deliveries-loading" aria-busy="true">
-        <span class="sr-only" role="status">Chargement de l'historique…</span>
+        <span class="sr-only" role="status">{{ 'admin.dashboard.loadingHistory' | transloco }}</span>
         @for (width of skeletonRows; track $index) {
           <gbt-skeleton [width]="width" height="0.875rem" aria-hidden="true" />
         }
@@ -144,13 +144,13 @@
 @if (webhookPendingDelete(); as webhook) {
   <gbt-confirm-danger-modal
     [isOpen]="true"
-    heading="Supprimer le webhook"
-    [message]="'FerrisGit ne préviendra plus « ' + webhook.url + ' » et son historique de livraisons sera perdu.'"
-    confirmLabel="Supprimer"
+    [heading]="'repositories.webhooks.deleteTitle' | transloco"
+    [message]="'repositories.webhooks.deleteMessage' | transloco: { url: webhook.url }"
+    [confirmLabel]="'common.delete' | transloco"
     confirmIcon="trash-2"
     [cancelLabel]="'common.cancel' | transloco"
     [closeLabel]="'common.close' | transloco"
-    busyLabel="Suppression en cours"
+    [busyLabel]="'common.deleting' | transloco"
     [busy]="deleting()"
     (confirmed)="deleteWebhook(webhook.id)"
     (closed)="webhookPendingDelete.set(null)"

@@ -2,6 +2,7 @@ import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { LanguageStat, RepositoriesService } from '../repositories.service';
 import { activeLocale } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const LANGUAGE_COLORS = ['#dea584', '#f1e05a', '#3572a5', '#e34c26', '#563d7c', '#00add8', '#701516'];
 
@@ -47,7 +48,7 @@ function formatPercent(value: number): string {
 @Component({
   selector: 'fg-language-bar',
   standalone: true,
-  imports: [Skeleton],
+  imports: [TranslocoPipe, Skeleton],
   templateUrl: './language-bar.html',
   styleUrl: './language-bar.scss',
 })

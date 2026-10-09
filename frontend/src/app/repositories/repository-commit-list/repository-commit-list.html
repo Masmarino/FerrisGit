@@ -1,19 +1,19 @@
-<gbt-page-header heading="Commits">
-  <p header-meta class="repository-commit-list__ref">Sur {{ refLabel() }}</p>
+<gbt-page-header [heading]="'common.commits' | transloco">
+  <p header-meta class="repository-commit-list__ref">{{ 'repositories.commits.onRef' | transloco: { ref: refLabel() } }}</p>
 </gbt-page-header>
 
 <gbt-page-layout width="wide">
   <gbt-list-card
-    ariaLabel="Commits"
+    [ariaLabel]="'common.commits' | transloco"
     [state]="listState()"
-    loadingLabel="Chargement des commits…"
-    failedHeading="Les commits n'ont pas pu être chargés"
-    failedMessage="Réessayez dans un instant."
+    [loadingLabel]="'repositories.commits.loading' | transloco"
+    [failedHeading]="'repositories.commits.failed' | transloco"
+    [failedMessage]="'repositories.commits.failedMessage' | transloco"
     [retryLabel]="'common.retry' | transloco"
     (retry)="load()"
     emptyIllustration="book"
-    emptyHeading="Aucun commit"
-    emptyMessage="Ce dépôt n'a pas encore de commit sur cette branche."
+    [emptyHeading]="'repositories.commits.emptyTitle' | transloco"
+    [emptyMessage]="'repositories.commits.emptyMessage' | transloco"
   >
     <ul class="repository-commit-list__items">
       @for (commit of commits(); track commit.sha) {

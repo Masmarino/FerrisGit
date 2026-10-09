@@ -5,11 +5,12 @@ import { Select, SelectOption } from '@masmarino/gabarit/select';
 import { BranchInfo, MergeRequestsService } from '../../merge-requests/merge-requests.service';
 import { ReleasesService } from '../../releases/releases.service';
 import { repositoryLink } from '../repository-links';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
   selector: 'fg-branch-switcher',
   standalone: true,
-  imports: [FormsModule, Select],
+  imports: [TranslocoPipe, FormsModule, Select],
   templateUrl: './branch-switcher.html',
   styleUrl: './branch-switcher.scss',
 })

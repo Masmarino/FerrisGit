@@ -19,7 +19,7 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { GroupsService } from '../../groups/groups.service';
 import { MemberRole, Repository, RepositoriesService, RepositoryRole } from '../repositories.service';
 import { canMaintain } from '../repository-role';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t, tn } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 /** Paginated client-side: the API returns every group and repository at once. */
@@ -38,16 +38,16 @@ export interface WorkspaceGroupItem {
 
 export type WorkspaceSortKey = 'date' | 'name';
 
-const SORT_OPTIONS: ListToolbarSortOption<WorkspaceSortKey>[] = [
-  { value: 'date', label: 'Date de création' },
-  { value: 'name', label: 'Nom' },
+const sortOptions = (): ListToolbarSortOption<WorkspaceSortKey>[] => [
+  { value: 'date', label: t('common.createdAt') },
+  { value: 'name', label: t('common.name') },
 ];
 
 const ROLE_LABELS: Record<RepositoryRole, string> = {
-  owner: 'Propriétaire',
-  reader: 'Lecteur',
-  contributor: 'Contributeur',
-  maintainer: 'Mainteneur',
+  owner: 'common.owner',
+  reader: 'common.reader',
+  contributor: 'common.contributor',
+  maintainer: 'common.maintainer',
 };
 
 interface WorkspaceRow {
@@ -85,14 +85,14 @@ function groupRow(group: WorkspaceGroupItem, basePath: string): WorkspaceRow {
     fullPath: group.path,
     link: group.link,
     icon: 'folder',
-    kindLabel: 'Groupe',
+    kindLabel: t('common.group'),
     visibility: null,
     description: group.description ?? '',
     createdAt: group.createdAt ?? null,
     size: null,
     stars: null,
-    role: group.role ? ROLE_LABELS[group.role] : null,
-    menuLabel: `Actions du groupe ${group.path}`,
+    role: group.role ? t(ROLE_LABELS[group.role]) : null,
+    menuLabel: t('repositories.groupActions', { path: group.path }),
     group,
     repository: null,
     // Copy path and delete are maintainer actions.
@@ -111,14 +111,14 @@ function repositoryRow(repository: Repository, basePath: string): WorkspaceRow {
     fullPath: path,
     link: ['/repositories', ...repository.path],
     icon: isPublic ? 'globe' : 'lock',
-    kindLabel: isPublic ? 'Dépôt public' : 'Dépôt privé',
-    visibility: isPublic ? { label: 'Public', variant: 'info' } : { label: 'Privé', variant: 'neutral' },
+    kindLabel: isPublic ? t('common.publicRepository') : t('common.privateRepository'),
+    visibility: isPublic ? { label: t('common.public'), variant: 'info' } : { label: t('common.private'), variant: 'neutral' },
     description: repository.description,
     createdAt: repository.createdAt,
     size: repository.sizeBytes === undefined ? null : formatBytes(repository.sizeBytes, activeLocale(), { binaryUnits: 'legacy' }),
     stars: repository.starCount ?? null,
-    role: ROLE_LABELS[repository.role],
-    menuLabel: `Actions du dépôt ${path}`,
+    role: t(ROLE_LABELS[repository.role]),
+    menuLabel: t('repositories.repositoryActions', { path }),
     group: null,
     repository,
     hasMenu: true,
@@ -157,7 +157,7 @@ export class WorkspaceGrid {
   private toast = inject(GbtToastService);
 
   // Newest first: you're usually looking for the repository you just created.
-  private readonly searchSort = createListToolbarState<WorkspaceSortKey>({ sortOptions: SORT_OPTIONS, defaultSort: 'date', defaultDirection: 'desc' });
+  private readonly searchSort = createListToolbarState<WorkspaceSortKey>({ sortOptions: sortOptions(), defaultSort: 'date', defaultDirection: 'desc' });
   readonly search = this.searchSort.search;
   readonly sortValue = this.searchSort.sortValue;
   readonly direction = this.searchSort.direction;
@@ -203,21 +203,21 @@ export class WorkspaceGrid {
     const start = (this.currentPage() - 1) * WORKSPACE_PAGE_SIZE;
     return this.allRows().slice(start, start + WORKSPACE_PAGE_SIZE);
   });
-  protected readonly pageLabel = (page: number) => `Page ${page}`;
+  protected readonly pageLabel = (page: number) => t('common.pageNumber', { page });
 
   protected deleteRepoTarget = signal<Repository | null>(null);
   protected deleteGroupTarget = signal<WorkspaceGroupItem | null>(null);
 
   protected starsWord(count: number): string {
-    return count > 1 ? 'étoiles' : 'étoile';
+    return tn('common.stars_word', count);
   }
 
   protected copyPath(path: string | string[]): Promise<void> {
-    return this.copyText(Array.isArray(path) ? path.join('/') : path, 'Chemin copié');
+    return this.copyText(Array.isArray(path) ? path.join('/') : path, t('repositories.pathCopied'));
   }
 
   protected copyCloneUrl(repo: Repository): Promise<void> {
-    return this.copyText(this.repositoriesService.cloneUrl(repo.path), 'URL de clonage copiée');
+    return this.copyText(this.repositoriesService.cloneUrl(repo.path), t('repositories.cloneUrlCopied'));
   }
 
   // A menu item has no button to show a status, hence the toast.
@@ -226,7 +226,7 @@ export class WorkspaceGrid {
     if (copied) {
       this.toast.show(done);
     } else {
-      this.toast.show('Copie impossible : le presse-papiers est indisponible.', 'error');
+      this.toast.show(t('repositories.clipboardUnavailable'), 'error');
     }
   }
 
@@ -253,12 +253,12 @@ export class WorkspaceGrid {
     this.repositoriesService.delete(repo.id).subscribe({
       next: () => {
         this.deleteRepoTarget.set(null);
-        this.toast.show('Dépôt supprimé');
+        this.toast.show(t('repositories.deleted'));
         this.changed.emit();
       },
       error: () => {
         this.deleteRepoTarget.set(null);
-        this.toast.show('Impossible de supprimer le dépôt. Réessayez plus tard.', 'error');
+        this.toast.show(t('repositories.deleteFailed'), 'error');
       },
     });
   }
@@ -271,15 +271,15 @@ export class WorkspaceGrid {
     this.groupsService.delete(group.id).subscribe({
       next: () => {
         this.deleteGroupTarget.set(null);
-        this.toast.show('Groupe supprimé');
+        this.toast.show(t('repositories.groupDeleted'));
         this.changed.emit();
       },
       error: (err: HttpErrorResponse) => {
         this.deleteGroupTarget.set(null);
         if (err.status === 409) {
-          this.toast.show('Ce groupe contient encore des sous-groupes ou des dépôts. Videz-le avant de le supprimer.', 'error');
+          this.toast.show(t('repositories.groupNotEmpty'), 'error');
         } else {
-          this.toast.show('Impossible de supprimer le groupe. Réessayez plus tard.', 'error');
+          this.toast.show(t('repositories.groupDeleteFailed'), 'error');
         }
       },
     });

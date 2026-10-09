@@ -1,10 +1,10 @@
 @let current = view();
 @if (current.kind === 'loading') {
   <div class="repository-path-resolver__status">
-    <gbt-spinner size="lg" label="Chargement…" />
+    <gbt-spinner size="lg" [label]="'common.loading' | transloco" />
   </div>
 } @else if (current.kind === 'notFound') {
-  <gbt-empty-state illustration="folder" heading="Introuvable." />
+  <gbt-empty-state illustration="folder" [heading]="'common.notFoundDot' | transloco" />
 } @else if (current.kind === 'group') {
   <fg-group-detail [groupId]="current.groupId" [role]="current.role" [path]="current.path" />
 } @else if (current.kind === 'repository') {
