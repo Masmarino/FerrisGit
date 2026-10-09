@@ -12,6 +12,7 @@ import { Switch } from '@masmarino/gabarit/switch';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 const NEW_TAG_SENTINEL = '__new__';
 
@@ -50,7 +51,7 @@ export class CreateReleaseModal implements OnInit {
   conflictedTagName = signal<string | null>(null);
 
   protected tagOptions = computed<SelectOption<string>[]>(() => [
-    { value: NEW_TAG_SENTINEL, label: 'Nouveau tag' },
+    { value: NEW_TAG_SENTINEL, label: t('releases.newTag') },
     ...this.existingTags().map((t) => ({ value: t.name, label: t.name })),
   ]);
   protected branchOptions = computed<SelectOption<string>[]>(() => this.branches().map((b) => ({ value: b.name, label: b.name })));
@@ -61,7 +62,7 @@ export class CreateReleaseModal implements OnInit {
       return null;
     }
     const short = sha.slice(0, 7);
-    return this.isNewTag() ? `Le tag pointera sur le dernier commit de ${this.targetBranch()} (${short})` : `Ce tag pointe sur le commit ${short}`;
+    return this.isNewTag() ? t('releases.targetNew', { branch: this.targetBranch(), sha: short }) : t('releases.targetExisting', { sha: short });
   });
 
   ngOnInit(): void {
@@ -94,7 +95,7 @@ export class CreateReleaseModal implements OnInit {
     const targetCommitSha = this.resolvedTargetSha();
     const title = this.title().trim();
     if (!tagName || !targetCommitSha || !title) {
-      this.error.set('Un nom de tag, une cible, et un titre sont requis');
+      this.error.set(t('releases.required'));
       return;
     }
     this.conflictedTagName.set(null);
@@ -104,16 +105,16 @@ export class CreateReleaseModal implements OnInit {
       .subscribe({
         next: () => {
           this.creating.set(false);
-          this.toast.show('Release créée.');
+          this.toast.show(t('releases.created'));
           this.created.emit();
         },
         error: (err: { status?: number }) => {
           this.creating.set(false);
           if (isNewTag && err.status === 400) {
             this.conflictedTagName.set(tagName);
-            this.error.set(`Le tag « ${tagName} » existe déjà sur un autre commit.`);
+            this.error.set(t('releases.tagExists', { tag: tagName }));
           } else {
-            this.error.set("Impossible de créer la release — ce tag existe peut-être déjà sur un autre commit");
+            this.error.set(t('releases.createFailed'));
           }
         },
       });
@@ -132,7 +133,7 @@ export class CreateReleaseModal implements OnInit {
       },
       error: () => {
         this.creating.set(false);
-        this.error.set(`Impossible de supprimer le tag « ${tagName} » — il est peut-être encore utilisé par une release`);
+        this.error.set(t('releases.deleteTagFailed', { tag: tagName }));
       },
     });
   }

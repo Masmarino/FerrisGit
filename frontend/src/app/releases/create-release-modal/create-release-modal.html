@@ -1,24 +1,24 @@
 <form (submit)="$event.preventDefault(); submit()">
-  <gbt-modal [isOpen]="true" heading="Nouvelle release" [closeLabel]="'common.close' | transloco" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
+  <gbt-modal [isOpen]="true" [heading]="'releases.newRelease' | transloco" [closeLabel]="'common.close' | transloco" [busy]="creating()" [busyLabel]="'common.creating' | transloco" (closed)="close.emit()">
     <div class="create-release">
       <fieldset class="create-release__group">
         <legend class="create-release__legend">
           <gbt-icon name="tag" aria-hidden="true" />
-          <span>Version</span>
+          <span>{{ 'common.version' | transloco }}</span>
         </legend>
         <div class="create-release__grid">
-          <gbt-select class="create-release__tag" name="tagChoice" label="Tag" [options]="tagOptions()" [ngModel]="tagChoice()" (ngModelChange)="tagChoice.set($event)" />
+          <gbt-select class="create-release__tag" name="tagChoice" [label]="'releases.tag' | transloco" [options]="tagOptions()" [ngModel]="tagChoice()" (ngModelChange)="tagChoice.set($event)" />
           @if (isNewTag()) {
             <gbt-input
               class="create-release__tag-name"
               name="newTagName"
-              label="Nom du nouveau tag"
+              [label]="'releases.newTagName' | transloco"
               placeholder="v1.0.0"
               required
               [ngModel]="newTagName()"
               (ngModelChange)="newTagName.set($event)"
             />
-            <gbt-select class="create-release__branch" name="targetBranch" label="Branche cible" [options]="branchOptions()" [ngModel]="targetBranch()" (ngModelChange)="targetBranch.set($event)" />
+            <gbt-select class="create-release__branch" name="targetBranch" [label]="'releases.targetBranch' | transloco" [options]="branchOptions()" [ngModel]="targetBranch()" (ngModelChange)="targetBranch.set($event)" />
           }
         </div>
         @if (targetDescription(); as target) {
@@ -29,20 +29,20 @@
         }
       </fieldset>
 
-      <gbt-input class="create-release__title" name="title" label="Titre" placeholder="Version 1.0 — première version stable" required [ngModel]="title()" (ngModelChange)="title.set($event)" />
+      <gbt-input class="create-release__title" name="title" [label]="'common.title' | transloco" [placeholder]="'releases.titlePlaceholder' | transloco" required [ngModel]="title()" (ngModelChange)="title.set($event)" />
       <gbt-textarea
         class="create-release__notes"
         name="notes"
-        label="Notes de version"
-        placeholder="Nouveautés, corrections, points d'attention (markdown)"
+        [label]="'releases.notes' | transloco"
+        [placeholder]="'releases.notesPlaceholder' | transloco"
         [rows]="5"
         [ngModel]="notes()"
         (ngModelChange)="notes.set($event)"
       />
 
       <div class="create-release__flags">
-        <gbt-switch name="draft" label="Brouillon" hint="Visible des mainteneurs seulement, jusqu'à sa publication" [ngModel]="draft()" (ngModelChange)="draft.set($event)" />
-        <gbt-switch name="prerelease" label="Pré-version" hint="Une version de test, pas encore stable" [ngModel]="prerelease()" (ngModelChange)="prerelease.set($event)" />
+        <gbt-switch name="draft" [label]="'status.release.draft' | transloco" [hint]="'releases.draftHint' | transloco" [ngModel]="draft()" (ngModelChange)="draft.set($event)" />
+        <gbt-switch name="prerelease" [label]="'status.release.prerelease' | transloco" [hint]="'releases.prereleaseHint' | transloco" [ngModel]="prerelease()" (ngModelChange)="prerelease.set($event)" />
       </div>
 
       @if (error()) {
@@ -54,7 +54,7 @@
               variant="danger"
               size="small"
               iconName="trash-2"
-              [text]="'Supprimer le tag « ' + tag + ' » et réessayer'"
+              [text]="'releases.deleteTagRetry' | transloco: { tag }"
               [disabled]="creating()"
               (clicked)="deleteConflictedTagAndRetry()"
             />
@@ -65,7 +65,7 @@
 
     <div modal-footer>
       <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="creating()" (clicked)="close.emit()" />
-      <gbt-button type="submit" iconName="tag" text="Créer la release" [loading]="creating()" loadingLabel="Création en cours" />
+      <gbt-button type="submit" iconName="tag" [text]="'releases.create' | transloco" [loading]="creating()" [loadingLabel]="'common.creating' | transloco" />
     </div>
   </gbt-modal>
 </form>

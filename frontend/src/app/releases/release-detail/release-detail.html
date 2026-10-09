@@ -5,12 +5,12 @@
 
     <p header-meta class="release-detail__meta">
       <span>
-        {{ r.publishedAt ? 'publiée' : 'créée' }}
+        {{ (r.publishedAt ? 'releases.publishedVerb' : 'releases.createdVerb') | transloco }}
         <time [attr.datetime]="headerDate()" [title]="headerDate() | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ headerDate() | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
         @if (r.author; as author) {
-          par <span class="release-detail__meta-author">{{ author.username }}</span>
+          {{ 'common.by' | transloco }} <span class="release-detail__meta-author">{{ author.username }}</span>
         } @else {
-          par <span class="release-detail__meta-author">Utilisateur supprimé</span>
+          {{ 'common.by' | transloco }} <span class="release-detail__meta-author">{{ 'common.deletedUser' | transloco }}</span>
         }
       </span>
     </p>
@@ -18,11 +18,11 @@
     <!-- One root element: content projected from inside an @if needs one. -->
     @if (canManage() && !editing()) {
       <div header-actions class="release-detail__actions">
-        <gbt-button class="release-detail__edit-button" variant="secondary" iconName="pencil" text="Modifier" (clicked)="startEdit()" />
+        <gbt-button class="release-detail__edit-button" variant="secondary" iconName="pencil" [text]="'common.edit' | transloco" (clicked)="startEdit()" />
         @if (r.draft) {
-          <gbt-button iconName="globe" text="Publier" [loading]="publishing()" loadingLabel="Publication en cours" (clicked)="publish()" />
+          <gbt-button iconName="globe" [text]="'common.publish' | transloco" [loading]="publishing()" [loadingLabel]="'releases.publishing' | transloco" (clicked)="publish()" />
         }
-        <gbt-button variant="danger" iconName="trash-2" text="Supprimer" (clicked)="deleteRelease()" />
+        <gbt-button variant="danger" iconName="trash-2" [text]="'common.delete' | transloco" (clicked)="deleteRelease()" />
       </div>
     }
   </gbt-page-header>
@@ -30,38 +30,38 @@
   <gbt-page-layout width="wide" asideWidth="md">
     <div class="release-detail__main">
       @if (editing()) {
-        <gbt-card class="release-detail__card release-detail__edit" variant="outlined" icon="pencil" heading="Modifier la release">
+        <gbt-card class="release-detail__card release-detail__edit" variant="outlined" icon="pencil" [heading]="'releases.editTitle' | transloco">
           <form class="release-detail__edit-form" (submit)="$event.preventDefault(); save()">
-            <gbt-input class="release-detail__edit-title" name="title" label="Titre" required [ngModel]="editTitle()" (ngModelChange)="editTitle.set($event)" />
+            <gbt-input class="release-detail__edit-title" name="title" [label]="'common.title' | transloco" required [ngModel]="editTitle()" (ngModelChange)="editTitle.set($event)" />
             <gbt-textarea
               class="release-detail__edit-notes"
               name="notes"
-              label="Notes de version"
-              placeholder="Nouveautés, corrections, points d'attention (markdown)"
+              [label]="'releases.notes' | transloco"
+              [placeholder]="'releases.notesPlaceholder' | transloco"
               [rows]="12"
               [ngModel]="editNotes()"
               (ngModelChange)="editNotes.set($event)"
             />
-            <gbt-switch name="prerelease" label="Pré-version" [ngModel]="editPrerelease()" (ngModelChange)="editPrerelease.set($event)" />
+            <gbt-switch name="prerelease" [label]="'status.release.prerelease' | transloco" [ngModel]="editPrerelease()" (ngModelChange)="editPrerelease.set($event)" />
             <div class="release-detail__edit-actions">
               <gbt-button variant="secondary" [text]="'common.cancel' | transloco" (clicked)="cancelEdit()" />
-              <gbt-button type="submit" text="Enregistrer" [loading]="saving()" loadingLabel="Enregistrement en cours" />
+              <gbt-button type="submit" [text]="'common.save' | transloco" [loading]="saving()" [loadingLabel]="'common.saving' | transloco" />
             </div>
           </form>
         </gbt-card>
       } @else {
-        <gbt-card class="release-detail__card release-detail__notes" variant="outlined" icon="book-open" heading="Notes de version" [flush]="true">
+        <gbt-card class="release-detail__card release-detail__notes" variant="outlined" icon="book-open" [heading]="'releases.notes' | transloco" [flush]="true">
           <div class="release-detail__notes-body">
             @if (r.notes.trim()) {
               <fg-markdown-view [content]="r.notes" [headingOffset]="2" />
             } @else {
-              <p class="release-detail__notes-empty">Aucune note de version</p>
+              <p class="release-detail__notes-empty">{{ 'releases.noNotes' | transloco }}</p>
             }
           </div>
         </gbt-card>
       }
 
-      <gbt-card class="release-detail__card release-detail__assets" variant="outlined" icon="download" heading="Fichiers joints" [count]="r.assets.length" [flush]="true">
+      <gbt-card class="release-detail__card release-detail__assets" variant="outlined" icon="download" [heading]="'releases.assets' | transloco" [count]="r.assets.length" [flush]="true">
         @if (r.assets.length > 0) {
           <ul class="release-detail__assets-list">
             @for (asset of r.assets; track asset.id) {
@@ -70,12 +70,12 @@
                 <div class="release-detail__asset-text">
                   <span class="release-detail__asset-name" [title]="asset.filename">{{ asset.filename }}</span>
                   <span class="release-detail__asset-meta">
-                    {{ formatBytes(asset.sizeBytes) }}<span aria-hidden="true"> · </span>ajouté
+                    {{ formatBytes(asset.sizeBytes) }}<span aria-hidden="true"> · </span>{{ 'releases.added' | transloco }}
                     <time [attr.datetime]="asset.createdAt" [title]="asset.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ asset.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
                     @if (asset.uploader; as uploader) {
-                      par <gbt-user-chip class="release-detail__asset-uploader" [name]="uploader.username" />
+                      {{ 'common.by' | transloco }} <gbt-user-chip class="release-detail__asset-uploader" [name]="uploader.username" />
                     } @else {
-                      par Utilisateur supprimé
+                      {{ 'common.byName' | transloco: { name: ('common.deletedUser' | transloco) } }}
                     }
                   </span>
                 </div>
@@ -85,8 +85,8 @@
                     size="medium"
                     [iconOnly]="true"
                     iconName="download"
-                    title="Télécharger"
-                    [ariaLabel]="'Télécharger ' + asset.filename"
+                    [title]="'common.download' | transloco"
+                    [ariaLabel]="'common.downloadNamed' | transloco: { name: asset.filename }"
                     (clicked)="download(asset)"
                   />
                   @if (canManage()) {
@@ -95,8 +95,8 @@
                       size="medium"
                       [iconOnly]="true"
                       iconName="trash-2"
-                      title="Supprimer"
-                      [ariaLabel]="'Supprimer ' + asset.filename"
+                      [title]="'common.delete' | transloco"
+                      [ariaLabel]="'common.deleteNamed' | transloco: { name: asset.filename }"
                       (clicked)="deleteAsset(asset)"
                     />
                   }
@@ -105,20 +105,20 @@
             }
           </ul>
         } @else {
-          <p class="release-detail__assets-empty">Aucun fichier joint</p>
+          <p class="release-detail__assets-empty">{{ 'releases.noAssets' | transloco }}</p>
         }
 
         @if (canManage()) {
           <div class="release-detail__upload">
             <gbt-file-upload
-              label="Ajouter un fichier"
-              dropLabel="Glissez-déposez un fichier ici, ou cliquez pour parcourir"
+              [label]="'releases.addFile' | transloco"
+              [dropLabel]="'releases.dropFile' | transloco"
               [ngModel]="selectedFiles()"
               (ngModelChange)="onFilesSelected($event)"
               [disabled]="uploading() !== null"
             />
             @if (uploading(); as name) {
-              <p class="release-detail__uploading" role="status">Envoi de {{ name }}…</p>
+              <p class="release-detail__uploading" role="status">{{ 'releases.uploading' | transloco: { name } }}</p>
             }
           </div>
         }
@@ -126,41 +126,41 @@
     </div>
 
     <div page-aside class="release-detail__aside">
-      <gbt-panel heading="Tag" [headingLevel]="2">
+      <gbt-panel [heading]="'releases.tag' | transloco" [headingLevel]="2">
         <gbt-badge mono icon="tag" [fullText]="'Tag ' + r.tagName">{{ r.tagName }}</gbt-badge>
         @if (r.targetCommitSha) {
           <a class="release-detail__panel-link" [routerLink]="treeLink()">
             <gbt-icon name="folder" aria-hidden="true" />
-            <span>Parcourir les fichiers à ce tag</span>
+            <span>{{ 'releases.browseTag' | transloco }}</span>
           </a>
         }
       </gbt-panel>
 
-      <gbt-panel heading="Commit cible" [headingLevel]="2">
+      <gbt-panel [heading]="'releases.targetCommit' | transloco" [headingLevel]="2">
         @if (r.targetCommitSha; as sha) {
           <gbt-badge mono [fullText]="sha">{{ shortSha() }}</gbt-badge>
         } @else {
           <!-- Gabarit gap: a gbt-alert warning has role=alert, but this is a lasting fact about the page, so it needs a non-assertive one. -->
           <p class="release-detail__missing-tag">
             <gbt-icon name="alert-triangle" aria-hidden="true" />
-            <span>Le tag git de cette release a été supprimé ; le commit cible n'est plus disponible.</span>
+            <span>{{ 'releases.tagDeleted' | transloco }}</span>
           </p>
         }
       </gbt-panel>
 
-      <gbt-panel heading="Auteur" [headingLevel]="2">
+      <gbt-panel [heading]="'common.author' | transloco" [headingLevel]="2">
         @if (r.author; as author) {
           <gbt-user-chip class="release-detail__person" size="md" [name]="author.username" />
         } @else {
-          <p class="release-detail__empty">Utilisateur supprimé</p>
+          <p class="release-detail__empty">{{ 'common.deletedUser' | transloco }}</p>
         }
       </gbt-panel>
 
-      <gbt-panel heading="Publication" [headingLevel]="2">
+      <gbt-panel [heading]="'releases.publication' | transloco" [headingLevel]="2">
         <gbt-description-list class="release-detail__facts" layout="inline" valueAlign="end" [items]="publicationFacts()" />
       </gbt-panel>
 
-      <gbt-panel heading="Téléchargements" [headingLevel]="2">
+      <gbt-panel [heading]="'releases.downloads' | transloco" [headingLevel]="2">
         <gbt-description-list class="release-detail__facts" layout="inline" valueAlign="end" [items]="downloadFacts()" />
       </gbt-panel>
     </div>
@@ -169,11 +169,11 @@
   @if (deleteReleaseOpen()) {
     <gbt-confirm-danger-modal
       [isOpen]="true"
-      heading="Supprimer la release"
-      [message]="'La release et ses fichiers joints seront supprimés. Le tag git « ' + r.tagName + ' » est conservé. Cette action est irréversible.'"
+      [heading]="'releases.deleteTitle' | transloco"
+      [message]="'releases.deleteMessage' | transloco: { tag: r.tagName }"
       [confirmText]="r.tagName"
-      confirmInputLabel="Tapez le tag de la release pour confirmer"
-      confirmLabel="Supprimer"
+      [confirmInputLabel]="'releases.typeTag' | transloco"
+      [confirmLabel]="'common.delete' | transloco"
       [cancelLabel]="'common.cancel' | transloco"
       [closeLabel]="'common.close' | transloco"
       (confirmed)="confirmDeleteRelease()"
@@ -183,13 +183,13 @@
   @if (assetPendingDelete(); as asset) {
     <gbt-confirm-danger-modal
       [isOpen]="true"
-      heading="Supprimer le fichier"
-      [message]="'Le fichier « ' + asset.filename + ' » ne pourra plus être téléchargé depuis cette release.'"
-      confirmLabel="Supprimer"
+      [heading]="'releases.deleteAsset' | transloco"
+      [message]="'releases.deleteAssetMessage' | transloco: { name: asset.filename }"
+      [confirmLabel]="'common.delete' | transloco"
       confirmIcon="trash-2"
       [cancelLabel]="'common.cancel' | transloco"
       [closeLabel]="'common.close' | transloco"
-      busyLabel="Suppression en cours"
+      [busyLabel]="'common.deleting' | transloco"
       [busy]="deletingAsset()"
       (confirmed)="confirmDeleteAsset()"
       (closed)="assetPendingDelete.set(null)"
@@ -199,15 +199,15 @@
   <gbt-page-layout width="wide">
     <gbt-card variant="outlined" [flush]="true">
       <div class="release-detail__not-found">
-        <gbt-empty-state illustration="tag" heading="Release introuvable" message="Elle a peut-être été supprimée, ou vous n'y avez pas accès.">
-          <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="releasesLink()">Retour aux releases</a>
+        <gbt-empty-state illustration="tag" [heading]="'releases.notFound' | transloco" [message]="'releases.notFoundMessage' | transloco">
+          <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="releasesLink()">{{ 'releases.back' | transloco }}</a>
         </gbt-empty-state>
       </div>
     </gbt-card>
   </gbt-page-layout>
 } @else {
   <div class="release-detail__loading" aria-busy="true">
-    <span class="sr-only" role="status">Chargement de la release…</span>
+    <span class="sr-only" role="status">{{ 'releases.loadingOne' | transloco }}</span>
     <div class="release-detail__loading-header" aria-hidden="true">
       <gbt-skeleton width="min(24rem, 80%)" height="1.75rem" />
       <gbt-skeleton width="12rem" height="0.875rem" />
@@ -229,4 +229,4 @@
 <ng-template #publishedTemplate>
   <time [attr.datetime]="release()?.publishedAt" [title]="(release()?.publishedAt ?? '') | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ (release()?.publishedAt ?? '') | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
 </ng-template>
-<ng-template #notPublishedTemplate><span class="release-detail__fact-none">Pas encore publiée</span></ng-template>
+<ng-template #notPublishedTemplate><span class="release-detail__fact-none">{{ 'releases.notPublished' | transloco }}</span></ng-template>

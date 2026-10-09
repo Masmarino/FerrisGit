@@ -1,16 +1,16 @@
-<gbt-page-header heading="Releases">
+<gbt-page-header [heading]="'nav.releases' | transloco">
   @if (items().length > 0) {
     <p header-meta class="release-list__count">{{ items().length }} {{ items().length === 1 ? 'release' : 'releases' }}</p>
   }
   @if (canManage()) {
-    <gbt-button header-actions iconName="plus" text="Nouvelle release" (clicked)="createModalOpen.set(true)" />
+    <gbt-button header-actions iconName="plus" [text]="'releases.newRelease' | transloco" (clicked)="createModalOpen.set(true)" />
   }
 </gbt-page-header>
 
 <gbt-page-layout width="wide" asideWidth="sm">
   @if (loading()) {
     <div class="release-list__loading" aria-busy="true">
-      <span class="sr-only" role="status">Chargement des releases…</span>
+      <span class="sr-only" role="status">{{ 'releases.loading' | transloco }}</span>
       @for (width of skeletonCards; track $index) {
         <gbt-card class="release-list__skeleton" variant="outlined" [flush]="true" aria-hidden="true">
           <div card-header class="release-card__header">
@@ -26,25 +26,25 @@
       }
     </div>
   } @else if (loadFailed()) {
-    <gbt-alert variant="error" appearance="subtle" live="off">Les releases n'ont pas pu être chargées.</gbt-alert>
+    <gbt-alert variant="error" appearance="subtle" live="off">{{ 'releases.loadFailed' | transloco }}</gbt-alert>
   } @else if (isEmptyRepository()) {
     <gbt-card variant="outlined" [flush]="true">
       <div class="release-list__empty">
         <gbt-empty-state
           illustration="tag"
-          heading="Aucune release pour l'instant"
-          [message]="canManage() ? 'Publiez une version de votre projet : un tag, des notes de version et les fichiers à télécharger.' : 'Les versions publiées de ce dépôt apparaîtront ici.'"
+          [heading]="'releases.emptyTitle' | transloco"
+          [message]="(canManage() ? 'releases.emptyManager' : 'releases.emptyReader') | transloco"
         >
           @if (canManage()) {
-            <gbt-button variant="secondary" iconName="plus" text="Créer une release" (clicked)="createModalOpen.set(true)" />
+            <gbt-button variant="secondary" iconName="plus" [text]="'releases.createOne' | transloco" (clicked)="createModalOpen.set(true)" />
           }
         </gbt-empty-state>
       </div>
     </gbt-card>
   } @else if (cards().length === 0) {
-    <p class="release-list__no-results">Aucune release ne correspond à cette recherche</p>
+    <p class="release-list__no-results">{{ 'releases.noMatch' | transloco }}</p>
   } @else {
-    <ul class="release-list__items" aria-label="Releases">
+    <ul class="release-list__items" [attr.aria-label]="'nav.releases' | transloco">
       @for (card of cards(); track card.release.id) {
         <li>
           <article class="release-card" [attr.aria-labelledby]="'release-card-' + card.release.id">
@@ -61,16 +61,16 @@
                 @if (card.excerpt) {
                   <p class="release-card__excerpt">{{ card.excerpt }}</p>
                 } @else {
-                  <p class="release-card__excerpt release-card__excerpt--empty">Aucune note de version</p>
+                  <p class="release-card__excerpt release-card__excerpt--empty">{{ 'releases.noNotes' | transloco }}</p>
                 }
                 <p class="release-card__meta">
                   <span class="release-card__when">
                     {{ card.dateVerb }}
                     <time [attr.datetime]="card.date" [title]="card.date | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ card.date | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
                     @if (card.release.author; as author) {
-                      par <gbt-user-chip class="release-card__author" [name]="author.username" />
+                      {{ 'common.by' | transloco }} <gbt-user-chip class="release-card__author" [name]="author.username" />
                     } @else {
-                      par Utilisateur supprimé
+                      {{ 'common.byName' | transloco: { name: ('common.deletedUser' | transloco) } }}
                     }
                   </span>
                   <!-- The separator belongs to the segment after it, so a wrapped line never ends on a dangling "·". -->
@@ -88,9 +88,9 @@
     @if (filteredItems().length > pageSize) {
       <gbt-pagination
         class="release-list__pagination"
-        ariaLabel="Pages de releases"
-        previousLabel="Page précédente"
-        nextLabel="Page suivante"
+        [ariaLabel]="'releases.pages' | transloco"
+        [previousLabel]="'common.previousPage' | transloco"
+        [nextLabel]="'common.nextPage' | transloco"
         [pageLabel]="pageLabel"
         [page]="currentPage()"
         [pageSize]="pageSize"
@@ -102,14 +102,14 @@
 
   @if (!loading() && !loadFailed() && !isEmptyRepository()) {
     <div page-aside class="release-list__filters">
-      <gbt-panel heading="Recherche" [headingLevel]="2">
-        <gbt-input class="release-list__search" label="Rechercher une release" hideLabel placeholder="Titre ou tag" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+      <gbt-panel [heading]="'common.searchTitle' | transloco" [headingLevel]="2">
+        <gbt-input class="release-list__search" [label]="'releases.search' | transloco" hideLabel [placeholder]="'releases.searchPlaceholder' | transloco" [ngModel]="search()" (ngModelChange)="search.set($event)" />
       </gbt-panel>
 
-      <gbt-panel heading="Trier" [headingLevel]="2">
+      <gbt-panel [heading]="'common.sort' | transloco" [headingLevel]="2">
         <div class="release-list__sort">
-          <gbt-select label="Trier par" hideLabel fullWidth [options]="sortOptions" [ngModel]="sortValue()" (ngModelChange)="sortValue.set($event)" />
-          <gbt-segmented-control class="release-list__direction" ariaLabel="Sens du tri" tinted fullWidth [options]="directionOptions" [value]="direction()" (valueChange)="direction.set($event)" />
+          <gbt-select [label]="'common.sortBy' | transloco" hideLabel fullWidth [options]="sortOptions" [ngModel]="sortValue()" (ngModelChange)="sortValue.set($event)" />
+          <gbt-segmented-control class="release-list__direction" [ariaLabel]="'common.sortDirection' | transloco" tinted fullWidth [options]="directionOptions" [value]="direction()" (valueChange)="direction.set($event)" />
         </div>
       </gbt-panel>
     </div>

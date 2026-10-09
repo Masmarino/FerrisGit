@@ -24,21 +24,22 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { PageTitleService } from '../../shell/page-title.service';
 import { CreateReleaseModal } from '../create-release-modal/create-release-modal';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t, tn } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type SortKey = 'date' | 'title';
 
 /** Client-side pagination: the API returns every release of the repository at once. */
 export const RELEASES_PAGE_SIZE = 20;
 
-const SORT_OPTIONS: ListToolbarSortOption<SortKey>[] = [
-  { value: 'date', label: 'Date' },
-  { value: 'title', label: 'Titre' },
+const sortOptions = (): ListToolbarSortOption<SortKey>[] => [
+  { value: 'date', label: t('common.date') },
+  { value: 'title', label: t('common.title') },
 ];
 
-const DIRECTION_OPTIONS: SegmentedControlOption<'asc' | 'desc'>[] = [
-  { value: 'asc', label: 'Croissant' },
-  { value: 'desc', label: 'Décroissant' },
+const directionOptions = (): SegmentedControlOption<'asc' | 'desc'>[] => [
+  { value: 'asc', label: t('common.ascending') },
+  { value: 'desc', label: t('common.descending') },
 ];
 
 interface ReleaseCard {
@@ -46,20 +47,20 @@ interface ReleaseCard {
   link: string[];
   status: ReleaseStatus;
   excerpt: string;
-  dateVerb: 'publiée' | 'créée';
+  dateVerb: string;
   date: string;
   assets: string | null;
 }
 
 function assetLabel(count: number): string | null {
   if (count <= 0) return null;
-  return count === 1 ? '1 fichier' : `${count} fichiers`;
+  return tn('common.fileCount', count);
 }
 
 @Component({
   selector: 'fg-release-list',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     FormsModule,
     RouterLink,
     GbtDateTimePipe,
@@ -102,12 +103,12 @@ export class ReleaseList implements OnInit {
   canManage = computed(() => this.role() === 'owner' || this.role() === 'maintainer');
   protected createModalOpen = signal(false);
 
-  private readonly searchSort = createListToolbarState<SortKey>({ sortOptions: SORT_OPTIONS, defaultSort: 'date' });
+  private readonly searchSort = createListToolbarState<SortKey>({ sortOptions: sortOptions(), defaultSort: 'date' });
   protected search = this.searchSort.search;
   protected sortValue = this.searchSort.sortValue;
   protected direction = this.searchSort.direction;
   protected readonly sortOptions = this.searchSort.sortOptions as SelectOption<SortKey>[];
-  protected readonly directionOptions = DIRECTION_OPTIONS;
+  protected readonly directionOptions = directionOptions();
   // By the date each card shows: publication once published, creation for a draft.
   protected filteredItems = this.searchSort.filtered(() => this.items(), {
     text: (release) => [release.title, release.tagName],
@@ -131,12 +132,12 @@ export class ReleaseList implements OnInit {
         link: ['/repositories', ...this.path(), '-', 'releases', release.tagName],
         status: releaseStatus(release),
         excerpt: plainExcerpt(release.notesExcerpt),
-        dateVerb: release.publishedAt ? 'publiée' : 'créée',
+        dateVerb: release.publishedAt ? t('releases.publishedVerb') : t('releases.createdVerb'),
         date: release.publishedAt ?? release.createdAt,
         assets: assetLabel(release.assetCount),
       }));
   });
-  protected readonly pageLabel = (page: number) => `Page ${page}`;
+  protected readonly pageLabel = (page: number) => t('common.pageNumber', { page });
 
   protected isEmptyRepository = computed(() => !this.loading() && !this.loadFailed() && this.items().length === 0);
   protected readonly skeletonCards = ['58%', '44%', '66%'];
@@ -147,7 +148,7 @@ export class ReleaseList implements OnInit {
   }
 
   ngOnInit(): void {
-    this.pageTitle.set('Releases');
+    this.pageTitle.set(t('nav.releases'));
     this.refresh();
   }
 
@@ -161,7 +162,7 @@ export class ReleaseList implements OnInit {
       error: () => {
         this.loading.set(false);
         this.loadFailed.set(true);
-        this.toast.show('Impossible de charger les releases. Réessayez plus tard.', 'error');
+        this.toast.show(t('releases.loadFailedToast'), 'error');
       },
     });
   }

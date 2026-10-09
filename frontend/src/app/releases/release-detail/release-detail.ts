@@ -25,7 +25,7 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { PageTitleService } from '../../shell/page-title.service';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
@@ -100,16 +100,16 @@ export class ReleaseDetail implements OnInit {
     const release = this.release();
     if (!release) return [];
     return [
-      { term: 'Créée', value: this.createdTemplate() },
-      { term: 'Publiée', value: release.publishedAt ? this.publishedTemplate() : this.notPublishedTemplate() },
+      { term: t('common.created'), value: this.createdTemplate() },
+      { term: t('common.published'), value: release.publishedAt ? this.publishedTemplate() : this.notPublishedTemplate() },
     ];
   });
   protected downloadFacts = computed<DescriptionListEntry[]>(() => {
     const release = this.release();
     if (!release) return [];
     return [
-      { term: 'Fichiers', value: String(release.assets.length) },
-      { term: 'Taille totale', value: this.totalSize() },
+      { term: t('common.files'), value: String(release.assets.length) },
+      { term: t('common.totalSize'), value: this.totalSize() },
     ];
   });
   protected readonly skeletonLines = ['92%', '84%', '60%', '88%', '45%'];
@@ -166,7 +166,7 @@ export class ReleaseDetail implements OnInit {
   save(): void {
     const title = this.editTitle().trim();
     if (!title) {
-      this.toast.show('Le titre est requis', 'error');
+      this.toast.show(t('releases.titleRequired'), 'error');
       return;
     }
     this.saving.set(true);
@@ -178,12 +178,12 @@ export class ReleaseDetail implements OnInit {
           this.release.set(release);
           this.pageTitle.set(release.title);
           this.editing.set(false);
-          this.toast.show('Release mise à jour.');
+          this.toast.show(t('releases.updated'));
           this.focusAfterRender('.release-detail__edit-button button');
         },
         error: () => {
           this.saving.set(false);
-          this.toast.show("Impossible d'enregistrer les modifications", 'error');
+          this.toast.show(t('releases.saveFailed'), 'error');
         },
       });
   }
@@ -194,13 +194,13 @@ export class ReleaseDetail implements OnInit {
       next: (release) => {
         this.publishing.set(false);
         this.release.set(release);
-        this.toast.show('Release publiée.');
+        this.toast.show(t('releases.published'));
         // The button is gone with the draft, so keep the keyboard user in the header's actions.
         this.focusAfterRender('.release-detail__edit-button button');
       },
       error: () => {
         this.publishing.set(false);
-        this.toast.show('Impossible de publier la release.', 'error');
+        this.toast.show(t('releases.publishFailed'), 'error');
       },
     });
   }
@@ -213,10 +213,10 @@ export class ReleaseDetail implements OnInit {
     this.deleteReleaseOpen.set(false);
     this.releases.delete(this.repositoryId(), this.tagName()).subscribe({
       next: () => {
-        this.toast.show('Release supprimée.');
+        this.toast.show(t('releases.deleted'));
         this.router.navigate(this.releasesLink());
       },
-      error: () => this.toast.show('Impossible de supprimer la release.', 'error'),
+      error: () => this.toast.show(t('releases.deleteFailed'), 'error'),
     });
   }
 
@@ -229,12 +229,12 @@ export class ReleaseDetail implements OnInit {
         this.uploading.set(null);
         this.selectedFiles.set([]);
         this.release.update((release) => (release ? { ...release, assets: [...release.assets, asset] } : release));
-        this.toast.show('Fichier ajouté.');
+        this.toast.show(t('releases.fileAdded'));
       },
       error: () => {
         this.uploading.set(null);
         this.selectedFiles.set([]);
-        this.toast.show("Échec de l'envoi du fichier", 'error');
+        this.toast.show(t('releases.uploadFailed'), 'error');
       },
     });
   }
@@ -252,13 +252,13 @@ export class ReleaseDetail implements OnInit {
         this.deletingAsset.set(false);
         this.assetPendingDelete.set(null);
         this.release.update((release) => (release ? { ...release, assets: release.assets.filter((a) => a.id !== asset.id) } : release));
-        this.toast.show('Fichier supprimé.');
+        this.toast.show(t('releases.fileDeleted'));
       },
       // The confirmation covers the page, so an error has to close it first to be visible.
       error: () => {
         this.deletingAsset.set(false);
         this.assetPendingDelete.set(null);
-        this.toast.show('Impossible de supprimer le fichier.', 'error');
+        this.toast.show(t('releases.fileDeleteFailed'), 'error');
       },
     });
   }
@@ -274,7 +274,7 @@ export class ReleaseDetail implements OnInit {
         link.click();
         URL.revokeObjectURL(objectUrl);
       },
-      error: () => this.toast.show('Échec du téléchargement', 'error'),
+      error: () => this.toast.show(t('releases.downloadFailed'), 'error'),
     });
   }
 }

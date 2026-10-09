@@ -205,7 +205,7 @@ export class AdminUserDetail implements OnInit {
     const size = totalSize(this.repositories());
     return [
       { term: t('common.repositories'), value: String(this.repositories().length) },
-      { term: t('admin.users.detail.totalSize'), value: size ? size.label : '—' },
+      { term: t('common.totalSize'), value: size ? size.label : '—' },
     ];
   });
 
