@@ -632,6 +632,13 @@ npx ng build                  # production build
 npm run storybook             # component stories
 ```
 
+The interface text lives in `frontend/public/i18n/fr.json`, loaded with [Transloco](https://jsverse.gitbook.io/transloco):
+a template reads it with `'key' | transloco` (or `'key' | translocoCount: n` for a plural), code with `t()` and `tn()`
+from `shared/i18n/translator`. A new language is a new file beside it plus an entry in `LANGUAGE_LOCALES`
+(`shared/i18n/languages.ts`). The unit tests fail on a key the code uses but the file lacks, on a key nothing uses, and
+on a language whose keys or parameters differ from French. The sign-in and account forms built from Gabarit take their
+text from `auth/auth-labels.fr.ts` instead.
+
 ### Continuous integration and delivery
 
 The pipeline in `.github/workflows/ci-cd.yml` is shared in shape with [ArtiFerris](https://github.com/Masmarino/ArtiFerris).

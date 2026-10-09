@@ -80,6 +80,10 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ### Changed
 
+- The interface's text moved out of the code into a translation file, `frontend/public/i18n/fr.json`, read with
+  Transloco and loaded before the first page; dates, durations, sizes and numbers follow the language's locale instead
+  of a fixed `fr-FR`, and plurals its own rules (« 0 dépôt », « 2 dépôts »). French stays the only language; adding
+  one is a new file. The tests fail on a missing or unused key, and on a language whose keys differ from French.
 - The "Exécution" settings only show the chosen engine's: the runners' for Docker, the cluster's for Kubernetes.
   "Exécution" and "Sécurité" now keep their changes until "Enregistrer", which sends them in one request and confirms
   with a notification, or says it failed and keeps them; "Annuler les modifications" puts everything back as saved.
