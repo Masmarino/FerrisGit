@@ -5,11 +5,12 @@ import { JobStatus } from '@masmarino/gabarit/job-status';
 import { Stepper } from '@masmarino/gabarit/stepper';
 import { JobSummary } from '../pipelines.service';
 import { STATUS_LABELS, StageGroup, jobDurationLabel, jobGlyphStatus, jobGraphStatus, pipelineLink, stageIndexOf, stageSteps } from '../pipeline-helpers';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
   selector: 'fg-pipeline-summary',
   standalone: true,
-  imports: [Stepper, JobGraph, RouterLink, JobStatus],
+  imports: [TranslocoPipe, Stepper, JobGraph, RouterLink, JobStatus],
   templateUrl: './pipeline-summary.html',
   styleUrl: './pipeline-summary.scss',
 })

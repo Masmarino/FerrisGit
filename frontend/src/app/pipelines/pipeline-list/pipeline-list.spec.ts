@@ -204,7 +204,7 @@ describe('PipelineList', () => {
       http.expectOne(LIST_URL).flush('boom', { status: 500, statusText: 'Server Error' });
       fixture.detectChanges();
 
-      el.querySelector<HTMLButtonElement>('gbt-button[text="Actualiser"] button')?.click();
+      [...el.querySelectorAll<HTMLButtonElement>('gbt-button button')].find((button) => button.textContent?.trim() === 'Actualiser')?.click();
       fixture.detectChanges();
       http.expectOne(LIST_URL).flush('boom again', { status: 500, statusText: 'Server Error' });
       fixture.detectChanges();

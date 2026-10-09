@@ -2,6 +2,7 @@ import { JobGraphStatus } from '@masmarino/gabarit/job-graph';
 import { JobStatusValue } from '@masmarino/gabarit/job-status';
 import { StepperStep } from '@masmarino/gabarit/stepper';
 import { JobSummary, PipelineSummary } from './pipelines.service';
+import { t } from '../shared/i18n/translator';
 
 export interface StageGroup {
   name: string;
@@ -9,12 +10,24 @@ export interface StageGroup {
 }
 
 export const STATUS_LABELS: Record<JobSummary['status'], string> = {
-  pending: 'En attente',
-  running: 'En cours',
-  success: 'Réussi',
-  failed: 'Échoué',
-  canceled: 'Annulé',
-  skipped: 'Ignoré',
+  get pending() {
+    return t('pipelines.jobStatus.pending');
+  },
+  get running() {
+    return t('pipelines.jobStatus.running');
+  },
+  get success() {
+    return t('pipelines.jobStatus.success');
+  },
+  get failed() {
+    return t('pipelines.jobStatus.failed');
+  },
+  get canceled() {
+    return t('pipelines.jobStatus.canceled');
+  },
+  get skipped() {
+    return t('pipelines.jobStatus.skipped');
+  },
 };
 
 /**
@@ -94,7 +107,7 @@ export function durationLabel(startedAt: string | null, finishedAt: string | nul
 
 /** A skipped job never ran, so it has no duration to show and says why instead. */
 export function jobDurationLabel(job: Pick<JobSummary, 'status' | 'startedAt' | 'finishedAt'>, now: number): string {
-  return job.status === 'skipped' ? 'ignoré' : durationLabel(job.startedAt, job.finishedAt, now);
+  return job.status === 'skipped' ? t('pipelines.skippedShort') : durationLabel(job.startedAt, job.finishedAt, now);
 }
 
 export function isNearBottom(scrollHeight: number, scrollTop: number, clientHeight: number, threshold = 24): boolean {

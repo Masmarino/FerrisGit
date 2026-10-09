@@ -9,7 +9,7 @@
       <span class="pipeline-job__duration">{{ duration() }}</span>
     </p>
     @if (job().needs.length > 0) {
-      <p class="pipeline-job__needs">Dépend de : {{ job().needs.join(', ') }}</p>
+      <p class="pipeline-job__needs">{{ 'pipelines.dependsOn' | transloco: { jobs: job().needs.join(', ') } }}</p>
     }
   </header>
 
@@ -20,9 +20,9 @@
     [interactive]="true"
     [selectedIndex]="selectedIndex()"
     (selectedIndexChange)="onStepSelected($event)"
-    completedLabel="Terminé"
-    errorLabel="En erreur"
-    selectedLabel="Sélectionné"
+    [completedLabel]="'common.done' | transloco"
+    [errorLabel]="'pipelines.inError' | transloco"
+    [selectedLabel]="'pipelines.selected' | transloco"
   />
 
   <pre
@@ -30,7 +30,7 @@
     class="pipeline-job__logs"
     role="region"
     tabindex="0"
-    [attr.aria-label]="'Logs de ' + job().name"
+    [attr.aria-label]="'pipelines.logsOf' | transloco: { name: job().name }"
     (scroll)="onScroll(logs)"
   >{{ job().logs || logPlaceholder() }}</pre>
 </section>

@@ -1,36 +1,36 @@
-<gbt-page-header heading="Pipelines">
+<gbt-page-header [heading]="'nav.pipelines' | transloco">
   @if (canEdit()) {
-    <a header-actions gbtButton variant="secondary" iconName="pencil" [routerLink]="editorLink()">Éditer la pipeline</a>
+    <a header-actions gbtButton variant="secondary" iconName="pencil" [routerLink]="editorLink()">{{ 'pipelines.edit' | transloco }}</a>
   }
-  <gbt-button header-actions variant="secondary" text="Actualiser" [disabled]="loading()" [loading]="refreshing()" loadingLabel="Actualisation en cours" (clicked)="refresh()" />
+  <gbt-button header-actions variant="secondary" [text]="'common.refresh' | transloco" [disabled]="loading()" [loading]="refreshing()" [loadingLabel]="'pipelines.refreshing' | transloco" (clicked)="refresh()" />
 </gbt-page-header>
 
 <gbt-page-layout width="wide">
   <gbt-list-card
-    ariaLabel="Pipelines"
+    [ariaLabel]="'nav.pipelines' | transloco"
     [state]="cardState()"
-    loadingLabel="Chargement des pipelines…"
+    [loadingLabel]="'pipelines.loading' | transloco"
     [skeletonRows]="5"
-    failedHeading="Les pipelines n'ont pas pu être chargées."
+    [failedHeading]="'pipelines.loadFailed' | transloco"
     [retryLabel]="null"
     emptyIllustration="pipeline"
-    emptyHeading="Aucune pipeline"
-    emptyMessage="Ajoutez un fichier .ferrisgit-ci.yml à la racine du dépôt : chaque push déclenchera une pipeline, suivie ici."
+    [emptyHeading]="'pipelines.empty.all' | transloco"
+    [emptyMessage]="'pipelines.emptyMessage' | transloco"
   >
     <div list-card-header class="pipeline-list__band">
-      <gbt-segmented-control class="pipeline-list__tabs" ariaLabel="Statut des pipelines" tinted [options]="tabOptions()" [value]="tab()" (valueChange)="tab.set($event)" />
+      <gbt-segmented-control class="pipeline-list__tabs" [ariaLabel]="'pipelines.statusTabs' | transloco" tinted [options]="tabOptions()" [value]="tab()" (valueChange)="tab.set($event)" />
       <div class="pipeline-list__filters">
         <gbt-input
           class="pipeline-list__search"
-          label="Rechercher une pipeline"
+          [label]="'pipelines.search' | transloco"
           hideLabel
           size="sm"
           leadingIcon="search"
-          placeholder="SHA ou message"
+          [placeholder]="'pipelines.searchPlaceholder' | transloco"
           [ngModel]="search()"
           (ngModelChange)="search.set($event)"
         />
-        <gbt-select class="pipeline-list__order" label="Ordre" hideLabel size="sm" [options]="orderOptions" [ngModel]="direction()" (ngModelChange)="direction.set($event)" />
+        <gbt-select class="pipeline-list__order" [label]="'pipelines.order' | transloco" hideLabel size="sm" [options]="orderOptions" [ngModel]="direction()" (ngModelChange)="direction.set($event)" />
       </div>
     </div>
 
@@ -52,13 +52,13 @@
 
               <span row-meta class="pipeline-list__meta">
                 @if (row.pipeline.error) {
-                  <span class="pipeline-list__invalid">Fichier de pipeline invalide</span>&ngsp;
+                  <span class="pipeline-list__invalid">{{ 'pipelines.invalidFile' | transloco }}</span>&ngsp;
                 }
                 <gbt-badge mono class="pipeline-list__sha" [fullText]="row.pipeline.commitSha">{{ row.shortSha }}</gbt-badge>&ngsp;
                 <span class="pipeline-list__triggered">
-                  <span class="pipeline-list__when">déclenchée <time [attr.datetime]="row.pipeline.createdAt" [title]="row.pipeline.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.pipeline.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time></span>
+                  <span class="pipeline-list__when">{{ 'pipelines.triggered' | transloco }} <time [attr.datetime]="row.pipeline.createdAt" [title]="row.pipeline.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.pipeline.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time></span>
                   @if (row.pipeline.triggeredBy; as user) {
-                    par <span class="pipeline-list__author">{{ user.username }}</span>
+                    {{ 'common.by' | transloco }} <span class="pipeline-list__author">{{ user.username }}</span>
                   }
                 </span>
                 <!-- The separator belongs to the segment after it, so a wrapped line never ends on a dangling "·". -->
@@ -80,9 +80,9 @@
   @if (cardState() === 'ready' && tabList().length > pageSize) {
     <gbt-pagination
       class="pipeline-list__pagination"
-      ariaLabel="Pages de pipelines"
-      previousLabel="Page précédente"
-      nextLabel="Page suivante"
+      [ariaLabel]="'pipelines.pages' | transloco"
+      [previousLabel]="'common.previousPage' | transloco"
+      [nextLabel]="'common.nextPage' | transloco"
       [pageLabel]="pageLabel"
       [page]="currentPage()"
       [pageSize]="pageSize"

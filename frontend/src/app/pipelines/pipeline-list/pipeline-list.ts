@@ -21,18 +21,19 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { canWrite } from '../../repositories/repository-role';
 import { PageTitleService } from '../../shell/page-title.service';
 import { StatusBadge, StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type StatusTab = 'all' | 'active' | 'success' | 'failed';
 
 /** The API returns every pipeline at once, so pagination is client-side. */
 const PIPELINES_PAGE_SIZE = 25;
 
-const SORT_OPTIONS: ListToolbarSortOption<'date'>[] = [{ value: 'date', label: 'Date' }];
+const sortOptions = (): ListToolbarSortOption<'date'>[] => [{ value: 'date', label: t('common.date') }];
 
-const ORDER_OPTIONS: SelectOption<'asc' | 'desc'>[] = [
-  { value: 'desc', label: 'Plus récentes' },
-  { value: 'asc', label: 'Plus anciennes' },
+const orderOptions = (): SelectOption<'asc' | 'desc'>[] => [
+  { value: 'desc', label: t('pipelines.newest') },
+  { value: 'asc', label: t('pipelines.oldest') },
 ];
 
 /** A queued pipeline counts as "en cours" too. */
@@ -42,7 +43,12 @@ const TAB_STATUSES: Record<Exclude<StatusTab, 'all'>, PipelineSummary['status'][
   failed: ['failed'],
 };
 
-const TAB_ADJECTIVES: Record<StatusTab, string> = { all: '', active: ' en cours', success: ' réussie', failed: ' échouée' };
+const EMPTY_TAB_MESSAGES: Record<StatusTab, { all: string; search: string }> = {
+  all: { all: 'pipelines.empty.all', search: 'pipelines.empty.allSearch' },
+  active: { all: 'pipelines.empty.active', search: 'pipelines.empty.activeSearch' },
+  success: { all: 'pipelines.empty.success', search: 'pipelines.empty.successSearch' },
+  failed: { all: 'pipelines.empty.failed', search: 'pipelines.empty.failedSearch' },
+};
 
 interface PipelineRow {
   pipeline: PipelineSummary;
@@ -70,13 +76,13 @@ function durationText(pipeline: PipelineSummary, now: number): string | null {
   if (!isTerminal(pipeline.status) || pipeline.finishedAt === null) {
     return null;
   }
-  return `durée ${formatDuration(Date.parse(pipeline.finishedAt) - Date.parse(pipeline.createdAt))}`;
+  return t('pipelines.durationOf', { value: formatDuration(Date.parse(pipeline.finishedAt) - Date.parse(pipeline.createdAt)) });
 }
 
 @Component({
   selector: 'fg-pipeline-list',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     FormsModule,
     RouterLink,
     GbtDateTimePipe,
@@ -116,11 +122,11 @@ export class PipelineList implements OnInit {
   protected refreshing = signal(false);
   private loadedAt = signal(Date.now());
 
-  private readonly searchSort = createListToolbarState<'date'>({ sortOptions: SORT_OPTIONS, defaultSort: 'date' });
+  private readonly searchSort = createListToolbarState<'date'>({ sortOptions: sortOptions(), defaultSort: 'date' });
   protected search = this.searchSort.search;
   protected sortValue = this.searchSort.sortValue;
   protected direction = this.searchSort.direction;
-  protected readonly orderOptions = ORDER_OPTIONS;
+  protected readonly orderOptions = orderOptions();
   protected filteredList = this.searchSort.filtered(() => this.list(), {
     // A SHA matches from its start, a commit message anywhere: `text`'s plain substring matching can't express both.
     matches: (pipeline, query) => pipeline.commitSha.toLowerCase().startsWith(query) || (pipeline.commitMessage?.toLowerCase().includes(query) ?? false),
@@ -137,14 +143,14 @@ export class PipelineList implements OnInit {
   protected tabOptions = computed<SegmentedControlOption<StatusTab>[]>(() => {
     const groups = this.byTab();
     return [
-      { value: 'all', label: `Toutes (${groups.all.length})` },
-      { value: 'active', label: `En cours (${groups.active.length})` },
-      { value: 'success', label: `Réussies (${groups.success.length})` },
-      { value: 'failed', label: `Échouées (${groups.failed.length})` },
+      { value: 'all', label: t('pipelines.tabs.all', { count: groups.all.length }) },
+      { value: 'active', label: t('pipelines.tabs.active', { count: groups.active.length }) },
+      { value: 'success', label: t('pipelines.tabs.success', { count: groups.success.length }) },
+      { value: 'failed', label: t('pipelines.tabs.failed', { count: groups.failed.length }) },
     ];
   });
   protected tabList = computed(() => this.byTab()[this.tab()]);
-  protected emptyTabMessage = computed(() => `Aucune pipeline${TAB_ADJECTIVES[this.tab()]}${this.search().trim() !== '' ? ' ne correspond à cette recherche' : ''}`);
+  protected emptyTabMessage = computed(() => t(EMPTY_TAB_MESSAGES[this.tab()][this.search().trim() !== '' ? 'search' : 'all']));
 
   protected readonly pageSize = PIPELINES_PAGE_SIZE;
   protected page = linkedSignal<unknown, number>({
@@ -166,12 +172,12 @@ export class PipelineList implements OnInit {
           status: statusPresentation('pipeline', pipeline.status),
           shortId,
           shortSha: pipeline.commitSha.slice(0, 8),
-          tooltip: pipeline.commitMessage ?? `Pipeline #${shortId}`,
+          tooltip: pipeline.commitMessage ?? t('pipelines.titleNumber', { id: shortId }),
           duration: durationText(pipeline, now),
         };
       });
   });
-  protected readonly pageLabel = (page: number) => `Page ${page}`;
+  protected readonly pageLabel = (page: number) => t('common.pageNumber', { page });
 
   protected isEmptyRepository = computed(() => !this.loading() && !this.loadFailed() && this.list().length === 0);
 
@@ -183,7 +189,7 @@ export class PipelineList implements OnInit {
   }
 
   ngOnInit(): void {
-    this.pageTitle.set('Pipelines');
+    this.pageTitle.set(t('nav.pipelines'));
     this.load();
   }
 
@@ -205,7 +211,7 @@ export class PipelineList implements OnInit {
         this.loading.set(false);
         // The failed card is already showing and its alert won't announce again, so a second failure gets a toast.
         if (this.loadFailed()) {
-          this.toast.show('Impossible de charger les pipelines. Réessayez plus tard.', 'error');
+          this.toast.show(t('pipelines.loadListFailed'), 'error');
         }
         this.loadFailed.set(true);
         this.refreshing.set(false);

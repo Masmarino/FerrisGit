@@ -3,11 +3,12 @@ import { RouterLink } from '@angular/router';
 import { JobStatus } from '@masmarino/gabarit/job-status';
 import { JobSummary } from '../pipelines.service';
 import { STATUS_LABELS, StageGroup, jobDurationLabel, jobGlyphStatus, pipelineLink } from '../pipeline-helpers';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
   selector: 'fg-pipeline-sidebar',
   standalone: true,
-  imports: [RouterLink, JobStatus],
+  imports: [TranslocoPipe, RouterLink, JobStatus],
   templateUrl: './pipeline-sidebar.html',
   styleUrl: './pipeline-sidebar.scss',
 })

@@ -7,25 +7,25 @@
       [interactive]="true"
       [selectedIndex]="selectedIndex()"
       (selectedIndexChange)="onStepSelected($event)"
-      completedLabel="Terminé"
-      errorLabel="En erreur"
-      selectedLabel="Sélectionné"
+      [completedLabel]="'common.done' | transloco"
+      [errorLabel]="'pipelines.inError' | transloco"
+      [selectedLabel]="'pipelines.selected' | transloco"
     />
     <gbt-job-graph
       class="pipeline-summary__graph"
       [stages]="graphStages()"
       [statusLabels]="statusLabels"
-      needsLabel="Dépend de"
-      ariaLabel="Jobs de la pipeline"
+      [needsLabel]="'pipelines.needs' | transloco"
+      [ariaLabel]="'pipelines.jobsOf' | transloco"
       (jobSelected)="jobOpened.emit($event)"
     />
   } @else {
-    <p class="pipeline-summary__empty">Cette pipeline ne contient aucun job.</p>
+    <p class="pipeline-summary__empty">{{ 'pipelines.noJob' | transloco }}</p>
   }
 
   @if (selectedGroup(); as group) {
     <section class="pipeline-summary__stage-jobs">
-      <h3>Stage {{ group.name }}</h3>
+      <h3>{{ 'pipelines.stage' | transloco: { name: group.name } }}</h3>
       <ul>
         @for (job of group.jobs; track job.id) {
           <li>

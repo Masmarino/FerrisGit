@@ -1,11 +1,11 @@
-<nav class="pipeline-sidebar" aria-label="Navigation de la pipeline">
+<nav class="pipeline-sidebar" [attr.aria-label]="'pipelines.navigation' | transloco">
   <a
     class="pipeline-sidebar__link"
     [class.pipeline-sidebar__link--active]="selectedJobId() === null"
     [attr.aria-current]="selectedJobId() === null ? 'page' : null"
     [routerLink]="summaryLink()"
   >
-    Résumé
+    {{ 'pipelines.summary' | transloco }}
   </a>
   @for (group of groups(); track group.name) {
     <h3 class="pipeline-sidebar__stage">{{ group.name }}</h3>

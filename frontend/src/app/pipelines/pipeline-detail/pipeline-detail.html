@@ -11,24 +11,24 @@
       </span>
       <!-- Each separator belongs to the segment after it, so a wrapped line never ends on a dangling "·". -->
       <span>
-        <span aria-hidden="true"> · </span>déclenchée
+        <span aria-hidden="true"> · </span>{{ 'pipelines.triggered' | transloco }}
         <time [attr.datetime]="p.createdAt" [title]="p.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ p.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
         @if (p.triggeredBy; as user) {
-          par <span class="pipeline-detail__author">{{ user.username }}</span>
+          {{ 'common.by' | transloco }} <span class="pipeline-detail__author">{{ user.username }}</span>
         }
       </span>
-      <span class="pipeline-detail__timing"><span aria-hidden="true"> · </span>durée <span class="pipeline-detail__duration">{{ pipelineDuration() }}</span></span>
+      <span class="pipeline-detail__timing"><span aria-hidden="true"> · </span>{{ 'pipelines.duration' | transloco }} <span class="pipeline-detail__duration">{{ pipelineDuration() }}</span></span>
     </p>
 
     @if (canCancel()) {
-      <gbt-button header-actions variant="danger" (clicked)="cancel()" text="Annuler la pipeline" />
+      <gbt-button header-actions variant="danger" (clicked)="cancel()" [text]="'pipelines.cancel' | transloco" />
     }
   </gbt-page-header>
 
   @if (p.error; as error) {
-    <gbt-alert class="pipeline-detail__error" variant="error" heading="Fichier de pipeline invalide">
+    <gbt-alert class="pipeline-detail__error" variant="error" [heading]="'pipelines.invalidFile' | transloco">
       <pre class="pipeline-detail__error-message">{{ error }}</pre>
-      <p class="pipeline-detail__error-hint">Corrigez le fichier, puis poussez un nouveau commit : une nouvelle pipeline sera lancée.</p>
+      <p class="pipeline-detail__error-hint">{{ 'pipelines.invalidHint' | transloco }}</p>
     </gbt-alert>
   } @else {
     <div class="pipeline-detail__layout">
@@ -49,8 +49,8 @@
           <fg-pipeline-job [job]="job" [groups]="groups()" [activeStageIndex]="activeStage()" [now]="now()" (stageSelected)="selectStage($event)" />
         } @else {
           <section class="pipeline-detail__not-found">
-            <gbt-empty-state illustration="pipeline" heading="Ce job est introuvable dans cette pipeline.">
-              <a [routerLink]="summaryLink()">Retour au résumé</a>
+            <gbt-empty-state illustration="pipeline" [heading]="'pipelines.jobNotFound' | transloco">
+              <a [routerLink]="summaryLink()">{{ 'pipelines.backToSummary' | transloco }}</a>
             </gbt-empty-state>
           </section>
         }

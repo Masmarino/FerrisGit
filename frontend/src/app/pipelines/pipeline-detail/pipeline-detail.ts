@@ -18,6 +18,8 @@ import { PipelineSidebar } from '../pipeline-sidebar/pipeline-sidebar';
 import { PipelineSummary } from '../pipeline-summary/pipeline-summary';
 import { PipelineJob } from '../pipeline-job/pipeline-job';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 const POLL_INTERVAL_MS = 3000;
 const TICK_INTERVAL_MS = 1000;
@@ -25,7 +27,7 @@ const TICK_INTERVAL_MS = 1000;
 @Component({
   selector: 'fg-pipeline-detail',
   standalone: true,
-  imports: [Button, EmptyState, RouterLink, GbtDateTimePipe, GbtRelativeTimePipe, PageHeader, StatusBadge, PipelineSidebar, PipelineSummary, PipelineJob, Badge, Alert],
+  imports: [TranslocoPipe, Button, EmptyState, RouterLink, GbtDateTimePipe, GbtRelativeTimePipe, PageHeader, StatusBadge, PipelineSidebar, PipelineSummary, PipelineJob, Badge, Alert],
   templateUrl: './pipeline-detail.html',
   styleUrl: './pipeline-detail.scss',
 })
@@ -73,7 +75,7 @@ export class PipelineDetail implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
-    this.pageTitle.set('Pipeline');
+    this.pageTitle.set(t('pipelines.title'));
     this.refresh();
   }
 
@@ -113,7 +115,7 @@ export class PipelineDetail implements OnInit, OnDestroy {
           return;
         }
         this.pipeline.set(detail);
-        this.pageTitle.set(`Pipeline #${detail.id.slice(0, 8)}`);
+        this.pageTitle.set(t('pipelines.titleNumber', { id: detail.id.slice(0, 8) }));
         this.now.set(Date.now());
         const stillRunning = !isTerminal(detail.status);
         if (stillRunning && this.pollHandle === null) {
@@ -125,7 +127,7 @@ export class PipelineDetail implements OnInit, OnDestroy {
       },
       error: () => {
         if (!this.destroyed && seq === this.requestSeq) {
-          this.toast.show('Impossible de charger cette pipeline. Réessayez plus tard.', 'error');
+          this.toast.show(t('pipelines.loadFailedToast'), 'error');
         }
       },
     });
@@ -134,10 +136,10 @@ export class PipelineDetail implements OnInit, OnDestroy {
   cancel(): void {
     this.pipelines.cancel(this.pipelineId()).subscribe({
       next: () => {
-        this.toast.show('Pipeline annulée.');
+        this.toast.show(t('pipelines.canceled'));
         this.refresh();
       },
-      error: () => this.toast.show("Impossible d'annuler la pipeline.", 'error'),
+      error: () => this.toast.show(t('pipelines.cancelFailed'), 'error'),
     });
   }
 }
