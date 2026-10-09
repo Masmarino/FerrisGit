@@ -75,6 +75,9 @@ describe('Features tabs', () => {
   })
 
   it('moves between tabs with the arrows, Home and End, and focuses the new tab', async () => {
+    // As in a browser running the page's script: without it the tab bar is hidden, and a hidden tab cannot take focus.
+    const scripted = document.documentElement.classList.contains('js')
+    document.documentElement.classList.add('js')
     const fixture = TestBed.createComponent(Features)
     document.body.appendChild(fixture.nativeElement)
     await fixture.whenStable()
@@ -94,6 +97,7 @@ describe('Features tabs', () => {
     expect((await press('Home')).id).toBe('tab-repos')
 
     fixture.nativeElement.remove()
+    document.documentElement.classList.toggle('js', scripted)
   })
 
   it('opens the tab named by the URL fragment', async () => {

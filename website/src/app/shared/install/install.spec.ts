@@ -20,6 +20,9 @@ describe('Install', () => {
   })
 
   it('becomes a tab set and switches with the keyboard', async () => {
+    // As in a browser running the page's script: without it the tabs are hidden, and a hidden tab cannot take focus.
+    const scripted = document.documentElement.classList.contains('js')
+    document.documentElement.classList.add('js')
     const fixture = TestBed.createComponent(Install)
     document.body.appendChild(fixture.nativeElement)
     await fixture.whenStable()
@@ -32,6 +35,7 @@ describe('Install', () => {
     expect(root.querySelector('#install-panel-helm')?.classList.contains('is-active')).toBe(true)
     expect(document.activeElement?.id).toBe('install-tab-helm')
     fixture.nativeElement.remove()
+    document.documentElement.classList.toggle('js', scripted)
   })
 
   it('tells what happens at first sign-in: mandatory MFA', () => {
