@@ -1,7 +1,7 @@
-<gbt-card variant="outlined" icon="plus" heading="Ajouter une variable" description="Disponible dans chaque job du pipeline. Sa valeur n'est plus jamais réaffichée une fois enregistrée.">
+<gbt-card variant="outlined" icon="plus" heading="Ajouter une variable" description="Disponible dans chaque job de la pipeline. Sa valeur n'est plus jamais réaffichée une fois enregistrée.">
   <form class="repository-ci-variables__form" (submit)="$event.preventDefault(); addVariable()">
     <div class="repository-ci-variables__fields">
-      <gbt-input name="key" label="Nom" mono placeholder="API_KEY" autocomplete="off" [ngModel]="newVariableKey()" (ngModelChange)="newVariableKey.set($event)" />
+      <gbt-input name="key" label="Nom" mono placeholder="API_KEY" autocomplete="off" [errorMessage]="keyProblem()" [ngModel]="newVariableKey()" (ngModelChange)="newVariableKey.set($event)" />
       <gbt-input
         class="repository-ci-variables__value-input"
         name="value"
@@ -16,7 +16,7 @@
       />
     </div>
     <div class="repository-ci-variables__actions">
-      <gbt-button type="submit" iconName="plus" text="Ajouter la variable" [disabled]="!newVariableKey().trim() || !newVariableValue()" />
+      <gbt-button type="submit" iconName="plus" text="Ajouter la variable" [disabled]="!newVariableKey().trim() || !newVariableValue() || keyProblem() !== null" />
     </div>
   </form>
 </gbt-card>
@@ -38,7 +38,7 @@
           size="compact"
           icon="key"
           heading="Aucune variable définie"
-          message="Ajoutez des jetons, des URL de service ou des options de build : chaque job du pipeline les reçoit en variables d'environnement."
+          message="Ajoutez des jetons, des URL de service ou des options de build : chaque job de la pipeline les reçoit en variables d'environnement."
         />
       } @else {
         <ul class="repository-ci-variables__rows" aria-label="Variables CI/CD">
@@ -78,7 +78,7 @@
   <gbt-confirm-danger-modal
     [isOpen]="true"
     heading="Supprimer la variable"
-    [message]="'Les prochains jobs du pipeline ne recevront plus « ' + variable.key + ' » et sa valeur sera perdue.'"
+    [message]="'Les prochains jobs de la pipeline ne recevront plus « ' + variable.key + ' » et sa valeur sera perdue.'"
     confirmLabel="Supprimer"
     confirmIcon="trash-2"
     cancelLabel="Annuler"

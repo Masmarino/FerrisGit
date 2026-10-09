@@ -42,7 +42,7 @@ const EVENT_GROUPS: { label: string; events: { value: WebhookEvent; label: strin
   },
   {
     label: 'Pipelines',
-    events: [{ value: 'pipeline_failed', label: 'Échoué', full: 'Pipeline échoué' }],
+    events: [{ value: 'pipeline_failed', label: 'Échouée', full: 'Pipeline échouée' }],
   },
   {
     label: 'Collaborateurs',

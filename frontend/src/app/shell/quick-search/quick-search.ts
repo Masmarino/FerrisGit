@@ -161,6 +161,7 @@ export class QuickSearch {
         { id: 'repo:new-issue', label: 'Nouveau ticket', icon: 'plus', keywords: ['créer'], data: { link: link('issues'), queryParams: { [NEW_PARAM]: 'issue' } } },
         { id: 'repo:new-merge-request', label: 'Nouvelle demande de fusion', icon: 'plus', keywords: ['créer', 'merge'], data: { link: link('merge-requests'), queryParams: { [NEW_PARAM]: 'merge-request' } } },
         { id: 'repo:new-wiki-page', label: 'Nouvelle page de wiki', icon: 'plus', keywords: ['créer'], data: { link: link('wiki', 'new') } },
+        { id: 'repo:pipeline-editor', label: 'Éditer la pipeline', icon: 'pencil', keywords: ['ci', 'yaml', 'éditeur'], data: { link: link('pipelines', 'editor') } },
       );
     }
     return items;

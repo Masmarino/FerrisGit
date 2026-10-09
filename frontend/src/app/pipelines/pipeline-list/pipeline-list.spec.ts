@@ -11,6 +11,8 @@ import { Select } from '@masmarino/gabarit/select';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { PipelineList } from './pipeline-list';
 import { PipelineSummary } from '../pipelines.service';
+import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { RepositoryRole } from '../../repositories/repositories.service';
 import { PageTitleService } from '../../shell/page-title.service';
 
 const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;
@@ -74,7 +76,7 @@ describe('PipelineList', () => {
     const alerts = el.querySelectorAll('[role="alert"]');
     expect(alerts).toHaveLength(1);
     expect(card.contains(alerts[0])).toBe(true);
-    expect(text(alerts[0])).toBe("Les pipelines n'ont pas pu être chargés.");
+    expect(text(alerts[0])).toBe("Les pipelines n'ont pas pu être chargées.");
     expect(alerts[0].querySelector('.gbt-empty-state')!.getAttribute('data-tone')).toBe('error');
     expect(card.querySelector('[aria-live]')).toBeNull();
     expect(TestBed.inject(GbtToastService).toasts()).toEqual([]);
@@ -116,7 +118,7 @@ describe('PipelineList', () => {
       expect(search.size()).toBe('sm');
       expect(search.leadingIcon()).toBe('search');
       expect(search.hideLabel()).toBe(true);
-      expect(el.querySelector('.pipeline-list__search label')?.textContent?.trim()).toBe('Rechercher un pipeline');
+      expect(el.querySelector('.pipeline-list__search label')?.textContent?.trim()).toBe('Rechercher une pipeline');
       const order = fixture.debugElement.query(By.css('.pipeline-list__order')).componentInstance as Select;
       expect(order.size()).toBe('sm');
       expect(order.hideLabel()).toBe(true);
@@ -179,7 +181,7 @@ describe('PipelineList', () => {
       expect(emptyState).toBeTruthy();
       expect(fixture.debugElement.query(By.directive(EmptyState)).componentInstance.illustration()).toBe('pipeline');
       expect(el.querySelector('gbt-list-card .gbt-list-card')!.getAttribute('data-state')).toBe('empty');
-      expect(text(emptyState)).toContain('Aucun pipeline');
+      expect(text(emptyState)).toContain('Aucune pipeline');
       expect(text(emptyState)).toContain('.ferrisgit-ci.yml');
       expect(el.querySelector('.pipeline-list__tabs')).toBeNull();
       expect(el.querySelector('.pipeline-list__search')).toBeNull();
@@ -255,10 +257,10 @@ describe('PipelineList', () => {
       expect(leading.every((icon) => icon.querySelector('gbt-icon'))).toBe(true);
       // The badge carries the status text, the icon only repeats it as a tooltip.
       expect(leading.every((icon) => icon.getAttribute('aria-hidden') === 'true')).toBe(true);
-      expect(leading.map((icon) => icon.getAttribute('title'))).toEqual(['Échoué', 'En cours', 'Réussi', 'En attente', 'Annulé']);
+      expect(leading.map((icon) => icon.getAttribute('title'))).toEqual(['Échouée', 'En cours', 'Réussie', 'En attente', 'Annulée']);
 
       const badges = rows(el).map((row) => row.querySelector('.gbt-list-row__trailing fg-status-badge')!);
-      expect(badges.map(text)).toEqual(['Échoué', 'En cours', 'Réussi', 'En attente', 'Annulé']);
+      expect(badges.map(text)).toEqual(['Échouée', 'En cours', 'Réussie', 'En attente', 'Annulée']);
 
       const visibleAndTitles = text(el) + ' ' + Array.from(el.querySelectorAll('[title]'), (node) => node.getAttribute('title')).join(' ');
       expect(visibleAndTitles).not.toMatch(/\b(pending|running|success|failed|canceled)\b/i);
@@ -286,15 +288,15 @@ describe('PipelineList', () => {
       expect(time.getAttribute('datetime')).toBe(createdAt);
       expect(time.getAttribute('title')).toBe(absoluteDateTime(createdAt));
       expect(text(time)).toBe(relativeTime(createdAt));
-      expect(text(meta.querySelector('.pipeline-list__triggered'))).toBe(`déclenché ${relativeTime(createdAt)} par alice`);
-      expect(text(meta)).toBe(`a1b2c3d4 déclenché ${relativeTime(createdAt)} par alice · durée 1m 35s`);
+      expect(text(meta.querySelector('.pipeline-list__triggered'))).toBe(`déclenchée ${relativeTime(createdAt)} par alice`);
+      expect(text(meta)).toBe(`a1b2c3d4 déclenchée ${relativeTime(createdAt)} par alice · durée 1m 35s`);
     });
 
     it('leaves out "par …" when the user who triggered it no longer resolves', () => {
       const { el } = loaded([pipeline({ triggeredBy: null })]);
 
       const triggered = text(rows(el)[0].querySelector('.pipeline-list__triggered'));
-      expect(triggered).toMatch(/^déclenché /);
+      expect(triggered).toMatch(/^déclenchée /);
       expect(triggered).not.toContain('par');
     });
 
@@ -332,7 +334,7 @@ describe('PipelineList', () => {
       ]);
 
       const [regular, invalid] = rows(el);
-      expect(text(invalid.querySelector('fg-status-badge'))).toBe('Échoué');
+      expect(text(invalid.querySelector('fg-status-badge'))).toBe('Échouée');
       expect(text(invalid.querySelector('.pipeline-list__invalid'))).toBe('Fichier de pipeline invalide');
       expect(invalid.querySelector('.pipeline-list__duration')).toBeNull();
       expect(regular.querySelector('.pipeline-list__invalid')).toBeNull();
@@ -356,10 +358,10 @@ describe('PipelineList', () => {
     ];
     const titles = (el: HTMLElement) => rowTitles(el).map((title) => title.replace(/^#\S+ /, ''));
 
-    it('labels the tabs with their counts and shows every pipeline, newest first, on "Tous"', () => {
+    it('labels the tabs with their counts and shows every pipeline, newest first, on "Toutes"', () => {
       const { el } = loaded(MIXED);
 
-      expect(tabButtons(el).map(text)).toEqual(['Tous (5)', 'En cours (2)', 'Réussis (1)', 'Échoués (1)']);
+      expect(tabButtons(el).map(text)).toEqual(['Toutes (5)', 'En cours (2)', 'Réussies (1)', 'Échouées (1)']);
       expect(tabButtons(el)[0].getAttribute('aria-checked')).toBe('true');
       expect(titles(el)).toEqual(['Cinq', 'Quatre', 'Trois', 'Deux', 'Un']);
     });
@@ -385,7 +387,7 @@ describe('PipelineList', () => {
 
       type(searchInput(el), 'deux', fixture);
 
-      expect(tabButtons(el).map(text)).toEqual(['Tous (1)', 'En cours (0)', 'Réussis (0)', 'Échoués (1)']);
+      expect(tabButtons(el).map(text)).toEqual(['Toutes (1)', 'En cours (0)', 'Réussies (0)', 'Échouées (1)']);
     });
 
     it('says when a tab is empty, and when nothing matches the search', () => {
@@ -394,15 +396,15 @@ describe('PipelineList', () => {
       tabButtons(el)[3].click();
       fixture.detectChanges();
       expect(rows(el).length).toBe(0);
-      expect(text(el.querySelector('[list-card-message]'))).toBe('Aucun pipeline échoué');
+      expect(text(el.querySelector('[list-card-message]'))).toBe('Aucune pipeline échouée');
 
       tabButtons(el)[1].click();
       fixture.detectChanges();
-      expect(text(el.querySelector('[list-card-message]'))).toBe('Aucun pipeline en cours');
+      expect(text(el.querySelector('[list-card-message]'))).toBe('Aucune pipeline en cours');
 
       tabButtons(el)[0].click();
       type(searchInput(el), 'introuvable', fixture);
-      expect(text(el.querySelector('[list-card-message]'))).toBe('Aucun pipeline ne correspond à cette recherche');
+      expect(text(el.querySelector('[list-card-message]'))).toBe('Aucune pipeline ne correspond à cette recherche');
     });
   });
 
@@ -444,9 +446,9 @@ describe('PipelineList', () => {
       expect(rowTitles(el)).toEqual(['#p3 Troisième', '#p2 Deuxième', '#p1 Premier']);
       await fixture.whenStable(); // the select's ngModel writes its value a microtask later
       fixture.detectChanges();
-      expect(text(el.querySelector('.pipeline-list__order .gbt-select__trigger'))).toBe('Plus récents');
+      expect(text(el.querySelector('.pipeline-list__order .gbt-select__trigger'))).toBe('Plus récentes');
 
-      pickOrder(fixture, 'Plus anciens');
+      pickOrder(fixture, 'Plus anciennes');
 
       expect(rowTitles(el)).toEqual(['#p1 Premier', '#p2 Deuxième', '#p3 Troisième']);
     });
@@ -525,7 +527,7 @@ describe('PipelineList', () => {
       http.expectOne(LIST_URL).flush([pipeline({ status: 'success' })]);
       fixture.detectChanges();
 
-      expect(text(rows(el)[0].querySelector('fg-status-badge'))).toBe('Réussi');
+      expect(text(rows(el)[0].querySelector('fg-status-badge'))).toBe('Réussie');
       expect(text(rows(el)[0].querySelector('.pipeline-list__duration'))).toBe('· durée 1m 35s');
     });
 
@@ -537,6 +539,30 @@ describe('PipelineList', () => {
       fixture.detectChanges();
 
       expectFailedCard(el);
+    });
+  });
+
+  describe('the editor link', () => {
+    const editorLink = (el: HTMLElement) => Array.from(el.querySelectorAll('gbt-page-header a')).find((a) => text(a) === 'Éditer la pipeline');
+
+    function withRole(role: RepositoryRole | null) {
+      const ctx = setup();
+      TestBed.inject(RepositoryContextService).current.set({ repositoryId: 'repo-1', path: ['acme', 'widget'], role, ancestors: [], groupId: null });
+      ctx.fixture.detectChanges();
+      ctx.http.expectOne(LIST_URL).flush([]);
+      ctx.fixture.detectChanges();
+      return ctx;
+    }
+
+    it('is offered to those who can write, and opens the editor', () => {
+      const { el } = withRole('contributor');
+      expect(editorLink(el)?.getAttribute('href')).toBe('/repositories/acme/widget/-/pipelines/editor');
+    });
+
+    it('is not offered to a reader, nor before the role is known', () => {
+      expect(editorLink(withRole('reader').el)).toBeUndefined();
+      TestBed.resetTestingModule();
+      expect(editorLink(withRole(null).el)).toBeUndefined();
     });
   });
 });

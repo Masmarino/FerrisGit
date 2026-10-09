@@ -6,6 +6,7 @@ import { anonymousGuard, publicHomeGuard, publicRepositoryMatcher } from './publ
 import { providePublicRepositoryData } from './public/public-providers';
 import { ADMIN_TRAIL } from './shell/page-trail';
 import { DOCS_ROUTES } from './docs/docs.routes';
+import { pendingChangesGuard } from './shared/pending-changes';
 
 const explorePage = () => import('./public/explore-page/explore-page').then((m) => m.ExplorePage);
 
@@ -52,7 +53,9 @@ export const routes: Routes = [
 
       // Bare `/repositories` is the workspace; anything deeper resolves to a group or a repository.
       { path: 'repositories', loadComponent: () => import('./repositories/workspace-page/workspace-page').then((m) => m.WorkspacePage) },
-      { path: 'repositories/**', loadComponent: () => import('./repositories/repository-path-resolver/repository-path-resolver').then((m) => m.RepositoryPathResolver) },
+      // A page with unsaved work (the pipeline editor) asks before any navigation, including to another page of the
+      // same repository.
+      { path: 'repositories/**', canDeactivate: [pendingChangesGuard], loadComponent: () => import('./repositories/repository-path-resolver/repository-path-resolver').then((m) => m.RepositoryPathResolver) },
       { path: 'groups', loadComponent: () => import('./groups/groups-redirect/groups-redirect').then((m) => m.GroupsRedirect) },
       { path: 'groups/:id/members', loadComponent: () => import('./groups/group-members/group-members').then((m) => m.GroupMembers) },
       { path: 'runners', loadComponent: () => import('./runners/runners-list/runners-list').then((m) => m.RunnersList) },

@@ -1,7 +1,7 @@
 @switch (loadState()) {
   @case ('loading') {
     <div class="repository-pipeline-settings__loading" aria-busy="true">
-      <span class="sr-only" role="status">Chargement des réglages du pipeline…</span>
+      <span class="sr-only" role="status">Chargement des réglages de la pipeline…</span>
       @for (card of skeletonCards; track $index) {
         <gbt-card class="repository-pipeline-settings__skeleton" variant="outlined" aria-hidden="true">
           <div card-header class="repository-pipeline-settings__skeleton-header">
@@ -22,20 +22,20 @@
   @case ('failed') {
     <gbt-card variant="outlined" icon="play" heading="Intégration continue">
       <gbt-alert variant="error" appearance="subtle" live="off">
-        Les réglages du pipeline n'ont pas pu être chargés.
+        Les réglages de la pipeline n'ont pas pu être chargés.
         <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="refresh()" />
       </gbt-alert>
     </gbt-card>
   }
   @default {
     @if (settings(); as s) {
-      <gbt-card variant="outlined" icon="play" heading="Intégration continue" description="Lance un pipeline à chaque push. Chaque réglage est enregistré dès que vous le modifiez.">
+      <gbt-card variant="outlined" icon="play" heading="Intégration continue" description="Lance une pipeline à chaque push. Chaque réglage est enregistré dès que vous le modifiez.">
         <div class="repository-pipeline-settings__form">
           <div class="repository-pipeline-settings__field repository-pipeline-settings__switch" data-field="ciEnabled">
             <gbt-switch label="CI activée pour ce dépôt" [ngModel]="ciEnabledShown()" (ngModelChange)="setPipelineEnabled($event)" />
             <div class="repository-pipeline-settings__field-footer">
               <p class="repository-pipeline-settings__hint repository-pipeline-settings__switch-hint">
-                {{ s.ciEnabled ? 'Un pipeline est lancé à chaque push, si le fichier ci-dessous existe sur la branche par défaut.' : "Aucun pipeline n'est lancé tant que la CI est désactivée." }}
+                {{ s.ciEnabled ? 'Une pipeline est lancée à chaque push, si le fichier ci-dessous existe sur la branche par défaut.' : "Aucune pipeline n'est lancée tant que la CI est désactivée." }}
               </p>
               <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().ciEnabled }" />
             </div>

@@ -23,7 +23,7 @@ Dans **Dépôts**, cliquez sur **Nouveau dépôt**. Depuis la page d'un groupe, 
 | Nom du dépôt | Obligatoire. Lettres, chiffres, `-` et `_` uniquement, sans point ni espace. Unique parmi vos dépôts personnels, ou parmi les dépôts du groupe. |
 | Description | Facultative. |
 | Visibilité | **Privé** ou **Public**. |
-| CI activée | Activée par défaut. Un pipeline est lancé à chaque push si le dépôt contient le fichier de pipeline. |
+| CI activée | Activée par défaut. Une pipeline est lancée à chaque push si le dépôt contient le fichier de pipeline. |
 | Approbations requises avant fusion | `0` par défaut. |
 | Chemin du fichier pipeline | `.ferrisgit-ci.yml` par défaut. |
 

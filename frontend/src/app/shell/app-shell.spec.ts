@@ -346,14 +346,14 @@ describe('AppShell', () => {
       toasts.show('Dépôt créé.');
       toasts.show('Le jeton expire bientôt.', 'warning');
       toasts.show('Fusion impossible.', 'error');
-      toasts.show('Pipeline lancé.', 'info');
+      toasts.show('Pipeline lancée.', 'info');
       fixture.detectChanges();
 
       expect(items(fixture).map((item) => [item.getAttribute('data-variant'), item.getAttribute('role'), item.querySelector('.gbt-toaster__message')?.textContent?.trim()])).toEqual([
         ['success', 'status', 'Dépôt créé.'],
         ['warning', 'alert', 'Le jeton expire bientôt.'],
         ['error', 'alert', 'Fusion impossible.'],
-        ['info', 'status', 'Pipeline lancé.'],
+        ['info', 'status', 'Pipeline lancée.'],
       ]);
     });
 

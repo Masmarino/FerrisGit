@@ -1,0 +1,63 @@
+@if (asking(); as tile) {
+  <fg-pipeline-tile-form [tile]="tile" [stage]="stage()" [secrets]="secrets()" (confirmed)="chosen.emit({ tile, values: $event })" (back)="asking.set(null)" />
+} @else {
+<p class="tile-picker__intro">
+  <span>Choisissez ce que le job doit faire : il arrive dans l'étape <strong>{{ stage() }}</strong> avec une image et des commandes prêtes, que vous réglerez ensuite.</span>
+  <fg-help-tip [help]="help.tiles" />
+</p>
+
+@if (suggestions().length > 0) {
+  <section class="tile-picker__section" aria-labelledby="tile-section-repository" data-suggestions>
+    <h3 class="tile-picker__heading" id="tile-section-repository">Pour ce dépôt</h3>
+    <p class="tile-picker__summary">Les jobs que ses projets appellent et que la pipeline n'a pas encore, avec leurs versions et leurs scripts.</p>
+    <ul class="tile-picker__tiles">
+      @for (suggestion of suggestions(); track suggestion.job.name) {
+        <li class="tile-picker__tile" [attr.data-suggestion]="suggestion.job.name">
+          <button type="button" class="tile-picker__choose" (click)="chosenJob.emit(suggestion.job)">
+            <gbt-icon class="tile-picker__icon tile-picker__icon--repository" name="sparkles" aria-hidden="true" />
+            <span class="tile-picker__text">
+              <span class="tile-picker__title">{{ suggestion.title }}, {{ suggestion.project }}</span>
+              <code class="tile-picker__command">{{ mainCommand(suggestion.job) }}</code>
+            </span>
+          </button>
+        </li>
+      }
+    </ul>
+  </section>
+}
+
+@for (section of sections(); track section.id) {
+  <section class="tile-picker__section" [attr.aria-labelledby]="'tile-section-' + section.id">
+    <h3 class="tile-picker__heading" [id]="'tile-section-' + section.id">{{ section.title }}</h3>
+    <p class="tile-picker__summary">{{ section.summary }}</p>
+    <ul class="tile-picker__tiles">
+      @for (tile of section.tiles; track tile.id) {
+        <li class="tile-picker__tile" [attr.data-tile]="tile.id">
+          <button type="button" class="tile-picker__choose" [disabled]="unavailable(tile) !== null" (click)="choose(tile)">
+            <gbt-icon class="tile-picker__icon" [name]="tile.icon" aria-hidden="true" />
+            <span class="tile-picker__text">
+              <span class="tile-picker__title">{{ tile.title }}</span>
+              <span class="tile-picker__what">{{ tile.summary }}</span>
+              <!-- A badge does not wrap, so it only says one short thing. The rest goes in text that does wrap. -->
+              @if (unavailable(tile); as reason) {
+                <span class="tile-picker__note" data-note="kubernetes">
+                  <gbt-badge variant="warning" icon="lock">Pas avec Kubernetes</gbt-badge>&ngsp;
+                  <span>{{ reason === 'secrets' ? "Les secrets n'y sont pas transmis." : "Le dépôt n'y est pas copié." }}</span>
+                </span>
+              } @else if (missing(tile).length > 0) {
+                <span class="tile-picker__note" data-note="secrets">
+                  <span>Secrets à créer :</span>
+                  @for (name of missing(tile); track name) {
+                    &ngsp;<gbt-badge variant="warning" icon="key" mono>{{ name }}</gbt-badge>
+                  }
+                </span>
+              }
+            </span>
+          </button>
+          <fg-help-tip class="tile-picker__help" [help]="{ title: tile.title, body: tile.help }" align="end" />
+        </li>
+      }
+    </ul>
+  </section>
+}
+}

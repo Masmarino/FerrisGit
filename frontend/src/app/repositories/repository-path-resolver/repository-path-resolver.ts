@@ -6,6 +6,7 @@ import { MemberRole, ResolvedPath, RepositoriesService } from '../repositories.s
 import { RepositoryAncestor, RepositoryContextService } from '../repository-context.service';
 import { RepositoryDetail } from '../repository-detail/repository-detail';
 import { GroupDetail } from '../../groups/group-detail/group-detail';
+import { PipelineEditor } from '../../pipelines/pipeline-editor/pipeline-editor';
 import { PipelineList } from '../../pipelines/pipeline-list/pipeline-list';
 import { PipelineDetail } from '../../pipelines/pipeline-detail/pipeline-detail';
 import { MergeRequestList } from '../../merge-requests/merge-request-list/merge-request-list';
@@ -37,6 +38,7 @@ type View =
   | { kind: 'group'; groupId: string; role: MemberRole | null; path: string[] }
   | ({ kind: 'repository' } & RepositoryViewBase)
   | ({ kind: 'pipelines' } & RepositoryViewBase)
+  | ({ kind: 'pipelineEditor' } & RepositoryViewBase)
   | ({ kind: 'pipelineDetail'; id: string; jobId: string | null } & RepositoryViewBase)
   | ({ kind: 'mergeRequests' } & RepositoryViewBase)
   | ({ kind: 'mergeRequestDetail'; id: string } & RepositoryViewBase)
@@ -59,6 +61,7 @@ type View =
     RepositoryDetail,
     GroupDetail,
     PipelineList,
+    PipelineEditor,
     PipelineDetail,
     MergeRequestList,
     MergeRequestDetail,
@@ -173,6 +176,10 @@ export class RepositoryPathResolver implements OnInit, OnDestroy {
       case 'pipelines':
         if (!subPage[1]) {
           return { kind: 'pipelines', ...base };
+        }
+        // A pipeline id is a UUID, so this word cannot be one.
+        if (subPage[1] === 'editor') {
+          return { kind: 'pipelineEditor', ...base };
         }
         return { kind: 'pipelineDetail', id: subPage[1], jobId: this.pipelineJobId(subPage), ...base };
       case 'merge-requests':

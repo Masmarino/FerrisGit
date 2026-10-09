@@ -416,7 +416,7 @@ describe('AdminUserDetail', () => {
         `Ses 2 dépôts personnels (${size(3 * 1024 * 1024 + 512 * 1024)} au total) seront définitivement supprimés, fichiers sur le disque compris.`,
         "Les dépôts qu'il a créés dans un groupe seront conservés et vous seront réattribués.",
         'Ses demandes de fusion, ses commentaires sur les demandes de fusion et ses releases seront conservés et affichés comme « Utilisateur supprimé ».',
-        "Les tickets et les commentaires de tickets qu'il a rédigés, ses revues et les pipelines qu'il a déclenchés seront supprimés.",
+        "Les tickets et les commentaires de tickets qu'il a rédigés, ses revues et les pipelines qu'il a déclenchées seront supprimés.",
         'Cette action est irréversible.',
       ]);
       expect(usersStub.deleteUser).not.toHaveBeenCalled();

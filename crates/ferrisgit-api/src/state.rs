@@ -17,11 +17,15 @@ use ferrisgit_application::use_cases::record_metrics_snapshot::RecordMetricsSnap
 use ferrisgit_application::use_cases::report_job_result::{
     AppendJobLogsUseCase, ReportJobResultUseCase,
 };
+use ferrisgit_application::use_cases::repository_profile::{
+    PROFILE_CACHE_CAPACITY, RepositoryProfileCache,
+};
 use ferrisgit_application::use_cases::sweep_pending_accounts::SweepPendingAccountsUseCase;
 use ferrisgit_domain::api_token::ApiTokenRepositoryPort;
 use ferrisgit_domain::apply_suggestion_executor::ApplySuggestionExecutorPort;
 use ferrisgit_domain::audit::EventPublisherPort;
 use ferrisgit_domain::branch::BranchReaderPort;
+use ferrisgit_domain::branch_file_writer::BranchFileWriterPort;
 use ferrisgit_domain::diff::DiffReaderPort;
 use ferrisgit_domain::email::SmtpSettingsPort;
 use ferrisgit_domain::group::GroupStorePort;
@@ -51,6 +55,7 @@ use ferrisgit_domain::release::ReleaseStorePort;
 use ferrisgit_domain::release_asset_storage::ReleaseAssetStoragePort;
 use ferrisgit_domain::repository::RepositoryStorePort;
 use ferrisgit_domain::repository_collaborator::RepositoryCollaboratorStorePort;
+use ferrisgit_domain::repository_profile::RepositoryFilesPort;
 use ferrisgit_domain::repository_star::RepositoryStarStorePort;
 use ferrisgit_domain::runner::RunnerRepositoryPort;
 use ferrisgit_domain::settings::{RepositorySettingsStorePort, SystemSettingsStorePort};
@@ -68,6 +73,7 @@ use ferrisgit_infrastructure::disk_space_health::FilesystemStorageHealthCheck;
 use ferrisgit_infrastructure::docker_runner_executor::DockerRunnerExecutor;
 use ferrisgit_infrastructure::git_apply_suggestion_executor::GitApplySuggestionExecutor;
 use ferrisgit_infrastructure::git_backend::GitBackend;
+use ferrisgit_infrastructure::git_branch_file_writer::GitBranchFileWriter;
 use ferrisgit_infrastructure::git_merge_executor::GitMergeExecutor;
 use ferrisgit_infrastructure::git_tag_creator::GitTagCreator;
 use ferrisgit_infrastructure::git_wiki_writer::GitWikiWriter;
@@ -156,6 +162,10 @@ pub struct AppState {
     pub mailer: Arc<Mailer>,
     pub job_execution: Arc<JobExecutionResolver>,
     pub pipeline_file_reader: Arc<dyn PipelineFileReaderPort>,
+    /// Lists and reads a commit's files, for the pipeline editor to see what the repository is made of.
+    pub repository_files: Arc<dyn RepositoryFilesPort>,
+    /// Profiles already read, by commit. A commit never changes, so a kept profile never goes stale.
+    pub repository_profiles: Arc<RepositoryProfileCache>,
     pub merge_requests: Arc<dyn MergeRequestStorePort>,
     pub merge_request_comments: Arc<dyn MergeRequestCommentPort>,
     pub merge_request_reviews: Arc<dyn MergeRequestReviewPort>,
@@ -170,6 +180,7 @@ pub struct AppState {
     pub diff_reader: Arc<dyn DiffReaderPort>,
     pub merge_executor: Arc<dyn MergeExecutorPort>,
     pub suggestion_executor: Arc<dyn ApplySuggestionExecutorPort>,
+    pub branch_file_writer: Arc<dyn BranchFileWriterPort>,
     pub webhooks: Arc<dyn WebhookDispatcherPort>,
     pub webhook_store: Arc<dyn WebhookStorePort>,
     pub releases: Arc<dyn ReleaseStorePort>,
@@ -438,6 +449,8 @@ impl AppState {
             mailer,
             job_execution,
             pipeline_file_reader: Arc::new(GixPipelineFileReader::new(storage_root.clone())),
+            repository_files: Arc::new(GixPipelineFileReader::new(storage_root.clone())),
+            repository_profiles: Arc::new(RepositoryProfileCache::new(PROFILE_CACHE_CAPACITY)),
             merge_requests: merge_request_store.clone(),
             merge_request_comments: merge_request_store.clone(),
             merge_request_reviews: merge_request_store,
@@ -452,6 +465,7 @@ impl AppState {
             diff_reader: merge_request_reader.clone(),
             merge_executor: Arc::new(GitMergeExecutor::new(storage_root.clone())),
             suggestion_executor: Arc::new(GitApplySuggestionExecutor::new(storage_root.clone())),
+            branch_file_writer: Arc::new(GitBranchFileWriter::new(storage_root.clone())),
             webhooks,
             webhook_store,
             releases,

@@ -24,9 +24,9 @@ demande de fusion et qu'il peut en bloquer la fusion. Cette version construit ce
 - les variables CI prédéfinies (commit, branche, demande de fusion, pipeline) et des règles pour décider quand un job
   s'exécute ;
 - les artefacts de pipeline et l'envoi de rapports ;
-- la relance d'un pipeline depuis l'interface et les pipelines planifiés ;
+- la relance d'une pipeline depuis l'interface et les pipelines planifiées ;
 - les jetons d'accès utilisables sur l'API REST, avec des portées, et une description OpenAPI générée depuis le code ;
-- un premier lien avec ArtiFerris : publier depuis un pipeline un artefact vers une instance ArtiFerris ;
+- un premier lien avec ArtiFerris : publier depuis une pipeline un artefact vers une instance ArtiFerris ;
 - l'internationalisation avec Transloco : l'interface en anglais, français, italien, espagnol et allemand. La langue suit
   le navigateur à la première visite, se change à tout moment et est enregistrée sur le compte ; les e-mails sont envoyés
   dans la langue du destinataire, et les pages publiques suivent la langue du lecteur. La documentation sera traduite
@@ -53,7 +53,7 @@ qualité ne bloquent que sur ce que la demande de fusion introduit : un projet e
   et suivi de la couverture de tests.
 - **0.6 :** l'analyse de sécurité (règles de motifs, puis flux de données dans une fonction), l'analyse des images de
   conteneur et de l'infrastructure décrite en code, un résumé de sécurité et un tableau de bord de sécurité par dépôt,
-  la traçabilité de chaque artefact publié dans ArtiFerris jusqu'au commit, à la demande de fusion et au pipeline qui
+  la traçabilité de chaque artefact publié dans ArtiFerris jusqu'au commit, à la demande de fusion et à la pipeline qui
   l'ont produit, et le retour des résultats d'analyse d'ArtiFerris dans les vérifications. Une identité partagée entre
   les deux plateformes reste à explorer.
 
@@ -61,13 +61,19 @@ qualité ne bloquent que sur ce que la demande de fusion introduit : un projet e
 
 Des idées dont le contenu reste à définir :
 
-- des agents d'IA sur un dépôt (assistant de relecture des demandes de fusion, résumés, explication d'un pipeline en
+- des agents d'IA sur un dépôt (assistant de relecture des demandes de fusion, résumés, explication d'une pipeline en
   échec, tri des tickets). Pour une plateforme auto-hébergée, ils utiliseraient un modèle choisi par l'administrateur
   (un modèle local compris), activé dépôt par dépôt, avec des identifiants limités et chaque action enregistrée ;
 - un graphe des commits dans la vue d'un dépôt : branches, fusions et tags dessinés ensemble, à côté de l'arborescence
   et de la liste des commits qui existent déjà ;
 - des photos de profil, stockées sur un espace compatible S3. Les initiales restent en solution de repli, et le même
-  stockage pourrait accueillir plus tard les fichiers de releases et les artefacts.
+  stockage pourrait accueillir plus tard les fichiers de releases et les artefacts ;
+- un constructeur de pipeline sans code : assembler une pipeline en glissant-déposant des étapes et des jobs dans
+  l'interface, sans écrire de YAML. Le fichier `.ferrisgit-ci.yml` resterait la source de vérité : le constructeur le
+  lit et l'écrit, de sorte qu'une pipeline dessinée dans l'interface se modifie aussi à la main, et inversement, et qu'une
+  modification est commitée comme les autres (une branche et une demande de fusion). Il s'appuierait sur l'analyseur du
+  serveur, pour que l'erreur s'affiche là où elle est faite. Pistes : les dépendances (`needs`) tracées comme des liens
+  entre jobs, une bibliothèque de jobs prêts à l'emploi, et les variables et caches d'un job.
 
 ## Et la plateforme ?
 

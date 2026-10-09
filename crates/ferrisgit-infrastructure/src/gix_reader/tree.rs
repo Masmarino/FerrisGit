@@ -86,6 +86,90 @@ impl GixRepositoryReader {
         Ok(Some(entries))
     }
 
+    /// The files of a commit at most `max_depth` folders down, breadth first so that a cut at `limit` keeps the shallow
+    /// ones. Folders are listed too, with a trailing `/`, and those named in `skip` are listed without being entered.
+    /// `Ok(None)` for a revision that does not resolve to a commit.
+    pub fn list_files_at_revision(
+        &self,
+        disk_path: &Path,
+        revision: &str,
+        max_depth: usize,
+        skip: &[&str],
+        limit: usize,
+    ) -> Result<Option<Vec<String>>, GitReadError> {
+        let repo = open(disk_path)?;
+        let Some(commit) = commit_by_sha(&repo, revision) else {
+            return Ok(None);
+        };
+        let root = commit.tree().map_err(GitReadError::other)?;
+        let mut paths = Vec::new();
+        let mut folders = std::collections::VecDeque::from([(String::new(), root.id, 0usize)]);
+        while let Some((dir, tree_id, depth)) = folders.pop_front() {
+            let tree = repo.find_tree(tree_id).map_err(GitReadError::other)?;
+            for entry in tree.iter() {
+                let entry = entry.map_err(GitReadError::other)?;
+                let name = entry.filename().to_string();
+                let path = if dir.is_empty() {
+                    name.clone()
+                } else {
+                    format!("{dir}/{name}")
+                };
+                let mode = entry.mode();
+                if mode.is_tree() {
+                    if depth < max_depth && !skip.contains(&name.as_str()) {
+                        folders.push_back((path.clone(), entry.oid().to_owned(), depth + 1));
+                    }
+                    paths.push(format!("{path}/"));
+                } else if mode.is_blob() || mode.is_link() {
+                    paths.push(path);
+                }
+                if paths.len() >= limit {
+                    return Ok(Some(paths));
+                }
+            }
+        }
+        Ok(Some(paths))
+    }
+
+    /// The text of each path that is a UTF-8 file of at most `max_bytes`, read in a single opening of the repository. A
+    /// file over the limit is measured from its object header and never loaded. A missing path, a folder, or a revision
+    /// that does not resolve is left out.
+    pub fn read_text_files_at_revision(
+        &self,
+        disk_path: &Path,
+        revision: &str,
+        paths: &[String],
+        max_bytes: usize,
+    ) -> Result<std::collections::BTreeMap<String, String>, GitReadError> {
+        let mut texts = std::collections::BTreeMap::new();
+        let repo = open(disk_path)?;
+        let Some(commit) = commit_by_sha(&repo, revision) else {
+            return Ok(texts);
+        };
+        let tree = commit.tree().map_err(GitReadError::other)?;
+        for path in paths {
+            let Some(entry) = tree
+                .lookup_entry_by_path(path)
+                .map_err(GitReadError::other)?
+            else {
+                continue;
+            };
+            if entry.mode().is_tree() {
+                continue;
+            }
+            let id = entry.object_id();
+            let size = repo.find_header(id).map_err(GitReadError::other)?.size();
+            if size > max_bytes as u64 {
+                continue;
+            }
+            let blob = repo.find_object(id).map_err(GitReadError::other)?;
+            if let Ok(text) = String::from_utf8(blob.data.clone()) {
+                texts.insert(path.clone(), text);
+            }
+        }
+        Ok(texts)
+    }
+
     /// `Ok(None)` for a missing file or a revision that doesn't exist or isn't a commit, so a malformed sha
     /// doesn't turn into a 500.
     pub fn read_file_at_revision(

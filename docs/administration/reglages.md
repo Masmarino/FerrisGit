@@ -10,7 +10,7 @@ Ces réglages sont stockés dans la base de données. Ils ne dépendent pas des 
 
 | Réglage | Effet |
 |---|---|
-| Moteur d'exécution | Pour les pipelines créés ensuite. Un pipeline déjà créé garde le moteur avec lequel il a démarré. |
+| Moteur d'exécution | Pour les pipelines créées ensuite. Une pipeline déjà créée garde le moteur avec lequel elle a démarré. |
 | Jeton d'enregistrement des runners | Tout de suite : la route d'auto-enregistrement lit le réglage à chaque appel. |
 | Jobs simultanés (runners Docker) | Tout de suite, à la prochaine demande de job d'un runner Docker. |
 | Namespace Kubernetes | Pour les nouveaux Pods, tout de suite ; mais le suivi des Pods ne lit la valeur qu'au démarrage du serveur : redémarrez le serveur après un changement. |
@@ -31,7 +31,7 @@ Choisit où s'exécutent les jobs des pipelines. Deux valeurs : **Docker / runne
 - **Docker / runners** : les jobs sont confiés aux runners enregistrés, qui les lancent dans des conteneurs Docker. L'entrée **Runners** du menu n'apparaît que dans ce mode. Voir [Runners Docker](/docs/ci-cd/runners-docker).
 - **Kubernetes** : chaque job est lancé dans un Pod du cluster, dans le namespace indiqué plus bas. FerrisGit doit pour cela trouver une configuration Kubernetes (jeton de `ServiceAccount` dans le cluster, ou `KUBECONFIG`). Sans elle, le serveur démarre quand même, mais choisir Kubernetes fait échouer les jobs avec une erreur explicite. Voir [Moteur Kubernetes](/docs/ci-cd/kubernetes).
 
-Vous pouvez changer de moteur à tout moment. Les pipelines déjà créés continuent sur le moteur avec lequel ils ont été créés, y compris pour l'annulation.
+Vous pouvez changer de moteur à tout moment. Les pipelines déjà créées continuent sur le moteur avec lequel elles ont été créées, y compris pour l'annulation.
 
 ### Runners Docker : jeton d'enregistrement
 
@@ -77,7 +77,7 @@ Si FerrisGit détecte la classe par défaut du cluster, il l'affiche dans le cha
 
 Champ **Durée de conservation des journaux (jours)** : un nombre entier de 1 ou plus. Vide (le défaut), les journaux sont conservés sans limite.
 
-Quand une durée est définie, un balayage efface le texte du journal des jobs **terminés** (réussis, en échec, annulés ou ignorés) dont la fin remonte à plus de cette durée. Les pipelines, les jobs, leurs statuts, leurs durées et leurs dates sont conservés. Dans la page du pipeline, le job concerné affiche alors « Journal supprimé le *date* (rétention des journaux de l'instance). » à la place de son journal. Les jobs en cours ou en attente ne sont jamais touchés, ni les jobs qui n'ont jamais écrit de journal.
+Quand une durée est définie, un balayage efface le texte du journal des jobs **terminés** (réussis, en échec, annulés ou ignorés) dont la fin remonte à plus de cette durée. Les pipelines, les jobs, leurs statuts, leurs durées et leurs dates sont conservés. Dans la page de la pipeline, le job concerné affiche alors « Journal supprimé le *date* (rétention des journaux de l'instance). » à la place de son journal. Les jobs en cours ou en attente ne sont jamais touchés, ni les jobs qui n'ont jamais écrit de journal.
 
 Le balayage s'exécute au démarrage du serveur, puis toutes les 24 heures. Il n'a pas lieu au moment où vous enregistrez le champ : un journal trop ancien est supprimé au plus tard 24 heures plus tard. Il est borné (500 jobs à la fois) et s'interrompt proprement à l'arrêt du serveur. La suppression est **définitive** : raccourcir la durée efface les journaux plus anciens au prochain balayage, et allonger la durée ne restaure rien.
 

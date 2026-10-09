@@ -675,7 +675,8 @@
         "items": {
           "i1": "Agenti IA su un repository. Possibilità: un assistente di revisione sulle merge request, riepiloghi di merge request e commit, la spiegazione del perché una pipeline è fallita, smistamento ed etichettatura delle issue. Ciò che verrà rilasciato deve adattarsi a una piattaforma self-hosted: un endpoint del modello scelto dall'amministratore (anche locale), attivazione per singolo repository, credenziali con ambito limitato e ogni azione registrata.",
           "i2": "Un grafo dei commit nella vista del repository: branch, merge e tag disegnati insieme, accanto all'albero dei file e all'elenco dei commit che già esistono.",
-          "i3": "Foto del profilo, archiviate in uno storage a oggetti compatibile con S3. Le iniziali restano come ripiego, e lo stesso storage potrebbe in seguito ospitare i file delle release e gli artefatti delle pipeline."
+          "i3": "Foto del profilo, archiviate in uno storage a oggetti compatibile con S3. Le iniziali restano come ripiego, e lo stesso storage potrebbe in seguito ospitare i file delle release e gli artefatti delle pipeline.",
+          "i4": "Un costruttore di pipeline senza codice: assemblare una pipeline trascinando fasi e job nell'interfaccia, senza scrivere YAML. `.ferrisgit-ci.yml` resterebbe la fonte di verità: il costruttore lo legge e lo scrive, così una pipeline disegnata nell'interfaccia si può modificare anche a mano, e viceversa, e una modifica viene committata come le altre (un branch e una merge request). Userebbe il parser del server, così l'errore compare dove è stato commesso. Possibilità: le dipendenze (`needs`) tracciate come collegamenti tra job, una libreria di job pronti all'uso, e le variabili e le cache di un job."
         }
       }
     },

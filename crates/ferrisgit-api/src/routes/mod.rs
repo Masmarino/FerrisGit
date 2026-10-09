@@ -21,6 +21,7 @@ pub mod metrics;
 pub mod mfa;
 pub mod milestones;
 pub mod notifications;
+pub mod pipeline_definitions;
 pub mod pipelines;
 pub mod public;
 pub mod releases;
@@ -86,6 +87,7 @@ pub fn api_router(state: AppState) -> Router<AppState> {
         .merge(resolve::router())
         .merge(runners::router())
         .merge(runner_jobs::router())
+        .merge(pipeline_definitions::router())
         .merge(pipelines::router())
         .merge(releases::router())
         .merge(merge_requests::router())

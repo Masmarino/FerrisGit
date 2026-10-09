@@ -30,7 +30,7 @@ export function notificationSentence(n: Notification): string {
     case 'collaborator_removed':
       return `${n.actorUsername} vous a retiré de ${n.repositoryOwner}/${n.repositoryName}`;
     case 'pipeline_failed':
-      return `Le pipeline sur ${n.commitSha?.slice(0, 8)} a échoué (${n.repositoryOwner}/${n.repositoryName})`;
+      return `La pipeline sur ${n.commitSha?.slice(0, 8)} a échoué (${n.repositoryOwner}/${n.repositoryName})`;
     case 'issue_assigned':
       return `${n.actorUsername} vous a assigné un ticket sur ${n.repositoryOwner}/${n.repositoryName}`;
     case 'issue_commented':

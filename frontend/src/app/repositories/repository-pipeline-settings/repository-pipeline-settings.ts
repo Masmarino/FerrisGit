@@ -64,7 +64,7 @@ export class RepositoryPipelineSettings implements OnInit {
       return;
     }
     this.ciEnabledShown.set(enabled);
-    this.save('ciEnabled', this.repositorySettings.update(this.repositoryId(), { ciEnabled: enabled }), 'Impossible de mettre à jour le pipeline.', () =>
+    this.save('ciEnabled', this.repositorySettings.update(this.repositoryId(), { ciEnabled: enabled }), 'Impossible de mettre à jour la pipeline.', () =>
       this.ciEnabledShown.set(!enabled),
     );
   }
@@ -84,7 +84,7 @@ export class RepositoryPipelineSettings implements OnInit {
     if (trimmed === this.settings()?.pipelineFilePath) {
       return;
     }
-    this.save('pipelineFilePath', this.repositorySettings.update(this.repositoryId(), { pipelineFilePath: trimmed }), 'Impossible de mettre à jour le chemin du pipeline.');
+    this.save('pipelineFilePath', this.repositorySettings.update(this.repositoryId(), { pipelineFilePath: trimmed }), 'Impossible de mettre à jour le chemin de la pipeline.');
   }
 
   updateRequiredApprovals(value: string): void {

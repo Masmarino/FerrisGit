@@ -37,9 +37,9 @@ describe('StatusBadge', () => {
     ['merge-request', 'closed', 'Fermée', 'neutral', 'git-pull-request-closed'],
     ['pipeline', 'pending', 'En attente', 'neutral', 'clock'],
     ['pipeline', 'running', 'En cours', 'info', 'circle-play'],
-    ['pipeline', 'success', 'Réussi', 'success', 'circle-check'],
-    ['pipeline', 'failed', 'Échoué', 'error', 'circle-x'],
-    ['pipeline', 'canceled', 'Annulé', 'neutral', 'circle-slash'],
+    ['pipeline', 'success', 'Réussie', 'success', 'circle-check'],
+    ['pipeline', 'failed', 'Échouée', 'error', 'circle-x'],
+    ['pipeline', 'canceled', 'Annulée', 'neutral', 'circle-slash'],
     ['release', 'draft', 'Brouillon', 'neutral', 'pencil'],
     ['release', 'prerelease', 'Pré-version', 'warning', 'flask-conical'],
     ['release', 'published', 'Publiée', 'success', 'tag'],
@@ -106,7 +106,7 @@ describe('StatusBadge', () => {
     it('is the single source of the label, variant and icon (for row leading icons)', () => {
       expect(statusPresentation('issue', 'in_review')).toEqual({ label: 'En revue', variant: 'warning', icon: 'circle-three-quarters' });
       expect(statusPresentation('merge-request', 'merged')).toEqual({ label: 'Fusionnée', variant: 'success', icon: 'git-merge' });
-      expect(statusPresentation('pipeline', 'failed')).toEqual({ label: 'Échoué', variant: 'error', icon: 'circle-x' });
+      expect(statusPresentation('pipeline', 'failed')).toEqual({ label: 'Échouée', variant: 'error', icon: 'circle-x' });
       expect(statusPresentation('release', 'prerelease')).toEqual({ label: 'Pré-version', variant: 'warning', icon: 'flask-conical' });
     });
 

@@ -85,6 +85,16 @@ pub struct CiVariable {
     pub masked: bool,
 }
 
+/// Whether a shell can export `name`, which is what a CI variable name has to be: ASCII letters, digits and `_`, not
+/// starting with a digit. The web form checks the same thing before sending (ci-variable-name.ts).
+pub fn is_env_name(name: &str) -> bool {
+    let mut chars = name.chars();
+    chars
+        .next()
+        .is_some_and(|first| first.is_ascii_alphabetic() || first == '_')
+        && chars.all(|c| c.is_ascii_alphanumeric() || c == '_')
+}
+
 pub struct NewCiVariable {
     pub repository_id: Uuid,
     pub key: String,
@@ -125,6 +135,16 @@ mod tests {
             ExecutionEngine::Kubernetes
         );
         assert_eq!(ExecutionEngine::DockerRunners.as_str(), "docker-runners");
+    }
+
+    #[test]
+    fn an_env_name_is_letters_digits_and_underscores_with_no_digit_first() {
+        for name in ["A", "_", "DATABASE_URL", "x1", "_9"] {
+            assert!(is_env_name(name), "{name}");
+        }
+        for name in ["", "1A", "MY-VAR", "MY VAR", "A=B", "ÉTÉ", "A\n"] {
+            assert!(!is_env_name(name), "{name:?}");
+        }
     }
 
     #[test]

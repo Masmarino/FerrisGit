@@ -4,6 +4,53 @@ Every notable change to FerrisGit. The format follows [Keep a Changelog](https:/
 versions follow [SemVer](https://semver.org/). Each section is the text of the GitHub release of the same number: see
 "Publishing a version" below.
 
+## [Unreleased]
+
+### Added
+
+- A visual pipeline editor: from a repository's pipeline list, or the quick search, "Éditer la pipeline" opens the
+  stages as columns and the jobs as cards to drag between them, or the YAML itself, the two views describing the same
+  file. Contributors and above are offered it. The server's own parser reads, writes and checks it
+  (`POST /api/pipeline-definitions/parse` and `/render`), reports every mistake at once instead of the first, and the
+  editor says what a rewrite would lose (comments, keys FerrisGit does not know). Typed YAML is saved as it is, comments
+  included.
+- Working in the editor is safe to try: every change to the cards can be undone and redone, from the toolbar or with ⌘Z
+  and ⇧⌘Z (Ctrl+Z and Ctrl+Y), keystrokes in one field making one step. Leaving the editor, or closing the tab, with
+  changes that were not proposed asks first; "Revenir au fichier du dépôt" asks too, and is only offered once something
+  changed. A job's ⋮ menu edits, duplicates, moves or deletes it. A card shows the job's main (last) command, and pointing
+  at one marks in indigo the jobs it waits for (full border) and those that wait for it (dashed); a job the server
+  refuses is tinted red. The produced file is coloured like the code browser, with line numbers.
+- The editor draws each job's `needs` as curves between the cards, the same as a running pipeline's page; the ties of
+  the pointed job stand out in indigo, and a need the server refuses (on a job of a later stage) is dashed red.
+- The editor proposes a pipeline made for the repository: it reads the default branch's projects (Rust, Node and its
+  frameworks, Go, Python, up to three folders down) and lays out check, test and build jobs for each, with the versions,
+  package manager and scripts the project names (`GET /api/repositories/{id}/pipeline-definition/profile`), saying which
+  files it read. A Dockerfile or a Helm chart is pointed at with the tile that would ship it. On a pipeline that has
+  jobs, "Ajouter un job" offers first the predicted jobs it lacks.
+- The cards view is meant to build a whole pipeline without writing YAML: starting templates (Rust, Node or Angular, Go,
+  an application published as an image), a catalogue of ready-made job tiles by purpose (compile, test, check the code,
+  package, deploy and notify, or an empty job), commands as an editable list, common images and caches to pick, and a
+  help bubble on every notion, opened by a click so it also works on a phone.
+- Deploying from the editor: tiles with a short form for building and publishing a Docker image (against a remote
+  daemon, since runners give jobs no Docker of their own), deploying to a virtual machine over SSH (running commands, or
+  copying a folder with rsync, with the server's fingerprint checked by default), and deploying to Kubernetes
+  (`kubectl apply`, changing the image of a Deployment or restarting it and waiting for it, Helm). The form shows the
+  commands as the answers change, checks every answer that ends up in a command, and lists the secrets the job reads,
+  saying which the repository has. Two templates chain tests, image and deployment. When the instance runs jobs with
+  Kubernetes, whose Pods get neither the repository's secrets nor a copy of the repository, the tiles that need either
+  are greyed out with the reason, and an empty pipeline offers neither templates nor a proposal but says why.
+- Variables and secrets in the editor: an "Insert a variable" menu that writes `$NAME` at the cursor, a warning on a job
+  variable that looks like a secret with a button that saves it as an encrypted secret of the repository and removes it
+  from the file, the secrets the jobs read and the repository lacks, which jobs read each secret, and a notice when the
+  instance runs Kubernetes, which does not pass repository secrets to jobs. Creating the secrets is for maintainers.
+  The secret form of the repository settings refuses a name an environment variable cannot have, and so does the server
+  (`POST /api/repositories/{id}/ci-variables` answers `400`).
+- "Proposer la modification" saves the file the way any change is made: on a new `pipeline-editor/…` branch, in a commit
+  by the author, with a merge request into the default branch, which is never written directly
+  (`GET /api/repositories/{id}/pipeline-definition` and `POST …/pipeline-definition/proposal`). The file is read from,
+  and written to, the path the repository's settings name. A file that changed on the default branch since the editor
+  was opened is refused with `409` instead of overwritten.
+
 ## [0.1.5] - 2026-10-07
 
 ### Added

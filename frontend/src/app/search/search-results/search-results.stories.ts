@@ -69,7 +69,7 @@ const LONG: SearchResponse = {
   issues: [
     issue({
       number: 1234,
-      title: 'Quand un runner Kubernetes redémarre pendant un job, le pipeline reste « en cours » indéfiniment et bloque les suivants de la même branche',
+      title: 'Quand un runner Kubernetes redémarre pendant un job, la pipeline reste « en cours » indéfiniment et bloque les suivantes de la même branche',
       kind: 'bug',
       repository: ref('organisation-avec-un-nom-tres-long', 'equipe-plateforme', 'infrastructure-des-runners-kubernetes'),
     }),

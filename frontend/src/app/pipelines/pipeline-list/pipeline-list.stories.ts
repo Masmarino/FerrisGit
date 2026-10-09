@@ -157,7 +157,7 @@ export const Populated: Story = {
     await expectPageLayout(context);
     const canvas = context.canvasElement;
     const tabs = Array.from(canvas.querySelectorAll('.pipeline-list__tabs [role="radio"]'), (el) => el.textContent?.trim());
-    await expect(tabs).toEqual(['Tous (7)', 'En cours (2)', 'Réussis (3)', 'Échoués (1)']);
+    await expect(tabs).toEqual(['Toutes (7)', 'En cours (2)', 'Réussies (3)', 'Échouées (1)']);
     await expect(canvas.querySelectorAll('.pipeline-list__items > li').length).toBe(7);
     await expect(canvas.querySelector('gbt-pagination'), 'no pager for 7 pipelines').toBeNull();
   },

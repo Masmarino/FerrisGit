@@ -85,7 +85,7 @@ describe('PipelineDetail', () => {
 
       expect(text(el.querySelector('gbt-page-header h1'))).toBe('Pipeline #3f2a9c1e');
       const badge = el.querySelector('gbt-page-header .gbt-page-header__badges fg-status-badge');
-      expect(text(badge)).toBe('Échoué');
+      expect(text(badge)).toBe('Échouée');
     });
 
     it('shows the same title in the shell header once the pipeline is loaded', () => {
@@ -107,7 +107,7 @@ describe('PipelineDetail', () => {
       const time = meta.querySelector('time')!;
       expect(time.getAttribute('datetime')).toBe(createdAt);
       expect(time.getAttribute('title')).toBe(absoluteDateTime(createdAt));
-      expect(text(meta)).toBe(`abcdef12 Paginer la liste des tickets · déclenché ${relativeTime(createdAt)} par alice · durée 10s`);
+      expect(text(meta)).toBe(`abcdef12 Paginer la liste des tickets · déclenchée ${relativeTime(createdAt)} par alice · durée 10s`);
     });
 
     it('leaves out the commit message and "par …" when they are unknown', () => {
@@ -115,13 +115,13 @@ describe('PipelineDetail', () => {
 
       const meta = el.querySelector('gbt-page-header .pipeline-detail__meta')!;
       expect(meta.querySelector('.pipeline-detail__message')).toBeNull();
-      expect(text(meta)).toMatch(/^abcdef12 · déclenché .+ · durée 10s$/);
+      expect(text(meta)).toMatch(/^abcdef12 · déclenchée .+ · durée 10s$/);
       expect(text(meta)).not.toContain('par');
     });
 
-    it('offers "Annuler le pipeline" in the header actions to a writer while the pipeline runs, not to a reader', () => {
+    it('offers "Annuler la pipeline" in the header actions to a writer while the pipeline runs, not to a reader', () => {
       const writer = load({ status: 'running' }, 'contributor');
-      const cancel = Array.from(writer.querySelectorAll('.gbt-page-header__actions button')).find((button) => text(button) === 'Annuler le pipeline');
+      const cancel = Array.from(writer.querySelectorAll('.gbt-page-header__actions button')).find((button) => text(button) === 'Annuler la pipeline');
       expect(cancel).toBeTruthy();
 
       TestBed.resetTestingModule();
@@ -192,7 +192,7 @@ describe('PipelineDetail', () => {
     it('shows the failed badge and no job navigation, since the pipeline has no job', () => {
       const el = loadFailed();
 
-      expect(el.querySelector('gbt-page-header fg-status-badge')?.textContent?.trim()).toBe('Échoué');
+      expect(el.querySelector('gbt-page-header fg-status-badge')?.textContent?.trim()).toBe('Échouée');
       expect(el.querySelector('fg-pipeline-sidebar')).toBeNull();
       expect(el.querySelector('fg-pipeline-summary')).toBeNull();
     });
@@ -241,7 +241,7 @@ describe('PipelineDetail', () => {
       const el = fixture.nativeElement as HTMLElement;
       const sidebarLink = [...el.querySelectorAll('fg-pipeline-sidebar a')].find((a) => a.textContent?.includes('unit'))!;
       expect(sidebarLink.querySelector('.sr-only')?.textContent?.trim()).toBe('Ignoré');
-      expect(el.querySelector('gbt-page-header fg-status-badge')?.textContent?.trim()).toBe('Échoué');
+      expect(el.querySelector('gbt-page-header fg-status-badge')?.textContent?.trim()).toBe('Échouée');
     });
   });
 
@@ -283,7 +283,7 @@ describe('PipelineDetail', () => {
     it('shows the French status label while keeping the raw status as CSS modifier', () => {
       const el = header({ status: 'failed', finishedAt: '2026-01-01T00:00:10Z' });
       const status = el.querySelector('.pipeline-detail__status') as HTMLElement;
-      expect(status.textContent?.trim()).toBe('Échoué');
+      expect(status.textContent?.trim()).toBe('Échouée');
       expect(status.classList).toContain('pipeline-detail__status--failed');
     });
   });

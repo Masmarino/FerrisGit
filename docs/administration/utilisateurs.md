@@ -109,7 +109,7 @@ Le bouton **Supprimer l'utilisateur** de la fiche demande de taper le nom d'util
 - ses **dépôts personnels**, y compris leurs fichiers sur le disque, leurs wikis et les fichiers joints à leurs releases ;
 - les **tickets** qu'il a rédigés et ses commentaires de tickets, y compris dans des dépôts qui ne lui appartiennent pas ;
 - ses **revues** de demandes de fusion ;
-- les **pipelines** qu'il a déclenchés.
+- les **pipelines** qu'il a déclenchées.
 
 **Ce qui est conservé**
 

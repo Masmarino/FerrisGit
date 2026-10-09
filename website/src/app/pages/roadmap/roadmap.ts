@@ -24,7 +24,7 @@ const GROUPS: RoadmapGroup[] = [
   { id: 'v05', tag: '0.5', items: 4, hasIntro: true, status: 'planned' },
   { id: 'v06', tag: '0.6', items: 6, hasIntro: false, status: 'planned' },
   { id: 'platform', items: 8, hasIntro: false, status: 'planned' },
-  { id: 'consideration', items: 3, hasIntro: true, status: 'considering' },
+  { id: 'consideration', items: 4, hasIntro: true, status: 'considering' },
 ]
 
 import { Reveal } from '../../shared/motion/reveal.directive'

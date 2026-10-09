@@ -1,53 +1,116 @@
-# Smoke-test pipeline for FerrisGit's own CI engine.
+# FerrisGit's own pipeline, run by FerrisGit: the checks of the GitHub workflow (.github/workflows/ci-cd.yml), without
+# what ships (the Docker images, the GitHub release, the deployments).
 #
-# On the Kubernetes engine a job's Pod runs its script in the given image WITHOUT the
-# repository checked out (only Docker runners clone), so these jobs deliberately don't need
-# the source: they exercise stage ordering, `needs`, variables, parallel jobs and Pod egress.
-# Script lines are joined with `&&`: a failing line fails the job.
-stages: [prepare, check, report]
+# It needs a Docker runner, since only runners clone the repository into the job (the Kubernetes engine does not). Jobs
+# have no Docker daemon, so the images are not built here, and caches have no effect with Docker runners: each job
+# downloads and compiles everything from scratch. Script lines are joined with `&&`, so the first one that fails fails
+# the job.
+#
+# Images are pinned by digest, as in the GitHub workflow, so that a retagged image cannot change what runs. To move to a
+# newer one, `docker buildx imagetools inspect <image:tag>` gives the digest to put after the tag.
+stages: [check, test, build]
 
 jobs:
-  hello:
-    stage: prepare
-    image: alpine:3.20
-    variables:
-      CI_GREETING: "hello from FerrisGit CI"
-    script:
-      - echo "$CI_GREETING"
-      - uname -a
-      - cat /etc/os-release
-
-  egress:
+  rust-format:
     stage: check
-    image: alpine:3.20
-    needs: [hello]
+    image: rust:1.98.1@sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546
     script:
-      - echo "checking outbound network access"
-      - wget -q -O /dev/null https://example.com
+      - rustup component add rustfmt
+      - cargo fmt --all --check
 
-  parallel-a:
+  rust-clippy:
     stage: check
-    image: alpine:3.20
-    needs: [hello]
+    image: rust:1.98.1@sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546
     variables:
-      JOB_NAME: parallel-a
+      SQLX_OFFLINE: "true"
     script:
-      - echo "running $JOB_NAME"
-      - sleep 5
+      - rustup component add clippy
+      - cargo clippy --workspace --all-targets --locked -- -D warnings
 
-  parallel-b:
+  rust-audit:
     stage: check
-    image: alpine:3.20
-    needs: [hello]
-    variables:
-      JOB_NAME: parallel-b
+    image: rust:1.98.1@sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546
     script:
-      - echo "running $JOB_NAME"
-      - sleep 5
+      - cargo install cargo-audit --version 0.22.2 --locked
+      - cargo audit
 
-  summary:
-    stage: report
-    image: alpine:3.20
-    needs: [egress, parallel-a, parallel-b]
+  # Both charts must lint and render; the deployments pass the real image tags.
+  helm-lint:
+    stage: check
+    image: alpine:3.24@sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
     script:
-      - echo "all checks passed"
+      - apk add --no-cache helm
+      - helm lint --strict ./helm/ferrisgit --set image.tag=0.0.0-ci --set-string ferrisgit.trustedProxyCidrs=10.42.0.0/16
+      - helm template ferrisgit ./helm/ferrisgit --namespace ferrisgit --set image.tag=0.0.0-ci --set-string ferrisgit.trustedProxyCidrs=10.42.0.0/16 > /dev/null
+      - helm lint --strict ./website/helm/ferrisgit-website --set image.tag=0.0.0-ci
+      - helm template ferrisgit-website ./website/helm/ferrisgit-website --namespace ferrisgit-website --set image.tag=0.0.0-ci > /dev/null
+
+  website-lint:
+    stage: check
+    image: node:26@sha256:32fa97f3363975684b08bf4e8a68a47c7905175cc20275b50b974bbd02aba731
+    variables:
+      CI: "true"
+    script:
+      - cd website
+      - npm ci
+      - npm run lint
+
+  # The integration tests need PostgreSQL, and a job has no service next to it, so the job runs its own in its
+  # container. sqlx::test creates a database per test, so the role needs CREATEDB, which the postgres superuser has. One
+  # test thread, because the from_env tests of ferrisgit-api's config.rs change environment variables.
+  rust-test:
+    stage: test
+    image: rust:1.98.1@sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546
+    needs: [rust-format, rust-clippy]
+    variables:
+      SQLX_OFFLINE: "true"
+      DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    script:
+      - apt-get update -qq
+      - apt-get install -y -qq postgresql > /dev/null
+      - pg_ctlcluster "$(ls /etc/postgresql)" main start
+      - runuser -u postgres -- psql -q -c "ALTER USER postgres PASSWORD 'postgres'"
+      - cargo test --workspace --locked -- --test-threads=1
+
+  frontend-test:
+    stage: test
+    image: node:26@sha256:32fa97f3363975684b08bf4e8a68a47c7905175cc20275b50b974bbd02aba731
+    variables:
+      CI: "true"
+    script:
+      - cd frontend
+      - npm ci
+      - npm test -- --watch=false
+
+  website-test:
+    stage: test
+    image: node:26@sha256:32fa97f3363975684b08bf4e8a68a47c7905175cc20275b50b974bbd02aba731
+    needs: [website-lint]
+    variables:
+      CI: "true"
+    script:
+      - cd website
+      - npm ci
+      - npm test
+
+  frontend-build:
+    stage: build
+    image: node:26@sha256:32fa97f3363975684b08bf4e8a68a47c7905175cc20275b50b974bbd02aba731
+    needs: [frontend-test]
+    variables:
+      CI: "true"
+    script:
+      - cd frontend
+      - npm ci
+      - npm run build -- --configuration production
+
+  website-build:
+    stage: build
+    image: node:26@sha256:32fa97f3363975684b08bf4e8a68a47c7905175cc20275b50b974bbd02aba731
+    needs: [website-test]
+    variables:
+      CI: "true"
+    script:
+      - cd website
+      - npm ci
+      - npm run build

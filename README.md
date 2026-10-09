@@ -831,6 +831,12 @@ Ideas with no version yet; what they contain is still to be defined.
   commit list that already exist.
 - [ ] Profile photos, stored in S3-compatible object storage. The initials stay as the fallback, and the same storage
   could later hold release files and pipeline artifacts.
+- [ ] A no-code pipeline builder: assemble a pipeline by dragging and dropping stages and jobs in the interface, without
+  writing YAML. `.ferrisgit-ci.yml` would stay the source of truth: the builder reads and writes that file, so a pipeline
+  drawn in the interface can be edited by hand and the other way round, and a change is committed like any other (a
+  branch and a merge request). It would use the server's own parser, so a mistake is shown where it is made. Candidates:
+  dependencies (`needs`) drawn as links between jobs, a library of ready-made jobs, and the variables and caches of a
+  job.
 
 ### Connecting with ArtiFerris
 

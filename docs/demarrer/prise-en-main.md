@@ -107,4 +107,4 @@ L'adresse d'un dépôt de groupe contient le chemin du groupe : `https://ferrisg
 - [Cloner et pousser](/docs/utilisation/cloner-et-pousser) : erreurs d'authentification, wikis, taille maximale d'un push.
 - [Rôles et permissions](/docs/utilisation/roles-et-permissions) : donner accès à vos collègues.
 - [Demandes de fusion](/docs/utilisation/merge-requests) et [Tickets](/docs/utilisation/tickets) : travailler à plusieurs.
-- [Premiers pas CI/CD](/docs/ci-cd/premiers-pas) : lancer un pipeline à chaque push.
+- [Premiers pas CI/CD](/docs/ci-cd/premiers-pas) : lancer une pipeline à chaque push.

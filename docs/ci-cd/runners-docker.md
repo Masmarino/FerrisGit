@@ -5,7 +5,7 @@ Un runner est le programme `ferrisgit-runner`. Il interroge le serveur FerrisGit
 ## Ce que fait un runner, pas à pas
 
 1. Toutes les `FERRISGIT_POLL_INTERVAL_SECS` secondes (5 par défaut), il demande un job au serveur. S'il n'y en a pas, il attend et recommence.
-2. Il clone le dépôt dans `<FERRISGIT_WORKDIR_ROOT>/<identifiant du job>` avec `git clone`, puis `git checkout` sur le commit du pipeline. Le clonage utilise son propre jeton, en lecture seule.
+2. Il clone le dépôt dans `<FERRISGIT_WORKDIR_ROOT>/<identifiant du job>` avec `git clone`, puis `git checkout` sur le commit de la pipeline. Le clonage utilise son propre jeton, en lecture seule.
 3. Il supprime le dossier `.git` du clone, pour que le jeton qui s'y trouve ne soit pas lisible par le script.
 4. Il lance `docker run --rm -v <dossier>:/workspace -w /workspace` avec une option `-e` par variable, l'image du job, puis `sh -c "<script>"`.
 5. Il envoie chaque ligne de sortie (standard et erreur) au serveur dès qu'elle est produite, puis le résultat : réussi si le conteneur sort avec le code 0, échoué sinon.
@@ -138,8 +138,8 @@ Le « signal » est mis à jour à chaque requête authentifiée du runner : sa 
 
 ## Cas particuliers
 
-- **Annulation** : annuler un pipeline marque ses jobs comme annulés, mais le runner n'est pas prévenu. Un conteneur déjà lancé continue jusqu'au bout et son résultat est ignoré.
-- **Runner arrêté en plein job** : le serveur n'a pas de délai d'abandon. Le job reste **En cours** tant que vous n'annulez pas le pipeline ou ne révoquez pas le runner.
+- **Annulation** : annuler une pipeline marque ses jobs comme annulés, mais le runner n'est pas prévenu. Un conteneur déjà lancé continue jusqu'au bout et son résultat est ignoré.
+- **Runner arrêté en plein job** : le serveur n'a pas de délai d'abandon. Le job reste **En cours** tant que vous n'annulez pas la pipeline ou ne révoquez pas le runner.
 - **Dossiers de travail** : le runner supprime le dossier du job à la fin ; une erreur de suppression est ignorée sans message. Surveillez `FERRISGIT_WORKDIR_ROOT`.
 - **Panne du serveur** : quand le serveur est injoignable, le runner journalise « failed to claim job » et réessaie à l'intervalle normal.
 
