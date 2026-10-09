@@ -3,6 +3,7 @@ import { Card } from '@masmarino/gabarit/card';
 import { Icon } from '@masmarino/gabarit/icon';
 import { GbtInput } from '@masmarino/gabarit/input';
 import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/segmented-control';
+import { Switch } from '@masmarino/gabarit/switch';
 import { FormsModule } from '@angular/forms';
 import { RunnerRegistrationToken } from '../runner-registration-token/runner-registration-token';
 import { SettingsSaveBar } from '../settings-save-bar/settings-save-bar';
@@ -34,13 +35,13 @@ const countText = (count: number | null) => String(count ?? '');
 
 /**
  * The "Exécution" section: where jobs run, then the settings of that engine only (the runners' for Docker, the
- * cluster's for Kubernetes), and log retention. Nothing is saved until "Enregistrer", which sends what is shown in one
+ * cluster's for Kubernetes), Docker in jobs, and log retention. Nothing is saved until "Enregistrer", which sends what is shown in one
  * request; generating or removing the runners' registration token stays an action of its own.
  */
 @Component({
   selector: 'fg-execution-settings',
   standalone: true,
-  imports: [TranslocoPipe, FormsModule, Card, GbtInput, Icon, SegmentedControl, RunnerRegistrationToken, SettingsSaveBar],
+  imports: [TranslocoPipe, FormsModule, Card, GbtInput, Icon, SegmentedControl, Switch, RunnerRegistrationToken, SettingsSaveBar],
   templateUrl: './execution-settings.html',
   styleUrl: './execution-settings.scss',
 })
@@ -56,6 +57,7 @@ export class ExecutionSettings {
   protected storageClass = linkedSignal(() => this.storageClassDefault());
   protected maxJobs = linkedSignal(() => countText(this.settings().maxConcurrentJobs));
   protected retention = linkedSignal(() => countText(this.settings().logRetentionDays));
+  protected docker = linkedSignal(() => this.settings().dockerInJobs);
   /**
    * A Kubernetes field pre-filled from the cluster is only saved once edited: tabbing through it saves nothing. Saving
    * the detected StorageClass is how the admin confirms it supports ReadWriteMany.
@@ -83,6 +85,9 @@ export class ExecutionSettings {
     const update: SystemSettingsUpdate = {};
     if (this.engineChanged()) {
       update.executionEngine = this.engine();
+    }
+    if (this.docker() !== saved.dockerInJobs) {
+      update.dockerInJobs = this.docker();
     }
     const retention = this.retentionValue();
     if (retention !== undefined && retention !== saved.logRetentionDays) {
@@ -155,6 +160,7 @@ export class ExecutionSettings {
     this.storageClassEdited.set(false);
     this.maxJobs.set(countText(saved.maxConcurrentJobs));
     this.retention.set(countText(saved.logRetentionDays));
+    this.docker.set(saved.dockerInJobs);
     this.tokenDraft.set('');
     this.submitted.set(false);
   }

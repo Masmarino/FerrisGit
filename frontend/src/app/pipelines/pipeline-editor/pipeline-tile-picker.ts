@@ -22,7 +22,8 @@ export class PipelineTilePicker {
   /** The repository's secret names, or `null` when this person cannot see them. */
   secrets = input<string[] | null>(null);
 
-  engine = input<string | null>(null);
+  /** Whether jobs get a Docker daemon: a tile that uses it says so when they do not. */
+  dockerInJobs = input(false);
 
   /** The jobs proposed for this repository that the pipeline does not have yet. They are offered first. */
   suggestions = input<PredictedJob[]>([]);
@@ -47,21 +48,12 @@ export class PipelineTilePicker {
     return secrets === null ? [] : (tile.secrets ?? []).filter((name) => !secrets.includes(name));
   }
 
-  /**
-   * Why a tile cannot work on this instance, or `null` when it can. A Kubernetes Pod gets neither the repository's
-   * secrets nor a copy of the repository, so a tile that needs either cannot work there.
-   */
-  protected unavailable(tile: JobTile): 'secrets' | 'source' | null {
-    if (this.engine() !== 'kubernetes') {
-      return null;
-    }
-    return tile.needsSecrets ? 'secrets' : tile.needsSource ? 'source' : null;
+  /** A tile that uses the job's own Docker, on an instance whose jobs have none. It still works with a remote daemon. */
+  protected withoutDocker(tile: JobTile): boolean {
+    return tile.usesJobDocker === true && !this.dockerInJobs();
   }
 
   protected choose(tile: JobTile): void {
-    if (this.unavailable(tile) !== null) {
-      return;
-    }
     if (tile.params && tile.params.length > 0) {
       this.asking.set(tile);
     } else {

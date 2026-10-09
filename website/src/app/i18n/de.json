@@ -352,7 +352,7 @@
       },
       "vars": {
         "title": "Variablen und Caches",
-        "text": "CI-Variablen pro Repository, mit AES-256-GCM verschlüsselt gespeichert (Docker-Runner). Caches pro Job mit Kubernetes."
+        "text": "CI-Variablen pro Repository, mit AES-256-GCM verschlüsselt gespeichert. Caches pro Job mit Kubernetes. Optional ein eigener Docker-Daemon für jeden Job, um Images zu bauen und zu veröffentlichen."
       },
       "docs": "Die Referenz zu .ferrisgit-ci.yml (auf Französisch)"
     },
@@ -521,7 +521,7 @@
         "bullets": {
           "b1": "Pipelines, beschrieben in `.ferrisgit-ci.yml` im Hauptverzeichnis des Repositorys",
           "b2": "Docker-Runner (eine schlanke Binärdatei `ferrisgit-runner`, die den Server abfragt) oder Kubernetes, wo jeder Job als Pod läuft",
-          "b3": "Variablen pro Repository, verschlüsselt gespeichert (nur Docker-Runner)",
+          "b3": "Variablen pro Repository, verschlüsselt gespeichert",
           "b4": "Caches pro Job (nur Kubernetes)"
         }
       },

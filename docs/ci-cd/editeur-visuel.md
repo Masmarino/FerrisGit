@@ -59,9 +59,7 @@ Les tuiles de déploiement posent des questions avant de créer le job : on y r�
 
 Les secrets dont la tuile a besoin sont listés dans la fenêtre, avec ceux que le dépôt a déjà et ceux qui restent à créer (quand vous avez le rôle Mainteneur) : le panneau **Variables et secrets** permet ensuite de les saisir. Des modèles de pipeline complets enchaînent les tests, l'image et le déploiement : « Image Docker déployée sur une VM » et « Image Docker déployée sur Kubernetes ».
 
-Ces tuiles lisent des secrets, qui ne sont transmis qu'aux runners Docker : si votre instance exécute les jobs avec Kubernetes, elles sont grisées avec l'explication. Cela ne concerne pas la cible du déploiement : des runners Docker peuvent très bien déployer sur un cluster Kubernetes.
-
-Avec le moteur Kubernetes, le Pod d'un job ne reçoit pas non plus de copie du dépôt (voir [Kubernetes](/docs/ci-cd/kubernetes#limites)). Les tuiles qui compilent, testent ou vérifient le code sont donc grisées elles aussi, et une pipeline vide ne propose ni modèle ni pipeline faite pour le dépôt : l'éditeur l'explique et invite à partir d'un job vide, qui récupère lui-même le code dont il a besoin.
+La tuile **Construire et publier une image Docker** utilise par défaut le démon Docker du job, que chaque job reçoit quand un administrateur a activé Docker dans les jobs (voir [Runners Docker](/docs/ci-cd/runners-docker#docker-dans-les-jobs) et [Kubernetes](/docs/ci-cd/kubernetes#docker-dans-les-jobs)). Quand ce n'est pas le cas, la tuile le signale ; son choix **Démon Docker** permet alors d'utiliser un démon distant, désigné par le secret `DOCKER_HOST`.
 
 ## Variables et secrets
 
@@ -75,7 +73,7 @@ L'éditeur aide à les utiliser :
 - **Insérer une variable.** Sous les commandes, ce menu liste les variables du job puis les secrets du dépôt, et écrit `$NOM` là où se trouvait le curseur.
 - **Un secret qui se cache dans une variable.** Une variable dont le nom évoque un secret (`TOKEN`, `PASSWORD`, `API_KEY`…) et qui a une valeur déclenche un avertissement, avec un bouton **En faire un secret** : la valeur part chiffrée dans le dépôt et quitte le fichier.
 - **Les secrets qui manquent.** Les noms que les commandes lisent et que rien ne fournit sont listés dans le tiroir du job, avec un bouton pour créer le secret quand il s'agit d'un secret. Le panneau des secrets donne la liste de ceux que vos jobs lisent sans qu'ils existent (« À créer ») et, pour chaque secret existant, les jobs qui le lisent, ou qu'aucun job ne le lit.
-- **Le moteur d'exécution.** Les secrets ne sont transmis qu'aux runners Docker : si votre instance exécute les jobs avec Kubernetes, le panneau le dit. De même, les caches n'ont d'effet qu'avec Kubernetes, et le tiroir le signale quand l'instance utilise des runners Docker.
+- **Le moteur d'exécution.** Les caches n'ont d'effet qu'avec Kubernetes, et le tiroir le signale quand l'instance utilise des runners Docker.
 
 Il faut le rôle **Mainteneur** pour voir et créer les secrets. Un contributeur peut utiliser `$NOM` dans ses commandes, mais l'éditeur ne peut pas lui lister les secrets : il lui indique de s'adresser à un mainteneur, et les contrôles qui dépendent de cette liste (secrets manquants, noms inconnus) ne sont pas affichés.
 

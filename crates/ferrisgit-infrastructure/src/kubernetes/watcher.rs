@@ -1,4 +1,5 @@
-use crate::kubernetes::pod_spec::JOB_ID_LABEL;
+use crate::kubernetes::pod_spec::{CLONE_CONTAINER, JOB_CONTAINER, JOB_ID_LABEL};
+use ferrisgit_application::use_cases::job_environment::{JobEnvironmentSource, mask_values};
 use ferrisgit_application::use_cases::report_job_result::{
     AppendJobLogsUseCase, ReportJobResultUseCase,
 };
@@ -27,6 +28,7 @@ pub struct PodWatcher {
     users: Arc<dyn UserRepositoryPort>,
     notifications: Arc<dyn NotificationStorePort>,
     webhooks: Arc<dyn WebhookDispatcherPort>,
+    environments: Arc<dyn JobEnvironmentSource>,
 }
 
 impl PodWatcher {
@@ -42,6 +44,7 @@ impl PodWatcher {
         users: Arc<dyn UserRepositoryPort>,
         notifications: Arc<dyn NotificationStorePort>,
         webhooks: Arc<dyn WebhookDispatcherPort>,
+        environments: Arc<dyn JobEnvironmentSource>,
     ) -> Self {
         Self {
             client,
@@ -54,6 +57,7 @@ impl PodWatcher {
             users,
             notifications,
             webhooks,
+            environments,
         }
     }
 
@@ -93,19 +97,25 @@ impl PodWatcher {
             return Ok(());
         };
         let name = pod.metadata.name.clone().unwrap_or_default();
-        let pipeline_id = self
-            .jobs
-            .find_by_id(job_id)
-            .await
-            .ok()
-            .flatten()
-            .map(|j| j.pipeline_id);
+        let job = self.jobs.find_by_id(job_id).await.ok().flatten();
+        let pipeline_id = job.as_ref().map(|j| j.pipeline_id);
 
-        match pods.logs(&name, &LogParams::default()).await {
-            Ok(logs) => self.append_logs.execute(job_id, &logs).await?,
-            Err(err) => {
-                tracing::warn!(error = %err, job_id = %job_id, pod = %name, "failed to fetch logs from a terminal Pod; the job's logs may be incomplete")
-            }
+        let logs = self.logs_of(pods, &name, job_id).await;
+        // Kubernetes does not mask anything: the values of the masked CI variables are hidden here, before storing.
+        let masked = match &job {
+            Some(job) => match self.environments.environment(job).await {
+                Ok(environment) => environment.masked_values,
+                Err(err) => {
+                    tracing::warn!(error = %err, job_id = %job_id, "could not read the values to mask; the job's logs are not stored");
+                    return Err(err);
+                }
+            },
+            None => vec![],
+        };
+        if !logs.is_empty() {
+            self.append_logs
+                .execute(job_id, &mask_values(&logs, &masked))
+                .await?;
         }
 
         let status = if phase == "Succeeded" {
@@ -132,13 +142,32 @@ impl PodWatcher {
         }
         Ok(())
     }
+
+    /// The clone's logs (empty unless it failed), then the job's. A container that never ran has none to give.
+    async fn logs_of(&self, pods: &Api<Pod>, name: &str, job_id: Uuid) -> String {
+        let mut logs = String::new();
+        for container in [CLONE_CONTAINER, JOB_CONTAINER] {
+            let params = LogParams {
+                container: Some(container.to_string()),
+                ..Default::default()
+            };
+            match pods.logs(name, &params).await {
+                Ok(text) => logs.push_str(&text),
+                Err(kube::Error::Api(err)) if err.code == 400 => {}
+                Err(err) => {
+                    tracing::warn!(error = %err, job_id = %job_id, pod = %name, container, "failed to fetch logs from a terminal Pod; the job's logs may be incomplete")
+                }
+            }
+        }
+        logs
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::kubernetes::job_execution_test_doubles::*;
-    use crate::kubernetes::pod_spec::{build_pod, pod_name};
+    use crate::kubernetes::pod_spec::{pod_name, pod_without_clone};
     use crate::kubernetes::test_support::{TestNamespace, test_client};
     use async_trait::async_trait;
     use chrono::Utc;
@@ -432,9 +461,10 @@ mod tests {
             Arc::new(FakeUsers(user(Uuid::new_v4()))),
             Arc::new(FakeNotifications),
             Arc::new(FakeWebhooks),
+            Arc::new(FakeEnvironments::default()),
         );
 
-        let pod = build_pod(&the_job, Uuid::new_v4(), &ns.name);
+        let pod = pod_without_clone(&the_job, &ns.name);
         let pods: Api<Pod> = Api::namespaced(client, &ns.name);
         pods.create(&kube::api::PostParams::default(), &pod)
             .await
@@ -481,9 +511,10 @@ mod tests {
             Arc::new(FakeUsers(user(Uuid::new_v4()))),
             Arc::new(FakeNotifications),
             Arc::new(FakeWebhooks),
+            Arc::new(FakeEnvironments::default()),
         );
 
-        let pod = build_pod(&the_job, Uuid::new_v4(), &ns.name);
+        let pod = pod_without_clone(&the_job, &ns.name);
         let pods: Api<Pod> = Api::namespaced(client, &ns.name);
         pods.create(&kube::api::PostParams::default(), &pod)
             .await
@@ -521,9 +552,10 @@ mod tests {
             Arc::new(FakeUsers(user(Uuid::new_v4()))),
             Arc::new(FakeNotifications),
             Arc::new(FakeWebhooks),
+            Arc::new(FakeEnvironments::default()),
         );
 
-        let pod = build_pod(&the_job, Uuid::new_v4(), &ns.name);
+        let pod = pod_without_clone(&the_job, &ns.name);
         let pods: Api<Pod> = Api::namespaced(client, &ns.name);
         pods.create(&kube::api::PostParams::default(), &pod)
             .await
@@ -572,6 +604,7 @@ mod tests {
             Arc::new(FakeUsers(user(Uuid::new_v4()))),
             Arc::new(FakeNotifications),
             Arc::new(FakeWebhooks),
+            Arc::new(FakeEnvironments::default()),
         ));
         let watcher_handle = tokio::spawn({
             let watcher = watcher.clone();
@@ -580,7 +613,7 @@ mod tests {
             }
         });
 
-        let pod = build_pod(&the_job, Uuid::new_v4(), &ns.name);
+        let pod = pod_without_clone(&the_job, &ns.name);
         let pods: Api<Pod> = Api::namespaced(client, &ns.name);
         pods.create(&kube::api::PostParams::default(), &pod)
             .await

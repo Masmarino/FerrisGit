@@ -374,3 +374,130 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
         "the revoked runner must be gone from the admin listing"
     );
 }
+
+/// Docker in jobs with a real runner: the job, in an image without Docker, builds and runs an image with the daemon the
+/// runner starts beside it. The repository sits in a group, so the runner clones it from the group's path.
+#[sqlx::test]
+async fn with_docker_in_jobs_a_runner_job_builds_and_runs_an_image(pool: PgPool) {
+    let addr = common::spawn_app(pool).await.addr;
+    let client = reqwest::Client::new();
+    let jwt = login(&client, addr, "admin", "adminpassword123").await;
+    put(
+        &client,
+        addr,
+        &jwt,
+        "/admin/settings",
+        &json!({ "dockerInJobs": true }),
+    )
+    .await
+    .error_for_status()
+    .unwrap();
+    let token: serde_json::Value =
+        post_json(&client, addr, &jwt, "/tokens", &json!({ "name": "push" })).await;
+    let token = token["token"].as_str().unwrap().to_string();
+    post_json(&client, addr, &jwt, "/groups", &json!({ "name": "acme" })).await;
+    let repo: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "widget", "visibility": "private", "groupPath": "acme" }),
+    )
+    .await;
+    let repo_id = repo["id"].as_str().unwrap().to_string();
+    let runner: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/admin/runners",
+        &json!({ "name": "docker-runner", "tags": [] }),
+    )
+    .await;
+    let runner_token = runner["token"].as_str().unwrap().to_string();
+
+    assert!(
+        common::git::push_files(
+            &format!("http://admin:{token}@{addr}/acme/widget.git"),
+            "main",
+            "build an image",
+            &[
+                (
+                    ".ferrisgit-ci.yml",
+                    b"stages: [package]\njobs:\n  image:\n    stage: package\n    image: alpine:3.24\n    script:\n      - docker build -q -t proof .\n      - docker run --rm proof\n",
+                ),
+                (
+                    "Dockerfile",
+                    b"FROM alpine:3.24\nRUN echo built-by-the-runner > /proof\nCMD [\"cat\", \"/proof\"]\n",
+                ),
+            ],
+        )
+        .await
+    );
+
+    let runner_workdir = tempfile::tempdir().unwrap();
+    let runner_bin = escargot::CargoBuild::new()
+        .manifest_path(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../ferrisgit-runner/Cargo.toml"
+        ))
+        .bin("ferrisgit-runner")
+        .run()
+        .expect("failed to build the ferrisgit-runner binary via escargot")
+        .path()
+        .to_path_buf();
+    let _runner = KillOnDrop(
+        Command::new(runner_bin)
+            .env("FERRISGIT_SERVER_URL", format!("http://{addr}"))
+            .env("FERRISGIT_RUNNER_TOKEN", &runner_token)
+            .env("FERRISGIT_RUNNER_TAGS", "")
+            .env("FERRISGIT_POLL_INTERVAL_SECS", "1")
+            .env("FERRISGIT_WORKDIR_ROOT", runner_workdir.path())
+            .spawn()
+            .unwrap(),
+    );
+
+    let finished = poll_until(
+        || {
+            let (client, jwt, repo_id) = (client.clone(), jwt.to_string(), repo_id.clone());
+            async move {
+                let pipelines: serde_json::Value = get_json(
+                    &client,
+                    addr,
+                    &jwt,
+                    &format!("/repositories/{repo_id}/pipelines"),
+                )
+                .await;
+                let id = pipelines[0]["id"].as_str()?.to_string();
+                let pipeline: serde_json::Value =
+                    get_json(&client, addr, &jwt, &format!("/pipelines/{id}")).await;
+                matches!(
+                    pipeline["status"].as_str(),
+                    Some("success" | "failed" | "canceled")
+                )
+                .then_some(pipeline)
+            }
+        },
+        Duration::from_secs(300),
+        "the pipeline to finish (this needs a Docker daemon able to run privileged containers)",
+    )
+    .await;
+
+    let logs = finished["jobs"][0]["logs"].as_str().unwrap_or_default();
+    assert_eq!(finished["status"], "success", "logs:\n{logs}");
+    assert!(logs.contains("built-by-the-runner"), "logs:\n{logs}");
+    let leftovers = Command::new("docker")
+        .args([
+            "ps",
+            "-a",
+            "--filter",
+            "name=ferrisgit-job-",
+            "--format",
+            "{{.Names}}",
+        ])
+        .output()
+        .unwrap();
+    assert!(
+        String::from_utf8_lossy(&leftovers.stdout).trim().is_empty(),
+        "the job's daemon is removed once the job is done"
+    );
+}

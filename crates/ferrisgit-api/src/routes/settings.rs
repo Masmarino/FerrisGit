@@ -42,6 +42,7 @@ struct SystemSettingsResponse {
     registration_enabled: bool,
     public_pages_enabled: bool,
     seo_indexing_enabled: bool,
+    docker_in_jobs: bool,
     // Not persisted, detected at boot so the admin UI can pre-fill the k8s settings.
     detected_k8s_namespace: Option<String>,
     detected_k8s_default_storage_class: Option<String>,
@@ -51,6 +52,7 @@ impl SystemSettingsResponse {
     fn from_settings(
         s: SystemSettings,
         registration_enabled: bool,
+        docker_in_jobs: bool,
         public_pages: PublicPagesSettings,
         state: &AppState,
     ) -> Self {
@@ -66,6 +68,7 @@ impl SystemSettingsResponse {
             registration_enabled,
             public_pages_enabled: public_pages.public_pages_enabled,
             seo_indexing_enabled: public_pages.seo_indexing_enabled,
+            docker_in_jobs,
             detected_k8s_namespace: state.detected_k8s_namespace.clone(),
             detected_k8s_default_storage_class: state.detected_k8s_default_storage_class.clone(),
         }
@@ -97,6 +100,8 @@ struct SystemSettingsUpdateRequest {
     public_pages_enabled: Option<bool>,
     #[serde(default)]
     seo_indexing_enabled: Option<bool>,
+    #[serde(default)]
+    docker_in_jobs: Option<bool>,
 }
 
 impl SystemSettingsUpdateRequest {
@@ -123,10 +128,12 @@ async fn get_admin_settings(
 ) -> Result<Json<SystemSettingsResponse>, ApiError> {
     let settings = state.system_settings.get().await?;
     let registration_enabled = state.registration_settings.is_enabled().await?;
+    let docker_in_jobs = state.docker_in_jobs.is_enabled().await?;
     let public_pages = state.public_pages_settings.get().await?;
     Ok(Json(SystemSettingsResponse::from_settings(
         settings,
         registration_enabled,
+        docker_in_jobs,
         public_pages,
         &state,
     )))
@@ -145,6 +152,7 @@ async fn update_admin_settings(
         );
     }
     let registration_enabled = req.registration_enabled;
+    let docker_in_jobs = req.docker_in_jobs;
     let public_pages_update = PublicPagesSettingsUpdate {
         public_pages_enabled: req.public_pages_enabled,
         seo_indexing_enabled: req.seo_indexing_enabled,
@@ -157,6 +165,10 @@ async fn update_admin_settings(
         state.registration_settings.set_enabled(enabled).await?;
     }
     let registration_enabled = state.registration_settings.is_enabled().await?;
+    if let Some(enabled) = docker_in_jobs {
+        state.docker_in_jobs.set_enabled(enabled).await?;
+    }
+    let docker_in_jobs = state.docker_in_jobs.is_enabled().await?;
     let public_pages = state
         .public_pages_settings
         .update(public_pages_update)
@@ -164,6 +176,7 @@ async fn update_admin_settings(
     Ok(Json(SystemSettingsResponse::from_settings(
         settings,
         registration_enabled,
+        docker_in_jobs,
         public_pages,
         &state,
     )))
@@ -173,6 +186,8 @@ async fn update_admin_settings(
 #[serde(rename_all = "camelCase")]
 struct PublicSettingsResponse {
     execution_engine: String,
+    /// Whether jobs get a Docker daemon: the pipeline editor offers `docker build` without a remote daemon then.
+    docker_in_jobs: bool,
 }
 
 async fn get_public_settings(
@@ -182,6 +197,7 @@ async fn get_public_settings(
     let settings = state.system_settings.get().await?;
     Ok(Json(PublicSettingsResponse {
         execution_engine: settings.execution_engine.as_str().to_string(),
+        docker_in_jobs: state.docker_in_jobs.is_enabled().await?,
     }))
 }
 

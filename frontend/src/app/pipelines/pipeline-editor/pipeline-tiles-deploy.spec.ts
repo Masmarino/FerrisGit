@@ -63,28 +63,37 @@ describe('deployment tiles', () => {
   });
 
   describe('docker image', () => {
-    it('logs in, builds and pushes against the remote daemon, by default', () => {
+    it("logs in, builds and pushes with the job's own daemon, by default", () => {
       expect(script('docker-build')).toEqual([
-        'echo "$REGISTRY_PASSWORD" | docker -H "$DOCKER_HOST" login registry.example.com -u "$REGISTRY_USER" --password-stdin',
-        'docker -H "$DOCKER_HOST" build -f Dockerfile -t registry.example.com/equipe/application:latest .',
-        'docker -H "$DOCKER_HOST" push registry.example.com/equipe/application:latest',
+        'echo "$REGISTRY_PASSWORD" | docker login registry.example.com -u "$REGISTRY_USER" --password-stdin',
+        'docker build -f Dockerfile -t registry.example.com/equipe/application:latest .',
+        'docker push registry.example.com/equipe/application:latest',
       ]);
-      expect(tile('docker-build').secrets).toEqual(['DOCKER_HOST', 'REGISTRY_USER', 'REGISTRY_PASSWORD']);
+      expect(tile('docker-build').secrets).toEqual(['REGISTRY_USER', 'REGISTRY_PASSWORD']);
+      expect(tile('docker-build').usesJobDocker).toBe(true);
+    });
+
+    it('talks to a remote daemon, named by the DOCKER_HOST secret, when told to', () => {
+      const built = buildTile(tile('docker-build'), { daemon: 'remote' });
+
+      expect(built.script[1]).toBe('docker -H "$DOCKER_HOST" build -f Dockerfile -t registry.example.com/equipe/application:latest .');
+      expect(built.secrets).toEqual(['DOCKER_HOST', 'REGISTRY_USER', 'REGISTRY_PASSWORD']);
+      expect(built.usesJobDocker).toBe(false);
     });
 
     it('skips the login, and so its secrets, when told to', () => {
       const built = buildTile(tile('docker-build'), { login: false });
 
       expect(built.script).toHaveLength(2);
-      expect(built.secrets).toEqual(['DOCKER_HOST']);
+      expect(built.secrets).toEqual([]);
     });
 
     it('only builds when the image is not to be published', () => {
-      expect(script('docker-build', { push: false, login: false })).toEqual(['docker -H "$DOCKER_HOST" build -f Dockerfile -t registry.example.com/equipe/application:latest .']);
+      expect(script('docker-build', { push: false, login: false })).toEqual(['docker build -f Dockerfile -t registry.example.com/equipe/application:latest .']);
     });
 
     it('uses the answers: registry, image, version, Dockerfile and context', () => {
-      expect(script('docker-build', { registry: 'ghcr.io', image: 'acme/web', tag: '1.4.0', dockerfile: 'docker/Dockerfile.prod', context: 'app', login: false, push: false })[0]).toBe('docker -H "$DOCKER_HOST" build -f docker/Dockerfile.prod -t ghcr.io/acme/web:1.4.0 app');
+      expect(script('docker-build', { registry: 'ghcr.io', image: 'acme/web', tag: '1.4.0', dockerfile: 'docker/Dockerfile.prod', context: 'app', login: false, push: false })[0]).toBe('docker build -f docker/Dockerfile.prod -t ghcr.io/acme/web:1.4.0 app');
     });
   });
 

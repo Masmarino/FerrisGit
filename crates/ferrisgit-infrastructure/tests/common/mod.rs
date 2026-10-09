@@ -119,3 +119,138 @@ pub async fn insert_repository(pool: &sqlx::PgPool) -> (Uuid, Uuid) {
         .unwrap();
     (repository_id, owner_id)
 }
+
+/// A repository a kind Pod can clone: a bare repository with one commit, served over git's "dumb" HTTP protocol by
+/// `python3` on every interface. Pods reach it at host.docker.internal (Docker Desktop). Stopped on drop.
+pub struct GitServer {
+    pub url: String,
+    pub commit: String,
+    child: std::process::Child,
+    _root: tempfile::TempDir,
+}
+
+impl Drop for GitServer {
+    fn drop(&mut self) {
+        let _ = self.child.kill();
+        let _ = self.child.wait();
+    }
+}
+
+fn git(cwd: &std::path::Path, args: &[&str]) -> String {
+    let output = std::process::Command::new("git")
+        .args(args)
+        .current_dir(cwd)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "git {args:?}: {}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    String::from_utf8_lossy(&output.stdout).trim().to_string()
+}
+
+/// Serves `acme/widget.git`, whose one commit holds `files`.
+pub fn serve_repository(files: &[(&str, &str)]) -> GitServer {
+    let root = tempfile::tempdir().unwrap();
+    let work = root.path().join("work");
+    std::fs::create_dir_all(&work).unwrap();
+    git(&work, &["init", "-q"]);
+    for (path, content) in files {
+        std::fs::write(work.join(path), content).unwrap();
+    }
+    git(&work, &["add", "."]);
+    git(
+        &work,
+        &[
+            "-c",
+            "user.email=t@t.t",
+            "-c",
+            "user.name=t",
+            "commit",
+            "-q",
+            "-m",
+            "seed",
+        ],
+    );
+    let commit = git(&work, &["rev-parse", "HEAD"]);
+    let served = root.path().join("served");
+    std::fs::create_dir_all(served.join("acme")).unwrap();
+    git(
+        root.path(),
+        &[
+            "clone",
+            "-q",
+            "--bare",
+            work.to_str().unwrap(),
+            served.join("acme/widget.git").to_str().unwrap(),
+        ],
+    );
+    git(&served.join("acme/widget.git"), &["update-server-info"]);
+
+    let port = std::net::TcpListener::bind("0.0.0.0:0")
+        .unwrap()
+        .local_addr()
+        .unwrap()
+        .port();
+    let child = std::process::Command::new("python3")
+        .args([
+            "-m",
+            "http.server",
+            &port.to_string(),
+            "--bind",
+            "0.0.0.0",
+            "--directory",
+        ])
+        .arg(&served)
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .spawn()
+        .expect("python3 serves the test repository");
+    for _ in 0..50 {
+        if std::net::TcpStream::connect(("127.0.0.1", port)).is_ok() {
+            break;
+        }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    GitServer {
+        url: format!("http://host.docker.internal:{port}"),
+        commit,
+        child,
+        _root: root,
+    }
+}
+
+/// The job environment of the served repository: no CI variable, Docker as asked.
+pub struct ServedEnvironments {
+    pub repository_id: Uuid,
+    pub commit: String,
+    pub docker: bool,
+}
+
+#[async_trait]
+impl ferrisgit_application::use_cases::job_environment::JobEnvironmentSource
+    for ServedEnvironments
+{
+    async fn environment(
+        &self,
+        _job: &ferrisgit_domain::job::Job,
+    ) -> Result<ferrisgit_application::use_cases::job_environment::JobEnvironment, DomainError>
+    {
+        Ok(
+            ferrisgit_application::use_cases::job_environment::JobEnvironment {
+                repository_id: self.repository_id,
+                repository_path: "acme/widget".to_string(),
+                commit_sha: self.commit.clone(),
+                ci_variables: Default::default(),
+                masked_values: vec![],
+                docker: self.docker,
+            },
+        )
+    }
+
+    async fn issue_clone_token(&self, job_id: Uuid) -> Result<String, DomainError> {
+        // The dumb HTTP server reads no credentials.
+        Ok(format!("fgj_{job_id}"))
+    }
+}

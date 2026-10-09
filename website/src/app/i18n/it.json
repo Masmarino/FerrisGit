@@ -352,7 +352,7 @@
       },
       "vars": {
         "title": "Variabili e cache",
-        "text": "Variabili CI per repository, cifrate a riposo con AES-256-GCM (runner Docker). Cache per job con Kubernetes."
+        "text": "Variabili CI per repository, cifrate a riposo con AES-256-GCM. Cache per job con Kubernetes. Su richiesta, un demone Docker proprio per ogni job, per costruire e pubblicare immagini."
       },
       "docs": "Il riferimento di .ferrisgit-ci.yml (in francese)"
     },
@@ -521,7 +521,7 @@
         "bullets": {
           "b1": "Pipeline descritte in `.ferrisgit-ci.yml` alla radice del repository",
           "b2": "Runner Docker (un binario leggero `ferrisgit-runner` che interroga il server) o Kubernetes, dove ogni job gira come un Pod",
-          "b3": "Variabili per repository, cifrate a riposo (solo runner Docker)",
+          "b3": "Variabili per repository, cifrate a riposo",
           "b4": "Cache per job (solo Kubernetes)"
         }
       },

@@ -40,5 +40,15 @@ spec:
       {{- with .Values.networkPolicy.appIngressFrom }}
       from:
         {{- toYaml . | nindent 8 }}
+        {{- if $.Values.kubernetesExecutor.enabled }}
+        # The job Pods, which clone their repository from the server.
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ include "ferrisgit.jobsNamespace" $ }}
+          podSelector:
+            matchExpressions:
+              - key: ferrisgit.io/job-id
+                operator: Exists
+        {{- end }}
       {{- end }}
 {{- end }}

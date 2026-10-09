@@ -1,10 +1,4 @@
 <section class="starters" aria-labelledby="starters-title">
-  @if (engine() === 'kubernetes') {
-    <h2 id="starters-title" class="starters__title">{{ 'pipelines.starters.empty' | transloco }}</h2>
-    <gbt-alert variant="warning" appearance="subtle" iconAlign="start" data-kubernetes>
-      <span [innerHTML]="'pipelines.starters.kubernetes' | transloco"></span>
-    </gbt-alert>
-  } @else {
   @if (predicting()) {
     <div class="starters__prediction" aria-hidden="true">
       <gbt-skeleton width="16rem" height="1.25rem" />
@@ -75,5 +69,4 @@
       </li>
     }
   </ul>
-  }
 </section>

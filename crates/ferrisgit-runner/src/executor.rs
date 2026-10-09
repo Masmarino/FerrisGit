@@ -8,11 +8,33 @@ use uuid::Uuid;
 
 use crate::client::{ClaimedJob, JobResultStatus, RunnerClient, build_clone_url};
 
+/// Shared by a job and its Docker daemon: the daemon's socket, its `docker` client in `bin`, the client's configuration
+/// and plugins (buildx, compose) in `config`.
+const DOCKER_DIR: &str = "/ferrisgit-docker";
+
+/// The job's Docker daemon, when it has one: the container and the volume it shares with the job.
+pub struct JobDocker {
+    pub container: String,
+    pub volume: String,
+}
+
+impl JobDocker {
+    pub fn for_job(job_id: Uuid) -> Self {
+        Self {
+            container: format!("ferrisgit-job-{job_id}-docker"),
+            volume: format!("ferrisgit-job-{job_id}-docker"),
+        }
+    }
+}
+
+/// `docker run` of the job. With a daemon, the job reaches it through the shared volume's socket, and finds the copied
+/// client last on its `PATH`, so an image that has its own keeps it.
 pub fn build_docker_run_args(
     image: &str,
     workdir: &Path,
     env: &BTreeMap<String, String>,
     script: &[String],
+    docker: Option<&JobDocker>,
 ) -> Vec<String> {
     let mut args = vec![
         "run".to_string(),
@@ -26,11 +48,47 @@ pub fn build_docker_run_args(
         args.push("-e".to_string());
         args.push(format!("{key}={value}"));
     }
+    let mut command = script.join(" && ");
+    if let Some(docker) = docker {
+        args.extend([
+            "-v".to_string(),
+            format!("{}:{DOCKER_DIR}", docker.volume),
+            "-e".to_string(),
+            format!("DOCKER_HOST=unix://{DOCKER_DIR}/docker.sock"),
+            "-e".to_string(),
+            format!("DOCKER_CONFIG={DOCKER_DIR}/config"),
+        ]);
+        command = format!("export PATH=\"$PATH:{DOCKER_DIR}/bin\" && {command}");
+    }
     args.push(image.to_string());
     args.push("sh".to_string());
     args.push("-c".to_string());
-    args.push(script.join(" && "));
+    args.push(command);
     args
+}
+
+/// `docker run` of the job's daemon: Docker-in-Docker, privileged, listening on the shared volume's socket only, never on
+/// the network. It copies its client into the volume first.
+pub fn build_docker_daemon_args(daemon_image: &str, docker: &JobDocker) -> Vec<String> {
+    vec![
+        "run".to_string(),
+        "-d".to_string(),
+        "--privileged".to_string(),
+        "--name".to_string(),
+        docker.container.clone(),
+        "-e".to_string(),
+        "DOCKER_TLS_CERTDIR=".to_string(),
+        "-v".to_string(),
+        format!("{}:{DOCKER_DIR}", docker.volume),
+        "--entrypoint".to_string(),
+        "sh".to_string(),
+        daemon_image.to_string(),
+        "-c".to_string(),
+        // The same as the Kubernetes engine's (job_containers.rs, `docker_daemon_command`).
+        format!(
+            "mkdir -p {DOCKER_DIR}/bin {DOCKER_DIR}/config/cli-plugins && cp /usr/local/bin/docker {DOCKER_DIR}/bin/docker && cp /usr/local/libexec/docker/cli-plugins/* {DOCKER_DIR}/config/cli-plugins/ && exec dockerd-entrypoint.sh dockerd --host=unix://{DOCKER_DIR}/docker.sock"
+        ),
+    ]
 }
 
 /// Removes `.git` from a fresh clone. The clone URL holds the runner token and `git clone` writes it to `.git/config`.
@@ -185,11 +243,101 @@ async fn run_in_workdir(
 
     let mut env = job.variables.clone();
     env.extend(job.ci_variables.clone());
-    let docker_args = build_docker_run_args(&job.image, workdir, &env, &job.script);
-    if run_streamed(client, job.id, "docker", &docker_args, workdir, &secrets).await {
+    let docker = match &job.docker_image {
+        Some(image) => {
+            let docker = JobDocker::for_job(job.id);
+            if !start_docker_daemon(client, job.id, image, &docker, workdir).await {
+                stop_docker_daemon(&docker, workdir).await;
+                return JobResultStatus::Failed;
+            }
+            Some(docker)
+        }
+        None => None,
+    };
+    let docker_args =
+        build_docker_run_args(&job.image, workdir, &env, &job.script, docker.as_ref());
+    let succeeded = run_streamed(client, job.id, "docker", &docker_args, workdir, &secrets).await;
+    if let Some(docker) = &docker {
+        stop_docker_daemon(docker, workdir).await;
+    }
+    if succeeded {
         JobResultStatus::Success
     } else {
         JobResultStatus::Failed
+    }
+}
+
+/// Starts the job's daemon and waits until it answers, two minutes at most; says in the job's log when it does not.
+async fn start_docker_daemon(
+    client: &RunnerClient,
+    job_id: Uuid,
+    image: &str,
+    docker: &JobDocker,
+    workdir: &Path,
+) -> bool {
+    let started = Command::new("docker")
+        .args(build_docker_daemon_args(image, docker))
+        .current_dir(workdir)
+        .stdout(Stdio::null())
+        .output()
+        .await;
+    match started {
+        Ok(output) if output.status.success() => {}
+        Ok(output) => {
+            let _ = client
+                .append_logs(
+                    job_id,
+                    &format!(
+                        "failed to start the job's Docker daemon: {}\n",
+                        String::from_utf8_lossy(&output.stderr).trim()
+                    ),
+                )
+                .await;
+            return false;
+        }
+        Err(err) => {
+            let _ = client
+                .append_logs(job_id, &format!("failed to start docker: {err}\n"))
+                .await;
+            return false;
+        }
+    }
+    let socket = format!("--host=unix://{DOCKER_DIR}/docker.sock");
+    for _ in 0..120 {
+        let ready = Command::new("docker")
+            .args(["exec", &docker.container, "docker", &socket, "info"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .await
+            .is_ok_and(|status| status.success());
+        if ready {
+            return true;
+        }
+        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+    }
+    let _ = client
+        .append_logs(
+            job_id,
+            "the job's Docker daemon did not answer within two minutes\n",
+        )
+        .await;
+    false
+}
+
+/// Removes the daemon, its images and layers, and the shared volume, whatever the job did.
+async fn stop_docker_daemon(docker: &JobDocker, workdir: &Path) {
+    for args in [
+        vec!["rm", "--force", "--volumes", docker.container.as_str()],
+        vec!["volume", "rm", "--force", docker.volume.as_str()],
+    ] {
+        let _ = Command::new("docker")
+            .args(args)
+            .current_dir(workdir)
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .await;
     }
 }
 
@@ -203,7 +351,7 @@ mod tests {
         env.insert("RUST_LOG".to_string(), "debug".to_string());
         let script = vec!["cargo build".to_string(), "cargo test".to_string()];
 
-        let args = build_docker_run_args("rust:1.82", Path::new("/tmp/job-1"), &env, &script);
+        let args = build_docker_run_args("rust:1.82", Path::new("/tmp/job-1"), &env, &script, None);
 
         assert_eq!(
             args,
@@ -231,10 +379,60 @@ mod tests {
             Path::new("/tmp/job-2"),
             &BTreeMap::new(),
             &["echo hi".to_string()],
+            None,
         );
 
         assert!(!args.contains(&"-e".to_string()));
         assert_eq!(args.last().unwrap(), "echo hi");
+    }
+
+    #[test]
+    fn with_a_daemon_the_job_shares_its_socket_and_finds_its_client_last_on_the_path() {
+        let docker = JobDocker::for_job(Uuid::nil());
+
+        let args = build_docker_run_args(
+            "rust:1",
+            Path::new("/tmp/job-3"),
+            &BTreeMap::new(),
+            &["docker build .".to_string()],
+            Some(&docker),
+        );
+
+        let volume = format!("{}:/ferrisgit-docker", docker.volume);
+        assert!(
+            args.windows(2)
+                .any(|pair| pair[0] == "-v" && pair[1] == volume)
+        );
+        assert!(
+            args.windows(2).any(|pair| pair[0] == "-e"
+                && pair[1] == "DOCKER_HOST=unix:///ferrisgit-docker/docker.sock")
+        );
+        assert!(
+            args.windows(2)
+                .any(|pair| pair[0] == "-e" && pair[1] == "DOCKER_CONFIG=/ferrisgit-docker/config")
+        );
+        assert!(
+            !args.contains(&"--privileged".to_string()),
+            "the job itself is not privileged"
+        );
+        assert_eq!(
+            args.last().unwrap(),
+            "export PATH=\"$PATH:/ferrisgit-docker/bin\" && docker build ."
+        );
+    }
+
+    #[test]
+    fn the_daemon_is_privileged_and_listens_on_the_shared_socket_only() {
+        let docker = JobDocker::for_job(Uuid::nil());
+
+        let args = build_docker_daemon_args("docker:29-dind", &docker);
+
+        assert!(args.contains(&"--privileged".to_string()));
+        assert!(args.contains(&"DOCKER_TLS_CERTDIR=".to_string()));
+        let command = args.last().unwrap();
+        assert!(command.ends_with("dockerd --host=unix:///ferrisgit-docker/docker.sock"));
+        assert!(!command.contains("tcp://"), "no network listener");
+        assert!(!args.iter().any(|arg| arg == "-p" || arg == "--publish"));
     }
 
     /// Runs real `git` against a real temp repository.

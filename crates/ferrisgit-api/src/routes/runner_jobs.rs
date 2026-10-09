@@ -4,18 +4,19 @@ use axum::response::{IntoResponse, Response};
 use axum::routing::post;
 use axum::{Json, Router};
 use ferrisgit_application::use_cases::claim_next_job::ClaimNextJobUseCase;
+use ferrisgit_application::use_cases::job_environment::JobEnvironmentSource;
 use ferrisgit_application::use_cases::report_job_result::{
     AppendJobLogsUseCase, ReportJobResultUseCase,
 };
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::job::{Job, JobStatus};
+use ferrisgit_domain::job_containers::DOCKER_DAEMON_IMAGE;
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 use uuid::Uuid;
 
 use crate::auth_middleware::RunnerAuth;
 use crate::error::ApiError;
-use crate::routes::user_ref::require_user;
 use crate::state::AppState;
 
 #[derive(Serialize)]
@@ -27,12 +28,17 @@ struct ClaimedJobResponse {
     image: String,
     script: Vec<String>,
     variables: BTreeMap<String, String>,
+    /// What comes before the name in the clone URL: the owner, or the group's path (`acme/team`).
     repository_owner: String,
     repository_name: String,
     commit_sha: String,
     ci_variables: BTreeMap<String, String>,
     // The runner redacts these from every log line.
     masked_values: Vec<String>,
+    /// The Docker daemon to start beside the job, when the admin gives jobs Docker. A runner too old to know it ignores
+    /// it, and the job runs without.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    docker_image: Option<&'static str>,
 }
 
 async fn claim(
@@ -49,29 +55,12 @@ async fn claim(
         return Ok(StatusCode::NO_CONTENT.into_response());
     };
 
-    let pipeline = state
-        .pipelines
-        .find_by_id(job.pipeline_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("pipeline".to_string()))?;
-    let repository = state
-        .repositories
-        .find_by_id(pipeline.repository_id)
-        .await?
-        .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
-    let owner = require_user(&state, repository.owner_id).await?;
-    let ci_variables = state
-        .repository_settings
-        .resolve_ci_variables_plaintext(repository.id)
-        .await?;
-    let masked_values = state
-        .repository_settings
-        .list_ci_variables(repository.id)
-        .await?
-        .into_iter()
-        .filter(|v| v.masked)
-        .filter_map(|v| ci_variables.get(&v.key).cloned())
-        .collect();
+    let environment = state.job_environments.environment(&job).await?;
+    let (repository_owner, repository_name) = environment
+        .repository_path
+        .rsplit_once('/')
+        .map(|(owner, name)| (owner.to_string(), name.to_string()))
+        .ok_or_else(|| DomainError::Infrastructure("repository path without owner".to_string()))?;
 
     Ok(Json(ClaimedJobResponse {
         id: job.id,
@@ -80,11 +69,12 @@ async fn claim(
         image: job.image,
         script: job.script,
         variables: job.variables,
-        repository_owner: owner.username,
-        repository_name: repository.name,
-        commit_sha: pipeline.commit_sha,
-        ci_variables,
-        masked_values,
+        repository_owner,
+        repository_name,
+        commit_sha: environment.commit_sha,
+        ci_variables: environment.ci_variables,
+        masked_values: environment.masked_values,
+        docker_image: environment.docker.then_some(DOCKER_DAEMON_IMAGE),
     })
     .into_response())
 }

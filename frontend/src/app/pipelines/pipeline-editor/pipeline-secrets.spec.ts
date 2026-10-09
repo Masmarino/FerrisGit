@@ -6,12 +6,11 @@ import { PipelineSecrets, SecretUse } from './pipeline-secrets';
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 
 describe('PipelineSecrets', () => {
-  function setup(inputs: { canManage?: boolean; engine?: string | null; missing?: SecretUse[]; existing?: SecretUse[]; suggestion?: string | null } = {}) {
+  function setup(inputs: { canManage?: boolean; missing?: SecretUse[]; existing?: SecretUse[]; suggestion?: string | null } = {}) {
     TestBed.configureTestingModule({ providers: [provideHttpClient(), provideHttpClientTesting()] });
     const fixture = TestBed.createComponent(PipelineSecrets);
     fixture.componentRef.setInput('repositoryId', 'repo-1');
     fixture.componentRef.setInput('canManage', inputs.canManage ?? true);
-    fixture.componentRef.setInput('engine', inputs.engine ?? null);
     fixture.componentRef.setInput('missing', inputs.missing ?? []);
     fixture.componentRef.setInput('existing', inputs.existing ?? []);
     fixture.componentRef.setInput('suggestion', inputs.suggestion ?? null);
@@ -34,20 +33,6 @@ describe('PipelineSecrets', () => {
 
     expect(text(el)).toContain('Seul un mainteneur');
     expect(el.querySelector('fg-repository-ci-variables')).toBeNull();
-  });
-
-  it('warns that Kubernetes jobs do not get the secrets', () => {
-    const { http, el } = setup({ engine: 'kubernetes' });
-    http.expectOne('/api/repositories/repo-1/ci-variables').flush([]);
-
-    expect(text(el.querySelector('gbt-alert'))).toContain('Kubernetes');
-  });
-
-  it('says nothing about Kubernetes with Docker runners', () => {
-    const { http, el } = setup({ engine: 'docker-runners' });
-    http.expectOne('/api/repositories/repo-1/ci-variables').flush([]);
-
-    expect(text(el)).not.toContain('Kubernetes');
   });
 
   it('lists the secrets the jobs read and the repository lacks, and starts the form with the one asked for', () => {

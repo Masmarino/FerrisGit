@@ -1,10 +1,10 @@
 # FerrisGit's own pipeline, run by FerrisGit: the checks of the GitHub workflow (.github/workflows/ci-cd.yml), without
 # what ships (the Docker images, the GitHub release, the deployments).
 #
-# It needs a Docker runner, since only runners clone the repository into the job (the Kubernetes engine does not). Jobs
-# have no Docker daemon, so the images are not built here, and caches have no effect with Docker runners: each job
-# downloads and compiles everything from scratch. Script lines are joined with `&&`, so the first one that fails fails
-# the job.
+# It runs with either engine, since both clone the repository into the job. The Docker images are not built here, even
+# when the admin gives jobs Docker, to keep this pipeline to the checks. Caches have no effect with Docker runners: each
+# job then downloads and compiles everything from scratch. Script lines are joined with `&&`, so the first one that
+# fails fails the job.
 #
 # Images are pinned by digest, as in the GitHub workflow, so that a retagged image cannot change what runs. To move to a
 # newer one, `docker buildx imagetools inspect <image:tag>` gives the digest to put after the tag.

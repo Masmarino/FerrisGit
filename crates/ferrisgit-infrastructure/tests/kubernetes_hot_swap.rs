@@ -46,6 +46,7 @@ async fn canceling_a_kubernetes_pipeline_still_deletes_its_real_pod_after_the_li
 
     let client = test_client().await;
     let ns = TestNamespace::create(&client).await;
+    let git = common::serve_repository(&[("marker-from-the-repository.txt", "cloned\n")]);
     system_settings
         .update(SystemSettingsUpdate {
             execution_engine: Some(ExecutionEngine::Kubernetes),
@@ -63,7 +64,13 @@ async fn canceling_a_kubernetes_pipeline_still_deletes_its_real_pod_after_the_li
         jobs.clone(),
         system_settings.clone(),
         events.clone(),
+        Arc::new(common::ServedEnvironments {
+            repository_id,
+            commit: git.commit.clone(),
+            docker: false,
+        }),
         ns.name.clone(),
+        git.url.clone(),
     ));
     let job_execution = Arc::new(JobExecutionResolver::new(
         docker_executor,

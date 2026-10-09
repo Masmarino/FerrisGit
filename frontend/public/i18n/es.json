@@ -1104,6 +1104,10 @@
       "maxJobs": "Jobs simultáneos",
       "unlimited": "Ilimitado",
       "maxJobsHint": "Número máximo de jobs en curso en el conjunto de runners; los demás esperan. Vacío: sin límite.",
+      "docker": "Docker en los jobs",
+      "dockerHelp": "Un daemon de Docker para cada job, con cualquiera de los dos motores.",
+      "dockerSwitch": "Dar Docker a cada job",
+      "dockerHint": "Cada job recibe su propio daemon de Docker, eliminado al terminar el job: puede construir, ejecutar y publicar imágenes con <code>docker</code>, sea cual sea su imagen. Este daemon se ejecuta en un contenedor privilegiado, que controla la máquina o el nodo que lo ejecuta: active este ajuste solo si confía en todas las personas que pueden modificar un archivo de pipeline. Con Kubernetes, el namespace de los jobs debe aceptar pods privilegiados.",
       "logs": "Registros de los jobs",
       "logsHelp": "Cuánto tiempo se conserva el texto de los registros una vez terminado el job.",
       "retention": "Conservación de los registros (días)",
@@ -1881,8 +1885,16 @@
       "docker-build": {
         "title": "Construir y publicar una imagen Docker",
         "summary": "docker build y luego docker push a su registro.",
-        "help": "El runner no da acceso al Docker de su máquina: la construcción se hace en un demonio Docker remoto que usted gestiona, indicado por el secreto DOCKER_HOST (tcp://host:2376). Si está protegido por TLS, añada los secretos DOCKER_TLS_VERIFY y DOCKER_CERT_PATH. La conexión al registro usa los secretos REGISTRY_USER y REGISTRY_PASSWORD.",
+        "help": "Cuando un administrador ha activado Docker en los jobs, cada job tiene su propio daemon de Docker, eliminado al terminar el job: no se conserva nada de una pipeline a otra. Si no, elija un daemon remoto que usted gestione, indicado por el secreto DOCKER_HOST (tcp://host:2376); si está protegido por TLS, añada los secretos DOCKER_TLS_VERIFY y DOCKER_CERT_PATH. La conexión al registro usa los secretos REGISTRY_USER y REGISTRY_PASSWORD.",
         "params": {
+          "daemon": {
+            "label": "Daemon de Docker",
+            "hint": "El del job requiere que un administrador active Docker en los jobs.",
+            "options": {
+              "job": "El del job",
+              "remote": "Un daemon remoto (DOCKER_HOST)"
+            }
+          },
           "registry": {
             "label": "Registro",
             "hint": "Dónde publicar la imagen: registry.example.com, ghcr.io, docker.io…",
@@ -2356,20 +2368,17 @@
       "intro": "Un secreto es un valor confidencial (un token, una contraseña) guardado cifrado para el repositorio, fuera del archivo de pipeline. Los jobs lo leen como una variable: basta con escribir <code>$NOMBRE</code> en un comando.",
       "readBy": "leído por {{ jobs }}",
       "maintainerOnly": "Solo un responsable del repositorio puede ver y crear los secretos. Aun así puede usarlos en sus comandos con <code>$NOMBRE</code>: pídale los nombres disponibles.",
-      "kubernetes": "Su instancia ejecuta los jobs con Kubernetes: los secretos del repositorio solo se transmiten a los runners Docker, un job de Kubernetes no los recibe.",
       "toCreate": "Por crear",
       "missingHint": "Sus jobs leen estos secretos, que todavía no existen.",
       "whereUsed": "Dónde se usan",
       "unused": "Ningún job lo lee"
     },
     "starters": {
-      "kubernetes": "Su instancia ejecuta los jobs con Kubernetes: el Pod de un job no recibe copia del repositorio. Las plantillas compilan y prueban sus archivos: no funcionarían allí. Añada un job vacío a una etapa y haga que recupere el código que necesita (con <code>git clone</code>, por ejemplo).",
       "forRepository": "Para este repositorio: {{ title }}",
       "fromBranch": "Según los archivos de la rama {{ branch }}. Cada job retoma las versiones, las herramientas y los scripts del proyecto; podrá cambiarlo todo después.",
       "defaultBranch": "predeterminada",
       "orTemplate": "O partir de una plantilla",
       "template": "Partir de una plantilla",
-      "empty": "Partir de un job vacío",
       "reading": "Leyendo el repositorio",
       "proposedStages": "Etapas propuestas, en orden",
       "use": "Usar esta pipeline",
@@ -2393,7 +2402,8 @@
       "leadAfter": "con una imagen y unos comandos listos, que ajustará después.",
       "forRepository": "Para este repositorio",
       "forRepositoryHint": "Los jobs que piden sus proyectos y que la pipeline todavía no tiene, con sus versiones y sus scripts.",
-      "notKubernetes": "No con Kubernetes",
+      "noDocker": "Docker desactivado",
+      "noDockerReason": "Los jobs no tienen Docker en esta instancia: pídaselo a un administrador o elija un daemon remoto.",
       "secretsToCreate": "Secretos por crear:"
     },
     "mergeRequest": "Solicitud de fusión"

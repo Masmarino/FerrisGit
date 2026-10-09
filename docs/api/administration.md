@@ -144,6 +144,7 @@ Réponse 200 :
   "registrationEnabled": false,
   "publicPagesEnabled": true,
   "seoIndexingEnabled": false,
+  "dockerInJobs": false,
   "detectedK8sNamespace": null,
   "detectedK8sDefaultStorageClass": null
 }
@@ -161,6 +162,7 @@ Réponse 200 :
 | `registrationEnabled` | Inscription libre ouverte (`false` par défaut). |
 | `publicPagesEnabled` | Pages publiques activées (`true` par défaut). |
 | `seoIndexingEnabled` | Indexation par les moteurs de recherche autorisée (`false` par défaut). Elle n'a d'effet que si les pages publiques sont activées. |
+| `dockerInJobs` | Chaque job reçoit son propre démon Docker, dans un conteneur privilégié, avec l'un ou l'autre moteur (`false` par défaut). Voir [Runners Docker](/docs/ci-cd/runners-docker#docker-dans-les-jobs). |
 | `detectedK8sNamespace`, `detectedK8sDefaultStorageClass` | Valeurs détectées au démarrage, pour pré-remplir les réglages Kubernetes. |
 
 ### `PUT /api/admin/settings`

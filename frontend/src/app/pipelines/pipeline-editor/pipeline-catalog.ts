@@ -37,7 +37,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'build',
     image: RUST.image(),
     script: RUST.build(),
-    needsSource: true,
     ...RUST_CACHE,
   },
   {
@@ -51,7 +50,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'build',
     image: NODE.image(),
     script: npmScript('build'),
-    needsSource: true,
     ...NPM_CACHE,
   },
   {
@@ -65,7 +63,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'build',
     image: GO.image(),
     script: GO.build(),
-    needsSource: true,
   },
   {
     id: 'rust-test',
@@ -78,7 +75,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'test',
     image: RUST.image(),
     script: RUST.test(),
-    needsSource: true,
     ...RUST_CACHE,
   },
   {
@@ -92,7 +88,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'test',
     image: NODE.image(),
     script: npmScript('test'),
-    needsSource: true,
     ...NPM_CACHE,
   },
   {
@@ -106,7 +101,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'test',
     image: GO.image(),
     script: GO.test(),
-    needsSource: true,
   },
   {
     id: 'python-test',
@@ -119,7 +113,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'test',
     image: PYTHON.image(),
     script: [...PYTHON.setup(), PYTHON.exec('python -m pytest')],
-    needsSource: true,
   },
   {
     id: 'rust-format',
@@ -132,7 +125,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'check',
     image: RUST.image(),
     script: RUST.format(),
-    needsSource: true,
   },
   {
     id: 'rust-clippy',
@@ -145,7 +137,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'check',
     image: RUST.image(),
     script: RUST.clippy(),
-    needsSource: true,
     ...RUST_CACHE,
   },
   {
@@ -159,7 +150,6 @@ const simpleTiles = (): readonly JobTile[] => [
     stage: 'check',
     image: NODE.image(),
     script: npmScript('lint'),
-    needsSource: true,
     ...NPM_CACHE,
   },
   {
@@ -175,7 +165,6 @@ const simpleTiles = (): readonly JobTile[] => [
     script: ['apk add --no-cache curl', `curl -fsS -X POST -H "Authorization: Bearer $DEPLOY_TOKEN" "$DEPLOY_URL"`],
     tags: ['deploy'],
     secrets: ['DEPLOY_URL', 'DEPLOY_TOKEN'],
-    needsSecrets: true,
   },
   {
     id: 'http-notify',
@@ -189,7 +178,6 @@ const simpleTiles = (): readonly JobTile[] => [
     image: 'alpine:3.20',
     script: ['apk add --no-cache curl', `curl -fsS -X POST -H "Content-Type: application/json" -d '{"text":"Pipeline terminée"}' "$NOTIFY_URL"`],
     secrets: ['NOTIFY_URL'],
-    needsSecrets: true,
   },
   {
     id: 'custom',
@@ -342,5 +330,8 @@ export function stateFromTemplate(template: PipelineTemplate): BuilderState {
 /** The secrets a set of tiles expects, to name them when the repository does not have them. */
 export const secretsOfTiles = (ids: readonly string[]): string[] => [...new Set(ids.flatMap((id) => tileById(id)?.secrets ?? []))];
 
-/** Every secret a tile expects: the names worth offering to create when a command reads one that does not exist. */
-export const knownTileSecrets = perLanguage((): readonly string[] => secretsOfTiles(jobTiles().map((tile) => tile.id)));
+/**
+ * Every secret a tile expects: the names worth offering to create when a command reads one that does not exist. Those of
+ * answers other than the defaults count too: the image tile reads DOCKER_HOST when it uses a remote daemon.
+ */
+export const knownTileSecrets = perLanguage((): readonly string[] => [...new Set([...secretsOfTiles(jobTiles().map((tile) => tile.id)), 'DOCKER_HOST'])]);

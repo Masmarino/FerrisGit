@@ -23,7 +23,7 @@ describe('QuickSearch', () => {
     const me = TestBed.inject(MeService);
     me.id.set(options.userId ?? 'u-1');
     me.isAdmin.set(options.admin ?? false);
-    TestBed.inject(SettingsService).publicSettings.set({ executionEngine: options.engine ?? 'kubernetes' });
+    TestBed.inject(SettingsService).publicSettings.set({ executionEngine: options.engine ?? 'kubernetes', dockerInJobs: false });
     const fixture = TestBed.createComponent(QuickSearch);
     fixture.detectChanges();
     return { fixture, http: TestBed.inject(HttpTestingController), router: TestBed.inject(Router) };

@@ -1104,6 +1104,10 @@
       "maxJobs": "Gleichzeitige Jobs",
       "unlimited": "Unbegrenzt",
       "maxJobsHint": "Höchstzahl laufender Jobs über alle Runner hinweg; die übrigen warten. Leer: keine Begrenzung.",
+      "docker": "Docker in Jobs",
+      "dockerHelp": "Ein Docker-Daemon für jeden Job, mit beiden Engines.",
+      "dockerSwitch": "Jedem Job Docker geben",
+      "dockerHint": "Jeder Job erhält seinen eigenen Docker-Daemon, der am Ende des Jobs entfernt wird: Er kann mit <code>docker</code> Images bauen, starten und veröffentlichen, unabhängig von seinem Image. Dieser Daemon läuft in einem privilegierten Container, der Kontrolle über die Maschine oder den Knoten hat, auf dem er läuft: Aktivieren Sie diese Einstellung nur, wenn Sie allen Personen vertrauen, die eine Pipeline-Datei ändern können. Mit Kubernetes muss der Namespace der Jobs privilegierte Pods zulassen.",
       "logs": "Job-Logs",
       "logsHelp": "Wie lange der Text der Logs nach Ende des Jobs aufbewahrt wird.",
       "retention": "Aufbewahrung der Logs (Tage)",
@@ -1881,8 +1885,16 @@
       "docker-build": {
         "title": "Docker-Image bauen und veröffentlichen",
         "summary": "docker build, dann docker push in Ihre Registry.",
-        "help": "Der Runner gibt keinen Zugriff auf das Docker seiner Maschine: Gebaut wird auf einem entfernten Docker-Daemon, den Sie betreiben und den das Secret DOCKER_HOST angibt (tcp://host:2376). Ist er per TLS geschützt, fügen Sie die Secrets DOCKER_TLS_VERIFY und DOCKER_CERT_PATH hinzu. Die Anmeldung an der Registry verwendet die Secrets REGISTRY_USER und REGISTRY_PASSWORD.",
+        "help": "Wenn ein Administrator Docker in Jobs aktiviert hat, hat jeder Job seinen eigenen Docker-Daemon, der am Ende des Jobs entfernt wird: Von einer Pipeline zur nächsten wird nichts behalten. Andernfalls wählen Sie einen entfernten Daemon, den Sie betreiben, angegeben durch das Secret DOCKER_HOST (tcp://host:2376); ist er durch TLS geschützt, fügen Sie die Secrets DOCKER_TLS_VERIFY und DOCKER_CERT_PATH hinzu. Die Anmeldung an der Registry verwendet die Secrets REGISTRY_USER und REGISTRY_PASSWORD.",
         "params": {
+          "daemon": {
+            "label": "Docker-Daemon",
+            "hint": "Der des Jobs setzt voraus, dass ein Administrator Docker in Jobs aktiviert hat.",
+            "options": {
+              "job": "Der des Jobs",
+              "remote": "Ein entfernter Daemon (DOCKER_HOST)"
+            }
+          },
           "registry": {
             "label": "Registry",
             "hint": "Wo das Image veröffentlicht wird: registry.example.com, ghcr.io, docker.io…",
@@ -2356,20 +2368,17 @@
       "intro": "Ein Secret ist ein vertraulicher Wert (ein Token, ein Passwort), der verschlüsselt für das Repository gespeichert wird, außerhalb der Pipeline-Datei. Jobs lesen es wie eine Variable: Schreiben Sie einfach <code>$NAME</code> in einen Befehl.",
       "readBy": "gelesen von {{ jobs }}",
       "maintainerOnly": "Nur ein Maintainer des Repositorys kann Secrets sehen und anlegen. Sie können sie trotzdem mit <code>$NAME</code> in Ihren Befehlen verwenden: Fragen Sie nach den verfügbaren Namen.",
-      "kubernetes": "Ihre Instanz führt Jobs mit Kubernetes aus: Die Secrets des Repositorys werden nur an Docker-Runner übergeben, ein Kubernetes-Job erhält sie nicht.",
       "toCreate": "Anzulegen",
       "missingHint": "Ihre Jobs lesen diese Secrets, die es noch nicht gibt.",
       "whereUsed": "Wo sie verwendet werden",
       "unused": "Kein Job liest es"
     },
     "starters": {
-      "kubernetes": "Ihre Instanz führt Jobs mit Kubernetes aus: Der Pod eines Jobs erhält keine Kopie des Repositorys. Die Vorlagen bauen und testen dessen Dateien: Dort würden sie nicht funktionieren. Fügen Sie einer Stufe einen leeren Job hinzu und lassen Sie ihn den benötigten Code abrufen (zum Beispiel mit <code>git clone</code>).",
       "forRepository": "Für dieses Repository: {{ title }}",
       "fromBranch": "Nach den Dateien des Branches {{ branch }}. Jeder Job übernimmt die Versionen, Werkzeuge und Skripte des Projekts; Sie können danach alles ändern.",
       "defaultBranch": "Standard",
       "orTemplate": "Oder mit einer Vorlage beginnen",
       "template": "Mit einer Vorlage beginnen",
-      "empty": "Mit einem leeren Job beginnen",
       "reading": "Repository wird gelesen",
       "proposedStages": "Vorgeschlagene Stufen, in Reihenfolge",
       "use": "Diese Pipeline verwenden",
@@ -2393,7 +2402,8 @@
       "leadAfter": "mit einem fertigen Image und Befehlen, die Sie danach anpassen.",
       "forRepository": "Für dieses Repository",
       "forRepositoryHint": "Die Jobs, die seine Projekte brauchen und die die Pipeline noch nicht hat, mit ihren Versionen und Skripten.",
-      "notKubernetes": "Nicht mit Kubernetes",
+      "noDocker": "Docker deaktiviert",
+      "noDockerReason": "Jobs haben auf dieser Instanz kein Docker: Fragen Sie einen Administrator danach oder wählen Sie einen entfernten Daemon.",
       "secretsToCreate": "Anzulegende Secrets:"
     },
     "mergeRequest": "Merge-Request"

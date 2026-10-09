@@ -26,6 +26,7 @@ const DOCKER_SETTINGS: SystemSettings = {
   registrationEnabled: false,
   publicPagesEnabled: true,
   seoIndexingEnabled: false,
+  dockerInJobs: false,
   k8sNamespace: null,
   k8sCacheStorageClass: null,
   runnerRegistrationTokenConfigured: true,

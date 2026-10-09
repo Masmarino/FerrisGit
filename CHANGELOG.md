@@ -6,6 +6,37 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ## [Unreleased]
 
+### Added
+
+- Kubernetes jobs work on their repository like runner jobs: an init container clones the pipeline's commit into
+  `/workspace` with a token that only reads that repository while the job runs, the repository's CI variables reach the
+  job through a Secret created for it and deleted with its Pod, and masked values are hidden in its logs. The Pods reach
+  the server at the new `JOB_SERVER_URL` (by default `PUBLIC_URL`; the Helm chart sets the in-cluster Service and lets the
+  job Pods through its NetworkPolicy). The engine's Role may now create Secrets, never read or list them.
+- Docker in jobs: an admin setting (Admin > Réglages > Exécution, off by default) that gives every job its own Docker
+  daemon, a privileged `docker:dind` container removed with the job, with either engine: a native sidecar on Kubernetes,
+  a container per job started by the runner. The job reaches it through a socket shared with it only, and finds the
+  `docker` client with buildx and compose whatever its image (`dockerInJobs` in `GET /api/settings/public` and
+  `PUT /api/admin/settings`).
+
+### Changed
+
+- The pipeline editor no longer greys out the tiles that need the repository or its secrets when the instance runs
+  jobs with Kubernetes, and an empty pipeline offers its templates and proposal there too. The image tile builds with
+  the job's own Docker daemon, or with a remote one named by the `DOCKER_HOST` secret, and says so when the instance
+  gives jobs no Docker.
+- Helm chart `0.5.0`: `JOB_SERVER_URL` set to the in-cluster Service, the job Pods let through the NetworkPolicy to the
+  server, and the engine's Role allowed to create Secrets.
+
+### Fixed
+
+- A runner job of a group repository cloned from the owner's path instead of the group's, and failed.
+
+### Migrations
+
+One migration applies at startup, with no manual step: `0011_job_containers` (the "Docker in jobs" setting, and the
+clone tokens of Kubernetes jobs).
+
 ## [0.1.6] - 2026-10-22
 
 ### Added

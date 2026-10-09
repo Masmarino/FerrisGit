@@ -7,13 +7,22 @@ Un runner est le programme `ferrisgit-runner`. Il interroge le serveur FerrisGit
 1. Toutes les `FERRISGIT_POLL_INTERVAL_SECS` secondes (5 par défaut), il demande un job au serveur. S'il n'y en a pas, il attend et recommence.
 2. Il clone le dépôt dans `<FERRISGIT_WORKDIR_ROOT>/<identifiant du job>` avec `git clone`, puis `git checkout` sur le commit de la pipeline. Le clonage utilise son propre jeton, en lecture seule.
 3. Il supprime le dossier `.git` du clone, pour que le jeton qui s'y trouve ne soit pas lisible par le script.
-4. Il lance `docker run --rm -v <dossier>:/workspace -w /workspace` avec une option `-e` par variable, l'image du job, puis `sh -c "<script>"`.
-5. Il envoie chaque ligne de sortie (standard et erreur) au serveur dès qu'elle est produite, puis le résultat : réussi si le conteneur sort avec le code 0, échoué sinon.
-6. Il supprime le dossier de travail et passe au job suivant.
+4. Si un administrateur a activé Docker dans les jobs, il démarre le démon Docker du job (voir [Docker dans les jobs](#docker-dans-les-jobs)) et attend qu'il réponde, deux minutes au plus.
+5. Il lance `docker run --rm -v <dossier>:/workspace -w /workspace` avec une option `-e` par variable, l'image du job, puis `sh -c "<script>"`.
+6. Il envoie chaque ligne de sortie (standard et erreur) au serveur dès qu'elle est produite. Il supprime le démon du job, s'il en a un, puis envoie le résultat : réussi si le conteneur sort avec le code 0, échoué sinon.
+7. Il supprime le dossier de travail et passe au job suivant.
 
 Un runner traite **un seul job à la fois**. Pour exécuter des jobs en parallèle, lancez plusieurs runners.
 
-Le script se lance donc dans `/workspace`, où se trouve le dépôt au commit voulu (sans `.git`). Le conteneur n'a ni accès au socket Docker de l'hôte, ni mode privilégié : un job ne peut pas lancer `docker build` sur le démon de l'hôte.
+Le script se lance donc dans `/workspace`, où se trouve le dépôt au commit voulu (sans `.git`). Le conteneur du job n'a ni accès au socket Docker de l'hôte, ni mode privilégié : il n'utilise jamais le démon de l'hôte.
+
+## Docker dans les jobs
+
+Quand un administrateur active **Donner Docker à chaque job** (**Admin > Réglages > Exécution**, carte **Docker dans les jobs**), le runner donne à chaque job un démon Docker à lui : un conteneur `docker:dind` **privilégié**, nommé `ferrisgit-job-<identifiant du job>-docker`, et un volume du même nom partagé avec le job. Le démon écoute sur une socket dans ce volume, jamais sur le réseau, et y copie son client avec les extensions buildx et compose. Le job reçoit `DOCKER_HOST` et `DOCKER_CONFIG`, et trouve `docker` en fin de `PATH` : `docker build`, `docker run`, `docker push` et `docker compose` fonctionnent quelle que soit l'image du job. À la fin du job, le runner supprime le conteneur, ses images et le volume : rien n'est gardé d'un job à l'autre.
+
+Le démon de la machine du runner doit accepter les conteneurs privilégiés. Un conteneur privilégié a la main sur cette machine : n'activez ce réglage que si vous faites confiance à toutes les personnes qui peuvent modifier un fichier de pipeline. Un runner antérieur à ce réglage l'ignore, et ses jobs tournent sans Docker.
+
+Les volumes que le job monte dans un `docker run` sont ceux du démon du job, pas les siens : pour donner des fichiers à un conteneur, construisez une image avec eux, ou copiez-les avec `docker cp`.
 
 ## Prérequis
 
@@ -117,7 +126,7 @@ Le fichier `/etc/ferrisgit-runner.env` contient les lignes `FERRISGIT_SERVER_URL
 ## Sécurité
 
 - **Le jeton d'un runner est très puissant.** Il n'expire jamais et donne accès en lecture à tous les dépôts de l'instance (c'est ainsi que le runner clone). Il permet aussi de prendre les jobs de n'importe quel dépôt et de recevoir en clair ses variables CI. Il ne permet pas de pousser. Traitez-le comme un mot de passe.
-- Un job s'exécute dans un conteneur sur la machine du runner, avec les droits que Docker lui donne : toute personne qui peut modifier un fichier de pipeline y exécute du code. N'enregistrez pas de runner sur une machine qui héberge autre chose de sensible.
+- Un job s'exécute dans un conteneur sur la machine du runner, avec les droits que Docker lui donne : toute personne qui peut modifier un fichier de pipeline y exécute du code. N'enregistrez pas de runner sur une machine qui héberge autre chose de sensible. Avec Docker dans les jobs, le démon du job est privilégié : un job peut alors prendre la main sur la machine.
 - Les valeurs des variables arrivent au conteneur par des options `-e` de `docker run` : elles sont visibles, le temps du job, dans la liste des processus de la machine du runner et dans `docker inspect`.
 - Le dossier `.git` est retiré du clone avant le lancement du conteneur, et le jeton du runner est masqué (`***`) dans les journaux.
 - Pour révoquer un runner, supprimez-le par l'API : `DELETE /api/admin/runners/{id}`. Son jeton cesse de fonctionner immédiatement et ses jobs en cours repassent à **En attente**. L'interface actuelle n'a pas de bouton de révocation.

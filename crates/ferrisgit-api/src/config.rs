@@ -12,6 +12,9 @@ pub struct Config {
     pub settings_encryption_key: [u8; 32],
     /// Bare origin, no path or trailing slash. Mail links are built from it.
     pub public_url: String,
+    /// The server as Kubernetes job Pods reach it, to clone their repository: `JOB_SERVER_URL`, else `public_url`. An
+    /// in-cluster address (`http://ferrisgit.ferrisgit.svc:8080`) spares the Pods a trip through the ingress.
+    pub job_server_url: String,
     /// From `TRUSTED_PROXY_CIDRS`. Empty means `X-Forwarded-For` is never trusted (see `client_ip`).
     pub trusted_proxy_cidrs: Vec<Cidr>,
 }
@@ -73,6 +76,16 @@ impl Config {
         let public_url = parse_public_url(&public_url_raw)
             .unwrap_or_else(|reason| panic!("{reason}, got {public_url_raw:?}"));
 
+        let job_server_url = match std::env::var("JOB_SERVER_URL")
+            .ok()
+            .filter(|raw| !raw.trim().is_empty())
+        {
+            Some(raw) => parse_public_url(&raw)
+                .map_err(|reason| reason.replace("PUBLIC_URL", "JOB_SERVER_URL"))
+                .unwrap_or_else(|reason| panic!("{reason}, got {raw:?}")),
+            None => public_url.clone(),
+        };
+
         let trusted_proxy_cidrs =
             parse_cidr_list(&std::env::var("TRUSTED_PROXY_CIDRS").unwrap_or_default())
                 .unwrap_or_else(|reason| panic!("TRUSTED_PROXY_CIDRS: {reason}"));
@@ -91,6 +104,7 @@ impl Config {
                 .filter(|s| !s.is_empty()),
             settings_encryption_key,
             public_url,
+            job_server_url,
             trusted_proxy_cidrs,
         }
     }

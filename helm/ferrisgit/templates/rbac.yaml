@@ -1,8 +1,8 @@
 {{- if .Values.kubernetesExecutor.enabled }}
 {{- $sa := include "ferrisgit.serviceAccountName" . }}
 {{- $jobsNamespace := include "ferrisgit.jobsNamespace" . }}
-# What the Kubernetes engine needs: a Pod per CI job, its logs and the cache claims, never Secrets. Same rules as the
-# README and the RBAC test fixture in ferrisgit-infrastructure.
+# What the Kubernetes engine needs: a Pod per CI job, its logs, the cache claims, and creating each job's Secret (never
+# reading or listing one). Same rules as the README and the RBAC test fixture in ferrisgit-infrastructure.
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -25,6 +25,10 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "create"]
+  # Each job's Secret (its clone token and the repository's CI variables), owned by its Pod and deleted with it.
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding

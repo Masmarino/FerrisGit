@@ -1104,6 +1104,10 @@
       "maxJobs": "Concurrent jobs",
       "unlimited": "Unlimited",
       "maxJobsHint": "Maximum number of running jobs across all runners; the others wait. Empty: no limit.",
+      "docker": "Docker in jobs",
+      "dockerHelp": "A Docker daemon for every job, with either engine.",
+      "dockerSwitch": "Give every job Docker",
+      "dockerHint": "Every job gets its own Docker daemon, removed when the job ends: it can build, run and push images with <code>docker</code>, whatever its image. This daemon runs in a privileged container, which has control over the machine or node running it: only turn this setting on if you trust everyone who can change a pipeline file. With Kubernetes, the jobs' namespace must accept privileged pods.",
       "logs": "Job logs",
       "logsHelp": "How long the log text is kept once the job has finished.",
       "retention": "Log retention (days)",
@@ -1881,8 +1885,16 @@
       "docker-build": {
         "title": "Build and publish a Docker image",
         "summary": "docker build, then docker push to your registry.",
-        "help": "The runner does not give access to its machine's Docker: the build happens on a remote Docker daemon that you run, named by the DOCKER_HOST secret (tcp://host:2376). If it is protected by TLS, add the DOCKER_TLS_VERIFY and DOCKER_CERT_PATH secrets. Signing in to the registry uses the REGISTRY_USER and REGISTRY_PASSWORD secrets.",
+        "help": "When an administrator has turned on Docker in jobs, every job has its own Docker daemon, removed when the job ends: nothing is kept from one pipeline to the next. Otherwise, choose a remote daemon you run, named by the DOCKER_HOST secret (tcp://host:2376); if it is protected by TLS, add the DOCKER_TLS_VERIFY and DOCKER_CERT_PATH secrets. Signing in to the registry uses the REGISTRY_USER and REGISTRY_PASSWORD secrets.",
         "params": {
+          "daemon": {
+            "label": "Docker daemon",
+            "hint": "The job's own needs an administrator to turn on Docker in jobs.",
+            "options": {
+              "job": "The job's own",
+              "remote": "A remote daemon (DOCKER_HOST)"
+            }
+          },
           "registry": {
             "label": "Registry",
             "hint": "Where to publish the image: registry.example.com, ghcr.io, docker.io…",
@@ -2356,20 +2368,17 @@
       "intro": "A secret is a confidential value (a token, a password) kept encrypted for the repository, outside the pipeline file. Jobs read it like a variable: just write <code>$NAME</code> in a command.",
       "readBy": "read by {{ jobs }}",
       "maintainerOnly": "Only a maintainer of the repository can see and create secrets. You can still use them in your commands with <code>$NAME</code>: ask them for the available names.",
-      "kubernetes": "Your instance runs jobs with Kubernetes: the repository's secrets are only passed to Docker runners, a Kubernetes job does not receive them.",
       "toCreate": "To create",
       "missingHint": "Your jobs read these secrets, which do not exist yet.",
       "whereUsed": "Where they are used",
       "unused": "No job reads it"
     },
     "starters": {
-      "kubernetes": "Your instance runs jobs with Kubernetes: a job's Pod gets no copy of the repository. The templates build and test its files: they would not work there. Add an empty job to a stage, and have it fetch the code it needs (with <code>git clone</code>, for example).",
       "forRepository": "For this repository: {{ title }}",
       "fromBranch": "Based on the files of the {{ branch }} branch. Each job takes over the project's versions, tools and scripts; you can change everything afterwards.",
       "defaultBranch": "default",
       "orTemplate": "Or start from a template",
       "template": "Start from a template",
-      "empty": "Start from an empty job",
       "reading": "Reading the repository",
       "proposedStages": "Proposed stages, in order",
       "use": "Use this pipeline",
@@ -2393,7 +2402,8 @@
       "leadAfter": "with a ready image and commands, which you set up afterwards.",
       "forRepository": "For this repository",
       "forRepositoryHint": "The jobs its projects call for and that the pipeline does not have yet, with their versions and scripts.",
-      "notKubernetes": "Not with Kubernetes",
+      "noDocker": "Docker turned off",
+      "noDockerReason": "Jobs have no Docker on this instance: ask an administrator for it, or choose a remote daemon.",
       "secretsToCreate": "Secrets to create:"
     },
     "mergeRequest": "Merge request"

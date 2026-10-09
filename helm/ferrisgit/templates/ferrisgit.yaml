@@ -98,6 +98,11 @@ spec:
             {{- end }}
             - name: PUBLIC_URL
               value: {{ include "ferrisgit.publicUrl" . | quote }}
+            {{- if .Values.kubernetesExecutor.enabled }}
+            # Job Pods clone their repository from the Service, inside the cluster, not through the ingress.
+            - name: JOB_SERVER_URL
+              value: {{ printf "http://%s.%s.svc:%v" .Release.Name .Release.Namespace .Values.service.port | quote }}
+            {{- end }}
             {{- if include "ferrisgit.trustedProxyCidrs" . }}
             - name: TRUSTED_PROXY_CIDRS
               value: {{ include "ferrisgit.trustedProxyCidrs" . | quote }}

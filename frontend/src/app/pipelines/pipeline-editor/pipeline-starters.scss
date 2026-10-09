@@ -163,9 +163,3 @@
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
-
-// With Kubernetes, the explanation of why there is nothing to start from, under the title.
-.starters gbt-alert[data-kubernetes] {
-  display: block;
-  margin-top: 0.75rem;
-}

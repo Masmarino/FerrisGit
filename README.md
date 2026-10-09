@@ -60,7 +60,9 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 - Pipelines described in a `.ferrisgit-ci.yml` file at the root of the repository.
 - Two execution engines: **Docker runners** (a small `ferrisgit-runner` binary polling the server) or
   **Kubernetes**, where each job runs as a Pod.
-- Per-repository CI variables, encrypted at rest (Docker runners only), and per-job caches (Kubernetes only).
+- Per-repository CI variables, encrypted at rest, and per-job caches (Kubernetes only).
+- Docker in jobs, as an admin setting: each job gets its own Docker daemon (Docker-in-Docker, privileged), with either
+  engine, so `docker build`, `docker push` and `docker compose` work whatever the job's image.
 - **Merge request pipelines**: an open merge request runs a pipeline on its source branch merged into its target, shown
   in the merge request list, page and timeline, superseded runs are canceled, and a repository can require it to
   succeed before a merge.
@@ -140,6 +142,7 @@ the server at startup with an explicit message.
 | `JWT_SECRET` | yes | | Signing key for session tokens. At least 32 characters. |
 | `SETTINGS_ENCRYPTION_KEY` | yes | | Exactly 32 characters. Encrypts CI variables, webhook secrets, the SMTP password and TOTP secrets at rest. See the warning below. |
 | `PUBLIC_URL` | yes | | The address users reach the application at: scheme and host (and port), no path. Activation and password-reset links and WebAuthn origins are built from it. `http://` is only accepted for `localhost`. |
+| `JOB_SERVER_URL` | no | `PUBLIC_URL` | Where Kubernetes job Pods reach the server to clone their repository. The Helm chart sets it to the in-cluster Service. |
 | `TRUSTED_PROXY_CIDRS` | no | empty | Comma-separated CIDRs of your reverse proxy or ingress. Rate limits are per client IP; behind a proxy, list it here so `X-Forwarded-For` is honoured. Leave empty when the server is reached directly. List the proxy only, never a network untrusted clients can connect from. |
 | `STORAGE_ROOT` | no | `./data` | Directory holding the Git repositories, wikis and release assets. |
 | `BIND_ADDR` | no | `0.0.0.0:8080` | Listen address. |
@@ -316,6 +319,12 @@ the admin settings.
 FerrisGit itself always runs as a container. With the Kubernetes engine selected in the admin settings, each CI job
 instead runs as a Pod in your cluster. FerrisGit does not deploy anything to your cluster on its own behalf.
 
+Each job's Pod clones the repository at the pipeline's commit in an init container, with a token that only reads that
+repository while the job runs, and gets the repository's CI variables from a Secret created for it and deleted with the
+Pod. The Pods reach the server at `JOB_SERVER_URL` (by default `PUBLIC_URL`). With Docker in jobs on, a privileged
+`docker:dind` native sidecar (Kubernetes 1.29+) gives the job its own daemon, so the jobs' namespace must allow
+privileged Pods.
+
 **How it finds the cluster.** The client is configured the standard way:
 
 - Running inside the target cluster: mount a `ServiceAccount` token into the Pod (the Kubernetes default) with the
@@ -351,6 +360,9 @@ rules:
   - apiGroups: [""]
     resources: ["persistentvolumeclaims"]
     verbs: ["get", "list", "create"]
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["create"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -642,7 +654,9 @@ cargo fmt --all --check
 
 `--test-threads=1` is needed because the configuration tests modify process environment variables. A few tests of
 the Kubernetes adapter create a local [`kind`](https://kind.sigs.k8s.io) cluster and need `kind` and Docker; the
-integration suite in `crates/ferrisgit-infrastructure/tests/` is additionally gated behind the `kind-tests` feature.
+integration suite in `crates/ferrisgit-infrastructure/tests/` is additionally gated behind the `kind-tests` feature, and
+so is `crates/ferrisgit-api/tests/kubernetes_jobs_flow.rs`, which runs real pipelines on the `kind-ferrisgit-test`
+cluster against an in-process server (`cargo test -p ferrisgit-api --features kind-tests --test kubernetes_jobs_flow`).
 
 Frontend:
 

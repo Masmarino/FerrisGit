@@ -1,9 +1,10 @@
 use crate::error::infra;
 use crate::kubernetes::{
     cache::ensure_cache_pvcs,
-    pod_spec::{build_pod, pod_name},
+    pod_spec::{PodJob, build_pod, build_secret, pod_name},
 };
 use async_trait::async_trait;
+use ferrisgit_application::use_cases::job_environment::JobEnvironmentSource;
 use ferrisgit_application::use_cases::report_job_result::mark_pipeline_running;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::job::{Job, JobStatus, JobStorePort};
@@ -11,7 +12,7 @@ use ferrisgit_domain::job_execution::JobExecutionPort;
 use ferrisgit_domain::pipeline::PipelineStorePort;
 use ferrisgit_domain::pipeline_events::{JobEvent, PipelineEventPublisherPort};
 use ferrisgit_domain::settings::{SystemSettings, SystemSettingsStorePort};
-use k8s_openapi::api::core::v1::Pod;
+use k8s_openapi::api::core::v1::{Pod, Secret};
 use kube::api::{Api, DeleteParams, PostParams};
 use std::sync::Arc;
 
@@ -21,18 +22,24 @@ pub struct KubernetesPodExecutor {
     jobs: Arc<dyn JobStorePort>,
     system_settings: Arc<dyn SystemSettingsStorePort>,
     events: Arc<dyn PipelineEventPublisherPort>,
+    environments: Arc<dyn JobEnvironmentSource>,
     /// Used when `SystemSettings.k8s_namespace` is unset. Resolved once at boot from the config that built `client`.
     default_namespace: String,
+    /// The server as the job Pods reach it, to clone from.
+    server_url: String,
 }
 
 impl KubernetesPodExecutor {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         client: kube::Client,
         pipelines: Arc<dyn PipelineStorePort>,
         jobs: Arc<dyn JobStorePort>,
         system_settings: Arc<dyn SystemSettingsStorePort>,
         events: Arc<dyn PipelineEventPublisherPort>,
+        environments: Arc<dyn JobEnvironmentSource>,
         default_namespace: String,
+        server_url: String,
     ) -> Self {
         Self {
             client,
@@ -40,7 +47,9 @@ impl KubernetesPodExecutor {
             jobs,
             system_settings,
             events,
+            environments,
             default_namespace,
+            server_url,
         }
     }
 
@@ -57,11 +66,7 @@ impl JobExecutionPort for KubernetesPodExecutor {
     async fn submit(&self, job: &Job) -> Result<(), DomainError> {
         let settings = self.system_settings.get().await?;
         let namespace = self.namespace(&settings);
-        let pipeline = self
-            .pipelines
-            .find_by_id(job.pipeline_id)
-            .await?
-            .ok_or_else(|| DomainError::NotFound("pipeline".to_string()))?;
+        let environment = self.environments.environment(job).await?;
 
         if !job.cache.is_empty() {
             let storage_class = settings.k8s_cache_storage_class.ok_or_else(|| {
@@ -73,18 +78,52 @@ impl JobExecutionPort for KubernetesPodExecutor {
             ensure_cache_pvcs(
                 &self.client,
                 &namespace,
-                pipeline.repository_id,
+                environment.repository_id,
                 &job.cache,
                 &storage_class,
             )
             .await?;
         }
 
-        let pod = build_pod(job, pipeline.repository_id, &namespace);
+        let clone_token = self.environments.issue_clone_token(job.id).await?;
+        let clone_url = format!(
+            "{}/{}.git",
+            self.server_url.trim_end_matches('/'),
+            environment.repository_path
+        );
+        let ci_variable_names: Vec<String> = environment.ci_variables.keys().cloned().collect();
+        let pod = build_pod(&PodJob {
+            job,
+            repository_id: environment.repository_id,
+            namespace: &namespace,
+            clone_url: &clone_url,
+            commit_sha: &environment.commit_sha,
+            ci_variable_names: &ci_variable_names,
+            docker: environment.docker,
+        });
         let pods: Api<Pod> = Api::namespaced(self.client.clone(), &namespace);
-        pods.create(&PostParams::default(), &pod)
+        let created = pods
+            .create(&PostParams::default(), &pod)
             .await
             .map_err(infra)?;
+
+        // After the Pod, so that it can own the Secret: Kubernetes deletes it with the Pod. Until it exists, the Pod
+        // waits to start its containers.
+        let pod_uid = created.metadata.uid.unwrap_or_default();
+        let secret = build_secret(
+            job.id,
+            &namespace,
+            &pod_uid,
+            &clone_token,
+            &environment.ci_variables,
+        );
+        let secrets: Api<Secret> = Api::namespaced(self.client.clone(), &namespace);
+        if let Err(err) = secrets.create(&PostParams::default(), &secret).await {
+            pods.delete(&pod_name(job.id), &DeleteParams::default())
+                .await
+                .ok();
+            return Err(infra(err));
+        }
 
         let changed = self.jobs.update_status(job.id, JobStatus::Running).await?;
         if changed {
@@ -222,7 +261,9 @@ mod tests {
             jobs.clone(),
             Arc::new(FakeSettings(settings(&ns.name, None))),
             events.clone(),
+            Arc::new(FakeEnvironments::default()),
             ns.name.clone(),
+            "http://ferrisgit.test".to_string(),
         );
 
         executor.submit(&the_job).await.unwrap();
@@ -263,7 +304,9 @@ mod tests {
             jobs.clone(),
             Arc::new(FakeSettings(settings_without_namespace)),
             Arc::new(FakeEvents::default()),
+            Arc::new(FakeEnvironments::default()),
             ns.name.clone(),
+            "http://ferrisgit.test".to_string(),
         );
 
         executor.submit(&the_job).await.unwrap();
@@ -292,7 +335,9 @@ mod tests {
             jobs.clone(),
             Arc::new(FakeSettings(settings(&ns.name, None))),
             events.clone(),
+            Arc::new(FakeEnvironments::default()),
             ns.name.clone(),
+            "http://ferrisgit.test".to_string(),
         );
 
         executor.submit(&the_job).await.unwrap();
@@ -321,7 +366,9 @@ mod tests {
             jobs,
             Arc::new(FakeSettings(settings(&ns.name, Some("standard")))),
             Arc::new(FakeEvents::default()),
+            Arc::new(FakeEnvironments::for_repository(pipeline.repository_id)),
             ns.name.clone(),
+            "http://ferrisgit.test".to_string(),
         );
 
         executor.submit(&the_job).await.unwrap();
@@ -348,7 +395,9 @@ mod tests {
             jobs.clone(),
             Arc::new(FakeSettings(settings(&ns.name, None))),
             Arc::new(FakeEvents::default()),
+            Arc::new(FakeEnvironments::default()),
             ns.name.clone(),
+            "http://ferrisgit.test".to_string(),
         );
 
         let result = executor.submit(&the_job).await;
@@ -373,7 +422,9 @@ mod tests {
             jobs,
             Arc::new(FakeSettings(settings(&ns.name, None))),
             Arc::new(FakeEvents::default()),
+            Arc::new(FakeEnvironments::default()),
             ns.name.clone(),
+            "http://ferrisgit.test".to_string(),
         );
         executor.submit(&the_job).await.unwrap();
 
@@ -394,7 +445,9 @@ mod tests {
             Arc::new(FakeJobs::default()),
             Arc::new(FakeSettings(settings(&ns.name, None))),
             Arc::new(FakeEvents::default()),
+            Arc::new(FakeEnvironments::default()),
             ns.name.clone(),
+            "http://ferrisgit.test".to_string(),
         );
 
         executor.cancel(&the_job).await.unwrap();

@@ -350,6 +350,7 @@ pub async fn git_smart_http(state: AppState, req: axum::extract::Request) -> Res
         state.api_tokens.clone(),
         state.events.clone(),
         state.runners.clone(),
+        state.job_clone_tokens.clone(),
         state.repository_collaborators.clone(),
         state.groups.clone(),
         state.group_membership.clone(),

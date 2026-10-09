@@ -73,6 +73,10 @@ Un job qui déclare des clés `cache:` échoue explicitement tant qu'aucune `Sto
 
 Si FerrisGit détecte la classe par défaut du cluster, il l'affiche dans le champ, avec un avertissement : vérifiez qu'elle supporte `ReadWriteMany` avant de l'utiliser. **Cette valeur détectée n'est jamais appliquée tant que vous ne l'avez pas enregistrée.** Pour la confirmer, modifiez le champ (par exemple en retapant le nom) puis quittez-le.
 
+### Docker dans les jobs
+
+Interrupteur **Donner Docker à chaque job**, désactivé par défaut, valable pour les deux moteurs. Activé, chaque job reçoit son propre démon Docker, supprimé à la fin du job : il peut construire, lancer et publier des images avec `docker`, quelle que soit son image. Ce démon tourne dans un conteneur **privilégié**, qui a la main sur la machine du runner ou sur le nœud Kubernetes qui l'exécute : n'activez ce réglage que si vous faites confiance à toutes les personnes qui peuvent modifier un fichier de pipeline. Avec Kubernetes, le namespace des jobs doit accepter les Pods privilégiés. Voir [Runners Docker](/docs/ci-cd/runners-docker#docker-dans-les-jobs) et [Moteur Kubernetes](/docs/ci-cd/kubernetes#docker-dans-les-jobs).
+
 ### Journaux des jobs
 
 Champ **Durée de conservation des journaux (jours)** : un nombre entier de 1 ou plus. Vide (le défaut), les journaux sont conservés sans limite.

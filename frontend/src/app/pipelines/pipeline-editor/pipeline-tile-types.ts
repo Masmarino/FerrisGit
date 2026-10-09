@@ -33,6 +33,8 @@ export interface TileBuild {
   tags?: string[];
   /** The repository secrets its commands read. They have to exist for the job to work. */
   secrets?: string[];
+  /** It runs `docker` against the job's own daemon, which the admin turns on for every job. */
+  usesJobDocker?: boolean;
 }
 
 /** A job ready to drop into a stage: what it does in one sentence, and the image and commands that do it. */
@@ -53,16 +55,6 @@ export interface JobTile extends TileBuild {
   params?: TileParam[];
   /** The job for a given set of answers. */
   build?: (values: ParamValues) => TileBuild;
-  /**
-   * Whether it reads repository secrets. Those only reach jobs run by Docker runners, so it cannot work with
-   * Kubernetes. Set on every tile that names secrets.
-   */
-  needsSecrets?: boolean;
-  /**
-   * Whether its commands work on the repository's files. A Kubernetes Pod gets no copy of the repository, so it cannot
-   * work there as it is.
-   */
-  needsSource?: boolean;
 }
 
 export const defaultValues = (params: readonly TileParam[] = []): ParamValues => Object.fromEntries(params.map((param) => [param.id, param.default]));

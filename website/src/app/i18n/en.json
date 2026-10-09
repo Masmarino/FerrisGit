@@ -352,7 +352,7 @@
       },
       "vars": {
         "title": "Variables and caches",
-        "text": "Per-repository CI variables, encrypted at rest with AES-256-GCM (Docker runners). Per-job caches with Kubernetes."
+        "text": "Per-repository CI variables, encrypted at rest with AES-256-GCM. Per-job caches with Kubernetes. Optionally, a Docker daemon of its own for each job, to build and publish images."
       },
       "docs": "The .ferrisgit-ci.yml reference (in French)"
     },
@@ -521,7 +521,7 @@
         "bullets": {
           "b1": "Pipelines described in `.ferrisgit-ci.yml` at the root of the repository",
           "b2": "Docker runners (a lightweight `ferrisgit-runner` binary that polls the server) or Kubernetes, where each job runs as a Pod",
-          "b3": "Per-repository variables, encrypted at rest (Docker runners only)",
+          "b3": "Per-repository variables, encrypted at rest",
           "b4": "Per-job caches (Kubernetes only)"
         }
       },
