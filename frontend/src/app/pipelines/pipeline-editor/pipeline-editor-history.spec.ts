@@ -1,5 +1,5 @@
 import { tileById } from './pipeline-catalog';
-import { FILE, FILE_URL, PARSE_URL, RENDER_URL, answerRender, buttonNamed, cardNames, fileBody, lanes, opened, parsed, rendered, sleep, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
+import { FILE, FILE_URL, PARSE_URL, RENDER_URL, answerRender, buttonNamed, cardNames, fileBody, lanes, opened, parsed, rendered, nextRequest, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
 
 describe('PipelineEditor history', () => {
   verifyRequestsAfterEach();
@@ -95,8 +95,7 @@ describe('PipelineEditor history', () => {
 
       ctx.internals.setMode('yaml');
       ctx.http.expectOne(RENDER_URL).flush(rendered());
-      await sleep(300);
-      ctx.http.expectOne(PARSE_URL).flush(parsed());
+      (await nextRequest(ctx, PARSE_URL)).flush(parsed());
       ctx.fixture.detectChanges();
 
       expect(ctx.internals.canUndo()).toBe(false);

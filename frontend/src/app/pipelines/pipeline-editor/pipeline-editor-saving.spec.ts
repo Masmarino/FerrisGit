@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Router } from '@angular/router';
 import { PendingChanges } from '../../shared/pending-changes';
-import { FILE, FILE_URL, PARSE_URL, PROPOSAL_URL, RENDER_URL, answerRender, buttonNamed, fileBody, opened, parsed, rendered, setup, sleep, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
+import { FILE, FILE_URL, PARSE_URL, PROPOSAL_URL, RENDER_URL, answerRender, buttonNamed, fileBody, opened, parsed, rendered, setup, nextRequest, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
 
 describe('PipelineEditor saving', () => {
   verifyRequestsAfterEach();
@@ -50,8 +50,7 @@ describe('PipelineEditor saving', () => {
       await answerRender(ctx);
 
       ctx.internals.patchJob('compile', { image: 'changed-again' });
-      await sleep(300);
-      ctx.http.expectOne(RENDER_URL).flush(null, { status: 500, statusText: 'Server Error' });
+      (await nextRequest(ctx, RENDER_URL)).flush(null, { status: 500, statusText: 'Server Error' });
       ctx.fixture.detectChanges();
 
       expect(headerSave(ctx.el).disabled).toBe(true);

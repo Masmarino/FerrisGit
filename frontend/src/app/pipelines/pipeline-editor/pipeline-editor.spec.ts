@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { CopyButton } from '@masmarino/gabarit/copy-button';
 import { By } from '@angular/platform-browser';
 import { PageTitleService } from '../../shell/page-title.service';
-import { FILE, FILE_URL, PARSE_URL, RENDER_URL, answerRender, buttonNamed, cardNames, fileBody, lanes, opened, parsed, rendered, setup, sleep, stageNames, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
+import { FILE, FILE_URL, PARSE_URL, RENDER_URL, answerRender, buttonNamed, cardNames, fileBody, lanes, opened, parsed, rendered, setup, nextRequest, stageNames, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
 
 describe('PipelineEditor', () => {
   verifyRequestsAfterEach();
@@ -112,8 +112,7 @@ describe('PipelineEditor', () => {
 
     it('says when the server could not produce the file, and keeps the pipeline', async () => {
       const ctx = opened();
-      await sleep(300);
-      ctx.http.expectOne(RENDER_URL).flush(null, { status: 500, statusText: 'Server Error' });
+      (await nextRequest(ctx, RENDER_URL)).flush(null, { status: 500, statusText: 'Server Error' });
       ctx.fixture.detectChanges();
 
       expect(text(ctx.el)).toContain("Le serveur n'a pas pu produire le fichier");

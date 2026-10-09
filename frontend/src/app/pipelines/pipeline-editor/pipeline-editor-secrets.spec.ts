@@ -1,5 +1,5 @@
 import { DefinitionDto } from './pipeline-definitions.service';
-import { FILE, FILE_URL, PARSE_URL, RENDER_URL, answerRender, fileBody, opened, parsed, rendered, setup, sleep, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
+import { FILE, FILE_URL, PARSE_URL, RENDER_URL, answerRender, fileBody, opened, parsed, rendered, setup, nextRequest, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
 
 describe('PipelineEditor secrets', () => {
   verifyRequestsAfterEach();
@@ -74,8 +74,7 @@ describe('PipelineEditor secrets', () => {
 
       expect(ctx.internals.state().jobs.find((j) => j.name === 'compile')).toMatchObject({ variables: [{ key: 'MODE', value: 'fast' }] });
       expect(ctx.internals.secrets()).toEqual(['REGISTRY_TOKEN']);
-      await sleep(300);
-      ctx.http.match(RENDER_URL).forEach((r) => r.flush(rendered()));
+      (await nextRequest(ctx, RENDER_URL)).flush(rendered());
     });
 
     it('removes the variable by its name even if the variables changed meanwhile, as a step of its own', async () => {
@@ -91,8 +90,7 @@ describe('PipelineEditor secrets', () => {
       expect(ctx.internals.undoTip()).toMatch(/^Annuler : passage de REGISTRY_TOKEN en secret /);
       ctx.internals.undo();
       expect(ctx.internals.state().jobs.find((j) => j.name === 'compile')?.variables.map((v) => v.key)).toEqual(['EXTRA', 'REGISTRY_TOKEN', 'MODE']);
-      await sleep(300);
-      ctx.http.match(RENDER_URL).forEach((r) => r.flush(rendered()));
+      (await nextRequest(ctx, RENDER_URL)).flush(rendered());
     });
 
     it('keeps the variable in the job when the secret could not be saved', async () => {
@@ -103,8 +101,7 @@ describe('PipelineEditor secrets', () => {
       ctx.http.expectOne(SECRETS_URL).flush(null, { status: 500, statusText: 'Server Error' });
 
       expect(ctx.internals.state().jobs.find((j) => j.name === 'compile')?.variables).toEqual([{ key: 'REGISTRY_TOKEN', value: 'abc' }]);
-      await sleep(300);
-      ctx.http.match(RENDER_URL).forEach((r) => r.flush(rendered()));
+      (await nextRequest(ctx, RENDER_URL)).flush(rendered());
     });
   });
 });

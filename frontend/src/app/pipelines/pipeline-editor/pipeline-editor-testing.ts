@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
-import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
+import { HttpTestingController, TestRequest, provideHttpClientTesting } from '@angular/common/http/testing';
 import { provideRouter } from '@angular/router';
 import { PipelineEditor } from './pipeline-editor';
 import { DefinitionDto, ParsedPipeline, RenderedPipeline, RepositoryPipelineFile } from './pipeline-definitions.service';
@@ -101,9 +101,30 @@ export function opened(result: ParsedPipeline = parsed(), role: Role | null = 'c
 }
 
 /** Waits out the pause before a change is sent, and answers the render request. */
+/**
+ * The request to `url`, once the editor has sent it. Changes are sent after a short pause, which a busy machine
+ * stretches, so this waits for the request itself rather than for a fixed time.
+ */
+export async function nextRequest(ctx: ReturnType<typeof setup>, url: string, within = 3000): Promise<TestRequest> {
+  const deadline = Date.now() + within;
+  for (;;) {
+    const found = ctx.http.match(url);
+    if (found.length > 1) {
+      throw new Error(`${found.length} requests to ${url}, expected one`);
+    }
+    if (found.length === 1) {
+      return found[0];
+    }
+    if (Date.now() > deadline) {
+      throw new Error(`no request to ${url} within ${within} ms`);
+    }
+    await sleep(20);
+  }
+}
+
+/** Waits for the render request of the latest change, and answers it. */
 export async function answerRender(ctx: ReturnType<typeof setup>, result: RenderedPipeline = rendered()) {
-  await sleep(300);
-  const request = ctx.http.expectOne(RENDER_URL);
+  const request = await nextRequest(ctx, RENDER_URL);
   request.flush(result);
   ctx.fixture.detectChanges();
   return request;

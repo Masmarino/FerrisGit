@@ -1,5 +1,5 @@
 import { DefinitionDto, ParsedPipeline } from './pipeline-definitions.service';
-import { FILE, PARSE_URL, RENDER_URL, answerRender, cardNames, lanes, opened, parsed, rendered, settle, setup, sleep, stageNames, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
+import { FILE, PARSE_URL, RENDER_URL, answerRender, cardNames, lanes, opened, parsed, rendered, settle, setup, nextRequest, stageNames, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
 
 describe('PipelineEditor YAML', () => {
   verifyRequestsAfterEach();
@@ -9,10 +9,10 @@ describe('PipelineEditor YAML', () => {
 
     /** Waits out the pause before typed YAML is checked, and answers with `result`. */
     async function answerParse(ctx: ReturnType<typeof setup>, result: ParsedPipeline) {
-      await sleep(300);
-      // A card change made just before is still on its way to the server: the answer does not matter here.
+      const parse = await nextRequest(ctx, PARSE_URL);
+      // A card change made just before may still be on its way to the server: its answer does not matter here.
       ctx.http.match(RENDER_URL).forEach((request) => request.flush(rendered()));
-      ctx.http.expectOne(PARSE_URL).flush(result);
+      parse.flush(result);
       ctx.fixture.detectChanges();
     }
 
