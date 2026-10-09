@@ -1,4 +1,4 @@
-<gbt-panel heading="Sur cette page" [headingLevel]="2">
+<gbt-panel [heading]="'wiki.outline' | transloco" [headingLevel]="2">
   <ul class="wiki-outline__list">
     @for (entry of entries(); track entry.id) {
       <li class="wiki-outline__item" [attr.data-level]="entry.level">

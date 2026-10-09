@@ -11,11 +11,13 @@ import { sortedByTitle, wikiLink } from '../wiki-links';
 import { WikiLayout } from '../wiki-layout/wiki-layout';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { PageTitleService } from '../../shell/page-title.service';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 @Component({
   selector: 'fg-wiki-page-list',
   standalone: true,
-  imports: [RouterLink, Alert, Button, Icon, IconMarker, ListCard, WikiLayout, PageHeader],
+  imports: [TranslocoPipe, RouterLink, Alert, Button, Icon, IconMarker, ListCard, WikiLayout, PageHeader],
   templateUrl: './wiki-page-list.html',
   styleUrl: './wiki-page-list.scss',
 })
@@ -42,7 +44,7 @@ export class WikiPageList implements OnInit {
   protected cardState = computed<ListCardState>(() => (this.state() === 'loading' ? 'loading' : this.pages().length === 0 ? 'empty' : 'ready'));
 
   ngOnInit(): void {
-    this.pageTitle.set('Wiki');
+    this.pageTitle.set(t('nav.wiki'));
   }
 
   refresh(): void {

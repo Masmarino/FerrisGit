@@ -11,6 +11,7 @@ import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { WikiList, WikiPageSummary, WikiService } from '../wiki.service';
 import { sortedByTitle, wikiLink } from '../wiki-links';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 function normalise(value: string): string {
   return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase();
@@ -24,7 +25,7 @@ function normalise(value: string): string {
 @Component({
   selector: 'fg-wiki-layout',
   standalone: true,
-  imports: [FormsModule, RouterLink, Alert, Badge, Button, GbtInput, Icon, Skeleton, PageLayout],
+  imports: [TranslocoPipe, FormsModule, RouterLink, Alert, Badge, Button, GbtInput, Icon, Skeleton, PageLayout],
   templateUrl: './wiki-layout.html',
   styleUrl: './wiki-layout.scss',
 })

@@ -14,10 +14,10 @@ import { titleFromSlug, wikiLink } from '../wiki-links';
 import { PageTitleService } from '../../shell/page-title.service';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 const SLUG_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,99}$/;
 
-const CONFLICT_MESSAGE = "Quelqu'un d'autre a modifié cette page depuis que vous l'avez ouverte. Rechargez et réappliquez vos changements.";
 
 let nextId = 0;
 
@@ -53,11 +53,11 @@ export class WikiPageEditor implements OnInit {
   existingPages = signal<WikiPageSummary[]>([]);
   private loadedTitle = signal<string | null>(null);
 
-  protected heading = computed(() => (this.isCreate() ? 'Nouvelle page' : `Modifier ${this.loadedTitle() ?? titleFromSlug(this.slug()!)}`));
-  protected messagePlaceholder = computed(() => `Update ${this.isCreate() ? this.newSlug().trim() || 'Nom-de-la-page' : this.slug()}`);
+  protected heading = computed(() => (this.isCreate() ? t('wiki.newPage') : t('wiki.editNamed', { title: this.loadedTitle() ?? titleFromSlug(this.slug()!) })));
+  protected messagePlaceholder = computed(() => t('wiki.commitPlaceholder', { slug: this.isCreate() ? this.newSlug().trim() || t('wiki.slugPlaceholder') : this.slug() }));
 
   ngOnInit(): void {
-    this.pageTitle.set(this.isCreate() ? 'Nouvelle page' : `Modifier ${this.slug()}`);
+    this.pageTitle.set(this.isCreate() ? t('wiki.newPage') : t('wiki.editNamed', { title: this.slug() }));
     if (!this.isCreate()) {
       this.wiki.detail(this.repositoryId(), this.slug()!).subscribe({
         next: (detail) => {
@@ -65,7 +65,7 @@ export class WikiPageEditor implements OnInit {
           this.baseSha.set(detail.headSha);
           this.loadedTitle.set(detail.title);
         },
-        error: () => this.toast.show('Impossible de charger la page.', 'error'),
+        error: () => this.toast.show(t('wiki.loadFailed'), 'error'),
       });
     }
   }
@@ -79,7 +79,7 @@ export class WikiPageEditor implements OnInit {
 
   protected onListFailed(): void {
     if (this.isCreate()) {
-      this.toast.show('Impossible de charger la page.', 'error');
+      this.toast.show(t('wiki.loadFailed'), 'error');
     }
   }
 
@@ -90,12 +90,12 @@ export class WikiPageEditor implements OnInit {
   save(): void {
     const slug = this.isCreate() ? this.newSlug().trim() : this.slug()!;
     if (this.isCreate() && !this.isSlugValid()) {
-      this.toast.show('Le nom de la page doit contenir uniquement des lettres, chiffres, "-" et "_"', 'error');
+      this.toast.show(t('wiki.invalidSlug'), 'error');
       return;
     }
     if (this.isCreate() && this.existingPages().some((page) => page.slug === slug)) {
       // The create-or-update PUT would silently overwrite an existing page, so block it here.
-      this.toast.show(`Une page nommée « ${slug} » existe déjà — modifiez-la plutôt que d'en créer une nouvelle.`, 'error');
+      this.toast.show(t('wiki.exists', { slug }), 'error');
       return;
     }
     this.saving.set(true);
@@ -107,7 +107,7 @@ export class WikiPageEditor implements OnInit {
     }
     this.wiki.save(this.repositoryId(), slug, options).subscribe({
       next: () => {
-        this.toast.show(this.isCreate() ? 'Page wiki créée.' : 'Page wiki mise à jour.');
+        this.toast.show(this.isCreate() ? t('wiki.created') : t('wiki.updated'));
         this.router.navigate(wikiLink(this.path(), slug));
       },
       error: (err: { status?: number }) => {
@@ -115,9 +115,9 @@ export class WikiPageEditor implements OnInit {
         if (err.status === 409) {
           // Keeps `content()` so the user's text isn't lost. They can reload the current version and reapply their changes.
           this.conflict.set(true);
-          this.toast.show(CONFLICT_MESSAGE, 'error');
+          this.toast.show(t('wiki.conflict'), 'error');
         } else {
-          this.toast.show('Impossible d’enregistrer la page', 'error');
+          this.toast.show(t('wiki.saveFailed'), 'error');
         }
       },
     });
@@ -128,5 +128,5 @@ export class WikiPageEditor implements OnInit {
     void this.router.navigate(wikiLink(this.path(), ...back));
   }
 
-  protected readonly conflictMessage = CONFLICT_MESSAGE;
+  protected readonly conflictMessage = t('wiki.conflict');
 }

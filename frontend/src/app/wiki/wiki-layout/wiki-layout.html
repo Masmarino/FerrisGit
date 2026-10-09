@@ -1,4 +1,4 @@
-<gbt-page-layout width="wide" navLabel="Pages du wiki" stickyNav>
+<gbt-page-layout width="wide" [navLabel]="'wiki.pagesNav' | transloco" stickyNav>
   <div page-nav class="wiki-nav" [class.wiki-nav--open]="navOpen()">
     <div class="wiki-nav__header">
       <h2 class="wiki-nav__heading">
@@ -12,23 +12,23 @@
         variant="secondary"
         size="small"
         iconName="list"
-        [text]="navOpen() ? 'Masquer les pages' : 'Afficher les pages'"
+        [text]="(navOpen() ? 'wiki.hidePages' : 'wiki.showPages') | transloco"
         (clicked)="navOpen.set(!navOpen())"
       />
       @if (canCreate() && offerCreate()) {
-        <gbt-button class="wiki-nav__new" variant="secondary" size="small" iconName="plus" text="Nouvelle page" (clicked)="createPage()" />
+        <gbt-button class="wiki-nav__new" variant="secondary" size="small" iconName="plus" [text]="'wiki.newPage' | transloco" (clicked)="createPage()" />
       }
     </div>
 
     @if (state() === 'failed') {
-      <gbt-alert class="wiki-nav__failed" variant="error" appearance="subtle" size="sm">Les pages n’ont pas pu être chargées.</gbt-alert>
+      <gbt-alert class="wiki-nav__failed" variant="error" appearance="subtle" size="sm">{{ 'wiki.pagesFailed' | transloco }}</gbt-alert>
     }
 
     <div class="wiki-nav__body">
       @switch (state()) {
         @case ('loading') {
           <div class="wiki-nav__loading" aria-busy="true">
-            <span class="sr-only" role="status">Chargement des pages…</span>
+            <span class="sr-only" role="status">{{ 'wiki.loadingPages' | transloco }}</span>
             @for (width of skeletonRows; track $index) {
               <gbt-skeleton [width]="width" height="0.875rem" aria-hidden="true" />
             }
@@ -39,11 +39,11 @@
         }
         @default {
           @if (pages().length === 0) {
-            <p class="wiki-nav__empty">Aucune page pour l’instant.</p>
+            <p class="wiki-nav__empty">{{ 'wiki.noPage' | transloco }}</p>
           } @else {
-            <gbt-input class="wiki-nav__search" label="Rechercher une page" hideLabel leadingIcon="search" placeholder="Rechercher…" [ngModel]="search()" (ngModelChange)="search.set($event)" />
+            <gbt-input class="wiki-nav__search" [label]="'wiki.searchPage' | transloco" hideLabel leadingIcon="search" [placeholder]="'common.search' | transloco" [ngModel]="search()" (ngModelChange)="search.set($event)" />
             @if (rows().length === 0) {
-              <p class="wiki-nav__empty">Aucune page ne correspond à « {{ search().trim() }} ».</p>
+              <p class="wiki-nav__empty">{{ 'wiki.noMatch' | transloco: { query: search().trim() } }}</p>
             } @else {
               <ul class="wiki-nav__list">
                 @for (row of rows(); track row.page.slug) {

@@ -22,8 +22,8 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { PageTitleService } from '../../shell/page-title.service';
 import { MarkdownOutlineEntry, MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
-const plural = (count: number, one: string, many: string) => (count === 1 ? `1 ${one}` : `${count} ${many}`);
 
 const RECENT_REVISIONS = 3;
 
@@ -85,21 +85,21 @@ export class WikiPageDetail implements OnInit {
   canDelete = computed(() => this.role() === 'owner' || this.role() === 'maintainer');
 
   protected title = computed(() => this.page()?.title ?? titleFromSlug(this.slug()));
-  protected historyTitle = computed(() => `Historique de ${this.title()}`);
-  protected deleteMessage = computed(() => `La page « ${this.title()} » sera supprimée du wiki pour tout le monde. Tapez son titre pour confirmer.`);
+  protected historyTitle = computed(() => t('wiki.historyOf', { title: this.title() }));
+  protected deleteMessage = computed(() => t('wiki.deleteMessage', { title: this.title() }));
 
   protected latest = computed<WikiRevision | null>(() => this.revisions()[0] ?? null);
   protected recentRevisions = computed(() => this.revisions().slice(0, RECENT_REVISIONS));
-  protected revisionCountLabel = computed(() => plural(this.revisions().length, 'révision', 'révisions'));
-  protected historyLinkLabel = computed(() => (this.revisions().length === 1 ? 'Voir la révision' : `Voir les ${this.revisions().length} révisions`));
+  protected revisionCountLabel = computed(() => tn('wiki.revisions', this.revisions().length));
+  protected historyLinkLabel = computed(() => (this.revisions().length === 1 ? t('wiki.seeRevision') : t('wiki.seeRevisions', { count: this.revisions().length })));
   protected historyRows = computed(() => this.revisions().map((revision, index) => ({ revision, shortSha: revision.commitSha.slice(0, 7), current: index === 0 })));
   protected created = computed(() => this.revisions().at(-1) ?? null);
   private createdTemplate = viewChild.required<TemplateRef<unknown>>('createdTemplate');
   private modifiedTemplate = viewChild.required<TemplateRef<unknown>>('modifiedTemplate');
   protected dateEntries = computed<DescriptionListEntry[]>(() => {
     const entries: DescriptionListEntry[] = [];
-    if (this.created()) entries.push({ term: 'Créée', value: this.createdTemplate() });
-    if (this.latest()) entries.push({ term: 'Modifiée', value: this.modifiedTemplate() });
+    if (this.created()) entries.push({ term: t('wiki.createdLabel'), value: this.createdTemplate() });
+    if (this.latest()) entries.push({ term: t('wiki.modifiedLabel'), value: this.modifiedTemplate() });
     return entries;
   });
   protected contributors = computed(() => {
@@ -109,7 +109,7 @@ export class WikiPageDetail implements OnInit {
     }
     return [...counts.entries()]
       .sort((a, b) => b[1] - a[1])
-      .map(([name, count]) => ({ name, countLabel: plural(count, 'révision', 'révisions') }));
+      .map(([name, count]) => ({ name, countLabel: tn('wiki.revisions', count) }));
   });
 
   protected showOutline = computed(() => hasOutline(this.outline()));
@@ -182,7 +182,7 @@ export class WikiPageDetail implements OnInit {
       },
       error: () => {
         this.loadingRevisionSha.set(null);
-        this.toast.show('Impossible de charger cette version', 'error');
+        this.toast.show(t('wiki.versionFailed'), 'error');
       },
     });
   }
@@ -208,12 +208,12 @@ export class WikiPageDetail implements OnInit {
     this.wiki.delete(this.repositoryId(), this.slug(), page.headSha).subscribe({
       next: () => {
         this.confirmingDelete.set(false);
-        this.toast.show('Page wiki supprimée.');
+        this.toast.show(t('wiki.deleted'));
         void this.router.navigate(this.indexLink());
       },
       error: () => {
         this.confirmingDelete.set(false);
-        this.toast.show('Impossible de supprimer la page', 'error');
+        this.toast.show(t('wiki.deleteFailed'), 'error');
       },
     });
   }

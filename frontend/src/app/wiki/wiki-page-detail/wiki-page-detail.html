@@ -4,8 +4,8 @@
     @if (notFound()) {
       <gbt-card variant="outlined" [flush]="true">
         <div class="wiki-page-detail__not-found">
-          <gbt-empty-state illustration="book" heading="Page introuvable" message="Cette page n’existe pas ou a été supprimée du wiki.">
-            <gbt-button variant="secondary" iconName="arrow-left" text="Retour au wiki" (clicked)="go(indexLink())" />
+          <gbt-empty-state illustration="book" [heading]="'wiki.notFound' | transloco" [message]="'wiki.notFoundMessage' | transloco">
+            <gbt-button variant="secondary" iconName="arrow-left" [text]="'wiki.backToWiki' | transloco" (clicked)="go(indexLink())" />
           </gbt-empty-state>
         </div>
       </gbt-card>
@@ -14,20 +14,20 @@
         @if (revisionsState() === 'loaded') {
           <span header-meta>{{ revisionCountLabel() }}</span>
         }
-        <gbt-button header-actions variant="secondary" iconName="arrow-left" text="Retour à la page" (clicked)="go(viewLink())" />
+        <gbt-button header-actions variant="secondary" iconName="arrow-left" [text]="'wiki.backToPage' | transloco" (clicked)="go(viewLink())" />
       </gbt-page-header>
 
       @if (revisionsState() === 'loading') {
         <gbt-card variant="outlined" [flush]="true">
-          <gbt-skeleton-list [rows]="historySkeletonRows" leading="circle" leadingSize="2rem" [lines]="1" loadingLabel="Chargement de l’historique…" />
+          <gbt-skeleton-list [rows]="historySkeletonRows" leading="circle" leadingSize="2rem" [lines]="1" [loadingLabel]="'wiki.loadingHistory' | transloco" />
         </gbt-card>
       } @else {
         <gbt-card class="wiki-page-detail__card" variant="outlined" [flush]="true">
           <!-- Gabarit gap: its own heading rather than `heading`, because the card of an opened version below has a `[card-header]` too and the
                outer card would take that one. Keep this h2 as the first `[card-header]` in the card. -->
-          <h2 card-header class="wiki-page-detail__card-heading">Révisions</h2>
+          <h2 card-header class="wiki-page-detail__card-heading">{{ 'wiki.revisionsTitle' | transloco }}</h2>
           @if (historyRows().length === 0) {
-            <p class="wiki-history__empty">Aucun historique.</p>
+            <p class="wiki-history__empty">{{ 'wiki.noHistory' | transloco }}</p>
           } @else {
             <ol class="wiki-history">
               @for (row of historyRows(); track row.revision.commitSha) {
@@ -41,7 +41,7 @@
                         <time [attr.datetime]="row.revision.committedAt" [title]="row.revision.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.revision.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
                         <gbt-badge mono class="wiki-history__sha" [fullText]="row.revision.commitSha">{{ row.shortSha }}</gbt-badge>
                         @if (row.current) {
-                          <span class="wiki-history__current">Version actuelle</span>
+                          <span class="wiki-history__current">{{ 'wiki.currentVersion' | transloco }}</span>
                         }
                       </p>
                     </div>
@@ -50,17 +50,17 @@
                       class="wiki-history__toggle"
                       variant="secondary"
                       size="small"
-                      [text]="selectedRevisionSha() === row.revision.commitSha ? 'Masquer cette version' : 'Voir cette version'"
+                      [text]="(selectedRevisionSha() === row.revision.commitSha ? 'wiki.hideVersion' : 'wiki.showVersion') | transloco"
                       [loading]="loadingRevisionSha() === row.revision.commitSha"
-                      loadingLabel="Chargement de la version"
+                      [loadingLabel]="'wiki.loadingVersion' | transloco"
                       (clicked)="toggleRevision(row.revision.commitSha)"
                     />
                   </div>
                   @if (selectedRevisionSha() === row.revision.commitSha && selectedRevisionContent() !== null) {
-                    <article class="wiki-history__version" [attr.aria-label]="'Version ' + row.shortSha">
+                    <article class="wiki-history__version" [attr.aria-label]="'wiki.versionNamed' | transloco: { sha: row.shortSha }">
                       <gbt-card variant="outlined" [flush]="true">
                         <div card-header class="wiki-history__version-header">
-                          <span>Version <code>{{ row.shortSha }}</code></span>
+                          <span>{{ 'common.version' | transloco }} <code>{{ row.shortSha }}</code></span>
                           <time [attr.datetime]="row.revision.committedAt" [title]="row.revision.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.revision.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
                         </div>
                         <div class="wiki-history__version-body">
@@ -79,17 +79,17 @@
       <gbt-page-header [heading]="page.title">
         @if (latest(); as latest) {
           <p header-meta class="wiki-page-detail__byline">
-            Dernière modification
+            {{ 'wiki.lastModified' | transloco }}
             <time [attr.datetime]="latest.committedAt" [title]="latest.committedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ latest.committedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
-            par <span class="wiki-page-detail__author">{{ latest.authorName }}</span>
+            {{ 'common.by' | transloco }} <span class="wiki-page-detail__author">{{ latest.authorName }}</span>
           </p>
         }
         @if (canManage()) {
-          <gbt-button header-actions variant="secondary" iconName="pencil" text="Modifier" (clicked)="go(editLink())" />
+          <gbt-button header-actions variant="secondary" iconName="pencil" [text]="'common.edit' | transloco" (clicked)="go(editLink())" />
         }
-        <gbt-button header-actions variant="secondary" iconName="clock" text="Historique" (clicked)="go(historyLink())" />
+        <gbt-button header-actions variant="secondary" iconName="clock" [text]="'common.history' | transloco" (clicked)="go(historyLink())" />
         @if (canDelete()) {
-          <gbt-button header-actions variant="danger" iconName="trash-2" text="Supprimer" (clicked)="deletePage()" />
+          <gbt-button header-actions variant="danger" iconName="trash-2" [text]="'common.delete' | transloco" (clicked)="deletePage()" />
         }
       </gbt-page-header>
 
@@ -102,7 +102,7 @@
       </article>
     } @else {
       <div class="wiki-page-detail__loading" aria-busy="true">
-        <span class="sr-only" role="status">Chargement de la page…</span>
+        <span class="sr-only" role="status">{{ 'wiki.loadingPage' | transloco }}</span>
         <div class="wiki-page-detail__loading-header" aria-hidden="true">
           <gbt-skeleton width="min(22rem, 70%)" height="1.75rem" />
           <gbt-skeleton width="16rem" height="0.875rem" />
@@ -121,10 +121,10 @@
   @if (hasAside()) {
     <div page-aside class="wiki-page-detail__aside">
       @if (showHistory()) {
-        <gbt-panel heading="Dates" [headingLevel]="2">
+        <gbt-panel [heading]="'wiki.dates' | transloco" [headingLevel]="2">
           <gbt-description-list class="wiki-page-detail__dates" layout="inline" [items]="dateEntries()" />
         </gbt-panel>
-        <gbt-panel heading="Contributeurs" [headingLevel]="2">
+        <gbt-panel [heading]="'wiki.contributors' | transloco" [headingLevel]="2">
           <ul class="wiki-page-detail__people">
             @for (person of contributors(); track person.name) {
               <li>
@@ -139,7 +139,7 @@
           <fg-wiki-outline [entries]="outline()" />
         }
         @if (recentRevisions().length > 0) {
-          <gbt-panel class="wiki-page-detail__history-panel" heading="Historique" [headingLevel]="2">
+          <gbt-panel class="wiki-page-detail__history-panel" [heading]="'common.history' | transloco" [headingLevel]="2">
             <ul class="wiki-page-detail__recent">
               @for (revision of recentRevisions(); track revision.commitSha) {
                 <li>
@@ -161,11 +161,11 @@
   @if (confirmingDelete()) {
     <gbt-confirm-danger-modal
       [isOpen]="true"
-      heading="Supprimer la page"
+      [heading]="'wiki.deleteTitle' | transloco"
       [message]="deleteMessage()"
       [confirmText]="title()"
-      confirmInputLabel="Titre de la page"
-      confirmLabel="Supprimer"
+      [confirmInputLabel]="'wiki.pageTitle' | transloco"
+      [confirmLabel]="'common.delete' | transloco"
       [cancelLabel]="'common.cancel' | transloco"
       [closeLabel]="'common.close' | transloco"
       (confirmed)="confirmDelete()"
@@ -177,9 +177,9 @@
 <!-- A date gets a machine-readable value and the exact time on hover, not just text. -->
 <ng-template #createdTemplate>
   <time [attr.datetime]="created()?.committedAt" [title]="(created()?.committedAt ?? '') | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ (created()?.committedAt ?? '') | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
-  par {{ created()?.authorName }}
+  {{ 'common.byName' | transloco: { name: created()?.authorName } }}
 </ng-template>
 <ng-template #modifiedTemplate>
   <time [attr.datetime]="latest()?.committedAt" [title]="(latest()?.committedAt ?? '') | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ (latest()?.committedAt ?? '') | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
-  par {{ latest()?.authorName }}
+  {{ 'common.byName' | transloco: { name: latest()?.authorName } }}
 </ng-template>

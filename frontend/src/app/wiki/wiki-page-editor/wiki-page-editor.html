@@ -9,26 +9,26 @@
     @if (isCreate()) {
       <gbt-input
         class="wiki-page-editor__slug"
-        label="Nom de la page"
+        [label]="'wiki.pageName' | transloco"
         placeholder="Getting-Started"
-        hint="Lettres, chiffres, « - » et « _ » : il devient l’adresse de la page."
+        [hint]="'wiki.pageNameHint' | transloco"
         [ngModel]="newSlug()"
         (ngModelChange)="newSlug.set($event)"
       />
     }
 
-    <gbt-list-card ariaLabel="Contenu de la page">
+    <gbt-list-card [ariaLabel]="'wiki.content' | transloco">
       <div class="wiki-page-editor__panes">
         <div class="wiki-page-editor__pane wiki-page-editor__source">
           <div class="wiki-page-editor__pane-header">
             <gbt-icon name="pencil" aria-hidden="true" />
-            <label [for]="ids.source">Markdown</label>
+            <label [for]="ids.source">{{ 'common.markdown' | transloco }}</label>
           </div>
           <textarea
             class="wiki-page-editor__textarea"
             [id]="ids.source"
             spellcheck="true"
-            placeholder="# Titre&#10;&#10;Écrivez la page en markdown…"
+            [placeholder]="'wiki.sourcePlaceholder' | transloco"
             [value]="content()"
             (input)="content.set($any($event.target).value)"
           ></textarea>
@@ -36,13 +36,13 @@
         <div class="wiki-page-editor__pane wiki-page-editor__preview" role="region" [attr.aria-labelledby]="ids.preview">
           <div class="wiki-page-editor__pane-header">
             <gbt-icon name="book-open" aria-hidden="true" />
-            <span [id]="ids.preview">Aperçu</span>
+            <span [id]="ids.preview">{{ 'nav.overview' | transloco }}</span>
           </div>
           <div class="wiki-page-editor__preview-body">
             @if (content().trim()) {
               <fg-markdown-view [content]="content()" [headingOffset]="1" />
             } @else {
-              <p class="wiki-page-editor__preview-empty">L’aperçu s’affichera ici.</p>
+              <p class="wiki-page-editor__preview-empty">{{ 'wiki.previewEmpty' | transloco }}</p>
             }
           </div>
         </div>
@@ -50,10 +50,10 @@
     </gbt-list-card>
 
     <div class="wiki-page-editor__footer">
-      <gbt-input class="wiki-page-editor__message" label="Message de commit" [placeholder]="messagePlaceholder()" [ngModel]="message()" (ngModelChange)="message.set($event)" />
+      <gbt-input class="wiki-page-editor__message" [label]="'common.commitMessage' | transloco" [placeholder]="messagePlaceholder()" [ngModel]="message()" (ngModelChange)="message.set($event)" />
       <div class="wiki-page-editor__actions">
         <gbt-button variant="secondary" [text]="'common.cancel' | transloco" (clicked)="cancel()" />
-        <gbt-button [text]="isCreate() ? 'Créer la page' : 'Enregistrer'" [loading]="saving()" loadingLabel="Enregistrement en cours" (clicked)="save()" />
+        <gbt-button [text]="(isCreate() ? 'wiki.createPage' : 'common.save') | transloco" [loading]="saving()" [loadingLabel]="'common.saving' | transloco" (clicked)="save()" />
       </div>
     </div>
   </div>
