@@ -22,6 +22,7 @@ import { PageTitleService } from '../../shell/page-title.service';
 import { CreateRepositoryModal } from '../../repositories/create-repository-modal/create-repository-modal';
 import { WorkspaceGrid, WorkspaceGroupItem } from '../../repositories/workspace-grid/workspace-grid';
 import { WorkspaceGridFilters } from '../../repositories/workspace-grid/workspace-grid-filters';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const MEMBER_PREVIEW = 5;
 
@@ -32,7 +33,7 @@ function plural(count: number, one: string, many: string): string {
 @Component({
   selector: 'fg-group-detail',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     FormsModule,
     RouterLink,
     Alert,

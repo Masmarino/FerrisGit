@@ -93,7 +93,7 @@ export class AccountPage implements OnInit {
   protected passwordReady = computed(() => !!this.currentPassword() && !!this.newPassword() && !!this.confirmPassword());
 
   ngOnInit(): void {
-    this.pageTitle.set('Mon compte');
+    this.pageTitle.set(t('nav.account'));
     this.me.load();
   }
 
@@ -101,11 +101,11 @@ export class AccountPage implements OnInit {
   updateEmail(value: string): void {
     const email = value.trim();
     if (!email) {
-      this.emailError.set('Indiquez votre adresse email');
+      this.emailError.set(t('account.emailRequired'));
       return;
     }
     if (!EMAIL_PATTERN.test(email)) {
-      this.emailError.set('Entrez une adresse email valide');
+      this.emailError.set(t('account.emailInvalid'));
       return;
     }
     this.emailError.set(null);
@@ -146,7 +146,7 @@ export class AccountPage implements OnInit {
     this.newPasswordError.set(null);
     this.confirmPasswordError.set(null);
     if (this.newPassword() !== this.confirmPassword()) {
-      this.confirmPasswordError.set('Les nouveaux mots de passe ne correspondent pas.');
+      this.confirmPasswordError.set(t('account.passwordsDiffer'));
       return;
     }
     if (this.newPassword().length < MIN_PASSWORD_LENGTH) {

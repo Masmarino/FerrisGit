@@ -2,13 +2,13 @@
 <form novalidate (submit)="$event.preventDefault(); submit()">
   <!-- While busy, Escape, the backdrop and the close button can't close the dialog, so the outcome (and the one-time
        activation link, if the mail fails) isn't lost with it. -->
-  <gbt-modal [isOpen]="true" heading="Inviter un utilisateur" closeLabel="Fermer" [busy]="sending()" busyLabel="Envoi en cours" (closed)="close.emit()">
+  <gbt-modal [isOpen]="true" [heading]="'admin.users.invite' | transloco" [closeLabel]="'common.close' | transloco" [busy]="sending()" [busyLabel]="'common.sending' | transloco" (closed)="close.emit()">
     @if (result(); as r) {
       <div #resultRegion class="invite-user__result" tabindex="-1">
         @if (r.emailSent) {
           <gbt-alert variant="success">
-            <p class="invite-user__sent-title">Invitation envoyée à {{ r.user.email }}</p>
-            <p class="invite-user__sent-help">La personne y trouvera un lien d'activation valable 24 heures : elle choisira son nom d'utilisateur et son mot de passe, puis configurera la double authentification.</p>
+            <p class="invite-user__sent-title">{{ 'admin.users.inviteModal.sentTo' | transloco: { email: r.user.email } }}</p>
+            <p class="invite-user__sent-help">{{ 'admin.users.inviteModal.sentHelp' | transloco }}</p>
           </gbt-alert>
         } @else {
           <fg-link-mail-failed [username]="r.user.username" [emailError]="r.emailError" [url]="r.activationUrl" />
@@ -16,12 +16,12 @@
       </div>
     } @else {
       <div class="invite-user">
-        <p class="invite-user__intro">Un e-mail avec un lien d'activation valable 24 heures est envoyé à cette adresse. La personne choisit son nom d'utilisateur et son mot de passe, puis configure la double authentification.</p>
+        <p class="invite-user__intro">{{ 'admin.users.inviteModal.intro' | transloco }}</p>
 
-        <gbt-input name="email" type="email" label="Adresse e-mail" autocomplete="off" [errorMessage]="emailError()" [ngModel]="email()" (ngModelChange)="onEmailChange($event)" />
+        <gbt-input name="email" type="email" [label]="'common.emailAddress' | transloco" autocomplete="off" [errorMessage]="emailError()" [ngModel]="email()" (ngModelChange)="onEmailChange($event)" />
 
         <div class="invite-user__admin">
-          <gbt-switch name="isAdmin" label="Super-administrateur" hint="Un super-administrateur gère les utilisateurs, les réglages de l'instance et les runners." [ngModel]="isAdmin()" (ngModelChange)="isAdmin.set($event)" />
+          <gbt-switch name="isAdmin" [label]="'common.superAdmin' | transloco" [hint]="'admin.users.inviteModal.adminHint' | transloco" [ngModel]="isAdmin()" (ngModelChange)="isAdmin.set($event)" />
         </div>
 
         @if (formError(); as message) {
@@ -35,13 +35,13 @@
     <!-- One block per step, each with a single root element so Angular can project it into the slot. -->
     @if (result()) {
       <div modal-footer class="invite-user__actions">
-        <gbt-button text="Terminé" (clicked)="close.emit()" />
+        <gbt-button [text]="'common.done' | transloco" (clicked)="close.emit()" />
       </div>
     }
     @if (!result()) {
       <div modal-footer class="invite-user__actions">
-        <gbt-button variant="secondary" text="Annuler" [disabled]="sending()" (clicked)="close.emit()" />
-        <gbt-button type="submit" [iconName]="sending() ? null : 'send'" text="Envoyer l'invitation" [loading]="sending()" loadingLabel="Envoi en cours" />
+        <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="sending()" (clicked)="close.emit()" />
+        <gbt-button type="submit" [iconName]="sending() ? null : 'send'" [text]="'admin.users.inviteModal.send' | transloco" [loading]="sending()" [loadingLabel]="'common.sending' | transloco" />
       </div>
     }
   </gbt-modal>

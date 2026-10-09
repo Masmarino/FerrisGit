@@ -10,6 +10,7 @@ import { SegmentedControl, SegmentedControlOption } from '@masmarino/gabarit/seg
 import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { SettingsService, SmtpSecurity, SmtpSettings as SmtpSettingsData, SmtpSettingsUpdate } from '../settings.service';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const SECURITY_OPTIONS: SegmentedControlOption<SmtpSecurity>[] = [
   { value: 'none', label: 'Aucune' },
@@ -76,7 +77,7 @@ function hostError(host: string): string | null {
 @Component({
   selector: 'fg-smtp-settings',
   standalone: true,
-  imports: [FormsModule, Card, CardHeader, Alert, Button, GbtInput, Icon, SegmentedControl, Skeleton],
+  imports: [TranslocoPipe, FormsModule, Card, CardHeader, Alert, Button, GbtInput, Icon, SegmentedControl, Skeleton],
   templateUrl: './smtp-settings.html',
   styleUrl: './smtp-settings.scss',
 })

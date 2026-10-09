@@ -1,14 +1,14 @@
-<gbt-alert variant="warning" [dismissible]="dismissible()" closeLabel="Fermer" (dismissed)="dismissed.emit()">
+<gbt-alert variant="warning" [dismissible]="dismissible()" [closeLabel]="'common.close' | transloco" (dismissed)="dismissed.emit()">
   <div #region class="link-mail-failed" tabindex="-1">
-    <p class="link-mail-failed__title">Le mail n'a pas pu être envoyé</p>
+    <p class="link-mail-failed__title">{{ 'admin.users.mailFailed.title' | transloco }}</p>
     @if (emailError(); as reason) {
       <p class="link-mail-failed__reason">{{ reason }}</p>
     }
     @if (url(); as link) {
       <p class="link-mail-failed__help">
-        Transmettez ce lien à {{ username() }} : il est valable {{ wording().lifetime }}. Il ne sera plus affiché ensuite — « {{ wording().reissue }} » en génère un nouveau.
+        {{ 'admin.users.mailFailed.help' | transloco: { name: username(), lifetime: wording().lifetime, reissue: wording().reissue } }}
       </p>
-      <gbt-copy-field [value]="link" [copyLabel]="wording().copyLabel" copiedText="Copié" failedText="Copie impossible, lien sélectionné" />
+      <gbt-copy-field [value]="link" [copyLabel]="wording().copyLabel" [copiedText]="'common.copied' | transloco" [failedText]="'admin.users.mailFailed.copyFailed' | transloco" />
     } @else {
       <p class="link-mail-failed__help">{{ wording().noLink(username()) }}</p>
     }

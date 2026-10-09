@@ -1,6 +1,6 @@
 @if (header(); as h) {
   <div class="public-repository-page__top">
-    <gbt-breadcrumb class="public-repository-page__breadcrumb" ariaLabel="Fil d'Ariane">
+    <gbt-breadcrumb class="public-repository-page__breadcrumb" [ariaLabel]="'common.breadcrumb' | transloco">
       @for (owner of h.owners; track $index) {
         <li breadcrumb-ancestor><span class="gbt-breadcrumb__item">{{ owner }}</span></li>
       }
@@ -30,13 +30,13 @@
   @case ('rateLimited') {
     <gbt-alert class="public-repository-page__alert" variant="warning" appearance="subtle">
       Trop de requêtes en peu de temps. Patientez une minute avant de réessayer.
-      <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+      <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry()" />
     </gbt-alert>
   }
   @case ('error') {
     <gbt-alert class="public-repository-page__alert" variant="error" appearance="subtle">
       Ce dépôt n'a pas pu être chargé.
-      <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+      <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry()" />
     </gbt-alert>
   }
   @case ('repository') {

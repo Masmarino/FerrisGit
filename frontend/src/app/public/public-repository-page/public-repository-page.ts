@@ -17,6 +17,7 @@ import { ReleaseList } from '../../releases/release-list/release-list';
 import { ReleaseDetail } from '../../releases/release-detail/release-detail';
 import { PageTitleService } from '../../shell/page-title.service';
 import { PublicNotFound } from '../public-not-found/public-not-found';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 export type PublicSection = 'overview' | 'commits' | 'releases';
 
@@ -94,7 +95,7 @@ function failedView(error: unknown): PublicView {
 @Component({
   selector: 'fg-public-repository-page',
   standalone: true,
-  imports: [RouterLink, Alert, Breadcrumb, Button, NavTab, NavTabs, Spinner, RepositoryTreeView, RepositoryBlobView, RepositoryCommitList, ReleaseList, ReleaseDetail, PublicNotFound],
+  imports: [TranslocoPipe, RouterLink, Alert, Breadcrumb, Button, NavTab, NavTabs, Spinner, RepositoryTreeView, RepositoryBlobView, RepositoryCommitList, ReleaseList, ReleaseDetail, PublicNotFound],
   templateUrl: './public-repository-page.html',
   styleUrl: './public-repository-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

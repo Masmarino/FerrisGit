@@ -25,35 +25,35 @@ import { PageTitleService } from '../../../shell/page-title.service';
 import { LinkMailFailed, MailFailure } from '../link-mail-failed/link-mail-failed';
 import { rowDate } from '../../row-date';
 import {
-  ACCOUNT_GONE,
+  accountGone,
   accountState,
   adminAction,
-  ALREADY_ACTIVE,
+  alreadyActive,
   apiMessage,
-  DEMOTE_FAILED,
-  DEMOTE_HEADING,
+  demoteFailed,
+  demoteHeading,
   demotedToast,
   demoteMessage,
   invitationResentToast,
-  LAST_ADMIN_DEMOTE_REFUSED,
+  lastAdminDemoteRefused,
   LAST_ADMIN_REFUSED,
   lastMaintainerGroup,
-  MFA_RESET_DONE,
-  MFA_RESET_FAILED,
+  mfaResetDone,
+  mfaResetFailed,
   mfaPresentation,
   mfaResetMessage,
-  NOT_ACTIVATED,
-  PASSWORD_RESET_FAILED,
+  notActivated,
+  passwordResetFailed,
   passwordResetMessage,
   passwordResetToast,
   PENDING_ACTIVATION_REFUSED,
-  plural,
-  PROMOTE_FAILED,
+  promoteFailed,
   promotedToast,
-  RESEND_FAILED,
+  resendFailed,
   SUPER_ADMIN,
 } from '../admin-user-presentation';
-import { activeLocale } from '../../../shared/i18n/translator';
+import { activeLocale, t, tn } from '../../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type LoadState = 'loading' | 'loaded' | 'failed';
 type View = 'loading' | 'failed' | 'not-found' | 'self' | 'ready';
@@ -69,9 +69,9 @@ export function totalSize(repositories: AdminUserRepository[]): { label: string;
   const known = repositories.filter((repository) => repository.sizeBytes !== null && repository.sizeBytes !== undefined);
   const sum = known.reduce((total, repository) => total + (repository.sizeBytes ?? 0), 0);
   if (known.length === 0) {
-    return { label: 'taille inconnue', complete: false };
+    return { label: t('admin.users.detail.unknownSize'), complete: false };
   }
-  return known.length === repositories.length ? { label: bytes(sum), complete: true } : { label: `au moins ${bytes(sum)}`, complete: false };
+  return known.length === repositories.length ? { label: bytes(sum), complete: true } : { label: t('admin.users.detail.atLeast', { size: bytes(sum) }), complete: false };
 }
 
 /** Everything the deletion destroys, listed before the administrator types the username. */
@@ -79,30 +79,30 @@ export function deletionMessage(username: string, repositories: AdminUserReposit
   const size = totalSize(repositories);
   let personal: string;
   if (!size) {
-    personal = `${username} ne possède aucun dépôt personnel.`;
+    personal = t('admin.users.detail.noPersonal', { name: username });
   } else if (repositories.length === 1) {
-    personal = `Son dépôt personnel (${size.label}) sera définitivement supprimé, fichiers sur le disque compris.`;
+    personal = t('admin.users.detail.onePersonal', { size: size.label });
   } else {
-    const weight = size.label === 'taille inconnue' ? size.label : `${size.label} au total`;
-    personal = `Ses ${repositories.length} dépôts personnels (${weight}) seront définitivement supprimés, fichiers sur le disque compris.`;
+    const weight = size.label === t('admin.users.detail.unknownSize') ? size.label : t('admin.users.detail.inTotal', { size: size.label });
+    personal = t('admin.users.detail.manyPersonal', { count: repositories.length, weight });
   }
   return [
-    `Le compte de ${username} sera définitivement supprimé.`,
+    t('admin.users.detail.accountDeleted', { name: username }),
     personal,
-    "Les dépôts qu'il a créés dans un groupe seront conservés et vous seront réattribués.",
-    'Ses demandes de fusion, ses commentaires sur les demandes de fusion et ses releases seront conservés et affichés comme « Utilisateur supprimé ».',
-    "Les tickets et les commentaires de tickets qu'il a rédigés, ses revues et les pipelines qu'il a déclenchées seront supprimés.",
-    'Cette action est irréversible.',
+    t('admin.users.detail.groupKept'),
+    t('admin.users.detail.contributionsKept'),
+    t('admin.users.detail.contributionsDeleted'),
+    t('admin.users.detail.irreversible'),
   ].join('\n');
 }
 
 export function deletionRefusal(username: string, message: unknown): string | null {
   if (message === LAST_ADMIN_REFUSED) {
-    return `${username} est le dernier super-administrateur actif de l'instance : son compte ne peut pas être supprimé. Nommez d'abord un autre super-administrateur, puis réessayez.`;
+    return t('admin.users.detail.lastAdmin', { name: username });
   }
   const group = lastMaintainerGroup(message);
   if (group !== null) {
-    return `${username} est le dernier mainteneur du groupe ${group} : sans lui, plus personne ne pourrait gérer ce groupe. Nommez d'abord un autre membre mainteneur de ce groupe, puis réessayez.`;
+    return t('admin.users.detail.lastMaintainer', { name: username, group });
   }
   return null;
 }
@@ -114,7 +114,7 @@ export function deletionRefusal(username: string, message: unknown): string | nu
 @Component({
   selector: 'fg-admin-user-detail',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     RouterLink,
     GbtDateTimePipe,
     GbtRelativeTimePipe,
@@ -167,7 +167,7 @@ export class AdminUserDetail implements OnInit {
   });
 
   protected readonly superAdmin = SUPER_ADMIN;
-  protected readonly demoteHeading = DEMOTE_HEADING;
+  protected readonly demoteHeading = demoteHeading();
   protected header = computed(() => {
     const user = this.user();
     if (!user) return null;
@@ -193,19 +193,19 @@ export class AdminUserDetail implements OnInit {
       return {
         repository,
         icon: isPublic ? 'globe' : 'lock',
-        kindLabel: isPublic ? 'Dépôt public' : 'Dépôt privé',
-        visibility: isPublic ? { label: 'Public', variant: 'info' as const } : { label: 'Privé', variant: 'neutral' as const },
+        kindLabel: isPublic ? t('common.publicRepository') : t('common.privateRepository'),
+        visibility: isPublic ? { label: t('common.public'), variant: 'info' as const } : { label: t('common.private'), variant: 'neutral' as const },
         size: repository.sizeBytes === null || repository.sizeBytes === undefined ? null : bytes(repository.sizeBytes),
       };
     }),
   );
-  protected repositoriesSummary = computed(() => (this.repositoriesState() === 'loaded' ? plural(this.repositories().length, 'dépôt', 'dépôts') : null));
+  protected repositoriesSummary = computed(() => (this.repositoriesState() === 'loaded' ? tn('admin.users.repositories', this.repositories().length) : null));
   protected repositoryFacts = computed<DescriptionListEntry[]>(() => {
     if (this.repositoriesState() !== 'loaded') return [];
     const size = totalSize(this.repositories());
     return [
-      { term: 'Dépôts', value: String(this.repositories().length) },
-      { term: 'Taille totale', value: size ? size.label : '—' },
+      { term: t('common.repositories'), value: String(this.repositories().length) },
+      { term: t('admin.users.detail.totalSize'), value: size ? size.label : '—' },
     ];
   });
 
@@ -232,7 +232,7 @@ export class AdminUserDetail implements OnInit {
   protected readonly skeletonLines = ['70%', '55%', '62%'];
 
   ngOnInit(): void {
-    this.pageTitle.set('Utilisateur');
+    this.pageTitle.set(t('admin.users.detail.title'));
     this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
       this.userId.set(params.get('id') ?? '');
       this.user.set(null);
@@ -251,7 +251,7 @@ export class AdminUserDetail implements OnInit {
         const user = list.find((item) => item.id === id) ?? null;
         this.user.set(user);
         this.loadState.set('loaded');
-        this.pageTitle.set(user ? user.username : 'Utilisateur introuvable');
+        this.pageTitle.set(user ? user.username : t('admin.users.detail.notFound'));
       },
       error: () => this.loadState.set('failed'),
     });
@@ -281,7 +281,7 @@ export class AdminUserDetail implements OnInit {
   }
 
   private accountGone(): void {
-    this.toast.show(ACCOUNT_GONE, 'error');
+    this.toast.show(accountGone(), 'error');
     void this.router.navigateByUrl(USERS_LINK);
   }
 
@@ -309,7 +309,7 @@ export class AdminUserDetail implements OnInit {
   resend(): void {
     const user = this.user();
     if (!user || this.busy()) return;
-    this.busy.set('Envoi en cours');
+    this.busy.set(t('common.sending'));
     this.users.resend(user.id).subscribe({
       next: (result) => {
         this.busy.set(null);
@@ -330,10 +330,10 @@ export class AdminUserDetail implements OnInit {
         }
         this.focusActions();
         if (err.status === 400) {
-          this.toast.show(ALREADY_ACTIVE, 'error');
+          this.toast.show(alreadyActive(), 'error');
           this.load();
         } else {
-          this.toast.show(RESEND_FAILED, 'error');
+          this.toast.show(resendFailed(), 'error');
         }
       },
     });
@@ -359,7 +359,7 @@ export class AdminUserDetail implements OnInit {
         this.resetting.set(false);
         this.resetOpen.set(false);
         this.patchUser({ mfaEnabled: false });
-        this.toast.show(MFA_RESET_DONE);
+        this.toast.show(mfaResetDone());
         this.focusActions();
       },
       error: (err: { status?: number }) => {
@@ -369,7 +369,7 @@ export class AdminUserDetail implements OnInit {
           this.accountGone();
           return;
         }
-        this.toast.show(MFA_RESET_FAILED, 'error');
+        this.toast.show(mfaResetFailed(), 'error');
         this.focusActions();
       },
     });
@@ -412,10 +412,10 @@ export class AdminUserDetail implements OnInit {
         }
         this.focusActions();
         if (err.status === 400 && apiMessage(err) === PENDING_ACTIVATION_REFUSED) {
-          this.toast.show(NOT_ACTIVATED, 'error');
+          this.toast.show(notActivated(), 'error');
           this.load();
         } else {
-          this.toast.show(PASSWORD_RESET_FAILED, 'error');
+          this.toast.show(passwordResetFailed(), 'error');
         }
       },
     });
@@ -433,7 +433,7 @@ export class AdminUserDetail implements OnInit {
 
   private promote(user: AdminUser): void {
     if (this.busy()) return;
-    this.busy.set('Enregistrement en cours');
+    this.busy.set(t('common.saving'));
     this.users.setAdmin(user.id, true).subscribe({
       next: () => {
         this.busy.set(null);
@@ -443,7 +443,7 @@ export class AdminUserDetail implements OnInit {
       },
       error: (err: { status?: number }) => {
         this.busy.set(null);
-        this.adminChangeFailed(err, PROMOTE_FAILED);
+        this.adminChangeFailed(err, promoteFailed());
       },
     });
   }
@@ -470,7 +470,7 @@ export class AdminUserDetail implements OnInit {
       error: (err: { status?: number }) => {
         this.demoting.set(false);
         this.demoteOpen.set(false);
-        this.adminChangeFailed(err, DEMOTE_FAILED);
+        this.adminChangeFailed(err, demoteFailed());
       },
     });
   }
@@ -481,7 +481,7 @@ export class AdminUserDetail implements OnInit {
       return;
     }
     this.focusActions();
-    this.toast.show(err.status === 409 ? LAST_ADMIN_DEMOTE_REFUSED : fallback, 'error');
+    this.toast.show(err.status === 409 ? lastAdminDemoteRefused() : fallback, 'error');
   }
 
   askDelete(): void {
@@ -504,7 +504,7 @@ export class AdminUserDetail implements OnInit {
       next: () => {
         this.deleting.set(false);
         this.deleteOpen.set(false);
-        this.toast.show(`Le compte de ${user.username} a été supprimé.`);
+        this.toast.show(t('admin.users.detail.deleted', { name: user.username }));
         void this.router.navigateByUrl(USERS_LINK);
       },
       error: (err: { status?: number; error?: unknown }) => {
@@ -520,9 +520,9 @@ export class AdminUserDetail implements OnInit {
           this.deletionRefused.set(refusal);
           afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>('.admin-user-detail__refusal')?.focus(), { injector: this.injector });
         } else if (err.status === 400) {
-          this.toast.show('Vous ne pouvez pas supprimer votre propre compte.', 'error');
+          this.toast.show(t('admin.users.detail.cannotDeleteSelf'), 'error');
         } else {
-          this.toast.show("Le compte n'a pas pu être supprimé. Réessayez plus tard.", 'error');
+          this.toast.show(t('admin.users.detail.deleteFailed'), 'error');
         }
       },
     });

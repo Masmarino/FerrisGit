@@ -14,11 +14,12 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { CiVariableSummary, RepositorySettingsService } from '../repository-settings.service';
 import { createSettingsList } from '../settings-list';
 import { envNameProblem } from '../ci-variable-name';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
   selector: 'fg-repository-ci-variables',
   standalone: true,
-  imports: [FormsModule, GbtInput, Badge, Alert, EmptyState, Button, ConfirmDangerModal, Icon, SkeletonList, ListRow, Card],
+  imports: [TranslocoPipe, FormsModule, GbtInput, Badge, Alert, EmptyState, Button, ConfirmDangerModal, Icon, SkeletonList, ListRow, Card],
   templateUrl: './repository-ci-variables.html',
   styleUrl: './repository-ci-variables.scss',
 })

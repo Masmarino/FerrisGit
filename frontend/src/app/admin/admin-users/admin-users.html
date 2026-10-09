@@ -1,7 +1,7 @@
-<gbt-page-header heading="Utilisateurs">
+<gbt-page-header [heading]="'nav.users' | transloco">
   <!-- Always rendered, blank until the counts arrive, so the page doesn't shift. -->
   <p header-meta class="admin-users__summary">{{ summary() ?? '\u00a0' }}</p>
-  <gbt-button header-actions class="admin-users__invite" iconName="user-plus" text="Inviter un utilisateur" (clicked)="openInvite()" />
+  <gbt-button header-actions class="admin-users__invite" iconName="user-plus" [text]="'admin.users.invite' | transloco" (clicked)="openInvite()" />
 </gbt-page-header>
 
 <gbt-page-layout width="wide" asideWidth="sm">
@@ -23,10 +23,10 @@
         class="admin-users__toolbar"
         [class.admin-users__toolbar--idle]="!toolbarActive()"
         [attr.inert]="toolbarActive() ? null : ''"
-        searchLabel="Rechercher un utilisateur"
-        searchPlaceholder="Nom d'utilisateur ou e-mail"
-        sortLabel="Trier par"
-        directionLabel="Inverser le sens du tri"
+        [searchLabel]="'admin.users.search' | transloco"
+        [searchPlaceholder]="'admin.users.searchPlaceholder' | transloco"
+        [sortLabel]="'common.sortBy' | transloco"
+        [directionLabel]="'common.reverseSort' | transloco"
         [searchValue]="search()"
         [sortOptions]="sortOptions"
         [sortValue]="sortValue()"
@@ -38,22 +38,22 @@
     }
 
     <gbt-list-card
-      ariaLabel="Comptes"
+      [ariaLabel]="'admin.users.accounts' | transloco"
       [state]="cardState()"
-      loadingLabel="Chargement des utilisateurs…"
-      failedHeading="Impossible de charger les utilisateurs."
-      retryLabel="Réessayer"
+      [loadingLabel]="'admin.users.loading' | transloco"
+      [failedHeading]="'admin.users.loadFailed' | transloco"
+      [retryLabel]="'common.retry' | transloco"
       emptyIllustration="checklist"
-      emptyHeading="Aucun utilisateur"
-      emptyMessage="Invitez la première personne : elle recevra un lien par e-mail pour activer son compte."
+      [emptyHeading]="'admin.users.emptyTitle' | transloco"
+      [emptyMessage]="'admin.users.emptyMessage' | transloco"
       (retry)="retryLoad()"
     >
-      <gbt-segmented-control list-card-header class="admin-users__tabs" ariaLabel="Filtrer les comptes" tinted [options]="filterOptions()" [value]="filter()" (valueChange)="filter.set($event)" />
+      <gbt-segmented-control list-card-header class="admin-users__tabs" [ariaLabel]="'admin.users.filter' | transloco" tinted [options]="filterOptions()" [value]="filter()" (valueChange)="filter.set($event)" />
 
       @if (hasNoResults()) {
         <p list-card-message>{{ noResultsText() }}</p>
       } @else {
-        <ul class="admin-users__rows" aria-label="Utilisateurs">
+        <ul class="admin-users__rows" [attr.aria-label]="'nav.users' | transloco">
           @for (row of rows(); track row.user.id) {
             <li [attr.data-user-id]="row.user.id" tabindex="-1">
               <gbt-list-row [attr.aria-busy]="row.busy ? 'true' : null">
@@ -66,12 +66,12 @@
                   <gbt-badge [variant]="superAdmin.variant" [icon]="superAdmin.icon">{{ superAdmin.label }}</gbt-badge>
                 }
                 @if (row.isSelf) {
-                  <gbt-badge variant="neutral">Vous</gbt-badge>
+                  <gbt-badge variant="neutral">{{ 'common.you' | transloco }}</gbt-badge>
                 }
 
                 <span row-meta class="admin-users__meta">
                   <span class="admin-users__email" [title]="row.user.email">{{ row.user.email }}</span>
-                  <span class="admin-users__segment admin-users__created">créé <time [attr.datetime]="row.created.iso" [title]="row.created.title">{{ row.created.label }}</time></span>
+                  <span class="admin-users__segment admin-users__created">{{ 'common.createdOn' | transloco }} <time [attr.datetime]="row.created.iso" [title]="row.created.title">{{ row.created.label }}</time></span>
                   @if (row.expiry; as expiry) {
                     <span class="admin-users__segment admin-users__expiry"><time [attr.datetime]="expiry.iso" [title]="expiry.title">{{ expiry.label }}</time></span>
                   }
@@ -90,13 +90,13 @@
                   } @else {
                     <gbt-menu class="admin-users__menu" [label]="row.menuLabel" triggerIcon="ellipsis-vertical" align="end">
                       @if (row.canResend) {
-                        <button gbtMenuItem icon="send" (click)="resend(row.user)">Renvoyer l'invitation</button>
+                        <button gbtMenuItem icon="send" (click)="resend(row.user)">{{ 'admin.users.resendInvitation' | transloco }}</button>
                       }
                       @if (row.canResetPassword) {
-                        <button gbtMenuItem icon="key" (click)="askPasswordReset(row.user)">Réinitialiser le mot de passe</button>
+                        <button gbtMenuItem icon="key" (click)="askPasswordReset(row.user)">{{ 'admin.users.resetPassword' | transloco }}</button>
                       }
                       @if (row.canReset) {
-                        <button gbtMenuItem icon="shield-alert" (click)="askReset(row.user)">Réinitialiser la double authentification</button>
+                        <button gbtMenuItem icon="shield-alert" (click)="askReset(row.user)">{{ 'admin.users.resetMfa' | transloco }}</button>
                       }
                       <button gbtMenuItem [icon]="row.adminAction.icon" (click)="toggleAdmin(row.user)">{{ row.adminAction.label }}</button>
                     </gbt-menu>
@@ -108,24 +108,24 @@
         </ul>
       }
 
-      <gbt-button list-card-empty variant="secondary" iconName="user-plus" text="Inviter un utilisateur" (clicked)="openInvite()" />
+      <gbt-button list-card-empty variant="secondary" iconName="user-plus" [text]="'admin.users.invite' | transloco" (clicked)="openInvite()" />
     </gbt-list-card>
   </div>
 
   <div page-aside class="admin-users__aside">
-    <gbt-panel heading="Invitations" [headingLevel]="2">
+    <gbt-panel [heading]="'admin.users.invitationsTitle' | transloco" [headingLevel]="2">
       <p class="admin-users__help">
-        Un compte invité est créé sans mot de passe. Un e-mail contient un lien d'activation valable 24 heures ; « Renvoyer l'invitation » en génère un nouveau et invalide l'ancien.
+        {{ 'admin.users.invitationsHelp' | transloco }}
       </p>
     </gbt-panel>
-    <gbt-panel heading="Mot de passe" [headingLevel]="2">
+    <gbt-panel [heading]="'admin.users.passwordTitle' | transloco" [headingLevel]="2">
       <p class="admin-users__help">
-        Si quelqu'un a perdu son mot de passe, réinitialisez-le : l'ancien cesse aussitôt de fonctionner, et un e-mail contient un lien valable 1 heure pour en choisir un nouveau.
+        {{ 'admin.users.passwordHelp' | transloco }}
       </p>
     </gbt-panel>
-    <gbt-panel heading="Double authentification" [headingLevel]="2">
+    <gbt-panel [heading]="'admin.users.mfaTitle' | transloco" [headingLevel]="2">
       <p class="admin-users__help">
-        Elle est obligatoire pour tous les comptes. Si quelqu'un a perdu son appareil et ses codes de secours, réinitialisez-la : il est déconnecté partout et la configure à nouveau à sa prochaine connexion.
+        {{ 'admin.users.mfaHelp' | transloco }}
       </p>
     </gbt-panel>
   </div>
@@ -139,13 +139,13 @@
 @if (resetTarget(); as target) {
   <gbt-confirm-danger-modal
     [isOpen]="true"
-    heading="Réinitialiser la double authentification"
+    [heading]="'admin.users.resetMfa' | transloco"
     [message]="resetMessage()"
-    confirmLabel="Réinitialiser"
+    [confirmLabel]="'common.reset' | transloco"
     confirmIcon="refresh-cw"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
-    busyLabel="Réinitialisation en cours"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
+    [busyLabel]="'common.resetting' | transloco"
     [busy]="resetting()"
     (confirmed)="confirmReset()"
     (closed)="cancelReset()"
@@ -155,13 +155,13 @@
 @if (passwordResetTarget(); as target) {
   <gbt-confirm-danger-modal
     [isOpen]="true"
-    heading="Réinitialiser le mot de passe"
+    [heading]="'admin.users.resetPassword' | transloco"
     [message]="passwordResetMessage()"
-    confirmLabel="Réinitialiser"
+    [confirmLabel]="'common.reset' | transloco"
     confirmIcon="key"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
-    busyLabel="Réinitialisation en cours"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
+    [busyLabel]="'common.resetting' | transloco"
     [busy]="resettingPassword()"
     (confirmed)="confirmPasswordReset()"
     (closed)="cancelPasswordReset()"
@@ -173,11 +173,11 @@
     [isOpen]="true"
     [heading]="demoteHeading"
     [message]="demoteMessage()"
-    confirmLabel="Retirer les droits"
+    [confirmLabel]="'admin.users.removeRights' | transloco"
     confirmIcon="shield-off"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
-    busyLabel="Retrait en cours"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
+    [busyLabel]="'admin.users.removing' | transloco"
     [busy]="demoting()"
     (confirmed)="confirmDemote()"
     (closed)="cancelDemote()"

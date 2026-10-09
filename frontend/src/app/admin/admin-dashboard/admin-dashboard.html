@@ -1,10 +1,10 @@
-<gbt-page-header heading="Tableau de bord">
-  <p header-meta class="admin-dashboard__intro">Vue d'ensemble de l'instance : comptes, dépôts, pipelines et stockage</p>
+<gbt-page-header [heading]="'admin.dashboard.title' | transloco">
+  <p header-meta class="admin-dashboard__intro">{{ 'admin.dashboard.intro' | transloco }}</p>
 </gbt-page-header>
 
 <gbt-page-layout width="wide">
   <div class="admin-dashboard__main">
-    <gbt-stat-grid ariaLabel="Résumé" [loading]="statsState() === 'loading'" loadingLabel="Chargement des statistiques…">
+    <gbt-stat-grid [ariaLabel]="'admin.dashboard.summary' | transloco" [loading]="statsState() === 'loading'" [loadingLabel]="'admin.dashboard.loadingStats' | transloco">
       @for (tile of tiles(); track tile.key) {
         <gbt-stat-tile [attr.data-key]="tile.key" [label]="tile.label" [value]="tile.value" [icon]="tile.icon" [hint]="tile.hint" />
       }
@@ -17,33 +17,33 @@
         <div list-card-header class="admin-dashboard__band">
           <span class="admin-dashboard__card-title">
             <gbt-icon name="activity" aria-hidden="true" />
-            <h2 id="admin-dashboard-evolution-heading" class="admin-dashboard__card-heading">Évolution</h2>
+            <h2 id="admin-dashboard-evolution-heading" class="admin-dashboard__card-heading">{{ 'admin.dashboard.evolution' | transloco }}</h2>
           </span>
-          <gbt-segmented-control class="admin-dashboard__range" ariaLabel="Période" tinted [options]="dayOptions" [value]="historyDays()" (valueChange)="setHistoryDays($event)" />
+          <gbt-segmented-control class="admin-dashboard__range" [ariaLabel]="'admin.dashboard.period' | transloco" tinted [options]="dayOptions" [value]="historyDays()" (valueChange)="setHistoryDays($event)" />
         </div>
 
         @if (historyState() === 'failed' && history() === null) {
           <gbt-alert class="admin-dashboard__charts-failed" variant="error" appearance="subtle" live="off">
-            L'historique n'a pas pu être chargé.
-            <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="loadHistory()" />
+            {{ 'admin.dashboard.historyFailed' | transloco }}
+            <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="loadHistory()" />
           </gbt-alert>
         } @else {
           <!-- Beside the busy charts, not inside: a live region in an aria-busy one isn't announced. Always rendered
                (no @if) so it exists before its text changes. -->
-          <span class="sr-only" role="status">{{ history() === null ? "Chargement de l'historique…" : '' }}</span>
+          <span class="sr-only" role="status">{{ history() === null ? ('admin.dashboard.loadingHistory' | transloco) : '' }}</span>
           <div class="admin-dashboard__charts" [attr.aria-busy]="historyState() === 'loading' ? 'true' : null">
             <section class="admin-dashboard__chart-pane" aria-labelledby="admin-dashboard-storage-heading">
               <div class="admin-dashboard__pane-header">
-                <h3 id="admin-dashboard-storage-heading" class="admin-dashboard__pane-heading">Stockage</h3>
+                <h3 id="admin-dashboard-storage-heading" class="admin-dashboard__pane-heading">{{ 'common.storage' | transloco }}</h3>
                 @if (hasEnoughReadings()) {
-                  <span class="admin-dashboard__pane-unit">en {{ storageUnit().label }}</span>
+                  <span class="admin-dashboard__pane-unit">{{ 'admin.dashboard.unit' | transloco: { unit: storageUnit().label } }}</span>
                 }
               </div>
               <ng-container [ngTemplateOutlet]="chartOrPlaceholder" [ngTemplateOutletContext]="storagePane" />
             </section>
             <section class="admin-dashboard__chart-pane" aria-labelledby="admin-dashboard-counts-heading">
               <div class="admin-dashboard__pane-header">
-                <h3 id="admin-dashboard-counts-heading" class="admin-dashboard__pane-heading">Utilisateurs et dépôts</h3>
+                <h3 id="admin-dashboard-counts-heading" class="admin-dashboard__pane-heading">{{ 'admin.dashboard.usersAndRepositories' | transloco }}</h3>
               </div>
               <ng-container [ngTemplateOutlet]="chartOrPlaceholder" [ngTemplateOutletContext]="countsPane" />
             </section>
@@ -63,8 +63,8 @@
         <gbt-empty-state
           size="compact"
           icon="activity"
-          heading="Pas encore assez de mesures"
-          message="Un relevé est pris toutes les heures : la courbe apparaît dès le deuxième."
+          [heading]="'admin.dashboard.notEnoughTitle' | transloco"
+          [message]="'admin.dashboard.notEnoughMessage' | transloco"
         />
       </div>
     } @else if (kind === 'storage') {
@@ -73,20 +73,20 @@
         xKind="time"
         [locale]="locale()"
         [area]="true"
-        label="Évolution du stockage"
-        tableCaption="Stockage total par relevé"
-        xColumn="Date"
-        emptyMessage="Pas encore assez de mesures."
+        [label]="'admin.dashboard.storageChart' | transloco"
+        [tableCaption]="'admin.dashboard.storageCaption' | transloco"
+        [xColumn]="'common.date' | transloco"
+        [emptyMessage]="'admin.dashboard.notEnough' | transloco"
       />
     } @else {
       <gbt-line-chart
         [series]="countsSeries()"
         xKind="time"
         [locale]="locale()"
-        label="Évolution des utilisateurs et dépôts"
-        tableCaption="Utilisateurs et dépôts par relevé"
-        xColumn="Date"
-        emptyMessage="Pas encore assez de mesures."
+        [label]="'admin.dashboard.countsChart' | transloco"
+        [tableCaption]="'admin.dashboard.countsCaption' | transloco"
+        [xColumn]="'common.date' | transloco"
+        [emptyMessage]="'admin.dashboard.notEnough' | transloco"
       />
     }
   </div>

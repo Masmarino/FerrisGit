@@ -23,7 +23,7 @@
     <gbt-card variant="outlined" icon="mail" heading="Serveur SMTP">
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les réglages e-mail n'ont pas pu être chargés.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="load()" />
+        <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="load()" />
       </gbt-alert>
     </gbt-card>
   }

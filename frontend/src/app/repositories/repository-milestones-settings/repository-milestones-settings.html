@@ -32,7 +32,7 @@
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les milestones n'ont pas pu être chargés.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="list.retry()" />
+        <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="list.retry()" />
       </gbt-alert>
     }
     @default {
@@ -83,8 +83,8 @@
     [confirmText]="milestone.title"
     confirmInputLabel="Tapez le titre du milestone pour confirmer"
     confirmLabel="Supprimer"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
     (confirmed)="deleteMilestone()"
     (closed)="milestonePendingDelete.set(null)"
   />

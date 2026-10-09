@@ -15,7 +15,8 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AdminMetricsService, HealthStatus } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { ABSOLUTE_OPTIONS } from '../row-date';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const bytes = (value: number) => formatBytes(value, activeLocale(), { binaryUnits: 'legacy' });
 
@@ -46,12 +47,12 @@ const UP_ICON = 'circle-check';
 const DOWN_ICON = 'circle-x';
 
 const componentStatus = (status: 'up' | 'down', upLabel: string): StatusBadge =>
-  status === 'up' ? { label: upLabel, variant: 'success', icon: UP_ICON } : { label: 'Indisponible', variant: 'error', icon: DOWN_ICON };
+  status === 'up' ? { label: upLabel, variant: 'success', icon: UP_ICON } : { label: t('admin.health.unavailable'), variant: 'error', icon: DOWN_ICON };
 
 @Component({
   selector: 'fg-admin-health',
   standalone: true,
-  imports: [PageHeader, PageLayout, Panel, Alert, Badge, Button, Card, CardHeader, DescriptionList, GaugeBar, Icon, Skeleton],
+  imports: [TranslocoPipe, PageHeader, PageLayout, Panel, Alert, Badge, Button, Card, CardHeader, DescriptionList, GaugeBar, Icon, Skeleton],
   templateUrl: './admin-health.html',
   styleUrl: './admin-health.scss',
 })
@@ -78,43 +79,43 @@ export class AdminHealth implements OnInit {
     return [
       {
         key: 'database',
-        heading: 'Base de données',
+        heading: t('admin.health.database'),
         icon: 'database',
-        status: componentStatus(database.status, 'Opérationnelle'),
+        status: componentStatus(database.status, t('admin.health.upFeminine')),
         detail: database.detail,
         facts:
           database.status === 'up'
             ? [
-                { term: 'Version', value: database.serverVersion ? `PostgreSQL ${database.serverVersion}` : 'Inconnue' },
-                { term: 'Temps de réponse', value: `${database.responseTimeMs} ms` },
+                { term: t('admin.health.version'), value: database.serverVersion ? t('admin.health.postgres', { version: database.serverVersion }) : t('admin.health.unknown') },
+                { term: t('admin.health.responseTime'), value: t('admin.health.milliseconds', { value: database.responseTimeMs }) },
               ]
             : [],
         gauge:
           database.status === 'up'
-            ? { label: 'Connexions actives', value: database.activeConnections, max: database.maxConnections, formatted: `${database.activeConnections} sur ${database.maxConnections}` }
+            ? { label: t('admin.health.connections'), value: database.activeConnections, max: database.maxConnections, formatted: t('admin.health.outOf', { value: database.activeConnections, max: database.maxConnections }) }
             : null,
       },
       {
         key: 'storage',
-        heading: 'Stockage',
+        heading: t('common.storage'),
         icon: 'hard-drive',
-        status: componentStatus(storage.status, 'Opérationnel'),
+        status: componentStatus(storage.status, t('admin.health.upMasculine')),
         detail: storage.detail,
         facts:
           storage.status === 'up'
             ? [
-                { term: 'Utilisé', value: bytes(storage.usedBytes) },
-                { term: 'Libre', value: bytes(storage.freeBytes) },
-                { term: 'Total', value: bytes(storage.totalBytes) },
+                { term: t('admin.health.used'), value: bytes(storage.usedBytes) },
+                { term: t('admin.health.free'), value: bytes(storage.freeBytes) },
+                { term: t('admin.health.total'), value: bytes(storage.totalBytes) },
               ]
             : [],
         gauge:
           storage.status === 'up'
             ? {
-                label: 'Espace utilisé',
+                label: t('admin.health.spaceUsed'),
                 value: storage.usedBytes,
                 max: storage.totalBytes,
-                formatted: `${bytes(storage.usedBytes)} sur ${bytes(storage.totalBytes)} · ${formatPercent(storage.totalBytes > 0 ? storage.usedBytes / storage.totalBytes : 0, activeLocale())}`,
+                formatted: `${t('admin.health.outOf', { value: bytes(storage.usedBytes), max: bytes(storage.totalBytes) })} · ${formatPercent(storage.totalBytes > 0 ? storage.usedBytes / storage.totalBytes : 0, activeLocale())}`,
               }
             : null,
       },
@@ -123,15 +124,15 @@ export class AdminHealth implements OnInit {
 
   protected overall = computed<StatusBadge | null>(() => {
     if (this.loadError()) {
-      return { label: 'Injoignable', variant: 'error', icon: DOWN_ICON };
+      return { label: t('admin.health.unreachable'), variant: 'error', icon: DOWN_ICON };
     }
     const health = this.health();
     if (!health) {
       return null;
     }
     return health.database.status === 'up' && health.storage.status === 'up'
-      ? { label: 'Tous les services sont opérationnels', variant: 'success', icon: UP_ICON }
-      : { label: 'Service dégradé', variant: 'error', icon: 'alert-triangle' };
+      ? { label: t('admin.health.allUp'), variant: 'success', icon: UP_ICON }
+      : { label: t('admin.health.degraded'), variant: 'error', icon: 'alert-triangle' };
   });
 
   protected uptime = computed(() => {
@@ -154,7 +155,7 @@ export class AdminHealth implements OnInit {
   });
 
   ngOnInit(): void {
-    this.pageTitle.set('Santé');
+    this.pageTitle.set(t('admin.health.title'));
     this.refresh();
   }
 
@@ -170,7 +171,7 @@ export class AdminHealth implements OnInit {
       error: () => {
         this.loadError.set(true);
         this.checking.set(false);
-        this.toast.show("Impossible de charger l'état de santé. Réessayez plus tard.", 'error');
+        this.toast.show(t('admin.health.loadFailed'), 'error');
       },
     });
   }

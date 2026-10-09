@@ -1,5 +1,5 @@
 <form (submit)="$event.preventDefault(); submit()">
-  <gbt-modal [isOpen]="true" heading="Nouveau groupe" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
+  <gbt-modal [isOpen]="true" heading="Nouveau groupe" [closeLabel]="'common.close' | transloco" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
     <div class="create-group">
       <gbt-input
         class="create-group__name"
@@ -26,7 +26,7 @@
       }
     </div>
     <div modal-footer>
-      <gbt-button variant="secondary" text="Annuler" [disabled]="creating()" (clicked)="close.emit()" />
+      <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="creating()" (clicked)="close.emit()" />
       <gbt-button type="submit" iconName="plus" text="Créer le groupe" [loading]="creating()" loadingLabel="Création en cours" />
     </div>
   </gbt-modal>

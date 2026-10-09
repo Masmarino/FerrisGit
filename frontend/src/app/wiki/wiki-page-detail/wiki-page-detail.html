@@ -166,8 +166,8 @@
       [confirmText]="title()"
       confirmInputLabel="Titre de la page"
       confirmLabel="Supprimer"
-      cancelLabel="Annuler"
-      closeLabel="Fermer"
+      [cancelLabel]="'common.cancel' | transloco"
+      [closeLabel]="'common.close' | transloco"
       (confirmed)="confirmDelete()"
       (closed)="cancelDelete()"
     />

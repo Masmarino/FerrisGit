@@ -58,8 +58,8 @@
     [confirmLabel]="action === 'remove' ? 'Supprimer le jeton' : 'Générer un jeton'"
     [confirmIcon]="action === 'remove' ? 'trash-2' : 'refresh-cw'"
     [tone]="action === 'remove' ? 'danger' : 'warning'"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
     (confirmed)="confirmAction()"
     (closed)="cancelAction()"
   />

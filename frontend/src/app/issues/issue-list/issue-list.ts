@@ -30,6 +30,7 @@ import { StatusPresentation, statusPresentation } from '../../shared/layout/stat
 import { PageTitleService } from '../../shell/page-title.service';
 import { openWhenAsked } from '../../shared/open-when-asked';
 import { activeLocale } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type SortKey = 'date' | 'title';
 type StateTab = 'open' | 'closed';
@@ -59,7 +60,7 @@ interface IssueRow {
 @Component({
   selector: 'fg-issue-list',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     FormsModule,
     RouterLink,
     GbtDateTimePipe,

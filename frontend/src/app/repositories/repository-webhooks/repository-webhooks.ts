@@ -17,6 +17,7 @@ import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RepositorySettingsService, WebhookDelivery, WebhookSummary, WEBHOOK_EVENT_OPTIONS } from '../repository-settings.service';
 import { createSettingsList } from '../settings-list';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type WebhookEvent = (typeof WEBHOOK_EVENT_OPTIONS)[number];
 
@@ -65,7 +66,7 @@ const VISIBLE_EVENTS = 3;
 @Component({
   selector: 'fg-repository-webhooks',
   standalone: true,
-  imports: [FormsModule, GbtInput, Badge, Alert, EmptyState, Button, CheckboxGroup, ConfirmDangerModal, Drawer, Icon, Skeleton, SkeletonList, ListRow, Card, GbtRelativeTimePipe, GbtDateTimePipe],
+  imports: [TranslocoPipe, FormsModule, GbtInput, Badge, Alert, EmptyState, Button, CheckboxGroup, ConfirmDangerModal, Drawer, Icon, Skeleton, SkeletonList, ListRow, Card, GbtRelativeTimePipe, GbtDateTimePipe],
   templateUrl: './repository-webhooks.html',
   styleUrl: './repository-webhooks.scss',
 })

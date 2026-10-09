@@ -44,6 +44,7 @@ import { CardView, LaneView, boardLanes, boardLinks, stageId } from './pipeline-
 import { PipelineTilePicker } from './pipeline-tile-picker';
 import { missingSecrets, secretUsage, wantedSecretNames } from './pipeline-references';
 import { REDO_KEYS, UNDO_KEYS, undoShortcut } from './pipeline-history';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /** Why a save failed, as the dialog explains it. */
 type SaveFailure = 'changed' | 'refused' | 'failed';
@@ -57,7 +58,7 @@ type SaveFailure = 'changed' | 'refused' | 'failed';
 @Component({
   selector: 'fg-pipeline-editor',
   standalone: true,
-  imports: [FormsModule, NgTemplateOutlet, DragDropModule, CdkScrollable, PageLayout, PageHeader, Alert, Badge, Button, ConfirmDangerModal, CopyButton, Drawer, EmptyState, GbtInput, Menu, MenuItem, Modal, SegmentedControl, Skeleton, Textarea, Tooltip, CodeView, HelpTip, PipelineJobForm, PipelineLinks, PipelineSecrets, PipelineStarters, PipelineTilePicker],
+  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, DragDropModule, CdkScrollable, PageLayout, PageHeader, Alert, Badge, Button, ConfirmDangerModal, CopyButton, Drawer, EmptyState, GbtInput, Menu, MenuItem, Modal, SegmentedControl, Skeleton, Textarea, Tooltip, CodeView, HelpTip, PipelineJobForm, PipelineLinks, PipelineSecrets, PipelineStarters, PipelineTilePicker],
   templateUrl: './pipeline-editor.html',
   styleUrl: './pipeline-editor.scss',
   host: { '(document:keydown)': 'onKeydown($event)' },

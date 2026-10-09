@@ -7,6 +7,7 @@ import { Modal } from '@masmarino/gabarit/modal';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { groupCreationError, GroupsService } from '../groups.service';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const NAME_REQUIRED = 'Le nom est requis';
 
@@ -18,7 +19,7 @@ const NAME_REQUIRED = 'Le nom est requis';
 @Component({
   selector: 'fg-create-group-modal',
   standalone: true,
-  imports: [FormsModule, Modal, Alert, GbtInput, Button, Textarea],
+  imports: [TranslocoPipe, FormsModule, Modal, Alert, GbtInput, Button, Textarea],
   templateUrl: './create-group-modal.html',
   styleUrl: './create-group-modal.scss',
 })

@@ -38,7 +38,7 @@
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les webhooks n'ont pas pu être chargés.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="list.retry()" />
+        <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="list.retry()" />
       </gbt-alert>
     }
     @default {
@@ -102,7 +102,7 @@
   }
 </gbt-card>
 
-<gbt-drawer [isOpen]="expandedWebhookId() !== null" [heading]="expandedWebhookHeading()" closeLabel="Fermer" (closed)="closeDeliveries()">
+<gbt-drawer [isOpen]="expandedWebhookId() !== null" [heading]="expandedWebhookHeading()" [closeLabel]="'common.close' | transloco" (closed)="closeDeliveries()">
   @if (expandedWebhookId() !== null) {
     @if (expandedDeliveries(); as deliveries) {
       @if (deliveries.length === 0) {
@@ -148,8 +148,8 @@
     [message]="'FerrisGit ne préviendra plus « ' + webhook.url + ' » et son historique de livraisons sera perdu.'"
     confirmLabel="Supprimer"
     confirmIcon="trash-2"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
     busyLabel="Suppression en cours"
     [busy]="deleting()"
     (confirmed)="deleteWebhook(webhook.id)"

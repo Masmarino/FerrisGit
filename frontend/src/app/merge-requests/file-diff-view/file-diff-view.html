@@ -97,7 +97,7 @@
                 }
                 <div class="file-diff-view__compose-actions">
                   <gbt-button variant="secondary" size="small" text="Commenter" (clicked)="submitComment()" />
-                  <gbt-button variant="secondary" size="small" text="Annuler" (clicked)="cancelComposing()" />
+                  <gbt-button variant="secondary" size="small" [text]="'common.cancel' | transloco" (clicked)="cancelComposing()" />
                 </div>
               </td>
             </tr>

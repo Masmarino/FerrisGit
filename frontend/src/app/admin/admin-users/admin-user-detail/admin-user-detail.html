@@ -16,7 +16,7 @@
         @if (header(); as h) {
           <p header-meta class="admin-user-detail__meta">
             <span class="admin-user-detail__email" [title]="u.email">{{ u.email }}</span>
-            <span class="admin-user-detail__segment">créé <time [attr.datetime]="h.created.iso" [title]="h.created.title">{{ h.created.label }}</time></span>
+            <span class="admin-user-detail__segment">{{ 'common.createdOn' | transloco }} <time [attr.datetime]="h.created.iso" [title]="h.created.title">{{ h.created.label }}</time></span>
             @if (h.expiry; as expiry) {
               <span class="admin-user-detail__segment admin-user-detail__expiry"><time [attr.datetime]="expiry.iso" [title]="expiry.title">{{ expiry.label }}</time></span>
             }
@@ -29,20 +29,20 @@
             @if (busy(); as busyLabel) {
               <span class="admin-user-detail__busy"><gbt-spinner size="sm" [label]="busyLabel" /></span>
             } @else {
-              <gbt-menu class="admin-user-detail__menu" label="Actions" [chevron]="true" align="end">
+              <gbt-menu class="admin-user-detail__menu" [label]="'common.actions' | transloco" [chevron]="true" align="end">
                 @if (a.canResend) {
-                  <button gbtMenuItem icon="send" (click)="resend()">Renvoyer l'invitation</button>
+                  <button gbtMenuItem icon="send" (click)="resend()">{{ 'admin.users.resendInvitation' | transloco }}</button>
                 }
                 @if (a.canResetPassword) {
-                  <button gbtMenuItem icon="key" (click)="askPasswordReset()">Réinitialiser le mot de passe</button>
+                  <button gbtMenuItem icon="key" (click)="askPasswordReset()">{{ 'admin.users.resetPassword' | transloco }}</button>
                 }
                 @if (a.canResetMfa) {
-                  <button gbtMenuItem icon="shield-alert" (click)="askReset()">Réinitialiser la double authentification</button>
+                  <button gbtMenuItem icon="shield-alert" (click)="askReset()">{{ 'admin.users.resetMfa' | transloco }}</button>
                 }
                 <button gbtMenuItem [icon]="a.admin.icon" (click)="toggleAdmin()">{{ a.admin.label }}</button>
               </gbt-menu>
             }
-            <gbt-button class="admin-user-detail__delete" variant="danger" iconName="trash-2" text="Supprimer l'utilisateur" [disabled]="!canDelete()" (clicked)="askDelete()" />
+            <gbt-button class="admin-user-detail__delete" variant="danger" iconName="trash-2" [text]="'admin.users.detail.delete' | transloco" [disabled]="!canDelete()" (clicked)="askDelete()" />
           </div>
         }
       </gbt-page-header>
@@ -50,7 +50,7 @@
       <gbt-page-layout width="wide" asideWidth="md">
         <div class="admin-user-detail__main">
           @if (deletionRefused(); as refusal) {
-            <gbt-alert class="admin-user-detail__refusal-alert" variant="error" heading="Suppression impossible" dismissible closeLabel="Fermer" (dismissed)="dismissRefusal()">
+            <gbt-alert class="admin-user-detail__refusal-alert" variant="error" [heading]="'admin.users.detail.deleteRefused' | transloco" dismissible [closeLabel]="'common.close' | transloco" (dismissed)="dismissRefusal()">
               <p class="admin-user-detail__refusal" tabindex="-1">{{ refusal }}</p>
             </gbt-alert>
           }
@@ -60,25 +60,25 @@
           }
 
           <gbt-list-card
-            ariaLabel="Dépôts personnels"
+            [ariaLabel]="'admin.users.detail.personal' | transloco"
             [state]="repositoriesCard()"
-            loadingLabel="Chargement des dépôts…"
+            [loadingLabel]="'admin.users.detail.loadingRepositories' | transloco"
             [skeletonRows]="3"
-            failedHeading="Impossible de charger les dépôts de cet utilisateur."
-            retryLabel="Réessayer"
+            [failedHeading]="'admin.users.detail.repositoriesFailed' | transloco"
+            [retryLabel]="'common.retry' | transloco"
             emptyIllustration="folder"
-            emptyHeading="Aucun dépôt personnel"
-            [emptyMessage]="u.username + ' ne possède aucun dépôt en son nom. Les dépôts de groupe ne sont pas listés ici.'"
+            [emptyHeading]="'admin.users.detail.noPersonalTitle' | transloco"
+            [emptyMessage]="'admin.users.detail.noPersonalMessage' | transloco: { name: u.username }"
             (retry)="retryRepositories()"
           >
             <div list-card-header class="admin-user-detail__band">
-              <h2 class="admin-user-detail__heading">Dépôts personnels</h2>
+              <h2 class="admin-user-detail__heading">{{ 'admin.users.detail.personal' | transloco }}</h2>
               @if (repositoriesSummary(); as summary) {
                 <span class="admin-user-detail__count">{{ summary }}</span>
               }
             </div>
 
-            <ul class="admin-user-detail__repositories" aria-label="Dépôts personnels">
+            <ul class="admin-user-detail__repositories" [attr.aria-label]="'admin.users.detail.personal' | transloco">
               @for (row of repositoryRows(); track row.repository.id) {
                 <li>
                   <gbt-list-row>
@@ -95,7 +95,7 @@
                         <span class="admin-user-detail__description" [title]="row.repository.description">{{ row.repository.description }}</span>
                       }
                       <span class="admin-user-detail__repository-segment"
-                        >créé
+                        >{{ 'common.createdOn' | transloco }}
                         <time
                           [attr.datetime]="row.repository.createdAt"
                           [title]="row.repository.createdAt | gbtDateTime: { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }"
@@ -105,7 +105,7 @@
                       @if (row.size; as size) {
                         <span class="admin-user-detail__repository-segment admin-user-detail__size">{{ size }}</span>
                       } @else {
-                        <span class="admin-user-detail__repository-segment admin-user-detail__size" title="La taille de ce dépôt sur le disque n'a pas pu être calculée.">taille inconnue</span>
+                        <span class="admin-user-detail__repository-segment admin-user-detail__size" [title]="'admin.users.detail.sizeUnknownHelp' | transloco">{{ 'admin.users.detail.unknownSize' | transloco }}</span>
                       }
                     </span>
                   </gbt-list-row>
@@ -116,11 +116,11 @@
         </div>
 
         <div page-aside class="admin-user-detail__aside">
-          <gbt-panel heading="Dépôts personnels" [headingLevel]="2">
+          <gbt-panel [heading]="'admin.users.detail.personal' | transloco" [headingLevel]="2">
             @if (repositoriesState() === 'loaded') {
               <gbt-description-list class="admin-user-detail__facts" layout="inline" valueAlign="end" [items]="repositoryFacts()" />
             } @else if (repositoriesState() === 'failed') {
-              <p class="admin-user-detail__help">Indisponible.</p>
+              <p class="admin-user-detail__help">{{ 'common.unavailable' | transloco }}</p>
             } @else {
               <div class="admin-user-detail__facts-loading" aria-hidden="true">
                 <gbt-skeleton width="70%" height="0.75rem" />
@@ -128,9 +128,9 @@
               </div>
             }
           </gbt-panel>
-          <gbt-panel heading="Suppression du compte" [headingLevel]="2">
+          <gbt-panel [heading]="'admin.users.detail.deletionTitle' | transloco" [headingLevel]="2">
             <p class="admin-user-detail__help">
-              Supprimer un compte supprime aussi ses dépôts personnels, sur le disque compris. Les dépôts qu'il a créés dans un groupe vous sont réattribués. Ses demandes de fusion, ses commentaires sur des demandes de fusion et ses releases restent, au nom d'un « Utilisateur supprimé » ; ses tickets, ses commentaires de tickets, ses revues et ses pipelines sont supprimés.
+              {{ 'admin.users.detail.deletionHelp' | transloco }}
             </p>
           </gbt-panel>
         </div>
@@ -139,13 +139,13 @@
       @if (resetOpen()) {
         <gbt-confirm-danger-modal
           [isOpen]="true"
-          heading="Réinitialiser la double authentification"
+          [heading]="'admin.users.resetMfa' | transloco"
           [message]="resetMessage()"
-          confirmLabel="Réinitialiser"
+          [confirmLabel]="'common.reset' | transloco"
           confirmIcon="refresh-cw"
-          cancelLabel="Annuler"
-          closeLabel="Fermer"
-          busyLabel="Réinitialisation en cours"
+          [cancelLabel]="'common.cancel' | transloco"
+          [closeLabel]="'common.close' | transloco"
+          [busyLabel]="'common.resetting' | transloco"
           [busy]="resetting()"
           (confirmed)="confirmReset()"
           (closed)="cancelReset()"
@@ -155,13 +155,13 @@
       @if (passwordResetOpen()) {
         <gbt-confirm-danger-modal
           [isOpen]="true"
-          heading="Réinitialiser le mot de passe"
+          [heading]="'admin.users.resetPassword' | transloco"
           [message]="passwordResetMessage()"
-          confirmLabel="Réinitialiser"
+          [confirmLabel]="'common.reset' | transloco"
           confirmIcon="key"
-          cancelLabel="Annuler"
-          closeLabel="Fermer"
-          busyLabel="Réinitialisation en cours"
+          [cancelLabel]="'common.cancel' | transloco"
+          [closeLabel]="'common.close' | transloco"
+          [busyLabel]="'common.resetting' | transloco"
           [busy]="resettingPassword()"
           (confirmed)="confirmPasswordReset()"
           (closed)="cancelPasswordReset()"
@@ -173,11 +173,11 @@
           [isOpen]="true"
           [heading]="demoteHeading"
           [message]="demoteMessage()"
-          confirmLabel="Retirer les droits"
+          [confirmLabel]="'admin.users.removeRights' | transloco"
           confirmIcon="shield-off"
-          cancelLabel="Annuler"
-          closeLabel="Fermer"
-          busyLabel="Retrait en cours"
+          [cancelLabel]="'common.cancel' | transloco"
+          [closeLabel]="'common.close' | transloco"
+          [busyLabel]="'admin.users.removing' | transloco"
           [busy]="demoting()"
           (confirmed)="confirmDemote()"
           (closed)="cancelDemote()"
@@ -188,15 +188,15 @@
         <gbt-confirm-danger-modal
           class="admin-user-detail__delete-dialog"
           [isOpen]="true"
-          heading="Supprimer l'utilisateur"
+          [heading]="'admin.users.detail.delete' | transloco"
           [message]="deleteMessage()"
           [confirmText]="u.username"
-          confirmInputLabel="Tapez le nom d'utilisateur pour confirmer"
-          confirmLabel="Supprimer l'utilisateur"
+          [confirmInputLabel]="'admin.users.detail.typeUsername' | transloco"
+          [confirmLabel]="'admin.users.detail.delete' | transloco"
           confirmIcon="trash-2"
-          cancelLabel="Annuler"
-          closeLabel="Fermer"
-          busyLabel="Suppression en cours"
+          [cancelLabel]="'common.cancel' | transloco"
+          [closeLabel]="'common.close' | transloco"
+          [busyLabel]="'common.deleting' | transloco"
           [busy]="deleting()"
           (confirmed)="confirmDelete()"
           (closed)="cancelDelete()"
@@ -209,8 +209,8 @@
     <gbt-page-layout width="wide">
       <gbt-card variant="outlined" [flush]="true">
         <div class="admin-user-detail__state">
-          <gbt-empty-state illustration="checklist" heading="Utilisateur introuvable" message="Ce compte n'existe pas, ou a été supprimé.">
-            <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="usersLink">Retour aux utilisateurs</a>
+          <gbt-empty-state illustration="checklist" [heading]="'admin.users.detail.notFound' | transloco" [message]="'admin.users.detail.notFoundMessage' | transloco">
+            <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="usersLink">{{ 'admin.users.detail.backToUsers' | transloco }}</a>
           </gbt-empty-state>
         </div>
       </gbt-card>
@@ -223,12 +223,12 @@
         <div class="admin-user-detail__state">
           <gbt-empty-state
             illustration="checklist"
-            heading="C'est votre propre compte"
-            message="Il ne se gère pas depuis l'administration et ne peut pas être supprimé d'ici : ses réglages sont dans « Mon compte »."
+            [heading]="'admin.users.detail.selfTitle' | transloco"
+            [message]="'admin.users.detail.selfMessage' | transloco"
           >
             <span class="admin-user-detail__state-actions">
-              <a gbtButton variant="secondary" size="small" iconName="user" routerLink="/account">Mon compte</a>
-              <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="usersLink">Retour aux utilisateurs</a>
+              <a gbtButton variant="secondary" size="small" iconName="user" routerLink="/account">{{ 'nav.account' | transloco }}</a>
+              <a gbtButton variant="secondary" size="small" iconName="arrow-left" [routerLink]="usersLink">{{ 'admin.users.detail.backToUsers' | transloco }}</a>
             </span>
           </gbt-empty-state>
         </div>
@@ -240,8 +240,8 @@
     <gbt-page-layout width="wide">
       <gbt-card variant="outlined" [flush]="true">
         <div class="admin-user-detail__state" role="alert">
-          <gbt-empty-state tone="error" heading="Impossible de charger cet utilisateur." message="Vérifiez votre connexion, puis réessayez.">
-            <gbt-button variant="secondary" size="small" text="Réessayer" (clicked)="retryLoad()" />
+          <gbt-empty-state tone="error" [heading]="'admin.users.detail.loadFailed' | transloco" [message]="'admin.users.detail.checkConnection' | transloco">
+            <gbt-button variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retryLoad()" />
           </gbt-empty-state>
         </div>
       </gbt-card>
@@ -250,7 +250,7 @@
 
   @default {
     <div class="admin-user-detail__loading" aria-busy="true">
-      <span class="sr-only" role="status">Chargement de l'utilisateur…</span>
+      <span class="sr-only" role="status">{{ 'admin.users.detail.loading' | transloco }}</span>
       <div class="admin-user-detail__loading-header" aria-hidden="true">
         <gbt-skeleton width="min(16rem, 70%)" height="1.75rem" />
         <gbt-skeleton width="14rem" height="0.875rem" />

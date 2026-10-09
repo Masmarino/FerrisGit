@@ -1,6 +1,8 @@
 import { booleanAttribute, Component, computed, ElementRef, input, output, viewChild } from '@angular/core';
 import { Alert } from '@masmarino/gabarit/alert';
 import { CopyField } from '@masmarino/gabarit/copy-field';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../../shared/i18n/translator';
 
 export type MailedLinkKind = 'invitation' | 'password-reset';
 
@@ -19,26 +21,26 @@ interface Wording {
   noLink: (username: string) => string;
 }
 
-const WORDING: Record<MailedLinkKind, Wording> = {
-  invitation: {
-    lifetime: '24 heures',
-    reissue: "Renvoyer l'invitation",
-    copyLabel: "Copier le lien d'activation",
-    noLink: (username) => `Utilisez « Renvoyer l'invitation » pour obtenir le lien d'activation de ${username}.`,
-  },
-  'password-reset': {
-    lifetime: '1 heure',
-    reissue: 'Réinitialiser le mot de passe',
-    copyLabel: 'Copier le lien de réinitialisation',
-    noLink: (username) => `Utilisez à nouveau « Réinitialiser le mot de passe » pour obtenir un lien pour ${username}.`,
-  },
-};
+const wordingFor = (kind: MailedLinkKind): Wording =>
+  kind === 'invitation'
+    ? {
+        lifetime: t('admin.users.mailFailed.invitationLifetime'),
+        reissue: t('admin.users.resendInvitation'),
+        copyLabel: t('admin.users.mailFailed.invitationCopy'),
+        noLink: (username) => t('admin.users.mailFailed.invitationNoLink', { name: username }),
+      }
+    : {
+        lifetime: t('admin.users.mailFailed.resetLifetime'),
+        reissue: t('admin.users.resetPassword'),
+        copyLabel: t('admin.users.mailFailed.resetCopy'),
+        noLink: (username) => t('admin.users.mailFailed.resetNoLink', { name: username }),
+      };
 
 /** The link is the only way to reach the user, and the administrator sees it this once. */
 @Component({
   selector: 'fg-link-mail-failed',
   standalone: true,
-  imports: [Alert, CopyField],
+  imports: [TranslocoPipe, Alert, CopyField],
   templateUrl: './link-mail-failed.html',
   styleUrl: './link-mail-failed.scss',
 })
@@ -52,7 +54,7 @@ export class LinkMailFailed {
 
   dismissed = output<void>();
 
-  protected wording = computed(() => WORDING[this.kind()]);
+  protected wording = computed(() => wordingFor(this.kind()));
 
   private region = viewChild<ElementRef<HTMLElement>>('region');
 

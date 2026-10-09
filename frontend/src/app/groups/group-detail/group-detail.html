@@ -82,7 +82,7 @@
      it. The form wraps the whole dialog because the submit button is in the footer slot; it's rebuilt on each open. -->
 @if (createGroupOpen()) {
   <form (submit)="$event.preventDefault(); createSubgroup()">
-    <gbt-modal [isOpen]="true" heading="Nouveau sous-groupe" closeLabel="Fermer" [busy]="creatingGroup()" busyLabel="Création en cours" (closed)="closeCreateGroup()">
+    <gbt-modal [isOpen]="true" heading="Nouveau sous-groupe" [closeLabel]="'common.close' | transloco" [busy]="creatingGroup()" busyLabel="Création en cours" (closed)="closeCreateGroup()">
       <div class="group-detail__create">
         <p class="group-detail__create-parent">
           <gbt-icon name="folder" aria-hidden="true" />
@@ -112,7 +112,7 @@
         }
       </div>
       <div modal-footer>
-        <gbt-button variant="secondary" text="Annuler" [disabled]="creatingGroup()" (clicked)="closeCreateGroup()" />
+        <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="creatingGroup()" (clicked)="closeCreateGroup()" />
         <gbt-button type="submit" iconName="plus" text="Créer le sous-groupe" [disabled]="!newGroupName().trim()" [loading]="creatingGroup()" loadingLabel="Création en cours" />
       </div>
     </gbt-modal>

@@ -1,5 +1,5 @@
 <form (submit)="$event.preventDefault(); submit()">
-  <gbt-modal [isOpen]="true" heading="Nouveau dépôt" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
+  <gbt-modal [isOpen]="true" heading="Nouveau dépôt" [closeLabel]="'common.close' | transloco" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
     <div class="create-repository">
       <div class="create-repository__path">
         <!-- Shared label row so the fields line up; their own labels differ in height and are for screen readers only. -->
@@ -95,7 +95,7 @@
     </div>
 
     <div modal-footer>
-      <gbt-button variant="secondary" text="Annuler" [disabled]="creating()" (clicked)="close.emit()" />
+      <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="creating()" (clicked)="close.emit()" />
       <gbt-button type="submit" iconName="plus" text="Créer le dépôt" [loading]="creating()" loadingLabel="Création en cours" />
     </div>
   </gbt-modal>

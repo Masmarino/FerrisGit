@@ -18,6 +18,7 @@ import { PageTitleService } from '../../shell/page-title.service';
 import { PublicConfigService } from '../public-config.service';
 import { PUBLIC_CATALOG_MAX_QUERY_LENGTH as MAX_QUERY_LENGTH, PUBLIC_CATALOG_PAGE_SIZE, PublicCatalogPage, PublicCatalogQuery, PublicCatalogSort, PublicRepositoriesService, PublicRepositorySummary } from '../public-repositories.service';
 import { loginLink } from '../../auth/login-link';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 export const SEARCH_DEBOUNCE_MS = 300;
 const SORTS: PublicCatalogSort[] = ['stars', 'name', 'created'];
@@ -66,7 +67,7 @@ function stateOf(error: unknown): ExploreState {
 @Component({
   selector: 'fg-explore-page',
   standalone: true,
-  imports: [FormsModule, RouterLink, Alert, Button, Card, EmptyState, GbtInput, Icon, SegmentedControl, Skeleton, GbtRelativeTimePipe, GbtDateTimePipe],
+  imports: [TranslocoPipe, FormsModule, RouterLink, Alert, Button, Card, EmptyState, GbtInput, Icon, SegmentedControl, Skeleton, GbtRelativeTimePipe, GbtDateTimePipe],
   templateUrl: './explore-page.html',
   styleUrl: './explore-page.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

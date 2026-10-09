@@ -9,11 +9,9 @@ import { AdminUsersService, InviteResult } from '../../admin-users.service';
 import { emailError as checkEmail } from '../../../auth/account-rules';
 import { classifyRegisterFailure, registerInvalidMessage } from '../../../auth/account-errors';
 import { LinkMailFailed } from '../link-mail-failed/link-mail-failed';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../../shared/i18n/translator';
 
-const EMAIL_REQUIRED = "Saisissez l'adresse e-mail";
-const EMAIL_INVALID = 'Saisissez une adresse e-mail valide, par exemple nom@exemple.fr';
-const EMAIL_TAKEN = 'Cette adresse e-mail est déjà utilisée par un compte';
-const SEND_FAILED = "L'invitation n'a pas pu être envoyée. Réessayez plus tard.";
 
 /**
  * Rendered under @if by the parent, so each opening starts fresh and a closed dialog never keeps a draft.
@@ -23,7 +21,7 @@ const SEND_FAILED = "L'invitation n'a pas pu être envoyée. Réessayez plus tar
 @Component({
   selector: 'fg-invite-user-modal',
   standalone: true,
-  imports: [FormsModule, Modal, Alert, Button, GbtInput, Switch, LinkMailFailed],
+  imports: [TranslocoPipe, FormsModule, Modal, Alert, Button, GbtInput, Switch, LinkMailFailed],
   templateUrl: './invite-user-modal.html',
   styleUrl: './invite-user-modal.scss',
 })
@@ -54,7 +52,7 @@ export class InviteUserModal {
       return;
     }
     const email = this.email().trim();
-    const emailProblem = email === '' ? EMAIL_REQUIRED : checkEmail(email);
+    const emailProblem = email === '' ? t('admin.users.inviteModal.emailRequired') : checkEmail(email);
     this.emailError.set(emailProblem);
     this.formError.set(null);
     if (emailProblem) {
@@ -79,10 +77,10 @@ export class InviteUserModal {
   private refused(err: unknown): void {
     switch (classifyRegisterFailure(err)) {
       case 'email-taken':
-        this.emailError.set(EMAIL_TAKEN);
+        this.emailError.set(t('admin.users.inviteModal.emailTaken'));
         break;
       case 'email-invalid':
-        this.emailError.set(EMAIL_INVALID);
+        this.emailError.set(t('admin.users.inviteModal.emailInvalid'));
         break;
       case 'invalid':
       case 'disabled':
@@ -93,7 +91,7 @@ export class InviteUserModal {
         this.formError.set(registerInvalidMessage());
         break;
       default:
-        this.formError.set(SEND_FAILED);
+        this.formError.set(t('admin.users.inviteModal.sendFailed'));
     }
   }
 }

@@ -52,7 +52,7 @@
     <div class="wiki-page-editor__footer">
       <gbt-input class="wiki-page-editor__message" label="Message de commit" [placeholder]="messagePlaceholder()" [ngModel]="message()" (ngModelChange)="message.set($event)" />
       <div class="wiki-page-editor__actions">
-        <gbt-button variant="secondary" text="Annuler" (clicked)="cancel()" />
+        <gbt-button variant="secondary" [text]="'common.cancel' | transloco" (clicked)="cancel()" />
         <gbt-button [text]="isCreate() ? 'Créer la page' : 'Enregistrer'" [loading]="saving()" loadingLabel="Enregistrement en cours" (clicked)="save()" />
       </div>
     </div>

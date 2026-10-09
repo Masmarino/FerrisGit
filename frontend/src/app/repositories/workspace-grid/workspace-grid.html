@@ -13,7 +13,7 @@
     <!-- The page's error toast already announces the failure. -->
     <gbt-alert class="workspace-grid__failed" variant="error" appearance="subtle" live="off">
       Cette liste n'a pas pu être chargée.
-      <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry.emit()" />
+      <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry.emit()" />
     </gbt-alert>
   } @else if (isEmpty()) {
     <div class="workspace-grid__empty">
@@ -109,8 +109,8 @@
     [confirmText]="repo.name"
     confirmInputLabel="Tapez le nom du dépôt pour confirmer"
     confirmLabel="Supprimer"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
     (confirmed)="deleteRepoConfirmed()"
     (closed)="cancelDelete()"
   />
@@ -123,8 +123,8 @@
     [confirmText]="group.name"
     confirmInputLabel="Tapez le nom du groupe pour confirmer"
     confirmLabel="Supprimer"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
     (confirmed)="deleteGroupConfirmed()"
     (closed)="cancelDelete()"
   />

@@ -2,7 +2,7 @@ import { BadgeVariant } from '@masmarino/gabarit/badge';
 import { formatDateTime } from '@masmarino/gabarit/format';
 import { AdminUser } from '../admin-users.service';
 import { ABSOLUTE_OPTIONS, RowDate, rowDate } from '../row-date';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
 
 export interface Presentation {
   label: string;
@@ -10,12 +10,12 @@ export interface Presentation {
   icon: string;
 }
 
-const ACTIVE: Presentation = { label: 'Actif', variant: 'success', icon: 'circle-check' };
-export const PENDING: Presentation = { label: 'Invitation en attente', variant: 'warning', icon: 'clock' };
-export const EXPIRED: Presentation = { label: 'Invitation expirée', variant: 'error', icon: 'alert-circle' };
-const MFA_ON: Presentation = { label: 'Double authentification active', variant: 'success', icon: 'shield-check' };
-const MFA_OFF: Presentation = { label: 'Non configurée', variant: 'neutral', icon: 'shield-alert' };
-export const SUPER_ADMIN: Presentation = { label: 'Super-administrateur', variant: 'info', icon: 'shield-check' };
+const ACTIVE: Presentation = { get label() { return t('admin.users.state.active'); }, variant: 'success', icon: 'circle-check' };
+export const PENDING: Presentation = { get label() { return t('admin.users.state.pending'); }, variant: 'warning', icon: 'clock' };
+export const EXPIRED: Presentation = { get label() { return t('admin.users.state.expired'); }, variant: 'error', icon: 'alert-circle' };
+const MFA_ON: Presentation = { get label() { return t('admin.users.state.mfaOn'); }, variant: 'success', icon: 'shield-check' };
+const MFA_OFF: Presentation = { get label() { return t('admin.users.state.mfaOff'); }, variant: 'neutral', icon: 'shield-alert' };
+export const SUPER_ADMIN: Presentation = { get label() { return t('common.superAdmin'); }, variant: 'info', icon: 'shield-check' };
 
 export function accountState(user: AdminUser, now: Date): { state: Presentation; expiry: RowDate | null } {
   if (user.state !== 'invited') {
@@ -27,46 +27,44 @@ export function accountState(user: AdminUser, now: Date): { state: Presentation;
   }
   const expired = new Date(expiresAt).getTime() <= now.getTime();
   const title = formatDateTime(expiresAt, activeLocale(), ABSOLUTE_OPTIONS);
-  return { state: expired ? EXPIRED : PENDING, expiry: { iso: expiresAt, title, label: expired ? `a expiré ${rowDate(expiresAt, now).label}` : `expire le ${title}` } };
+  return { state: expired ? EXPIRED : PENDING, expiry: { iso: expiresAt, title, label: expired ? t('admin.users.expired', { when: rowDate(expiresAt, now).label }) : t('admin.users.expires', { date: title }) } };
 }
 
 export const mfaPresentation = (user: AdminUser): Presentation | null => (user.state === 'invited' ? null : user.mfaEnabled ? MFA_ON : MFA_OFF);
 
 export const adminAction = (isAdmin: boolean) =>
-  isAdmin ? { label: 'Retirer les droits de super-administrateur', icon: 'shield-off' } : { label: 'Nommer super-administrateur', icon: 'shield-plus' };
-
-export const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
+  isAdmin ? { label: t('admin.users.demote'), icon: 'shield-off' } : { label: t('admin.users.promote'), icon: 'shield-plus' };
 
 export const mfaResetMessage = (username: string, self: boolean) =>
   self
-    ? "C'est votre propre compte : vous serez déconnecté aussitôt de tous vos appareils et devrez configurer à nouveau la double authentification à votre prochaine connexion. Votre application d'authentification et vos codes de secours actuels cesseront de fonctionner."
-    : `${username} sera déconnecté de tous ses appareils et devra configurer à nouveau la double authentification à sa prochaine connexion. Son application d'authentification et ses codes de secours actuels cesseront de fonctionner.`;
+    ? t('admin.users.mfaResetSelf')
+    : t('admin.users.mfaReset', { name: username });
 
 export const passwordResetMessage = (username: string) =>
-  `Le mot de passe actuel de ${username} cessera de fonctionner immédiatement, et ${username} sera déconnecté de tous ses appareils. Il recevra par e-mail un lien valable 1 heure pour en choisir un nouveau : il ne pourra pas se connecter avant de l'avoir utilisé.`;
+  t('admin.users.passwordReset', { name: username });
 
 export const demoteMessage = (username: string, self: boolean) =>
   self
-    ? "Vous allez vous retirer vous-même des super-administrateurs : vous perdrez aussitôt l'accès à l'administration (utilisateurs, réglages de l'instance, runners). Seul un autre super-administrateur pourra vous rendre ces droits."
-    : `${username} ne pourra plus gérer les utilisateurs, les réglages de l'instance ni les runners. Vous pourrez lui rendre ces droits plus tard.`;
+    ? t('admin.users.demoteSelf')
+    : t('admin.users.demoteOther', { name: username });
 
-export const DEMOTE_HEADING = 'Retirer les droits de super-administrateur';
+export const demoteHeading = (): string => t('admin.users.demote');
 
-export const promotedToast = (username: string) => `${username} est maintenant super-administrateur.`;
-export const demotedToast = (username: string) => `${username} n'est plus super-administrateur.`;
-export const SELF_DEMOTED_TOAST = "Vous n'êtes plus super-administrateur.";
-export const PROMOTE_FAILED = "Les droits de super-administrateur n'ont pas pu être accordés. Réessayez plus tard.";
-export const DEMOTE_FAILED = "Les droits de super-administrateur n'ont pas pu être retirés. Réessayez plus tard.";
-export const LAST_ADMIN_DEMOTE_REFUSED = "Impossible de retirer les droits de super-administrateur : l'instance n'aurait plus aucun super-administrateur actif.";
-export const ACCOUNT_GONE = "Ce compte n'existe plus.";
-export const ALREADY_ACTIVE = "Ce compte est déjà activé : il n'y a plus d'invitation à renvoyer.";
-export const NOT_ACTIVATED = "Ce compte n'est pas encore activé : renvoyez-lui plutôt l'invitation.";
-export const RESEND_FAILED = "L'invitation n'a pas pu être renvoyée. Réessayez plus tard.";
-export const MFA_RESET_DONE = 'Double authentification réinitialisée.';
-export const MFA_RESET_FAILED = "La double authentification n'a pas pu être réinitialisée. Réessayez plus tard.";
-export const PASSWORD_RESET_FAILED = "Le mot de passe n'a pas pu être réinitialisé. Réessayez plus tard.";
-export const invitationResentToast = (email: string) => `Invitation renvoyée à ${email}.`;
-export const passwordResetToast = (email: string) => `Mot de passe réinitialisé. Un lien pour en choisir un nouveau a été envoyé à ${email}.`;
+export const promotedToast = (username: string) => t('admin.users.promoted', { name: username });
+export const demotedToast = (username: string) => t('admin.users.demoted', { name: username });
+export const selfDemotedToast = (): string => t('admin.users.selfDemoted');
+export const promoteFailed = (): string => t('admin.users.promoteFailed');
+export const demoteFailed = (): string => t('admin.users.demoteFailed');
+export const lastAdminDemoteRefused = (): string => t('admin.users.lastAdmin');
+export const accountGone = (): string => t('admin.users.accountGone');
+export const alreadyActive = (): string => t('admin.users.alreadyActive');
+export const notActivated = (): string => t('admin.users.notActivated');
+export const resendFailed = (): string => t('admin.users.resendFailed');
+export const mfaResetDone = (): string => t('admin.users.mfaResetDone');
+export const mfaResetFailed = (): string => t('admin.users.mfaResetFailed');
+export const passwordResetFailed = (): string => t('admin.users.passwordResetFailed');
+export const invitationResentToast = (email: string) => t('admin.users.invitationResent', { email });
+export const passwordResetToast = (email: string) => t('admin.users.passwordResetDone', { email });
 
 export const apiMessage = (err: { error?: unknown }) => (typeof err.error === 'object' && err.error !== null ? (err.error as { error?: unknown }).error : undefined);
 

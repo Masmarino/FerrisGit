@@ -38,7 +38,7 @@
         @case ('failed') {
           <gbt-alert variant="error" appearance="subtle" live="off">
             Les membres n'ont pas pu être chargés.
-            <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+            <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry()" />
           </gbt-alert>
         }
         @default {
@@ -112,8 +112,8 @@
     [message]="member.username + ' n’aura plus accès à ce groupe ni à ses dépôts privés. Vous pourrez l’ajouter à nouveau plus tard.'"
     confirmLabel="Retirer"
     confirmIcon="trash-2"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
     busyLabel="Retrait en cours"
     [busy]="removing()"
     (confirmed)="removeMember(member.username)"

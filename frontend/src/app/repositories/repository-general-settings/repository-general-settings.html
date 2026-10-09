@@ -21,7 +21,7 @@
     <gbt-card variant="outlined" icon="info" heading="Informations">
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les informations du dépôt n'ont pas pu être chargées.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="refresh()" />
+        <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="refresh()" />
       </gbt-alert>
     </gbt-card>
   }
@@ -66,8 +66,8 @@
           [message]="confirmMessage()"
           [confirmLabel]="pendingVisibility() === 'public' ? 'Rendre public' : 'Rendre privé'"
           [tone]="pendingVisibility() === 'public' ? 'warning' : 'danger'"
-          cancelLabel="Annuler"
-          closeLabel="Fermer"
+          [cancelLabel]="'common.cancel' | transloco"
+          [closeLabel]="'common.close' | transloco"
           (confirmed)="confirmVisibility()"
           (closed)="cancelVisibility()"
         />

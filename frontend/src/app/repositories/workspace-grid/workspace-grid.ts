@@ -20,6 +20,7 @@ import { GroupsService } from '../../groups/groups.service';
 import { MemberRole, Repository, RepositoriesService, RepositoryRole } from '../repositories.service';
 import { canMaintain } from '../repository-role';
 import { activeLocale } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /** Paginated client-side: the API returns every group and repository at once. */
 export const WORKSPACE_PAGE_SIZE = 25;
@@ -129,7 +130,7 @@ function repositoryRow(repository: Repository, basePath: string): WorkspaceRow {
 @Component({
   selector: 'fg-workspace-grid',
   standalone: true,
-  imports: [RouterLink, GbtDateTimePipe, GbtRelativeTimePipe, Alert, ListCard, ListRow, Badge, Button, ConfirmDangerModal, EmptyState, Icon, Menu, MenuItem, Pagination, SkeletonList],
+  imports: [TranslocoPipe, RouterLink, GbtDateTimePipe, GbtRelativeTimePipe, Alert, ListCard, ListRow, Badge, Button, ConfirmDangerModal, EmptyState, Icon, Menu, MenuItem, Pagination, SkeletonList],
   templateUrl: './workspace-grid.html',
   styleUrl: './workspace-grid.scss',
 })

@@ -18,15 +18,15 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import type { ChartSeries } from '@masmarino/gabarit/chart';
 import { AdminMetricsService, AdminStats, MetricsSnapshot } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';
-import { activeLocale } from '../../shared/i18n/translator';
-
-const BYTE_UNITS = ['Ko', 'Mo', 'Go', 'To'];
+import { activeLocale, t, tn } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /** Gabarit's formatBytes only returns the joined string, not the divisor a chart series needs, so the y-axis unit is computed here. */
 function byteUnit(bytes: number): { divisor: number; label: string } {
+  const [byte, ...units] = t('admin.dashboard.byteUnits').split(',');
   let divisor = 1;
-  let label = 'o';
-  for (const unit of BYTE_UNITS) {
+  let label = byte;
+  for (const unit of units) {
     if (bytes < divisor * 1024) {
       break;
     }
@@ -36,12 +36,7 @@ function byteUnit(bytes: number): { divisor: number; label: string } {
   return { divisor, label };
 }
 
-const DAY_OPTIONS: SegmentedControlOption<number>[] = [
-  { value: 1, label: '1 jour' },
-  { value: 3, label: '3 jours' },
-  { value: 7, label: '7 jours' },
-  { value: 30, label: '30 jours' },
-];
+const dayOptions = (): SegmentedControlOption<number>[] => [1, 3, 7, 30].map((value) => ({ value, label: tn('admin.dashboard.days', value) }));
 
 interface DashboardTile {
   key: string;
@@ -57,7 +52,7 @@ type LoadState = 'loading' | 'loaded' | 'failed';
 @Component({
   selector: 'fg-admin-dashboard',
   standalone: true,
-  imports: [NgTemplateOutlet, PageHeader, PageLayout, Alert, EmptyState, LineChart, ListCard, SegmentedControl, Button, Icon, Skeleton, StatGrid, StatTile],
+  imports: [TranslocoPipe, NgTemplateOutlet, PageHeader, PageLayout, Alert, EmptyState, LineChart, ListCard, SegmentedControl, Button, Icon, Skeleton, StatGrid, StatTile],
   templateUrl: './admin-dashboard.html',
   styleUrl: './admin-dashboard.scss',
 })
@@ -74,7 +69,7 @@ export class AdminDashboard implements OnInit {
   protected history = signal<MetricsSnapshot[] | null>(null);
   protected historyState = signal<LoadState>('loading');
   protected historyDays = signal(30);
-  protected readonly dayOptions = DAY_OPTIONS;
+  protected readonly dayOptions = dayOptions();
   protected readonly storagePane = { $implicit: 'storage' } as const;
   protected readonly countsPane = { $implicit: 'counts' } as const;
 
@@ -88,14 +83,14 @@ export class AdminDashboard implements OnInit {
     const count = (value: number | undefined) => (value === undefined ? '—' : String(value));
     const latest = this.latest();
     return [
-      { key: 'users', label: 'Utilisateurs', value: count(stats?.totalUsers), hint: null, icon: 'user' },
-      { key: 'repositories', label: 'Dépôts', value: count(stats?.totalRepositories), hint: null, icon: 'folder-git-2' },
-      { key: 'pipelines', label: 'Pipelines', value: count(stats?.pipelinesLast7Days), hint: '7 derniers jours', icon: 'play' },
+      { key: 'users', label: t('nav.users'), value: count(stats?.totalUsers), hint: null, icon: 'user' },
+      { key: 'repositories', label: t('common.repositories'), value: count(stats?.totalRepositories), hint: null, icon: 'folder-git-2' },
+      { key: 'pipelines', label: t('common.pipelines'), value: count(stats?.pipelinesLast7Days), hint: t('admin.dashboard.lastSevenDays'), icon: 'play' },
       {
         key: 'storage',
-        label: 'Stockage',
+        label: t('common.storage'),
         value: latest ? formatBytes(latest.totalStorageBytes, activeLocale(), { binaryUnits: 'legacy' }) : '—',
-        hint: latest ? 'dernier relevé' : 'aucun relevé',
+        hint: latest ? t('admin.dashboard.latestReading') : t('admin.dashboard.noReading'),
         icon: 'hard-drive',
       },
     ];
@@ -108,14 +103,14 @@ export class AdminDashboard implements OnInit {
   protected storageSeries = computed<ChartSeries<Date>[]>(() => {
     const history = this.history() ?? [];
     const { divisor, label } = this.storageUnit();
-    return [{ label: `Stockage (${label})`, points: history.map((h) => ({ x: new Date(h.recordedAt), y: h.totalStorageBytes / divisor })) }];
+    return [{ label: t('admin.dashboard.storageIn', { unit: label }), points: history.map((h) => ({ x: new Date(h.recordedAt), y: h.totalStorageBytes / divisor })) }];
   });
 
   protected countsSeries = computed<ChartSeries<Date>[]>(() => {
     const history = this.history() ?? [];
     return [
-      { label: 'Utilisateurs', points: history.map((h) => ({ x: new Date(h.recordedAt), y: h.totalUsers })) },
-      { label: 'Dépôts', points: history.map((h) => ({ x: new Date(h.recordedAt), y: h.totalRepositories })) },
+      { label: t('nav.users'), points: history.map((h) => ({ x: new Date(h.recordedAt), y: h.totalUsers })) },
+      { label: t('common.repositories'), points: history.map((h) => ({ x: new Date(h.recordedAt), y: h.totalRepositories })) },
     ];
   });
 
@@ -126,7 +121,7 @@ export class AdminDashboard implements OnInit {
   }
 
   ngOnInit(): void {
-    this.pageTitle.set('Tableau de bord');
+    this.pageTitle.set(t('admin.dashboard.title'));
     this.metrics.getStats().subscribe({
       next: (s) => {
         this.stats.set(s);
@@ -134,7 +129,7 @@ export class AdminDashboard implements OnInit {
       },
       error: () => {
         this.statsState.set('failed');
-        this.toast.show('Impossible de charger les statistiques. Réessayez plus tard.', 'error');
+        this.toast.show(t('admin.dashboard.statsFailed'), 'error');
       },
     });
     this.loadHistory();
@@ -156,7 +151,7 @@ export class AdminDashboard implements OnInit {
       },
       error: () => {
         this.historyState.set('failed');
-        this.toast.show("Impossible de charger l'historique des métriques. Réessayez plus tard.", 'error');
+        this.toast.show(t('admin.dashboard.historyFailedToast'), 'error');
       },
     });
   }

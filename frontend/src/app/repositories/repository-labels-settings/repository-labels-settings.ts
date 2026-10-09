@@ -12,6 +12,7 @@ import { Tag } from '@masmarino/gabarit/tag';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Label, LabelsService } from '../../labels/labels.service';
 import { createSettingsList } from '../settings-list';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const LABEL_PALETTE: { color: string; name: string }[] = [
   { color: '#dc2626', name: 'Rouge' },
@@ -33,7 +34,7 @@ let nextId = 0;
 @Component({
   selector: 'fg-repository-labels-settings',
   standalone: true,
-  imports: [FormsModule, GbtInput, Alert, EmptyState, Button, Tag, ConfirmDangerModal, Skeleton, ListRow, Card],
+  imports: [TranslocoPipe, FormsModule, GbtInput, Alert, EmptyState, Button, Tag, ConfirmDangerModal, Skeleton, ListRow, Card],
   templateUrl: './repository-labels-settings.html',
   styleUrl: './repository-labels-settings.scss',
 })

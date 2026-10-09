@@ -1,5 +1,5 @@
 <form (submit)="$event.preventDefault(); submit()">
-  <gbt-modal [isOpen]="true" heading="Nouvelle release" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
+  <gbt-modal [isOpen]="true" heading="Nouvelle release" [closeLabel]="'common.close' | transloco" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
     <div class="create-release">
       <fieldset class="create-release__group">
         <legend class="create-release__legend">
@@ -64,7 +64,7 @@
     </div>
 
     <div modal-footer>
-      <gbt-button variant="secondary" text="Annuler" [disabled]="creating()" (clicked)="close.emit()" />
+      <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="creating()" (clicked)="close.emit()" />
       <gbt-button type="submit" iconName="tag" text="Créer la release" [loading]="creating()" loadingLabel="Création en cours" />
     </div>
   </gbt-modal>

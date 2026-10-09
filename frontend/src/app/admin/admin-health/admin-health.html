@@ -1,21 +1,21 @@
-<gbt-page-header heading="Santé">
+<gbt-page-header [heading]="'admin.health.title' | transloco">
   @if (overall(); as status) {
     <gbt-badge header-badges [variant]="status.variant" [icon]="status.icon">{{ status.label }}</gbt-badge>
   }
   <p header-meta class="admin-health__intro">
-    État des services de l'instance
+    {{ 'admin.health.intro' | transloco }}
     <!-- Hidden after a failed check, where an older time would look current. -->
     @if (loadError() ? null : checkedAtLabel(); as time) {
-      <span class="admin-health__checked">· vérifié à <time>{{ time }}</time></span>
+      <span class="admin-health__checked">{{ 'admin.health.checkedAt' | transloco }} <time>{{ time }}</time></span>
     }
   </p>
-  <gbt-button header-actions variant="secondary" iconName="refresh-cw" text="Actualiser" loadingLabel="Vérification en cours" [loading]="checking()" (clicked)="refresh()" />
+  <gbt-button header-actions variant="secondary" iconName="refresh-cw" [text]="'common.refresh' | transloco" [loadingLabel]="'admin.health.checking' | transloco" [loading]="checking()" (clicked)="refresh()" />
 </gbt-page-header>
 
 <gbt-page-layout width="wide" asideWidth="sm">
   @if (loadError()) {
-    <gbt-alert variant="error" appearance="subtle" live="off" heading="API ou base de données injoignable.">
-      L'état des services n'a pas pu être vérifié. Actualisez une fois le serveur rétabli.
+    <gbt-alert variant="error" appearance="subtle" live="off" [heading]="'admin.health.apiDown' | transloco">
+      {{ 'admin.health.apiDownHelp' | transloco }}
     </gbt-alert>
   } @else if (health()) {
     <div class="admin-health__cards-frame">
@@ -42,8 +42,8 @@
                   [max]="gauge.max"
                   [formattedValue]="gauge.formatted"
                   [thresholds]="gaugeThresholds"
-                  warningLabel="presque plein"
-                  criticalLabel="saturé"
+                  [warningLabel]="'admin.health.nearlyFull' | transloco"
+                  [criticalLabel]="'admin.health.full' | transloco"
                 />
               }
               @if (card.facts.length > 0) {
@@ -56,7 +56,7 @@
     </div>
   } @else {
     <div class="admin-health__cards-frame" aria-busy="true">
-      <span class="sr-only" role="status">Vérification des services…</span>
+      <span class="sr-only" role="status">{{ 'admin.health.checkingServices' | transloco }}</span>
       <div class="admin-health__cards" aria-hidden="true">
         @for (i of skeletonCards; track i) {
           <gbt-card class="admin-health__skeleton" variant="outlined">
@@ -77,14 +77,14 @@
 
   @if (loadError() ? null : uptime(); as u) {
     <div page-aside class="admin-health__aside">
-      <gbt-panel heading="Disponibilité" [headingLevel]="2">
+      <gbt-panel [heading]="'admin.health.uptime' | transloco" [headingLevel]="2">
         <div class="admin-health__uptime">
           <p class="admin-health__uptime-value"><gbt-icon name="clock" aria-hidden="true" />{{ u.value }}</p>
-          <p class="admin-health__uptime-since">Démarré le {{ u.startedAt }}</p>
+          <p class="admin-health__uptime-since">{{ 'admin.health.startedOn' | transloco: { date: u.startedAt } }}</p>
         </div>
       </gbt-panel>
-      <gbt-panel heading="Vérifications" [headingLevel]="2">
-        <p class="admin-health__note">Cette page ne se met pas à jour seule : « Actualiser » interroge à nouveau la base de données et le stockage.</p>
+      <gbt-panel [heading]="'admin.health.checks' | transloco" [headingLevel]="2">
+        <p class="admin-health__note">{{ 'admin.health.checksHelp' | transloco }}</p>
       </gbt-panel>
     </div>
   }

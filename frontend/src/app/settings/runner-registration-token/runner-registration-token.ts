@@ -7,6 +7,7 @@ import { GbtInput } from '@masmarino/gabarit/input';
 import { SecretReveal } from '@masmarino/gabarit/secret-reveal';
 import { FieldSaveState } from '../field-save-state';
 import { SettingsEditor } from '../settings-editor';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type TokenAction = 'generate' | 'remove';
 
@@ -24,7 +25,7 @@ function randomToken(): string {
 @Component({
   selector: 'fg-runner-registration-token',
   standalone: true,
-  imports: [FormsModule, Badge, Button, ConfirmDangerModal, GbtInput, SecretReveal, FieldSaveState],
+  imports: [TranslocoPipe, FormsModule, Badge, Button, ConfirmDangerModal, GbtInput, SecretReveal, FieldSaveState],
   templateUrl: './runner-registration-token.html',
   styleUrl: './runner-registration-token.scss',
 })

@@ -13,6 +13,7 @@ import { Select, SelectOption } from '@masmarino/gabarit/select';
 import { Switch } from '@masmarino/gabarit/switch';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const NAME_REQUIRED = 'Le nom est requis';
 
@@ -20,7 +21,7 @@ const NAME_REQUIRED = 'Le nom est requis';
 @Component({
   selector: 'fg-create-repository-modal',
   standalone: true,
-  imports: [FormsModule, Modal, Alert, GbtInput, Button, Icon, SegmentedControl, Switch, Select, Textarea],
+  imports: [TranslocoPipe, FormsModule, Modal, Alert, GbtInput, Button, Icon, SegmentedControl, Switch, Select, Textarea],
   templateUrl: './create-repository-modal.html',
   styleUrl: './create-repository-modal.scss',
 })

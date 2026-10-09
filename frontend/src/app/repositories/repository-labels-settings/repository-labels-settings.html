@@ -48,7 +48,7 @@
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les labels n'ont pas pu être chargés.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="list.retry()" />
+        <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="list.retry()" />
       </gbt-alert>
     }
     @default {
@@ -94,8 +94,8 @@
     [confirmText]="label.name"
     confirmInputLabel="Tapez le nom du label pour confirmer"
     confirmLabel="Supprimer"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
     (confirmed)="deleteLabel()"
     (closed)="labelPendingDelete.set(null)"
   />

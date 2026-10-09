@@ -19,7 +19,7 @@
     <span class="sr-only" role="status">Chargement de la pipeline</span>
   } @else if (doc.status() === 'failed') {
     <gbt-empty-state icon="file" heading="Le fichier n'a pas pu être chargé" message="Le fichier .ferrisgit-ci.yml du dépôt n'a pas pu être lu. Réessayez dans un instant.">
-      <gbt-button variant="secondary" text="Réessayer" (clicked)="load()" />
+      <gbt-button variant="secondary" [text]="'common.retry' | transloco" (clicked)="load()" />
     </gbt-empty-state>
   } @else if (roleKnown() && !canWrite()) {
     <gbt-empty-state icon="lock" heading="Réservé aux contributeurs" message="L'éditeur prépare une modification du fichier de CI : il faut avoir le rôle de Contributeur, ou plus, sur ce dépôt." />
@@ -229,7 +229,7 @@
 
       <div class="pipeline-editor__yaml-head">
         <code>{{ doc.filePath() }}</code>
-        <gbt-copy-button [value]="doc.yaml()" text="Copier le YAML" copiedText="Copié" failedText="Échec de la copie" variant="secondary" size="small" [disabled]="doc.yaml() === ''" />
+        <gbt-copy-button [value]="doc.yaml()" text="Copier le YAML" [copiedText]="'common.copied' | transloco" failedText="Échec de la copie" variant="secondary" size="small" [disabled]="doc.yaml() === ''" />
       </div>
       @if (doc.mode() === 'yaml') {
         <gbt-textarea class="pipeline-editor__yaml-input" label="Contenu du fichier de pipeline" hideLabel mono autosize [rows]="18" [ngModel]="doc.yamlText()" (ngModelChange)="typeYaml($event)" />
@@ -251,7 +251,7 @@
   }
 </gbt-page-layout>
 
-<gbt-modal [isOpen]="saveOpen()" heading="Proposer la modification" closeLabel="Fermer" [busy]="saving()" busyLabel="Envoi en cours" (closed)="closeSave()">
+<gbt-modal [isOpen]="saveOpen()" heading="Proposer la modification" [closeLabel]="'common.close' | transloco" [busy]="saving()" busyLabel="Envoi en cours" (closed)="closeSave()">
   <form class="pipeline-editor__save" (submit)="$event.preventDefault(); save()">
     <p>Le fichier <code>{{ doc.filePath() }}</code> sera écrit sur une nouvelle branche, et une merge request sera ouverte vers <code>{{ doc.file()?.branch }}</code>.</p>
     <gbt-input label="Titre" [ngModel]="saveTitle()" (ngModelChange)="saveTitle.set($event)" [ngModelOptions]="{ standalone: true }" />
@@ -275,19 +275,19 @@
       </gbt-alert>
     }
     <div class="pipeline-editor__save-actions">
-      <gbt-button variant="secondary" text="Annuler" [disabled]="saving()" (clicked)="closeSave()" />
+      <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="saving()" (clicked)="closeSave()" />
       <gbt-button type="submit" variant="primary" text="Proposer la modification" [disabled]="saving()" />
     </div>
   </form>
 </gbt-modal>
 
-<gbt-drawer [isOpen]="pickerStage() !== null" heading="Ajouter un job" closeLabel="Fermer" (closed)="closePicker()">
+<gbt-drawer [isOpen]="pickerStage() !== null" heading="Ajouter un job" [closeLabel]="'common.close' | transloco" (closed)="closePicker()">
   @if (pickerStage(); as stage) {
     <fg-pipeline-tile-picker [stage]="stage" [secrets]="secrets()" [engine]="engine()" [suggestions]="suggestions()" (chosen)="chooseTile($event.tile, $event.values)" (chosenJob)="chooseSuggested($event)" />
   }
 </gbt-drawer>
 
-<gbt-drawer [isOpen]="secretsOpen()" heading="Variables et secrets" closeLabel="Fermer" (closed)="secretsOpen.set(false)">
+<gbt-drawer [isOpen]="secretsOpen()" heading="Variables et secrets" [closeLabel]="'common.close' | transloco" (closed)="secretsOpen.set(false)">
   @if (secretsOpen()) {
     <fg-pipeline-secrets
       [repositoryId]="repositoryId()"
@@ -301,7 +301,7 @@
   }
 </gbt-drawer>
 
-<gbt-drawer [isOpen]="selectedJob() !== null" [heading]="selectedJob()?.name ?? ''" closeLabel="Fermer" (closed)="closeJob()">
+<gbt-drawer [isOpen]="selectedJob() !== null" [heading]="selectedJob()?.name ?? ''" [closeLabel]="'common.close' | transloco" (closed)="closeJob()">
   @if (selectedJob(); as job) {
     <fg-pipeline-job-form
       [job]="job"
@@ -325,7 +325,7 @@
   message="Les modifications faites ici seront perdues, et ne pourront pas être annulées."
   confirmLabel="Revenir au fichier"
   cancelLabel="Garder mes modifications"
-  closeLabel="Fermer"
+  [closeLabel]="'common.close' | transloco"
   (confirmed)="reset()"
   (closed)="resetOpen.set(false)"
 />
@@ -337,7 +337,7 @@
   message="Vos modifications n'ont pas été proposées : elles seront perdues. Pour les garder, restez et utilisez « Proposer la modification »."
   confirmLabel="Quitter sans proposer"
   cancelLabel="Rester dans l'éditeur"
-  closeLabel="Fermer"
+  [closeLabel]="'common.close' | transloco"
   (confirmed)="leaving.answer(true)"
   (closed)="leaving.answer(false)"
 />

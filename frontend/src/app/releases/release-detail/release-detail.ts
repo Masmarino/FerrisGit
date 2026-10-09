@@ -26,11 +26,12 @@ import { PageTitleService } from '../../shell/page-title.service';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
 import { activeLocale } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
   selector: 'fg-release-detail',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     FormsModule,
     RouterLink,
     GbtDateTimePipe,

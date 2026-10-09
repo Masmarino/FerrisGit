@@ -44,7 +44,7 @@
             />
             <gbt-switch name="prerelease" label="Pré-version" [ngModel]="editPrerelease()" (ngModelChange)="editPrerelease.set($event)" />
             <div class="release-detail__edit-actions">
-              <gbt-button variant="secondary" text="Annuler" (clicked)="cancelEdit()" />
+              <gbt-button variant="secondary" [text]="'common.cancel' | transloco" (clicked)="cancelEdit()" />
               <gbt-button type="submit" text="Enregistrer" [loading]="saving()" loadingLabel="Enregistrement en cours" />
             </div>
           </form>
@@ -174,8 +174,8 @@
       [confirmText]="r.tagName"
       confirmInputLabel="Tapez le tag de la release pour confirmer"
       confirmLabel="Supprimer"
-      cancelLabel="Annuler"
-      closeLabel="Fermer"
+      [cancelLabel]="'common.cancel' | transloco"
+      [closeLabel]="'common.close' | transloco"
       (confirmed)="confirmDeleteRelease()"
       (closed)="deleteReleaseOpen.set(false)"
     />
@@ -187,8 +187,8 @@
       [message]="'Le fichier « ' + asset.filename + ' » ne pourra plus être téléchargé depuis cette release.'"
       confirmLabel="Supprimer"
       confirmIcon="trash-2"
-      cancelLabel="Annuler"
-      closeLabel="Fermer"
+      [cancelLabel]="'common.cancel' | transloco"
+      [closeLabel]="'common.close' | transloco"
       busyLabel="Suppression en cours"
       [busy]="deletingAsset()"
       (confirmed)="confirmDeleteAsset()"

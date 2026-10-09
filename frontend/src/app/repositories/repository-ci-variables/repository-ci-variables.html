@@ -29,7 +29,7 @@
     @case ('failed') {
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les variables n'ont pas pu être chargées.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="list.retry()" />
+        <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="list.retry()" />
       </gbt-alert>
     }
     @default {
@@ -81,8 +81,8 @@
     [message]="'Les prochains jobs de la pipeline ne recevront plus « ' + variable.key + ' » et sa valeur sera perdue.'"
     confirmLabel="Supprimer"
     confirmIcon="trash-2"
-    cancelLabel="Annuler"
-    closeLabel="Fermer"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
     busyLabel="Suppression en cours"
     [busy]="deleting()"
     (confirmed)="deleteVariable(variable.id)"

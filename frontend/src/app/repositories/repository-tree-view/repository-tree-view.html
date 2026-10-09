@@ -16,7 +16,7 @@
           <div class="repository-tree-view__steps">
             <div class="repository-tree-view__step" [attr.id]="clonePanelId">
               <h3 class="repository-tree-view__step-title">Adresse du dépôt</h3>
-              <gbt-copy-field [value]="url" copyLabel="Copier l'URL de clonage" copiedText="Copié" failedText="Copie impossible, URL sélectionnée" />
+              <gbt-copy-field [value]="url" copyLabel="Copier l'URL de clonage" [copiedText]="'common.copied' | transloco" failedText="Copie impossible, URL sélectionnée" />
             </div>
             <div class="repository-tree-view__step">
               <h3 class="repository-tree-view__step-title">Créer un nouveau dépôt en local</h3>
@@ -190,7 +190,7 @@ git push -u origin main</code></pre>
     @if (!isEmptyRepository() && !isNotFound()) {
       <gbt-panel heading="Cloner" [headingLevel]="2" [attr.id]="clonePanelId">
         @if (cloneUrl(); as url) {
-          <gbt-copy-field [value]="url" copyLabel="Copier l'URL de clonage" copiedText="Copié" failedText="Copie impossible, URL sélectionnée" />
+          <gbt-copy-field [value]="url" copyLabel="Copier l'URL de clonage" [copiedText]="'common.copied' | transloco" failedText="Copie impossible, URL sélectionnée" />
         } @else {
           <gbt-skeleton height="30px" aria-hidden="true" />
         }

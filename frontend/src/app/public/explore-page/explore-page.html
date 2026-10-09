@@ -60,13 +60,13 @@
       @case ('rateLimited') {
         <gbt-alert class="explore-page__alert" variant="warning" appearance="subtle">
           Trop de recherches en peu de temps. Patientez une minute avant de réessayer.
-          <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+          <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry()" />
         </gbt-alert>
       }
       @case ('error') {
         <gbt-alert class="explore-page__alert" variant="error" appearance="subtle">
           Le catalogue n'a pas pu être chargé.
-          <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="retry()" />
+          <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry()" />
         </gbt-alert>
       }
       @default {

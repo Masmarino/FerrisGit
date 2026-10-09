@@ -14,13 +14,14 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { UserChip } from '@masmarino/gabarit/user-chip';
 import { CollaboratorSummary, RepositorySettingsService } from '../repository-settings.service';
 import { createSettingsList } from '../settings-list';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type Role = CollaboratorSummary['role'];
 
 @Component({
   selector: 'fg-repository-collaborators-settings',
   standalone: true,
-  imports: [FormsModule, GbtInput, Select, Alert, EmptyState, Button, ConfirmDangerModal, SkeletonList, ListRow, UserChip, Card, GbtRelativeTimePipe, GbtDateTimePipe],
+  imports: [TranslocoPipe, FormsModule, GbtInput, Select, Alert, EmptyState, Button, ConfirmDangerModal, SkeletonList, ListRow, UserChip, Card, GbtRelativeTimePipe, GbtDateTimePipe],
   templateUrl: './repository-collaborators-settings.html',
   styleUrl: './repository-collaborators-settings.scss',
 })

@@ -182,7 +182,7 @@ export class HomePage implements OnInit {
   protected readonly activitySkeletons = [0, 1, 2];
 
   ngOnInit(): void {
-    this.pageTitle.set('Accueil');
+    this.pageTitle.set(t('nav.home'));
     this.load();
   }
 

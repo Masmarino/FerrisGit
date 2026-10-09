@@ -29,6 +29,7 @@ import { injectRepositoryPermissions } from '../../repositories/repository-role'
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { openWhenAsked } from '../../shared/open-when-asked';
 import { activeLocale } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type SortKey = 'date' | 'title';
 type StateTab = MergeRequestSummary['status'];
@@ -61,7 +62,7 @@ interface MergeRequestRow {
 @Component({
   selector: 'fg-merge-request-list',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     FormsModule,
     RouterLink,
     GbtDateTimePipe,

@@ -12,6 +12,7 @@ import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Repository, RepositoriesService } from '../repositories.service';
 import { RepositoryVisibility, VISIBILITY_OPTIONS } from '../repository-visibility';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type Field = 'description' | 'visibility';
 type SaveState = 'saving' | 'saved' | 'error';
@@ -23,7 +24,7 @@ type SaveState = 'saving' | 'saved' | 'error';
 @Component({
   selector: 'fg-repository-general-settings',
   standalone: true,
-  imports: [FormsModule, NgTemplateOutlet, Alert, Button, Card, CardHeader, ConfirmDangerModal, SaveStatus, SegmentedControl, Skeleton, Textarea],
+  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, Alert, Button, Card, CardHeader, ConfirmDangerModal, SaveStatus, SegmentedControl, Skeleton, Textarea],
   templateUrl: './repository-general-settings.html',
   styleUrl: './repository-general-settings.scss',
 })

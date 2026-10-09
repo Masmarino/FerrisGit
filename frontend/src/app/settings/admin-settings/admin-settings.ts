@@ -14,6 +14,7 @@ import { ExecutionSettings } from '../execution-settings/execution-settings';
 import { SecuritySettings } from '../security-settings/security-settings';
 import { SettingsEditor } from '../settings-editor';
 import { SmtpSettings } from '../smtp-settings/smtp-settings';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type SectionKey = 'execution' | 'security' | 'email';
 
@@ -29,7 +30,7 @@ const DEFAULT_SECTION: SectionKey = 'execution';
 @Component({
   selector: 'fg-admin-settings',
   standalone: true,
-  imports: [PageHeader, PageLayout, NavTab, NavTabs, RouterLink, Card, CardHeader, Alert, Button, Skeleton, ExecutionSettings, SecuritySettings, SmtpSettings],
+  imports: [TranslocoPipe, PageHeader, PageLayout, NavTab, NavTabs, RouterLink, Card, CardHeader, Alert, Button, Skeleton, ExecutionSettings, SecuritySettings, SmtpSettings],
   providers: [SettingsEditor],
   templateUrl: './admin-settings.html',
   styleUrl: './admin-settings.scss',

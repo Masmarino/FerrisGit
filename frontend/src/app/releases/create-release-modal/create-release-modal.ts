@@ -11,13 +11,14 @@ import { Select, SelectOption } from '@masmarino/gabarit/select';
 import { Switch } from '@masmarino/gabarit/switch';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const NEW_TAG_SENTINEL = '__new__';
 
 @Component({
   selector: 'fg-create-release-modal',
   standalone: true,
-  imports: [FormsModule, Modal, GbtInput, Button, Switch, Select, Textarea, Alert, Icon],
+  imports: [TranslocoPipe, FormsModule, Modal, GbtInput, Button, Switch, Select, Textarea, Alert, Icon],
   templateUrl: './create-release-modal.html',
   styleUrl: './create-release-modal.scss',
 })

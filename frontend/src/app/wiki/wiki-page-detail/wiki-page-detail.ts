@@ -21,6 +21,7 @@ import { WikiOutline, hasOutline } from '../wiki-outline/wiki-outline';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { MarkdownOutlineEntry, MarkdownView } from '../../shared/markdown-view/markdown-view';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const plural = (count: number, one: string, many: string) => (count === 1 ? `1 ${one}` : `${count} ${many}`);
 
@@ -29,7 +30,7 @@ const RECENT_REVISIONS = 3;
 @Component({
   selector: 'fg-wiki-page-detail',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     RouterLink,
     Avatar,
     Button,

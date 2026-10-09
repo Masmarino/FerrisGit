@@ -36,7 +36,7 @@
         <gbt-card variant="outlined" icon="settings" heading="Réglages de l'instance">
           <gbt-alert variant="error" appearance="subtle" live="off">
             Les réglages n'ont pas pu être chargés.
-            <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="editor.load()" />
+            <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="editor.load()" />
           </gbt-alert>
         </gbt-card>
       }

@@ -13,6 +13,7 @@ import { WikiLayout } from '../wiki-layout/wiki-layout';
 import { titleFromSlug, wikiLink } from '../wiki-links';
 import { PageTitleService } from '../../shell/page-title.service';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const SLUG_PATTERN = /^[A-Za-z0-9_][A-Za-z0-9_-]{0,99}$/;
 
@@ -23,7 +24,7 @@ let nextId = 0;
 @Component({
   selector: 'fg-wiki-page-editor',
   standalone: true,
-  imports: [FormsModule, Alert, Button, GbtInput, Icon, ListCard, MarkdownView, PageHeader, WikiLayout],
+  imports: [TranslocoPipe, FormsModule, Alert, Button, GbtInput, Icon, ListCard, MarkdownView, PageHeader, WikiLayout],
   templateUrl: './wiki-page-editor.html',
   styleUrl: './wiki-page-editor.scss',
 })

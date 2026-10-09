@@ -9,7 +9,7 @@
     loadingLabel="Chargement des commits…"
     failedHeading="Les commits n'ont pas pu être chargés"
     failedMessage="Réessayez dans un instant."
-    retryLabel="Réessayer"
+    [retryLabel]="'common.retry' | transloco"
     (retry)="load()"
     emptyIllustration="book"
     emptyHeading="Aucun commit"

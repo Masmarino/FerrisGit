@@ -22,44 +22,44 @@ import { LinkMailFailed, MailFailure } from './link-mail-failed/link-mail-failed
 import { InviteUserModal } from './invite-user-modal/invite-user-modal';
 import { RowDate, rowDate } from '../row-date';
 import {
-  ACCOUNT_GONE,
+  accountGone,
   accountState,
   adminAction,
-  ALREADY_ACTIVE,
+  alreadyActive,
   apiMessage,
-  DEMOTE_FAILED,
-  DEMOTE_HEADING,
+  demoteFailed,
+  demoteHeading,
   demotedToast,
   demoteMessage,
   invitationResentToast,
-  LAST_ADMIN_DEMOTE_REFUSED,
-  MFA_RESET_DONE,
-  MFA_RESET_FAILED,
+  lastAdminDemoteRefused,
+  mfaResetDone,
+  mfaResetFailed,
   mfaPresentation,
   mfaResetMessage,
-  NOT_ACTIVATED,
+  notActivated,
   OWN_PASSWORD_REFUSED,
-  PASSWORD_RESET_FAILED,
+  passwordResetFailed,
   passwordResetMessage,
   passwordResetToast,
   PENDING_ACTIVATION_REFUSED,
-  plural,
   Presentation,
-  PROMOTE_FAILED,
+  promoteFailed,
   promotedToast,
-  RESEND_FAILED,
-  SELF_DEMOTED_TOAST,
+  resendFailed,
+  selfDemotedToast,
   SUPER_ADMIN,
 } from './admin-user-presentation';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t, tn } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type UsersFilter = 'all' | 'pending';
 type SortKey = 'createdAt' | 'username';
 type LoadState = 'loading' | 'loaded' | 'failed';
 
 const SORT_OPTIONS: ListToolbarSortOption<SortKey>[] = [
-  { value: 'createdAt', label: 'Date de création' },
-  { value: 'username', label: "Nom d'utilisateur" },
+  { value: 'createdAt', get label() { return t('common.createdAt'); } },
+  { value: 'username', get label() { return t('common.username'); } },
 ];
 
 interface UserRow {
@@ -87,7 +87,7 @@ interface UserRow {
 @Component({
   selector: 'fg-admin-users',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     RouterLink,
     PageHeader,
     PageLayout,
@@ -144,8 +144,8 @@ export class AdminUsers implements OnInit {
   protected toolbarActive = computed(() => this.loadState() === 'loaded');
 
   protected filterOptions = computed<SegmentedControlOption<UsersFilter>[]>(() => [
-    { value: 'all', label: `Tous (${this.list().length})` },
-    { value: 'pending', label: `Invitations en attente (${this.pendingUsers().length})` },
+    { value: 'all', label: t('admin.users.all', { count: this.list().length }) },
+    { value: 'pending', label: t('admin.users.pendingFilter', { count: this.pendingUsers().length }) },
   ]);
 
   protected summary = computed(() => {
@@ -154,8 +154,8 @@ export class AdminUsers implements OnInit {
       return null;
     }
     const pending = this.pendingUsers().length;
-    const accounts = plural(total, 'compte', 'comptes');
-    return pending > 0 ? `${accounts} · ${plural(pending, 'invitation', 'invitations')} en attente` : accounts;
+    const accounts = tn('admin.users.accounts', total);
+    return pending > 0 ? tn('admin.users.withPending', pending, { accounts }) : accounts;
   });
 
   private busyIds = signal<ReadonlyMap<string, string>>(new Map());
@@ -181,21 +181,21 @@ export class AdminUsers implements OnInit {
       canReset: !invited && user.mfaEnabled,
       canResetPassword: !invited && !isSelf,
       adminAction: adminAction(user.isAdmin),
-      menuLabel: `Actions pour ${user.username}`,
+      menuLabel: t('admin.users.actionsFor', { name: user.username }),
       link: isSelf ? null : ['/admin/users', user.id],
       busy,
     };
   }
 
   protected readonly superAdmin = SUPER_ADMIN;
-  protected readonly demoteHeading = DEMOTE_HEADING;
+  protected readonly demoteHeading = demoteHeading();
 
   protected hasNoResults = computed(() => this.rows().length === 0);
   protected noResultsText = computed(() => {
     if (this.search().trim() !== '') {
-      return this.filter() === 'pending' ? 'Aucune invitation en attente ne correspond à cette recherche' : 'Aucun utilisateur ne correspond à cette recherche';
+      return this.filter() === 'pending' ? t('admin.users.noPendingMatch') : t('admin.users.noUserMatch');
     }
-    return this.filter() === 'pending' ? 'Aucune invitation en attente' : 'Aucun utilisateur ne correspond à cette recherche';
+    return this.filter() === 'pending' ? t('admin.users.noPending') : t('admin.users.noUserMatch');
   });
 
   protected inviteOpen = signal(false);
@@ -232,7 +232,7 @@ export class AdminUsers implements OnInit {
   }
 
   ngOnInit(): void {
-    this.pageTitle.set('Utilisateurs');
+    this.pageTitle.set(t('nav.users'));
     this.refresh();
   }
 
@@ -248,7 +248,7 @@ export class AdminUsers implements OnInit {
           this.loadState.set('failed');
           return;
         }
-        this.toast.show('Impossible de charger les utilisateurs. Réessayez plus tard.', 'error');
+        this.toast.show(t('admin.users.loadFailedToast'), 'error');
       },
     });
   }
@@ -284,7 +284,7 @@ export class AdminUsers implements OnInit {
     if (this.busyIds().has(user.id)) {
       return;
     }
-    this.setBusy(user.id, 'Envoi en cours');
+    this.setBusy(user.id, t('common.sending'));
     this.users.resend(user.id).subscribe({
       next: (result) => {
         this.setBusy(user.id, null);
@@ -301,10 +301,10 @@ export class AdminUsers implements OnInit {
         this.setBusy(user.id, null);
         this.focusRowAction(user.id);
         if (err.status === 400) {
-          this.toast.show(ALREADY_ACTIVE, 'error');
+          this.toast.show(alreadyActive(), 'error');
           this.refresh();
         } else {
-          this.toast.show(RESEND_FAILED, 'error');
+          this.toast.show(resendFailed(), 'error');
         }
       },
     });
@@ -373,13 +373,13 @@ export class AdminUsers implements OnInit {
           return;
         }
         this.list.update((list) => list.map((item) => (item.id === target.id ? { ...item, mfaEnabled: false } : item)));
-        this.toast.show(MFA_RESET_DONE);
+        this.toast.show(mfaResetDone());
         this.focusRowAction(target.id);
       },
       error: () => {
         this.resetting.set(false);
         this.resetTarget.set(null);
-        this.toast.show(MFA_RESET_FAILED, 'error');
+        this.toast.show(mfaResetFailed(), 'error');
         this.focusRowAction(target.id);
       },
     });
@@ -421,15 +421,15 @@ export class AdminUsers implements OnInit {
         this.passwordResetTarget.set(null);
         this.focusRowAction(target.id);
         if (err.status === 400 && apiMessage(err) === OWN_PASSWORD_REFUSED) {
-          this.toast.show('Changez votre propre mot de passe depuis les paramètres de votre compte.', 'error');
+          this.toast.show(t('admin.users.ownPassword'), 'error');
         } else if (err.status === 400 && apiMessage(err) === PENDING_ACTIVATION_REFUSED) {
-          this.toast.show(NOT_ACTIVATED, 'error');
+          this.toast.show(notActivated(), 'error');
           this.refresh();
         } else if (err.status === 404) {
-          this.toast.show(ACCOUNT_GONE, 'error');
+          this.toast.show(accountGone(), 'error');
           this.refresh();
         } else {
-          this.toast.show(PASSWORD_RESET_FAILED, 'error');
+          this.toast.show(passwordResetFailed(), 'error');
         }
       },
     });
@@ -447,7 +447,7 @@ export class AdminUsers implements OnInit {
     if (this.busyIds().has(user.id)) {
       return;
     }
-    this.setBusy(user.id, 'Enregistrement en cours');
+    this.setBusy(user.id, t('common.saving'));
     this.users.setAdmin(user.id, true).subscribe({
       next: () => {
         this.setBusy(user.id, null);
@@ -458,7 +458,7 @@ export class AdminUsers implements OnInit {
       error: (err: { status?: number }) => {
         this.setBusy(user.id, null);
         this.focusRowAction(user.id);
-        this.adminChangeFailed(err, PROMOTE_FAILED);
+        this.adminChangeFailed(err, promoteFailed());
       },
     });
   }
@@ -486,7 +486,7 @@ export class AdminUsers implements OnInit {
           // Drop the shell's admin section now instead of waiting for the `/auth/me` refresh.
           this.me.isAdmin.set(false);
           this.me.load();
-          this.toast.show(SELF_DEMOTED_TOAST);
+          this.toast.show(selfDemotedToast());
           void this.router.navigateByUrl('/home');
           return;
         }
@@ -498,7 +498,7 @@ export class AdminUsers implements OnInit {
         this.demoting.set(false);
         this.demoteTarget.set(null);
         this.focusRowAction(target.id);
-        this.adminChangeFailed(err, DEMOTE_FAILED);
+        this.adminChangeFailed(err, demoteFailed());
       },
     });
   }
@@ -509,9 +509,9 @@ export class AdminUsers implements OnInit {
 
   private adminChangeFailed(err: { status?: number }, fallback: string): void {
     if (err.status === 409) {
-      this.toast.show(LAST_ADMIN_DEMOTE_REFUSED, 'error');
+      this.toast.show(lastAdminDemoteRefused(), 'error');
     } else if (err.status === 404) {
-      this.toast.show(ACCOUNT_GONE, 'error');
+      this.toast.show(accountGone(), 'error');
       this.refresh();
     } else {
       this.toast.show(fallback, 'error');

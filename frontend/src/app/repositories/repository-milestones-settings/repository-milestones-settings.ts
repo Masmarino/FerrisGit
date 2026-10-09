@@ -15,6 +15,7 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { createSettingsList } from '../settings-list';
 import { activeLocale } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 // A due date is a calendar day stored as UTC midnight. Formatting in local time would show the
 // previous day west of UTC.
@@ -23,7 +24,7 @@ const dueDate = () => new Intl.DateTimeFormat(activeLocale(), { day: 'numeric', 
 @Component({
   selector: 'fg-repository-milestones-settings',
   standalone: true,
-  imports: [FormsModule, GbtInput, Badge, Alert, EmptyState, Button, DatePicker, ConfirmDangerModal, Icon, SkeletonList, ListRow, Card],
+  imports: [TranslocoPipe, FormsModule, GbtInput, Badge, Alert, EmptyState, Button, DatePicker, ConfirmDangerModal, Icon, SkeletonList, ListRow, Card],
   templateUrl: './repository-milestones-settings.html',
   styleUrl: './repository-milestones-settings.scss',
 })

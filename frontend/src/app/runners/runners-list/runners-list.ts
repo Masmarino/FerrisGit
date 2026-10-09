@@ -150,7 +150,7 @@ export class RunnersList implements OnInit {
   private tokenCard = viewChild<ElementRef<HTMLElement>>('tokenCard');
 
   ngOnInit(): void {
-    this.pageTitle.set('Runners');
+    this.pageTitle.set(t('nav.runners'));
     this.refresh();
   }
 
@@ -193,7 +193,7 @@ export class RunnersList implements OnInit {
     }
     const name = this.newRunnerName().trim();
     if (!name) {
-      this.nameError.set('Donnez un nom au runner');
+      this.nameError.set(t('runners.nameRequired'));
       return;
     }
     this.nameError.set(null);

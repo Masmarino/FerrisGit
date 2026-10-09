@@ -12,7 +12,7 @@
     loadingLabel="Chargement des tickets…"
     [skeletonRows]="5"
     failedHeading="Les tickets n'ont pas pu être chargés."
-    retryLabel="Réessayer"
+    [retryLabel]="'common.retry' | transloco"
     (retry)="load()"
     emptyIllustration="checklist"
     emptyHeading="Aucun ticket pour l'instant"
@@ -145,7 +145,7 @@
 @if (createOpen()) {
   <!-- The form wraps the whole dialog because the submit button is in the footer slot, outside the body. -->
   <form (submit)="$event.preventDefault(); createIssue()">
-    <gbt-modal [isOpen]="true" heading="Nouveau ticket" closeLabel="Fermer" [busy]="creating()" busyLabel="Création en cours" (closed)="closeCreate()">
+    <gbt-modal [isOpen]="true" heading="Nouveau ticket" [closeLabel]="'common.close' | transloco" [busy]="creating()" busyLabel="Création en cours" (closed)="closeCreate()">
       <div class="issue-list__create-form">
         <gbt-input
           class="issue-list__create-title"
@@ -170,7 +170,7 @@
         <gbt-select class="issue-list__create-kind" name="newIssueKind" label="Type" [options]="kindOptions" [ngModel]="newKind()" (ngModelChange)="newKind.set($event)" />
       </div>
       <div modal-footer>
-        <gbt-button variant="secondary" text="Annuler" [disabled]="creating()" (clicked)="closeCreate()" />
+        <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="creating()" (clicked)="closeCreate()" />
         <gbt-button type="submit" text="Créer le ticket" [disabled]="!canSubmit()" [loading]="creating()" loadingLabel="Création en cours" />
       </div>
     </gbt-modal>

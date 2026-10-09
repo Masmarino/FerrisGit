@@ -5,6 +5,7 @@ import { Comment, FileDiff, SplitDiffRow } from '../merge-requests.service';
 import { Badge } from '@masmarino/gabarit/badge';
 import { Button } from '@masmarino/gabarit/button';
 import { Textarea } from '@masmarino/gabarit/textarea';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 interface CommentThread {
   root: Comment;
@@ -31,7 +32,7 @@ function hunkHeader(rows: SplitDiffRow[]): string | null {
 @Component({
   selector: 'fg-file-diff-view',
   standalone: true,
-  imports: [NgTemplateOutlet, FormsModule, Badge, Button, Textarea],
+  imports: [TranslocoPipe, NgTemplateOutlet, FormsModule, Badge, Button, Textarea],
   templateUrl: './file-diff-view.html',
   styleUrl: './file-diff-view.scss',
 })

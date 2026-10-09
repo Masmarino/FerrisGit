@@ -11,6 +11,7 @@ import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { Switch } from '@masmarino/gabarit/switch';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RepositorySettings as RepositorySettingsModel, RepositorySettingsService } from '../repository-settings.service';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type Field = 'ciEnabled' | 'pipelineFilePath' | 'requiredApprovals';
 type SaveState = 'saving' | 'saved' | 'error';
@@ -18,7 +19,7 @@ type SaveState = 'saving' | 'saved' | 'error';
 @Component({
   selector: 'fg-repository-pipeline-settings',
   standalone: true,
-  imports: [FormsModule, NgTemplateOutlet, Alert, Button, GbtInput, SaveStatus, Skeleton, Switch, Card, CardHeader],
+  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, Alert, Button, GbtInput, SaveStatus, Skeleton, Switch, Card, CardHeader],
   templateUrl: './repository-pipeline-settings.html',
   styleUrl: './repository-pipeline-settings.scss',
 })

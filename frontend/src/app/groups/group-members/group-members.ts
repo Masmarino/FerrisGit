@@ -21,6 +21,7 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { UserChip } from '@masmarino/gabarit/user-chip';
 import { GROUP_ROLE_LABELS, GroupMember, GroupMembership, GroupRole, GroupsService } from '../groups.service';
 import { PageTitleService } from '../../shell/page-title.service';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const ROLE_LEGEND: DescriptionListEntry[] = [
   { term: GROUP_ROLE_LABELS.reader, value: 'Consulte le groupe et ses dépôts.' },
@@ -31,7 +32,7 @@ const ROLE_LEGEND: DescriptionListEntry[] = [
 @Component({
   selector: 'fg-group-members',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     FormsModule,
     RouterLink,
     Alert,

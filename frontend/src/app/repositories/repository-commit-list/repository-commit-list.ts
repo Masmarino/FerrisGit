@@ -9,12 +9,13 @@ import { UserChip } from '@masmarino/gabarit/user-chip';
 import { CommitInfo, RepositoriesService } from '../repositories.service';
 import { commitTitle, shortSha } from '../commit-format';
 import { PageTitleService } from '../../shell/page-title.service';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /** The latest commits of a ref, newest first. */
 @Component({
   selector: 'fg-repository-commit-list',
   standalone: true,
-  imports: [Badge, ListCard, ListRow, PageHeader, PageLayout, UserChip, GbtDateTimePipe, GbtRelativeTimePipe],
+  imports: [TranslocoPipe, Badge, ListCard, ListRow, PageHeader, PageLayout, UserChip, GbtDateTimePipe, GbtRelativeTimePipe],
   templateUrl: './repository-commit-list.html',
   styleUrl: './repository-commit-list.scss',
   changeDetection: ChangeDetectionStrategy.OnPush,

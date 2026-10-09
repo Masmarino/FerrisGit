@@ -25,6 +25,7 @@ import { LanguageBar } from '../language-bar/language-bar';
 import { commitTitle, shortSha } from '../commit-format';
 import { pathBreadcrumb, repositoryLink, sortEntries } from '../repository-links';
 import { activeLocale } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 interface TreeRow {
   entry: TreeEntry;
@@ -45,7 +46,7 @@ function without<T>(set: ReadonlySet<T>, value: T): Set<T> {
 @Component({
   selector: 'fg-repository-tree-view',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     RouterLink,
     Alert,
     Badge,

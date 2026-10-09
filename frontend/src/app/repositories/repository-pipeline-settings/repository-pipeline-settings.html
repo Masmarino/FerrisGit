@@ -23,7 +23,7 @@
     <gbt-card variant="outlined" icon="play" heading="Intégration continue">
       <gbt-alert variant="error" appearance="subtle" live="off">
         Les réglages de la pipeline n'ont pas pu être chargés.
-        <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="refresh()" />
+        <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="refresh()" />
       </gbt-alert>
     </gbt-card>
   }
