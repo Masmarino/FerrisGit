@@ -1,7 +1,8 @@
 import { BuilderJob, BuilderState, insertJob, uniqueName } from './pipeline-builder-model';
 import { GO, NODE, PYTHON, RUST } from './pipeline-recipes';
-import { DEPLOY_TILES } from './pipeline-tiles-deploy';
+import { deployTiles } from './pipeline-tiles-deploy';
 import { JobTile, ParamValues, TileCategory, buildTile } from './pipeline-tile-types';
+import { perLanguage, t } from '../../shared/i18n/translator';
 
 export type { JobTile, ParamValue, ParamValues, TileBuild, TileCategory, TileParam } from './pipeline-tile-types';
 
@@ -11,26 +12,26 @@ export interface TileCategoryInfo {
   summary: string;
 }
 
-export const TILE_CATEGORIES: readonly TileCategoryInfo[] = [
-  { id: 'compile', title: 'Compiler', summary: "Produire le programme à partir du code." },
-  { id: 'test', title: 'Tester', summary: 'Lancer les tests du projet.' },
-  { id: 'quality', title: 'Vérifier le code', summary: 'Format, règles de style, erreurs courantes.' },
-  { id: 'package', title: 'Empaqueter', summary: 'Fabriquer une image ou un livrable.' },
-  { id: 'deploy', title: 'Déployer et prévenir', summary: 'Envoyer le résultat sur une VM ou un cluster Kubernetes, appeler un service.' },
-  { id: 'custom', title: 'Sur mesure', summary: 'Partir de zéro et écrire ses propres commandes.' },
-];
+export const tileCategories = perLanguage((): readonly TileCategoryInfo[] => [
+  { id: 'compile', title: t('pipelines.categories.compile.title'), summary: t('pipelines.categories.compile.summary') },
+  { id: 'test', title: t('pipelines.categories.test.title'), summary: t('pipelines.categories.test.summary') },
+  { id: 'quality', title: t('pipelines.categories.quality.title'), summary: t('pipelines.categories.quality.summary') },
+  { id: 'package', title: t('pipelines.categories.package.title'), summary: t('pipelines.categories.package.summary') },
+  { id: 'deploy', title: t('pipelines.categories.deploy.title'), summary: t('pipelines.categories.deploy.summary') },
+  { id: 'custom', title: t('pipelines.categories.custom.title'), summary: t('pipelines.categories.custom.summary') },
+]);
 
 const RUST_CACHE = RUST.cache;
 const NPM_CACHE = NODE.cache();
 const npmScript = (script: string) => [...NODE.install(), NODE.run(script)];
 
-const SIMPLE_TILES: readonly JobTile[] = [
+const simpleTiles = (): readonly JobTile[] => [
   {
     id: 'rust-build',
     category: 'compile',
-    title: 'Compiler un projet Rust',
-    summary: 'Cargo build en mode release.',
-    help: "Utilise l'image officielle rust. Le registre de Cargo et le dossier target sont mis en cache (Kubernetes).",
+    title: t('pipelines.tiles.rust-build.title'),
+    summary: t('pipelines.tiles.rust-build.summary'),
+    help: t('pipelines.tiles.rust-build.help'),
     icon: 'layers',
     jobName: 'compile',
     stage: 'build',
@@ -42,9 +43,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'node-build',
     category: 'compile',
-    title: 'Compiler un projet Node ou Angular',
-    summary: 'npm ci puis npm run build.',
-    help: "Lance le script « build » de votre package.json. Chaque job refait son npm ci : rien n'est transmis d'un job à l'autre.",
+    title: t('pipelines.tiles.node-build.title'),
+    summary: t('pipelines.tiles.node-build.summary'),
+    help: t('pipelines.tiles.node-build.help'),
     icon: 'layers',
     jobName: 'build',
     stage: 'build',
@@ -56,9 +57,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'go-build',
     category: 'compile',
-    title: 'Compiler un projet Go',
-    summary: 'go build sur tout le module.',
-    help: "Utilise l'image officielle golang. Adaptez la version de l'image à celle de votre go.mod.",
+    title: t('pipelines.tiles.go-build.title'),
+    summary: t('pipelines.tiles.go-build.summary'),
+    help: t('pipelines.tiles.go-build.help'),
     icon: 'layers',
     jobName: 'build',
     stage: 'build',
@@ -69,9 +70,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'rust-test',
     category: 'test',
-    title: 'Tester un projet Rust',
-    summary: 'Cargo test sur tout le projet.',
-    help: 'Lance les tests unitaires et ceux du dossier tests. Placez-le après les vérifications de code pour ne pas tester du code mal formé.',
+    title: t('pipelines.tiles.rust-test.title'),
+    summary: t('pipelines.tiles.rust-test.summary'),
+    help: t('pipelines.tiles.rust-test.help'),
     icon: 'flask-conical',
     jobName: 'test',
     stage: 'test',
@@ -83,9 +84,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'node-test',
     category: 'test',
-    title: 'Tester un projet Node ou Angular',
-    summary: 'npm ci puis npm test.',
-    help: "Lance le script « test » de votre package.json. Il doit tourner sans interface graphique : s'il lui faut un navigateur, choisissez une image qui en contient un.",
+    title: t('pipelines.tiles.node-test.title'),
+    summary: t('pipelines.tiles.node-test.summary'),
+    help: t('pipelines.tiles.node-test.help'),
     icon: 'flask-conical',
     jobName: 'unit-tests',
     stage: 'test',
@@ -97,9 +98,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'go-test',
     category: 'test',
-    title: 'Tester un projet Go',
-    summary: 'go test sur tout le module.',
-    help: "Lance tous les tests du module. Ajoutez -race pour chercher les accès concurrents (plus lent).",
+    title: t('pipelines.tiles.go-test.title'),
+    summary: t('pipelines.tiles.go-test.summary'),
+    help: t('pipelines.tiles.go-test.help'),
     icon: 'flask-conical',
     jobName: 'test',
     stage: 'test',
@@ -110,9 +111,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'python-test',
     category: 'test',
-    title: 'Tester un projet Python',
-    summary: 'pip install puis pytest.',
-    help: "Installe requirements.txt puis lance pytest : ajoutez pytest à vos dépendances si ce n'est pas déjà le cas.",
+    title: t('pipelines.tiles.python-test.title'),
+    summary: t('pipelines.tiles.python-test.summary'),
+    help: t('pipelines.tiles.python-test.help'),
     icon: 'flask-conical',
     jobName: 'test',
     stage: 'test',
@@ -123,9 +124,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'rust-format',
     category: 'quality',
-    title: 'Vérifier le format Rust',
-    summary: 'Cargo fmt en mode vérification.',
-    help: "Échoue si le code n'est pas formaté comme rustfmt le ferait, sans rien modifier. L'image rust n'inclut pas rustfmt : le job l'ajoute.",
+    title: t('pipelines.tiles.rust-format.title'),
+    summary: t('pipelines.tiles.rust-format.summary'),
+    help: t('pipelines.tiles.rust-format.help'),
     icon: 'shield-check',
     jobName: 'format',
     stage: 'check',
@@ -136,9 +137,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'rust-clippy',
     category: 'quality',
-    title: 'Analyser le code Rust (Clippy)',
-    summary: 'Clippy, avertissements traités comme des erreurs.',
-    help: "Repère les erreurs courantes et les constructions maladroites. L'image rust n'inclut pas Clippy : le job l'ajoute.",
+    title: t('pipelines.tiles.rust-clippy.title'),
+    summary: t('pipelines.tiles.rust-clippy.summary'),
+    help: t('pipelines.tiles.rust-clippy.help'),
     icon: 'shield-check',
     jobName: 'clippy',
     stage: 'check',
@@ -150,9 +151,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'node-lint',
     category: 'quality',
-    title: 'Analyser le code Node ou Angular',
-    summary: 'npm ci puis npm run lint.',
-    help: "Lance le script « lint » de votre package.json (ESLint, par exemple).",
+    title: t('pipelines.tiles.node-lint.title'),
+    summary: t('pipelines.tiles.node-lint.summary'),
+    help: t('pipelines.tiles.node-lint.help'),
     icon: 'shield-check',
     jobName: 'lint',
     stage: 'check',
@@ -164,9 +165,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'http-deploy',
     category: 'deploy',
-    title: 'Déployer par un appel HTTP',
-    summary: "Appelle l'adresse de déploiement de votre plateforme.",
-    help: "Réservé par l'étiquette « deploy » à un runner dédié : sans runner qui la porte, le job reste en attente. Créez les secrets DEPLOY_URL et DEPLOY_TOKEN. Une pipeline part à chaque push : ce job redéploie donc à chaque fois.",
+    title: t('pipelines.tiles.http-deploy.title'),
+    summary: t('pipelines.tiles.http-deploy.summary'),
+    help: t('pipelines.tiles.http-deploy.help'),
     icon: 'send',
     jobName: 'deploy',
     stage: 'deploy',
@@ -179,9 +180,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'http-notify',
     category: 'deploy',
-    title: 'Prévenir un service (webhook)',
-    summary: 'Envoie une requête POST à une adresse.',
-    help: "Pratique pour avertir un chat ou un outil de suivi. Créez le secret NOTIFY_URL avec l'adresse complète (elle contient souvent un jeton).",
+    title: t('pipelines.tiles.http-notify.title'),
+    summary: t('pipelines.tiles.http-notify.summary'),
+    help: t('pipelines.tiles.http-notify.help'),
     icon: 'send',
     jobName: 'notify',
     stage: 'deploy',
@@ -193,9 +194,9 @@ const SIMPLE_TILES: readonly JobTile[] = [
   {
     id: 'custom',
     category: 'custom',
-    title: 'Job vide',
-    summary: 'Une image légère et une commande à remplacer.',
-    help: "Alpine est une petite image Linux avec les commandes de base. Changez l'image et les commandes dans le tiroir du job.",
+    title: t('pipelines.tiles.custom.title'),
+    summary: t('pipelines.tiles.custom.summary'),
+    help: t('pipelines.tiles.custom.help'),
     icon: 'sparkles',
     jobName: 'job',
     stage: 'build',
@@ -208,14 +209,17 @@ const SIMPLE_TILES: readonly JobTile[] = [
  * The catalogue. Within a category, the order is the order shown: deployments to a machine or a cluster come before the
  * plain HTTP calls.
  */
-export const JOB_TILES: readonly JobTile[] = [
-  ...SIMPLE_TILES.filter((tile) => tile.category !== 'deploy' && tile.category !== 'custom'),
-  ...DEPLOY_TILES,
-  ...SIMPLE_TILES.filter((tile) => tile.category === 'deploy'),
-  ...SIMPLE_TILES.filter((tile) => tile.category === 'custom'),
-];
+export const jobTiles = perLanguage((): readonly JobTile[] => {
+  const simple = simpleTiles();
+  return [
+    ...simple.filter((tile) => tile.category !== 'deploy' && tile.category !== 'custom'),
+    ...deployTiles(),
+    ...simple.filter((tile) => tile.category === 'deploy'),
+    ...simple.filter((tile) => tile.category === 'custom'),
+  ];
+});
 
-export const tileById = (id: string): JobTile | undefined => JOB_TILES.find((tile) => tile.id === id);
+export const tileById = (id: string): JobTile | undefined => jobTiles().find((tile) => tile.id === id);
 
 /** The job a tile makes, with a name that does not collide. `values` answers the tile's questions, when it has some. */
 export function jobFromTile(tile: JobTile, stage: string, taken: readonly string[], values: ParamValues = {}): BuilderJob {
@@ -248,11 +252,11 @@ export interface PipelineTemplate {
   jobs: { tile: string; name?: string; stage: string; needs?: string[] }[];
 }
 
-export const PIPELINE_TEMPLATES: readonly PipelineTemplate[] = [
+export const pipelineTemplates = perLanguage((): readonly PipelineTemplate[] => [
   {
     id: 'rust',
-    title: 'Projet Rust',
-    summary: 'Format et Clippy en parallèle, puis les tests.',
+    title: t('pipelines.templates.rust.title'),
+    summary: t('pipelines.templates.rust.summary'),
     icon: 'layers',
     stages: ['check', 'test'],
     jobs: [
@@ -263,8 +267,8 @@ export const PIPELINE_TEMPLATES: readonly PipelineTemplate[] = [
   },
   {
     id: 'node',
-    title: 'Projet Node ou Angular',
-    summary: 'Analyse et tests en parallèle, puis le build.',
+    title: t('pipelines.templates.node.title'),
+    summary: t('pipelines.templates.node.summary'),
     icon: 'layers',
     stages: ['check', 'build'],
     jobs: [
@@ -275,8 +279,8 @@ export const PIPELINE_TEMPLATES: readonly PipelineTemplate[] = [
   },
   {
     id: 'go',
-    title: 'Projet Go',
-    summary: 'Les tests, puis la compilation.',
+    title: t('pipelines.templates.go.title'),
+    summary: t('pipelines.templates.go.summary'),
     icon: 'layers',
     stages: ['test', 'build'],
     jobs: [
@@ -286,8 +290,8 @@ export const PIPELINE_TEMPLATES: readonly PipelineTemplate[] = [
   },
   {
     id: 'node-docker',
-    title: 'Application publiée en image',
-    summary: 'Tests Node, puis construction et publication de l’image.',
+    title: t('pipelines.templates.node-docker.title'),
+    summary: t('pipelines.templates.node-docker.summary'),
     icon: 'upload',
     stages: ['test', 'package'],
     jobs: [
@@ -297,8 +301,8 @@ export const PIPELINE_TEMPLATES: readonly PipelineTemplate[] = [
   },
   {
     id: 'node-docker-ssh',
-    title: 'Image Docker déployée sur une VM',
-    summary: 'Tests, image publiée, puis déploiement par SSH.',
+    title: t('pipelines.templates.node-docker-ssh.title'),
+    summary: t('pipelines.templates.node-docker-ssh.summary'),
     icon: 'server',
     stages: ['test', 'package', 'deploy'],
     jobs: [
@@ -309,8 +313,8 @@ export const PIPELINE_TEMPLATES: readonly PipelineTemplate[] = [
   },
   {
     id: 'node-docker-k8s',
-    title: 'Image Docker déployée sur Kubernetes',
-    summary: 'Tests, image publiée, puis mise à jour du Deployment.',
+    title: t('pipelines.templates.node-docker-k8s.title'),
+    summary: t('pipelines.templates.node-docker-k8s.summary'),
     icon: 'server',
     stages: ['test', 'package', 'deploy'],
     jobs: [
@@ -319,7 +323,7 @@ export const PIPELINE_TEMPLATES: readonly PipelineTemplate[] = [
       { tile: 'k8s-image', stage: 'deploy', needs: ['image'] },
     ],
   },
-];
+]);
 
 /** The pipeline a template describes. Jobs keep their tile's name unless the template renames them. */
 export function stateFromTemplate(template: PipelineTemplate): BuilderState {
@@ -339,4 +343,4 @@ export function stateFromTemplate(template: PipelineTemplate): BuilderState {
 export const secretsOfTiles = (ids: readonly string[]): string[] => [...new Set(ids.flatMap((id) => tileById(id)?.secrets ?? []))];
 
 /** Every secret a tile expects: the names worth offering to create when a command reads one that does not exist. */
-export const KNOWN_TILE_SECRETS: readonly string[] = secretsOfTiles(JOB_TILES.map((tile) => tile.id));
+export const knownTileSecrets = perLanguage((): readonly string[] => secretsOfTiles(jobTiles().map((tile) => tile.id)));

@@ -3,14 +3,14 @@ import { describeProblem, describeWarning } from './pipeline-problems';
 describe('pipeline problems in French', () => {
   it('names the job and the stage that do not match', () => {
     expect(describeProblem({ code: 'unknown_stage', message: 'x', job: 'compile', stage: 'nowhere' })).toEqual({
-      message: "Le job « compile » est dans l'étape « nowhere », qui n'existe pas.",
+      message: "Le job «\u00a0compile\u00a0» est dans l'étape «\u00a0nowhere\u00a0», qui n'existe pas.",
       job: 'compile',
     });
   });
 
   it('names the dependency that is missing or too late', () => {
-    expect(describeProblem({ code: 'unknown_dependency', message: 'x', job: 'b', dependency: 'ghost' }).message).toBe("Le job « b » dépend de « ghost », qui n'existe pas.");
-    expect(describeProblem({ code: 'needs_must_precede_own_stage', message: 'x', job: 'a', dependency: 'z' }).message).toBe('Le job « a » dépend de « z », qui est dans une étape ultérieure.');
+    expect(describeProblem({ code: 'unknown_dependency', message: 'x', job: 'b', dependency: 'ghost' }).message).toBe("Le job «\u00a0b\u00a0» dépend de «\u00a0ghost\u00a0», qui n'existe pas.");
+    expect(describeProblem({ code: 'needs_must_precede_own_stage', message: 'x', job: 'a', dependency: 'z' }).message).toBe('Le job «\u00a0a\u00a0» dépend de «\u00a0z\u00a0», qui est dans une étape ultérieure.');
   });
 
   it('draws a cycle as a loop and points at its first job', () => {
@@ -33,8 +33,8 @@ describe('pipeline problems in French', () => {
   });
 
   it('words the warnings', () => {
-    expect(describeWarning({ code: 'empty_image', job: 'a' })).toEqual({ message: "Le job « a » n'a pas d'image.", job: 'a' });
-    expect(describeWarning({ code: 'empty_script', job: 'a' }).message).toBe("Le job « a » n'a aucune commande.");
-    expect(describeWarning({ code: 'duplicate_stage', stage: 'build' })).toEqual({ message: "L'étape « build » est déclarée deux fois.", job: null });
+    expect(describeWarning({ code: 'empty_image', job: 'a' })).toEqual({ message: "Le job «\u00a0a\u00a0» n'a pas d'image.", job: 'a' });
+    expect(describeWarning({ code: 'empty_script', job: 'a' }).message).toBe("Le job «\u00a0a\u00a0» n'a aucune commande.");
+    expect(describeWarning({ code: 'duplicate_stage', stage: 'build' })).toEqual({ message: "L'étape «\u00a0build\u00a0» est déclarée deux fois.", job: null });
   });
 });

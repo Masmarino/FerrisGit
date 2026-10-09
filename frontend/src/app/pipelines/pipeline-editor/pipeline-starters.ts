@@ -4,8 +4,8 @@ import { Button } from '@masmarino/gabarit/button';
 import { Icon } from '@masmarino/gabarit/icon';
 import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { HelpTip } from './help-tip';
-import { HELP } from './pipeline-help';
-import { PIPELINE_TEMPLATES, PipelineTemplate } from './pipeline-catalog';
+import { help } from './pipeline-help';
+import { pipelineTemplates, PipelineTemplate } from './pipeline-catalog';
 import { Prediction } from './pipeline-prediction';
 
 /**
@@ -37,6 +37,6 @@ export class PipelineStarters {
     const proposal = this.prediction();
     return proposal ? proposal.state.stages.map((name) => ({ name, jobs: proposal.state.jobs.filter((job) => job.stage === name).map((job) => job.name) })) : [];
   });
-  protected readonly help = HELP;
-  protected readonly templates = PIPELINE_TEMPLATES;
+  protected readonly help = help();
+  protected readonly templates = pipelineTemplates();
 }

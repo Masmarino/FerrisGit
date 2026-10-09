@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { JOB_TILES, PIPELINE_TEMPLATES, jobFromTile, stateFromTemplate, tileById } from './pipeline-catalog';
+import { jobTiles, pipelineTemplates, jobFromTile, stateFromTemplate, tileById } from './pipeline-catalog';
 import { shQuote } from './pipeline-tiles-deploy';
 import { ParamValues, buildTile, defaultValues, tileProblems } from './pipeline-tile-types';
 
@@ -20,7 +20,7 @@ function parses(commands: string[]): boolean {
 const throughShell = (value: string) => execFileSync('sh', ['-c', `printf %s ${shQuote(value)}`]).toString();
 
 describe('deployment tiles', () => {
-  const parametrised = JOB_TILES.filter((t) => t.params && t.params.length > 0);
+  const parametrised = jobTiles().filter((t) => t.params && t.params.length > 0);
 
   it('has a tile for Docker images, a VM over SSH (commands and files), Kubernetes (apply, image) and Helm', () => {
     expect(parametrised.map((t) => t.id)).toEqual(['docker-build', 'ssh-run', 'ssh-copy', 'k8s-apply', 'k8s-image', 'helm-upgrade']);
@@ -213,7 +213,7 @@ describe('deployment tiles', () => {
 
   describe('templates with a deployment', () => {
     it.each(['node-docker-ssh', 'node-docker-k8s'])('%s chains tests, image and deployment, each waiting for the one before', (id) => {
-      const state = stateFromTemplate(PIPELINE_TEMPLATES.find((t) => t.id === id)!);
+      const state = stateFromTemplate(pipelineTemplates().find((t) => t.id === id)!);
 
       expect(state.stages).toEqual(['test', 'package', 'deploy']);
       expect(state.jobs.map((j) => [j.name, j.needs])).toEqual([['unit-tests', []], ['image', ['unit-tests']], [id === 'node-docker-ssh' ? 'deploy-vm' : 'update-k8s', ['image']]]);

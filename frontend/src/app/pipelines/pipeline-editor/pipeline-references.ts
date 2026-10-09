@@ -1,5 +1,5 @@
 import { BuilderJob } from './pipeline-builder-model';
-import { KNOWN_TILE_SECRETS } from './pipeline-catalog';
+import { knownTileSecrets } from './pipeline-catalog';
 
 /** Names that look like a credential, which do not belong in a file everyone can read. */
 const SECRET_LOOKING = /(TOKEN|SECRET|PASSWORD|PASSWD|PASSPHRASE|CREDENTIAL|PRIVATE|API_?KEY|ACCESS_?KEY|_KEY$)/i;
@@ -66,4 +66,4 @@ export function missingSecrets(job: Pick<BuilderJob, 'script' | 'variables'>, wa
 }
 
 /** What a job reads that is surely a secret: a name the catalog's tiles expect, or one that looks like a credential. */
-export const wantedSecretNames = (job: Pick<BuilderJob, 'script'>): string[] => referencedNames(job).filter((name) => KNOWN_TILE_SECRETS.includes(name) || looksLikeSecret(name));
+export const wantedSecretNames = (job: Pick<BuilderJob, 'script'>): string[] => referencedNames(job).filter((name) => knownTileSecrets().includes(name) || looksLikeSecret(name));

@@ -35,7 +35,7 @@ function leafKeys(node: unknown, prefix = ''): string[] {
 
 const topLevel = Object.keys(fr);
 // Single quotes or backticks only: a double-quoted string is a template attribute (`[variant]="status.variant"`), never a key.
-const keyLiteral = topLevel.length === 0 ? null : new RegExp(`['\`]((?:${topLevel.join('|')})(?:\\.[\\w]+)+)['\`]`, 'g');
+const keyLiteral = topLevel.length === 0 ? null : new RegExp(`['\`]((?:${topLevel.join('|')})(?:\\.[\\w-]+)+)['\`]`, 'g');
 const sources = sourceFiles(SOURCE_ROOT).map((path) => readFileSync(path, 'utf8'));
 const referenced = new Set(keyLiteral ? sources.flatMap((source) => [...source.matchAll(keyLiteral)].map((match) => match[1])) : []);
 const defined = new Set(leafKeys(fr));

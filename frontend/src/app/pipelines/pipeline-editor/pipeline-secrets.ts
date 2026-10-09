@@ -4,7 +4,7 @@ import { Badge } from '@masmarino/gabarit/badge';
 import { Button } from '@masmarino/gabarit/button';
 import { RepositoryCiVariables } from '../../repositories/repository-ci-variables/repository-ci-variables';
 import { HelpTip } from './help-tip';
-import { HELP } from './pipeline-help';
+import { help } from './pipeline-help';
 
 /** A secret name and the jobs that read it. */
 export interface SecretUse {
@@ -37,6 +37,6 @@ export class PipelineSecrets {
 
   changed = output<void>();
 
-  protected readonly help = HELP;
+  protected readonly help = help();
   protected readonly chosen = signal<string | null>(null);
 }

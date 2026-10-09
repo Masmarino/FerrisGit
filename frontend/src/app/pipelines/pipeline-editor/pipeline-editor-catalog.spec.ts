@@ -1,4 +1,4 @@
-import { PIPELINE_TEMPLATES, tileById } from './pipeline-catalog';
+import { pipelineTemplates, tileById } from './pipeline-catalog';
 import { FILE_URL, PROFILE_URL, Role, answerRender, buttonNamed, cardNames, fileBody, lanes, opened, settle, setup, stageNames, text, verifyRequestsAfterEach } from './pipeline-editor-testing';
 
 describe('PipelineEditor catalogue', () => {
@@ -62,14 +62,14 @@ describe('PipelineEditor catalogue', () => {
       const ctx = await emptyRepository();
       await answerRender(ctx);
 
-      expect(ctx.el.querySelectorAll('.starters__card')).toHaveLength(PIPELINE_TEMPLATES.length);
+      expect(ctx.el.querySelectorAll('.starters__card')).toHaveLength(pipelineTemplates().length);
     });
 
     it('lays the template out as stages and jobs, and stops offering templates', async () => {
       const ctx = await emptyRepository();
       await answerRender(ctx);
 
-      ctx.internals.chooseTemplate(PIPELINE_TEMPLATES.find((t) => t.id === 'rust'));
+      ctx.internals.chooseTemplate(pipelineTemplates().find((t) => t.id === 'rust'));
       ctx.fixture.detectChanges();
       await settle(ctx);
 
@@ -183,7 +183,7 @@ describe('PipelineEditor catalogue', () => {
 
       expect(ctx.el.querySelector('[data-prediction]')).toBeNull();
       expect(text(ctx.el.querySelector('#starters-title'))).toBe("Partir d'un modèle");
-      expect(ctx.el.querySelectorAll('.starters__card')).toHaveLength(PIPELINE_TEMPLATES.length);
+      expect(ctx.el.querySelectorAll('.starters__card')).toHaveLength(pipelineTemplates().length);
       await answerRender(ctx);
     });
 

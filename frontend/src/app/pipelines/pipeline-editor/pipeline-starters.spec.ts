@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { PIPELINE_TEMPLATES, PipelineTemplate } from './pipeline-catalog';
+import { pipelineTemplates, PipelineTemplate } from './pipeline-catalog';
 import { PipelineStarters } from './pipeline-starters';
 
 describe('PipelineStarters', () => {
@@ -15,7 +15,7 @@ describe('PipelineStarters', () => {
   it('offers every template with its stages', () => {
     const { el } = setup();
 
-    expect(el.querySelectorAll('.starters__card')).toHaveLength(PIPELINE_TEMPLATES.length);
+    expect(el.querySelectorAll('.starters__card')).toHaveLength(pipelineTemplates().length);
     expect(el.querySelector('[data-template="rust"] .starters__stages')?.textContent).toBe('check → test');
   });
 

@@ -1,5 +1,6 @@
 import { BuilderJob, BuilderState, commandsOf, jobsOf } from './pipeline-builder-model';
 import { PipelineLink } from './pipeline-links';
+import { t } from '../../shared/i18n/translator';
 
 /**
  * What the board shows of a pipeline: a column per stage, a card per job, and the links between them. Pure functions,
@@ -66,7 +67,7 @@ export function boardLanes(state: BuilderState, problemJobs: readonly (string | 
         return {
           job,
           problemCount: counts.get(job.name) ?? 0,
-          menuLabel: `Actions du job ${job.name}`,
+          menuLabel: t('pipelines.editor.jobActions', { name: job.name }),
           moveTargets: state.stages.filter((other) => other !== stage),
           mainCommand: commands.at(-1) ?? null,
           setupCommands: Math.max(0, commands.length - 1),

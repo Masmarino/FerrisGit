@@ -10,9 +10,9 @@ import { TagInput } from '@masmarino/gabarit/tag-input';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { HelpTip } from './help-tip';
 import { BuilderJob, BuilderVariable } from './pipeline-builder-model';
-import { HELP } from './pipeline-help';
+import { help } from './pipeline-help';
 import { ProblemView } from './pipeline-problems';
-import { KNOWN_TILE_SECRETS } from './pipeline-catalog';
+import { knownTileSecrets } from './pipeline-catalog';
 import { envNameProblem, isEnvName } from '../../repositories/ci-variable-name';
 import { looksLikeSecret, referencedNames, unknownReferences } from './pipeline-references';
 
@@ -49,7 +49,7 @@ export class PipelineJobForm {
   /** A secret the commands read does not exist yet. */
   createSecret = output<string>();
 
-  protected readonly help = HELP;
+  protected readonly help = help();
   protected readonly imageSuggestions = IMAGE_SUGGESTIONS;
   protected readonly cacheSuggestions = computed(() => CACHE_SUGGESTIONS.filter((key) => !this.job().cache.includes(key)));
 
@@ -78,7 +78,7 @@ export class PipelineJobForm {
     return secrets === null ? [] : unknownReferences(this.job(), secrets);
   });
   /** Names that are surely secrets nobody has created yet. A maintainer can create them from here. */
-  protected readonly creatable = computed(() => (this.canManageSecrets() ? this.unknown().filter((name) => looksLikeSecret(name) || KNOWN_TILE_SECRETS.includes(name)) : []));
+  protected readonly creatable = computed(() => (this.canManageSecrets() ? this.unknown().filter((name) => looksLikeSecret(name) || knownTileSecrets().includes(name)) : []));
   protected readonly cachesIgnored = computed(() => this.engine() === 'docker-runners' && this.job().cache.length > 0);
 
   /** The command typed in last, so that an inserted variable lands there, at the cursor. */

@@ -5,6 +5,7 @@ import { BuilderState, NEW_PIPELINE, fromDefinition, toDefinition } from './pipe
 import { ParsedPipeline, PipelineDefinitionsService, RenderedPipeline, RepositoryPipelineFile } from './pipeline-definitions.service';
 import { createUndoStack } from './pipeline-history';
 import { ProblemView, describeProblem, describeWarning } from './pipeline-problems';
+import { t } from '../../shared/i18n/translator';
 
 /**
  * Asks the server about the latest of `requests` once they pause, rather than on every keystroke. Each answer comes with
@@ -77,7 +78,7 @@ export class PipelineDocument {
   /** The typed YAML cannot be parsed, so the cards cannot follow it until it is fixed. */
   readonly yamlUnreadable = computed(() => this.mode() === 'yaml' && this.yamlCheck()?.definition === null);
   readonly modeOptions = computed(() => [
-    { value: 'cards' as EditorMode, label: 'Cartes', disabled: this.yamlUnreadable() || (this.mode() === 'yaml' && this.yamlCheck() === null) },
+    { value: 'cards' as EditorMode, label: t('pipelines.editor.cards'), disabled: this.yamlUnreadable() || (this.mode() === 'yaml' && this.yamlCheck() === null) },
     { value: 'yaml' as EditorMode, label: 'YAML' },
   ]);
 
@@ -222,7 +223,7 @@ export class PipelineDocument {
       return;
     }
     if (this.yamlTouched()) {
-      this.change(fromDefinition(checked.definition), 'modification du YAML');
+      this.change(fromDefinition(checked.definition), t('pipelines.editor.yamlEdit'));
       this.switchLoss.set(checked.hasComments || checked.ignoredFields.length > 0 ? { hasComments: checked.hasComments, ignoredFields: checked.ignoredFields } : null);
     }
     this.mode.set('cards');

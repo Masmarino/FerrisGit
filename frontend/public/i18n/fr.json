@@ -1683,6 +1683,437 @@
     "order": "Ordre",
     "pages": "Pages de pipelines",
     "loadListFailed": "Impossible de charger les pipelines. Réessayez plus tard.",
-    "title": "Pipeline"
+    "title": "Pipeline",
+    "categories": {
+      "compile": {
+        "title": "Compiler",
+        "summary": "Produire le programme à partir du code."
+      },
+      "test": {
+        "title": "Tester",
+        "summary": "Lancer les tests du projet."
+      },
+      "quality": {
+        "title": "Vérifier le code",
+        "summary": "Format, règles de style, erreurs courantes."
+      },
+      "package": {
+        "title": "Empaqueter",
+        "summary": "Fabriquer une image ou un livrable."
+      },
+      "deploy": {
+        "title": "Déployer et prévenir",
+        "summary": "Envoyer le résultat sur une VM ou un cluster Kubernetes, appeler un service."
+      },
+      "custom": {
+        "title": "Sur mesure",
+        "summary": "Partir de zéro et écrire ses propres commandes."
+      }
+    },
+    "tiles": {
+      "rust-build": {
+        "title": "Compiler un projet Rust",
+        "summary": "Cargo build en mode release.",
+        "help": "Utilise l'image officielle rust. Le registre de Cargo et le dossier target sont mis en cache (Kubernetes)."
+      },
+      "node-build": {
+        "title": "Compiler un projet Node ou Angular",
+        "summary": "npm ci puis npm run build.",
+        "help": "Lance le script « build » de votre package.json. Chaque job refait son npm ci : rien n'est transmis d'un job à l'autre."
+      },
+      "go-build": {
+        "title": "Compiler un projet Go",
+        "summary": "go build sur tout le module.",
+        "help": "Utilise l'image officielle golang. Adaptez la version de l'image à celle de votre go.mod."
+      },
+      "rust-test": {
+        "title": "Tester un projet Rust",
+        "summary": "Cargo test sur tout le projet.",
+        "help": "Lance les tests unitaires et ceux du dossier tests. Placez-le après les vérifications de code pour ne pas tester du code mal formé."
+      },
+      "node-test": {
+        "title": "Tester un projet Node ou Angular",
+        "summary": "npm ci puis npm test.",
+        "help": "Lance le script « test » de votre package.json. Il doit tourner sans interface graphique : s'il lui faut un navigateur, choisissez une image qui en contient un."
+      },
+      "go-test": {
+        "title": "Tester un projet Go",
+        "summary": "go test sur tout le module.",
+        "help": "Lance tous les tests du module. Ajoutez -race pour chercher les accès concurrents (plus lent)."
+      },
+      "python-test": {
+        "title": "Tester un projet Python",
+        "summary": "pip install puis pytest.",
+        "help": "Installe requirements.txt puis lance pytest : ajoutez pytest à vos dépendances si ce n'est pas déjà le cas."
+      },
+      "rust-format": {
+        "title": "Vérifier le format Rust",
+        "summary": "Cargo fmt en mode vérification.",
+        "help": "Échoue si le code n'est pas formaté comme rustfmt le ferait, sans rien modifier. L'image rust n'inclut pas rustfmt : le job l'ajoute."
+      },
+      "rust-clippy": {
+        "title": "Analyser le code Rust (Clippy)",
+        "summary": "Clippy, avertissements traités comme des erreurs.",
+        "help": "Repère les erreurs courantes et les constructions maladroites. L'image rust n'inclut pas Clippy : le job l'ajoute."
+      },
+      "node-lint": {
+        "title": "Analyser le code Node ou Angular",
+        "summary": "npm ci puis npm run lint.",
+        "help": "Lance le script « lint » de votre package.json (ESLint, par exemple)."
+      },
+      "http-deploy": {
+        "title": "Déployer par un appel HTTP",
+        "summary": "Appelle l'adresse de déploiement de votre plateforme.",
+        "help": "Réservé par l'étiquette « deploy » à un runner dédié : sans runner qui la porte, le job reste en attente. Créez les secrets DEPLOY_URL et DEPLOY_TOKEN. Une pipeline part à chaque push : ce job redéploie donc à chaque fois."
+      },
+      "http-notify": {
+        "title": "Prévenir un service (webhook)",
+        "summary": "Envoie une requête POST à une adresse.",
+        "help": "Pratique pour avertir un chat ou un outil de suivi. Créez le secret NOTIFY_URL avec l'adresse complète (elle contient souvent un jeton)."
+      },
+      "custom": {
+        "title": "Job vide",
+        "summary": "Une image légère et une commande à remplacer.",
+        "help": "Alpine est une petite image Linux avec les commandes de base. Changez l'image et les commandes dans le tiroir du job."
+      },
+      "shared": {
+        "pathMessage": "Lettres, chiffres et . _ / ~ - seulement, sans espace ni tiret au début.",
+        "k8sMessage": "Minuscules, chiffres, - et . ; commence et finit par une lettre ou un chiffre.",
+        "kubeHelp": "Le job installe kubectl, écrit le contenu du secret KUBE_CONFIG (un fichier kubeconfig) là où l'outil le cherche, puis agit sur le cluster. Créez pour cela un compte de service aux droits limités au strict nécessaire (un espace de noms, quelques types d'objets), pas un accès administrateur.",
+        "params": {
+          "namespace": {
+            "label": "Espace de noms",
+            "hint": "Le « namespace » du cluster où déployer."
+          }
+        }
+      },
+      "docker-build": {
+        "title": "Construire et publier une image Docker",
+        "summary": "docker build, puis docker push vers votre registre.",
+        "help": "Le runner ne donne pas accès au Docker de sa machine : la construction se fait sur un démon Docker distant que vous exploitez, désigné par le secret DOCKER_HOST (tcp://hôte:2376). S'il est protégé par TLS, ajoutez les secrets DOCKER_TLS_VERIFY et DOCKER_CERT_PATH. La connexion au registre utilise les secrets REGISTRY_USER et REGISTRY_PASSWORD.",
+        "params": {
+          "registry": {
+            "label": "Registre",
+            "hint": "Où publier l'image : registry.example.com, ghcr.io, docker.io…",
+            "patternMessage": "Un nom de serveur, avec un port si besoin."
+          },
+          "image": {
+            "label": "Nom de l'image",
+            "hint": "Le chemin de l'image dans le registre, sans la version.",
+            "patternMessage": "Minuscules, chiffres et . _ / - seulement."
+          },
+          "tag": {
+            "label": "Version (tag)",
+            "hint": "FerrisGit ne fournit ni numéro de commit ni nom de branche pour nommer la version : prenez un nom fixe, « latest » ou un numéro que vous changez à la main.",
+            "patternMessage": "Lettres, chiffres et . _ - seulement."
+          },
+          "dockerfile": {
+            "label": "Fichier Dockerfile"
+          },
+          "context": {
+            "label": "Dossier de construction",
+            "hint": "Le dossier envoyé au démon : « . » est la racine du dépôt."
+          },
+          "login": {
+            "label": "Se connecter au registre",
+            "hint": "Avec les secrets REGISTRY_USER et REGISTRY_PASSWORD. Décochez pour un registre sans authentification."
+          },
+          "push": {
+            "label": "Publier l'image après la construction"
+          }
+        }
+      },
+      "ssh": {
+        "params": {
+          "host": {
+            "label": "Serveur",
+            "hint": "Le nom ou l'adresse de la machine, joignable depuis le runner.",
+            "patternMessage": "Un nom de machine ou une adresse IPv4."
+          },
+          "user": {
+            "label": "Utilisateur",
+            "hint": "Le compte avec lequel se connecter : de préférence un compte dédié au déploiement.",
+            "patternMessage": "Lettres, chiffres, _ et - seulement."
+          },
+          "port": {
+            "label": "Port",
+            "patternMessage": "Un nombre."
+          },
+          "verify": {
+            "label": "Vérifier l'identité du serveur",
+            "options": {
+              "known-hosts": "Oui (recommandé)",
+              "skip": "Non"
+            },
+            "hint": "Recommandé : le secret SSH_KNOWN_HOSTS contient l'empreinte du serveur, obtenue une fois avec ssh-keyscan -t ed25519 vm.example.com. Sans elle, n'importe qui se faisant passer pour le serveur recevrait vos fichiers."
+          }
+        }
+      },
+      "ssh-run": {
+        "title": "Déployer sur une VM (SSH)",
+        "summary": "Se connecte en SSH et lance vos commandes sur la machine.",
+        "help": "Le job installe le client SSH, dépose la clé du secret SSH_PRIVATE_KEY, puis exécute vos commandes sur la machine : redémarrer un service, tirer une nouvelle image avec docker compose… Créez une paire de clés dédiée, mettez la clé publique sur la machine et la clé privée dans le secret. Une pipeline part à chaque push : ce job se relance donc à chaque fois.",
+        "params": {
+          "directory": {
+            "label": "Dossier sur le serveur",
+            "hint": "Les commandes partent de ce dossier. Laissez vide pour le dossier de connexion."
+          },
+          "commands": {
+            "label": "Commandes à lancer sur le serveur",
+            "hint": "Une par ligne, dans l'ordre ; la suivante ne part que si la précédente a réussi."
+          }
+        }
+      },
+      "ssh-copy": {
+        "title": "Copier des fichiers sur une VM (SSH)",
+        "summary": "Envoie un dossier du dépôt sur la machine avec rsync.",
+        "help": "Pratique pour un site statique ou un programme déjà construit : le dossier est envoyé avec rsync, seuls les fichiers modifiés voyagent. Les fichiers doivent exister dans le dépôt : un job ne reçoit rien d'un job précédent, construisez-les dans ce même job si besoin. Mêmes secrets que le déploiement SSH.",
+        "params": {
+          "source": {
+            "label": "Dossier à envoyer",
+            "hint": "Un dossier du dépôt. Avec une barre finale (dist/), son contenu est envoyé ; sans (dist), le dossier lui-même."
+          },
+          "destination": {
+            "label": "Dossier sur le serveur",
+            "hint": "Créé s'il n'existe pas."
+          },
+          "delete": {
+            "label": "Supprimer sur le serveur ce qui n'est plus dans le dossier",
+            "hint": "Le dossier du serveur devient une copie exacte. À éviter s'il contient autre chose."
+          },
+          "after": {
+            "label": "Commandes à lancer ensuite sur le serveur",
+            "hint": "Facultatif : recharger un service, par exemple. Une par ligne."
+          }
+        }
+      },
+      "k8s-apply": {
+        "title": "Déployer des manifestes sur Kubernetes",
+        "summary": "kubectl apply sur un dossier de fichiers YAML du dépôt.",
+        "params": {
+          "manifests": {
+            "label": "Manifestes",
+            "hint": "Un fichier YAML ou un dossier du dépôt."
+          },
+          "recursive": {
+            "label": "Inclure les sous-dossiers"
+          },
+          "wait": {
+            "label": "Attendre la fin du déploiement d'un Deployment",
+            "hint": "Facultatif : le nom d'un Deployment. Le job n'est réussi que lorsque ses pods sont prêts, et échoue sinon."
+          }
+        },
+        "help": "{{ kubeHelp }} Les manifestes sont ceux du dépôt, avec les images déjà choisies : kubectl apply crée ce qui manque et met à jour le reste."
+      },
+      "k8s-image": {
+        "title": "Mettre à jour un Deployment Kubernetes",
+        "summary": "Change l'image d'un Deployment, ou le redémarre, et attend qu'il soit prêt.",
+        "params": {
+          "deployment": {
+            "label": "Deployment"
+          },
+          "mode": {
+            "label": "Action",
+            "options": {
+              "set": "Changer l'image",
+              "restart": "Redémarrer"
+            }
+          },
+          "container": {
+            "label": "Conteneur",
+            "hint": "« * » met à jour tous les conteneurs du Deployment."
+          },
+          "image": {
+            "label": "Image",
+            "hint": "La référence complète, avec sa version.",
+            "patternMessage": "Une référence d'image, sans espace."
+          },
+          "wait": {
+            "label": "Attendre que le déploiement soit prêt",
+            "hint": "Le job échoue si les nouveaux pods ne deviennent pas prêts en trois minutes."
+          }
+        },
+        "help": "{{ kubeHelp }} Pour déployer la version qu'une étape précédente vient de publier, choisissez « Changer l'image » avec la même référence. Avec la version « latest », une référence inchangée ne relance rien : choisissez alors « Redémarrer »."
+      },
+      "helm-upgrade": {
+        "title": "Déployer avec Helm",
+        "summary": "helm upgrade --install sur un chart du dépôt ou d'un dépôt de charts.",
+        "params": {
+          "release": {
+            "label": "Nom de la release"
+          },
+          "chart": {
+            "label": "Chart",
+            "hint": "Un dossier du dépôt (./chart) ou une référence nom/chart."
+          },
+          "values": {
+            "label": "Fichier de valeurs",
+            "hint": "Facultatif : un fichier du dépôt qui adapte le chart."
+          },
+          "create": {
+            "label": "Créer l'espace de noms s'il n'existe pas"
+          },
+          "wait": {
+            "label": "Attendre que tout soit prêt",
+            "hint": "Le job échoue si la release ne devient pas prête en cinq minutes."
+          }
+        },
+        "help": "{{ kubeHelp }} Le chart peut être un dossier du dépôt (./chart). Pour un chart publié ailleurs, ajoutez d'abord sa commande « helm repo add » dans le tiroir du job."
+      }
+    },
+    "templates": {
+      "rust": {
+        "title": "Projet Rust",
+        "summary": "Format et Clippy en parallèle, puis les tests."
+      },
+      "node": {
+        "title": "Projet Node ou Angular",
+        "summary": "Analyse et tests en parallèle, puis le build."
+      },
+      "go": {
+        "title": "Projet Go",
+        "summary": "Les tests, puis la compilation."
+      },
+      "node-docker": {
+        "title": "Application publiée en image",
+        "summary": "Tests Node, puis construction et publication de l’image."
+      },
+      "node-docker-ssh": {
+        "title": "Image Docker déployée sur une VM",
+        "summary": "Tests, image publiée, puis déploiement par SSH."
+      },
+      "node-docker-k8s": {
+        "title": "Image Docker déployée sur Kubernetes",
+        "summary": "Tests, image publiée, puis mise à jour du Deployment."
+      }
+    },
+    "help": {
+      "pipeline": {
+        "title": "Comment ça marche",
+        "body": "Une pipeline est une suite d'étapes. Chaque étape contient des jobs, les petites tâches que FerrisGit fait tourner à chaque push : compiler, tester, publier. Les jobs d'une même étape partent en même temps ; une étape ne commence que lorsque la précédente a réussi."
+      },
+      "stage": {
+        "title": "Une étape",
+        "body": "Un palier de la pipeline. Les jobs qu'elle contient s'exécutent en parallèle, et la suivante attend qu'ils aient tous réussi. Si un job échoue, les étapes d'après ne partent pas. Faites glisser les cartes d'une colonne à l'autre pour changer l'ordre."
+      },
+      "newStage": {
+        "title": "Ajouter une étape",
+        "body": "Donnez un nom court (test, build, deploy). Elle se place après les autres ; le menu ⋮ d'une étape permet de la décaler. Une étape vide peut être supprimée."
+      },
+      "job": {
+        "title": "Un job",
+        "body": "Une tâche, exécutée dans un conteneur : une image, puis des commandes. Cliquez sur la carte pour la régler. Un job qui échoue arrête la pipeline."
+      },
+      "tiles": {
+        "title": "Les tuiles",
+        "body": "Des jobs prêts à l'emploi pour les besoins courants. Choisissez-en une, elle arrive dans l'étape avec une image et des commandes sensées, que vous pouvez ensuite modifier."
+      },
+      "name": {
+        "title": "Nom du job",
+        "body": "Il apparaît dans la liste des pipelines et sert aux autres jobs pour l'attendre. Il doit être unique."
+      },
+      "image": {
+        "title": "Image",
+        "body": "Le conteneur dans lequel les commandes tournent : il apporte les outils (rust:1 pour Cargo, node:22 pour npm, alpine pour des commandes simples). Une image de Docker Hub s'écrit nom:version."
+      },
+      "script": {
+        "title": "Commandes",
+        "body": "Ce que le job exécute, dans l'ordre, comme si vous les tapiez dans un terminal à la racine du dépôt. Si une commande échoue, le job s'arrête et est marqué échoué."
+      },
+      "insert": {
+        "title": "Insérer une variable",
+        "body": "Place le nom d'une variable ou d'un secret dans la commande, sous la forme $NOM : elle sera remplacée par sa valeur au moment de l'exécution."
+      },
+      "variables": {
+        "title": "Variables du job",
+        "body": "Des valeurs que les commandes lisent par leur nom ($NOM). Elles sont écrites dans le fichier du dépôt : tout le monde les lit. Pour un mot de passe ou un jeton, utilisez un secret."
+      },
+      "secrets": {
+        "title": "Secrets",
+        "body": "Des valeurs confidentielles (jeton, mot de passe) enregistrées chiffrées pour le dépôt, hors du fichier. Tous les jobs les reçoivent comme des variables, et leur valeur est masquée dans les journaux. Il suffit de les nommer dans une commande : $NOM."
+      },
+      "needs": {
+        "title": "Attend la fin de",
+        "body": "Par défaut un job attend toute l'étape précédente. Cochez des jobs pour qu'il parte dès que seuls ceux-là ont réussi, ou pour ordonner deux jobs d'une même étape."
+      },
+      "tags": {
+        "title": "Étiquettes du runner",
+        "body": "Un runner est la machine qui exécute le job. Si vous indiquez une étiquette, seul un runner qui la porte le prend : pratique pour réserver un déploiement à une machine précise. Laissez vide pour n'importe quel runner."
+      },
+      "cache": {
+        "title": "Caches",
+        "body": "Des dossiers conservés d'une pipeline à l'autre pour gagner du temps (les paquets téléchargés, par exemple). Donnez une clé : le même nom partage le même cache. Seul le moteur Kubernetes les applique ; avec des runners Docker ils sont sans effet."
+      },
+      "yaml": {
+        "title": "Le YAML",
+        "body": "Le fichier que FerrisGit lit vraiment. Les cartes et le YAML décrivent la même chose : modifiez l'un, l'autre suit. Dans la vue YAML, vos commentaires sont conservés."
+      },
+      "propose": {
+        "title": "Proposer la modification",
+        "body": "Rien n'est écrit sur la branche principale : le fichier part sur une nouvelle branche avec une merge request, que quelqu'un relit puis fusionne."
+      }
+    },
+    "editor": {
+      "helpFor": "Aide : {{ title }}",
+      "jobActions": "Actions du job {{ name }}",
+      "cards": "Cartes",
+      "yamlEdit": "modification du YAML",
+      "undoTip": "Annuler : {{ label }} ({{ keys }})",
+      "nothingToUndo": "Rien à annuler",
+      "redoTip": "Rétablir : {{ label }} ({{ keys }})",
+      "nothingToRedo": "Rien à rétablir",
+      "jobs_one": "{{ count }} job",
+      "jobs_other": "{{ count }} jobs",
+      "stages_one": "{{ count }} étape",
+      "stages_other": "{{ count }} étapes",
+      "summary": "{{ jobs }} dans {{ stages }}",
+      "undone": "Annulé",
+      "redone": "Rétabli",
+      "title": "Éditeur de pipeline",
+      "edits": {
+        "moveJob": "déplacement du job {{ name }}",
+        "addStage": "ajout de l'étape {{ name }}",
+        "renameStage": "renommage de l'étape {{ name }}",
+        "moveStage": "déplacement de l'étape {{ name }}",
+        "removeStage": "suppression de l'étape {{ name }}",
+        "addJob": "ajout du job {{ name }}",
+        "prediction": "pipeline proposée pour ce dépôt",
+        "template": "modèle {{ name }}",
+        "toSecret": "passage de {{ name }} en secret",
+        "renameJob": "renommage du job {{ name }}",
+        "editJob": "modification du job {{ name }}",
+        "removeJob": "suppression du job {{ name }}",
+        "copyJob": "copie du job {{ name }}"
+      },
+      "announce": {
+        "jobMoved": "Job {{ name }} déplacé vers l'étape {{ stage }}",
+        "stageAdded": "Étape {{ name }} ajoutée",
+        "stageMoved": "Étape {{ name }} déplacée",
+        "stageRemoved": "Étape {{ name }} supprimée",
+        "jobAdded": "Job {{ name }} ajouté à l'étape {{ stage }}",
+        "predictionApplied": "Pipeline proposée appliquée : {{ summary }}",
+        "templateApplied": "Modèle {{ name }} appliqué",
+        "jobRemoved": "Job {{ name }} supprimé",
+        "jobCopied": "Job {{ name }} copié en {{ copy }}"
+      },
+      "nowSecret": "« {{ name }} » est maintenant un secret du dépôt.",
+      "secretFailed": "Impossible d'enregistrer le secret.",
+      "jobRemovedToast": "Job « {{ name }} » supprimé. {{ keys }} pour l'annuler.",
+      "addPipeline": "Ajouter une pipeline",
+      "editPipeline": "Modifier la pipeline",
+      "required": "À remplir.",
+      "invalid": "Valeur non valide."
+    },
+    "problems": {
+      "invalidYaml": "Le fichier n'est pas un YAML valide : {{ detail }}",
+      "unknownStage": "Le job {{ job }} est dans l'étape {{ stage }}, qui n'existe pas.",
+      "unknownDependency": "Le job {{ job }} dépend de {{ dependency }}, qui n'existe pas.",
+      "laterDependency": "Le job {{ job }} dépend de {{ dependency }}, qui est dans une étape ultérieure.",
+      "cycle": "Des dépendances forment une boucle : {{ cycle }}.",
+      "invalidCache": "Le cache {{ key }} du job {{ job }} n'est pas valide : minuscules, chiffres et tirets seulement.",
+      "emptyImage": "Le job {{ job }} n'a pas d'image.",
+      "emptyScript": "Le job {{ job }} n'a aucune commande.",
+      "duplicateStage": "L'étape {{ stage }} est déclarée deux fois."
+    }
   }
 }

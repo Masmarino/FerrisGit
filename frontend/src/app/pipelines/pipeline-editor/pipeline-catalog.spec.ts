@@ -1,18 +1,18 @@
 import { BuilderState, NEW_PIPELINE } from './pipeline-builder-model';
-import { JOB_TILES, KNOWN_TILE_SECRETS, PIPELINE_TEMPLATES, TILE_CATEGORIES, addTile, jobFromTile, secretsOfTiles, stateFromTemplate, tileById } from './pipeline-catalog';
+import { jobTiles, knownTileSecrets, pipelineTemplates, tileCategories, addTile, jobFromTile, secretsOfTiles, stateFromTemplate, tileById } from './pipeline-catalog';
 import { isEnvName } from '../../repositories/ci-variable-name';
 
 describe('pipeline catalog', () => {
   it('has unique tile ids, each in a known category', () => {
-    const ids = JOB_TILES.map((tile) => tile.id);
+    const ids = jobTiles().map((tile) => tile.id);
     expect(new Set(ids).size).toBe(ids.length);
-    for (const tile of JOB_TILES) {
-      expect(TILE_CATEGORIES.map((category) => category.id), tile.id).toContain(tile.category);
+    for (const tile of jobTiles()) {
+      expect(tileCategories().map((category) => category.id), tile.id).toContain(tile.category);
     }
   });
 
   it('gives every tile what the server needs to accept a job: an image, a command, valid cache keys and variable names', () => {
-    for (const tile of JOB_TILES) {
+    for (const tile of jobTiles()) {
       expect(tile.image, tile.id).not.toBe('');
       expect(tile.script.length, tile.id).toBeGreaterThan(0);
       for (const key of tile.cache ?? []) {
@@ -26,13 +26,13 @@ describe('pipeline catalog', () => {
   });
 
   it('names the secrets its commands read, and every one of them is read by a command', () => {
-    for (const tile of JOB_TILES.filter((t) => t.secrets)) {
+    for (const tile of jobTiles().filter((t) => t.secrets)) {
       for (const name of tile.secrets!) {
         expect(tile.script.join('\n'), `${tile.id} ${name}`).toContain(name);
       }
       expect(tile.needsSecrets, tile.id).toBe(true);
     }
-    expect(KNOWN_TILE_SECRETS).toEqual(expect.arrayContaining(['DEPLOY_TOKEN', 'REGISTRY_PASSWORD', 'DOCKER_HOST', 'SSH_PRIVATE_KEY', 'SSH_KNOWN_HOSTS', 'KUBE_CONFIG']));
+    expect(knownTileSecrets()).toEqual(expect.arrayContaining(['DEPLOY_TOKEN', 'REGISTRY_PASSWORD', 'DOCKER_HOST', 'SSH_PRIVATE_KEY', 'SSH_KNOWN_HOSTS', 'KUBE_CONFIG']));
     expect(secretsOfTiles(['http-deploy', 'http-deploy'])).toEqual(['DEPLOY_URL', 'DEPLOY_TOKEN']);
   });
 
@@ -63,7 +63,7 @@ describe('pipeline catalog', () => {
   });
 
   describe('templates', () => {
-    it.each(PIPELINE_TEMPLATES.map((template) => [template.id, template] as const))('%s lays out stages and jobs that the server accepts', (_id, template) => {
+    it.each(pipelineTemplates().map((template) => [template.id, template] as const))('%s lays out stages and jobs that the server accepts', (_id, template) => {
       const state = stateFromTemplate(template);
       const names = state.jobs.map((job) => job.name);
 
@@ -80,7 +80,7 @@ describe('pipeline catalog', () => {
     });
 
     it('starts the Rust pipeline with format and Clippy side by side, and the tests after both', () => {
-      const state = stateFromTemplate(PIPELINE_TEMPLATES.find((t) => t.id === 'rust')!);
+      const state = stateFromTemplate(pipelineTemplates().find((t) => t.id === 'rust')!);
 
       expect(state.stages).toEqual(['check', 'test']);
       expect(state.jobs.map((j) => [j.name, j.stage, j.needs])).toEqual([

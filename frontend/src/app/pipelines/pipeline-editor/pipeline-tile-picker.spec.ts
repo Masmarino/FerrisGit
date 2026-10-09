@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { JOB_TILES, ParamValues, JobTile, TILE_CATEGORIES } from './pipeline-catalog';
+import { jobTiles, ParamValues, JobTile, tileCategories } from './pipeline-catalog';
 import { PipelineTilePicker } from './pipeline-tile-picker';
 
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
@@ -28,8 +28,8 @@ describe('PipelineTilePicker', () => {
 
     const headings = Array.from(el.querySelectorAll('.tile-picker__heading')).map(text);
 
-    expect(headings).toEqual(TILE_CATEGORIES.filter((c) => JOB_TILES.some((t) => t.category === c.id)).map((c) => c.title));
-    expect(el.querySelectorAll('.tile-picker__tile')).toHaveLength(JOB_TILES.length);
+    expect(headings).toEqual(tileCategories().filter((c) => jobTiles().some((t) => t.category === c.id)).map((c) => c.title));
+    expect(el.querySelectorAll('.tile-picker__tile')).toHaveLength(jobTiles().length);
   });
 
   it('hands over the tile that was clicked', () => {
@@ -96,7 +96,7 @@ describe('PipelineTilePicker', () => {
       fixture.detectChanges();
 
       expect(chosen).toEqual([]);
-      expect(el.querySelectorAll('.tile-picker__tile')).toHaveLength(JOB_TILES.length);
+      expect(el.querySelectorAll('.tile-picker__tile')).toHaveLength(jobTiles().length);
     });
   });
 

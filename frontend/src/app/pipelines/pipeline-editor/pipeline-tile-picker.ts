@@ -2,8 +2,8 @@ import { Component, computed, input, output, signal } from '@angular/core';
 import { Badge } from '@masmarino/gabarit/badge';
 import { Icon } from '@masmarino/gabarit/icon';
 import { HelpTip } from './help-tip';
-import { HELP } from './pipeline-help';
-import { JOB_TILES, JobTile, ParamValues, TILE_CATEGORIES } from './pipeline-catalog';
+import { help } from './pipeline-help';
+import { jobTiles, JobTile, ParamValues, tileCategories } from './pipeline-catalog';
 import { PipelineTileForm } from './pipeline-tile-form';
 import { BuilderJob, mainCommand } from './pipeline-builder-model';
 import { PredictedJob } from './pipeline-prediction';
@@ -37,8 +37,8 @@ export class PipelineTilePicker {
   /** The tile whose questions are being answered. */
   protected readonly asking = signal<JobTile | null>(null);
 
-  protected readonly help = HELP;
-  protected readonly sections = computed(() => TILE_CATEGORIES.map((category) => ({ ...category, tiles: JOB_TILES.filter((tile) => tile.category === category.id) })).filter((section) => section.tiles.length > 0));
+  protected readonly help = help();
+  protected readonly sections = computed(() => tileCategories().map((category) => ({ ...category, tiles: jobTiles().filter((tile) => tile.category === category.id) })).filter((section) => section.tiles.length > 0));
 
   /** The secrets a tile reads that the repository does not have yet, when that can be known. */
   protected missing(tile: JobTile): string[] {

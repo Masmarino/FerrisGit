@@ -34,7 +34,7 @@ import { PipelineDefinitionsService, RepositoryProfile } from './pipeline-defini
 import { EditorMode, PipelineDocument } from './pipeline-document';
 import { missingJobs, predictPipeline } from './pipeline-prediction';
 import { HelpTip } from './help-tip';
-import { HELP } from './pipeline-help';
+import { help } from './pipeline-help';
 import { JobTile, ParamValues, PipelineTemplate, addTile, stateFromTemplate } from './pipeline-catalog';
 import { PipelineJobForm } from './pipeline-job-form';
 import { PipelineSecrets, SecretUse } from './pipeline-secrets';
@@ -45,6 +45,7 @@ import { PipelineTilePicker } from './pipeline-tile-picker';
 import { missingSecrets, secretUsage, wantedSecretNames } from './pipeline-references';
 import { REDO_KEYS, UNDO_KEYS, undoShortcut } from './pipeline-history';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
 /** Why a save failed, as the dialog explains it. */
 type SaveFailure = 'changed' | 'refused' | 'failed';
@@ -77,7 +78,7 @@ export class PipelineEditor implements OnInit {
   private host = inject<ElementRef<HTMLElement>>(ElementRef);
   private injector = inject(Injector);
 
-  protected readonly help = HELP;
+  protected readonly help = help();
   /** The pipeline being edited, and what the server says about it. */
   protected readonly doc = new PipelineDocument(this.definitions, () => this.repositoryId());
   /** The cards. Almost every action on the page changes them. */
@@ -99,11 +100,11 @@ export class PipelineEditor implements OnInit {
   protected canRedo = computed(() => this.doc.mode() === 'cards' && this.doc.edits.nextRedo() !== null);
   protected undoTip = computed(() => {
     const label = this.doc.edits.nextUndo();
-    return label ? `Annuler : ${label} (${UNDO_KEYS})` : 'Rien à annuler';
+    return label ? t('pipelines.editor.undoTip', { label, keys: UNDO_KEYS }) : t('pipelines.editor.nothingToUndo');
   });
   protected redoTip = computed(() => {
     const label = this.doc.edits.nextRedo();
-    return label ? `Rétablir : ${label} (${REDO_KEYS})` : 'Rien à rétablir';
+    return label ? t('pipelines.editor.redoTip', { label, keys: REDO_KEYS }) : t('pipelines.editor.nothingToRedo');
   });
 
   /** The job under the pointer or with the focus. The board highlights its links to the other jobs. */
@@ -194,7 +195,7 @@ export class PipelineEditor implements OnInit {
   protected summary = computed(() => {
     const jobs = this.state().jobs.length;
     const stages = this.state().stages.length;
-    return `${jobs} ${jobs === 1 ? 'job' : 'jobs'} dans ${stages} ${stages === 1 ? 'étape' : 'étapes'}`;
+    return t('pipelines.editor.summary', { jobs: tn('pipelines.editor.jobs', jobs), stages: tn('pipelines.editor.stages', stages) });
   });
 
   constructor() {
@@ -217,11 +218,11 @@ export class PipelineEditor implements OnInit {
   }
 
   protected undo(): boolean {
-    return this.afterStep(this.doc.edits.undo(), 'Annulé');
+    return this.afterStep(this.doc.edits.undo(), t('pipelines.editor.undone'));
   }
 
   protected redo(): boolean {
-    return this.afterStep(this.doc.edits.redo(), 'Rétabli');
+    return this.afterStep(this.doc.edits.redo(), t('pipelines.editor.redone'));
   }
 
   /** When the step removed the job or the stage a drawer was showing, the drawer closes. The step is then announced. */
@@ -256,7 +257,7 @@ export class PipelineEditor implements OnInit {
   }
 
   ngOnInit(): void {
-    this.pageTitle.set('Éditeur de pipeline');
+    this.pageTitle.set(t('pipelines.editor.title'));
     if (this.appSettings.publicSettings() === null) {
       this.appSettings.loadPublic();
     }
@@ -277,7 +278,7 @@ export class PipelineEditor implements OnInit {
     if (event.previousContainer === event.container && event.previousIndex === event.currentIndex) {
       return;
     }
-    this.change(moveJob(this.state(), name, stage, event.currentIndex), `déplacement du job ${name}`);
+    this.change(moveJob(this.state(), name, stage, event.currentIndex), t('pipelines.editor.edits.moveJob', { name }));
   }
 
   /**
@@ -285,8 +286,8 @@ export class PipelineEditor implements OnInit {
    * card.
    */
   protected moveTo(job: BuilderJob, stage: string): void {
-    this.change(moveJob(this.state(), job.name, stage, Number.MAX_SAFE_INTEGER), `déplacement du job ${job.name}`);
-    this.announcement.set(`Job ${job.name} déplacé vers l'étape ${stage}`);
+    this.change(moveJob(this.state(), job.name, stage, Number.MAX_SAFE_INTEGER), t('pipelines.editor.edits.moveJob', { name: job.name }));
+    this.announcement.set(t('pipelines.editor.announce.jobMoved', { name: job.name, stage }));
     afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>(`[data-job="${CSS.escape(job.name)}"] .pipeline-editor__card-open`)?.focus(), { injector: this.injector });
   }
 
@@ -296,23 +297,23 @@ export class PipelineEditor implements OnInit {
     if (next === this.state()) {
       return;
     }
-    this.change(next, `ajout de l'étape ${name}`);
+    this.change(next, t('pipelines.editor.edits.addStage', { name }));
     this.newStageName.set('');
-    this.announcement.set(`Étape ${name} ajoutée`);
+    this.announcement.set(t('pipelines.editor.announce.stageAdded', { name }));
   }
 
   protected rename(stage: string, name: string): void {
-    this.change(renameStage(this.state(), stage, name), `renommage de l'étape ${stage}`);
+    this.change(renameStage(this.state(), stage, name), t('pipelines.editor.edits.renameStage', { name: stage }));
   }
 
   protected shiftStage(lane: LaneView, by: -1 | 1): void {
-    this.change(moveStage(this.state(), lane.index, lane.index + by), `déplacement de l'étape ${lane.stage}`);
-    this.announcement.set(`Étape ${lane.stage} déplacée`);
+    this.change(moveStage(this.state(), lane.index, lane.index + by), t('pipelines.editor.edits.moveStage', { name: lane.stage }));
+    this.announcement.set(t('pipelines.editor.announce.stageMoved', { name: lane.stage }));
   }
 
   protected deleteStage(stage: string): void {
-    this.change(removeStage(this.state(), stage), `suppression de l'étape ${stage}`);
-    this.announcement.set(`Étape ${stage} supprimée`);
+    this.change(removeStage(this.state(), stage), t('pipelines.editor.edits.removeStage', { name: stage }));
+    this.announcement.set(t('pipelines.editor.announce.stageRemoved', { name: stage }));
   }
 
   /** Opens the tile picker for the stage: every kind of job is a tile, the empty one included. */
@@ -330,9 +331,9 @@ export class PipelineEditor implements OnInit {
       return;
     }
     const { state, job } = addTile(this.state(), tile, stage, values);
-    this.change(state, `ajout du job ${job.name}`);
+    this.change(state, t('pipelines.editor.edits.addJob', { name: job.name }));
     this.pickerStage.set(null);
-    this.announcement.set(`Job ${job.name} ajouté à l'étape ${stage}`);
+    this.announcement.set(t('pipelines.editor.announce.jobAdded', { name: job.name, stage }));
     // Open it straight away: the commands are a starting point, and the image or the variables are what people adjust
     // first.
     this.selected.set(job.name);
@@ -355,8 +356,12 @@ export class PipelineEditor implements OnInit {
     if (!prediction) {
       return;
     }
-    this.change(prediction.state, 'pipeline proposée pour ce dépôt');
-    this.announcement.set(`Pipeline proposée appliquée : ${prediction.state.jobs.length} jobs dans ${prediction.state.stages.length} étapes`);
+    this.change(prediction.state, t('pipelines.editor.edits.prediction'));
+    this.announcement.set(
+      t('pipelines.editor.announce.predictionApplied', {
+        summary: t('pipelines.editor.summary', { jobs: tn('pipelines.editor.jobs', prediction.state.jobs.length), stages: tn('pipelines.editor.stages', prediction.state.stages.length) }),
+      }),
+    );
   }
 
   /**
@@ -376,15 +381,15 @@ export class PipelineEditor implements OnInit {
       // The server accepts a need in the same stage or an earlier one.
       return other !== undefined && state.stages.indexOf(other.stage) <= rank;
     });
-    this.change(insertJob(state, { ...predicted, name, stage, needs, script: [...predicted.script], variables: predicted.variables.map((row) => ({ ...row })), tags: [...predicted.tags], cache: [...predicted.cache] }), `ajout du job ${name}`);
+    this.change(insertJob(state, { ...predicted, name, stage, needs, script: [...predicted.script], variables: predicted.variables.map((row) => ({ ...row })), tags: [...predicted.tags], cache: [...predicted.cache] }), t('pipelines.editor.edits.addJob', { name }));
     this.pickerStage.set(null);
-    this.announcement.set(`Job ${name} ajouté à l'étape ${stage}`);
+    this.announcement.set(t('pipelines.editor.announce.jobAdded', { name, stage }));
     this.selected.set(name);
   }
 
   protected chooseTemplate(template: PipelineTemplate): void {
-    this.change(stateFromTemplate(template), `modèle ${template.title}`);
-    this.announcement.set(`Modèle ${template.title} appliqué`);
+    this.change(stateFromTemplate(template), t('pipelines.editor.edits.template', { name: template.title }));
+    this.announcement.set(t('pipelines.editor.announce.templateApplied', { name: template.title }));
   }
 
   private loadSecrets(): void {
@@ -419,12 +424,12 @@ export class PipelineEditor implements OnInit {
         // is a step of its own, so that it is never undone together with the keystrokes before it.
         const job = this.state().jobs.find((candidate) => candidate.name === jobName);
         if (job) {
-          this.change(updateJob(this.state(), jobName, { variables: job.variables.filter((variable) => variable.key.trim() !== key) }), `passage de ${key} en secret`);
+          this.change(updateJob(this.state(), jobName, { variables: job.variables.filter((variable) => variable.key.trim() !== key) }), t('pipelines.editor.edits.toSecret', { name: key }));
         }
         this.loadSecrets();
-        this.toast.show(`« ${key} » est maintenant un secret du dépôt.`);
+        this.toast.show(t('pipelines.editor.nowSecret', { name: key }));
       },
-      error: () => this.toast.show("Impossible d'enregistrer le secret.", 'error'),
+      error: () => this.toast.show(t('pipelines.editor.secretFailed'), 'error'),
     });
   }
 
@@ -443,7 +448,7 @@ export class PipelineEditor implements OnInit {
     // Keystrokes in one field of one job make a single step. A rename (applied when the field loses the focus) and a
     // ticked dependency are deliberate choices, each a step of its own.
     const typed = !renaming && patch.needs === undefined;
-    this.change(next, renaming ? `renommage du job ${name}` : `modification du job ${name}`, typed ? `job:${name}:${Object.keys(patch).sort().join(',')}` : null);
+    this.change(next, renaming ? t('pipelines.editor.edits.renameJob', { name }) : t('pipelines.editor.edits.editJob', { name }), typed ? `job:${name}:${Object.keys(patch).sort().join(',')}` : null);
     const requested = patch.name?.trim();
     // When the new name was accepted, the drawer follows the job to it.
     if (requested && requested !== name && next.jobs.some((job) => job.name === requested) && !before.jobs.some((job) => job.name === requested)) {
@@ -453,10 +458,10 @@ export class PipelineEditor implements OnInit {
 
   /** No confirmation: the deletion can be undone, and the notification says how. */
   protected deleteJob(name: string): void {
-    this.change(removeJob(this.state(), name), `suppression du job ${name}`);
+    this.change(removeJob(this.state(), name), t('pipelines.editor.edits.removeJob', { name }));
     this.selected.set(null);
-    this.announcement.set(`Job ${name} supprimé`);
-    this.toast.show(`Job « ${name} » supprimé. ${UNDO_KEYS} pour l'annuler.`);
+    this.announcement.set(t('pipelines.editor.announce.jobRemoved', { name }));
+    this.toast.show(t('pipelines.editor.jobRemovedToast', { name, keys: UNDO_KEYS }));
   }
 
   /** The copy opens in the drawer: a copy is usually made to be changed (another version, another target). */
@@ -465,8 +470,8 @@ export class PipelineEditor implements OnInit {
     if (!result) {
       return;
     }
-    this.change(result.state, `copie du job ${name}`);
-    this.announcement.set(`Job ${name} copié en ${result.copy}`);
+    this.change(result.state, t('pipelines.editor.edits.copyJob', { name }));
+    this.announcement.set(t('pipelines.editor.announce.jobCopied', { name, copy: result.copy }));
     this.selected.set(result.copy);
   }
 
@@ -479,7 +484,7 @@ export class PipelineEditor implements OnInit {
   }
 
   protected openSave(): void {
-    this.saveTitle.set(this.doc.source() === 'new' ? 'Ajouter une pipeline' : 'Modifier la pipeline');
+    this.saveTitle.set(this.doc.source() === 'new' ? t('pipelines.editor.addPipeline') : t('pipelines.editor.editPipeline'));
     this.saveDescription.set('');
     this.saveFailure.set(null);
     this.saveOpen.set(true);

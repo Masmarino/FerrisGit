@@ -1,3 +1,5 @@
+import { t } from '../../shared/i18n/translator';
+
 export type TileCategory = 'compile' | 'test' | 'quality' | 'package' | 'deploy' | 'custom';
 
 /** What people fill in to adapt a tile: a few words, a choice, a switch, or a few lines. */
@@ -84,10 +86,10 @@ function paramProblem(param: TileParam, values: ParamValues): string | null {
   }
   const text = value.trim();
   if (text === '') {
-    return param.required ? 'À remplir.' : null;
+    return param.required ? t('pipelines.editor.required') : null;
   }
   if (param.pattern && !param.pattern.test(text)) {
-    return param.patternMessage ?? 'Valeur non valide.';
+    return param.patternMessage ?? t('pipelines.editor.invalid');
   }
   return null;
 }

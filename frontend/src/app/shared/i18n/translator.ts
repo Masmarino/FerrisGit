@@ -39,6 +39,22 @@ export const t: TranslateFn = (key, params) => {
 export const tn = (key: string, count: number, params: Record<string, unknown> = {}): string =>
   t(`${key}_${new Intl.PluralRules(activeLocale()).select(count) === 'one' ? 'one' : 'other'}`, { count, ...params });
 
+/**
+ * A value built from translations, such as a catalog of labelled items: built on first use rather than when its module
+ * loads (the translator is not ready then), and rebuilt only when the language changes, so that the same items keep
+ * the same identity in between.
+ */
+export function perLanguage<T>(build: () => T): () => T {
+  let built: { language: Language; value: T } | null = null;
+  return () => {
+    const current = language();
+    if (built?.language !== current) {
+      built = { language: current, value: build() };
+    }
+    return built.value;
+  };
+}
+
 export function provideTranslator(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideEnvironmentInitializer(() => {

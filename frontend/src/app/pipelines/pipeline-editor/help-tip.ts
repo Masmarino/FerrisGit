@@ -1,4 +1,5 @@
 import { Component, input } from '@angular/core';
+import { TranslocoPipe } from '@jsverse/transloco';
 import { Button } from '@masmarino/gabarit/button';
 import { Popover } from '@masmarino/gabarit/popover';
 import { HelpText } from './pipeline-help';
@@ -10,7 +11,7 @@ import { HelpText } from './pipeline-help';
 @Component({
   selector: 'fg-help-tip',
   standalone: true,
-  imports: [Button, Popover],
+  imports: [TranslocoPipe, Button, Popover],
   template: `
     <gbt-popover [align]="align()" #bubble="gbtPopover" class="help-tip">
       <gbt-button
@@ -18,7 +19,7 @@ import { HelpText } from './pipeline-help';
         size="small"
         [iconOnly]="true"
         iconName="circle-help"
-        [ariaLabel]="'Aide : ' + help().title"
+        [ariaLabel]="'pipelines.editor.helpFor' | transloco: { title: help().title }"
         [ariaHaspopup]="true"
         [ariaExpanded]="bubble.open()"
         [ariaControls]="bubble.panelId"
