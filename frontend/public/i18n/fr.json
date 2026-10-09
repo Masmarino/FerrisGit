@@ -17,7 +17,16 @@
     "results_other": "{{ count }} résultats",
     "noResults": "Aucun résultat",
     "search": "Rechercher…",
-    "copyFailedSelected": "Copie impossible, jeton sélectionné"
+    "copyFailedSelected": "Copie impossible, jeton sélectionné",
+    "showPassword": "Afficher le mot de passe",
+    "hidePassword": "Masquer le mot de passe",
+    "requiredNote": "Les champs marqués d'un astérisque (*) sont obligatoires.",
+    "savingShort": "Enregistrement…",
+    "saved": "Enregistré",
+    "notSaved": "Non enregistré",
+    "email": "Email",
+    "password": "Mot de passe",
+    "loadingInProgress": "Chargement en cours"
   },
   "apiTokens": {
     "list": {
@@ -265,5 +274,78 @@
     "loadFailedToast": "Impossible de charger les runners. Réessayez plus tard.",
     "registeredToast": "Runner enregistré.",
     "registerFailedToast": "Impossible d'enregistrer le runner."
+  },
+  "account": {
+    "intro": "Profil, mot de passe, double authentification et jetons d'accès",
+    "settings": "Réglages du compte",
+    "passwordDescription": "Choisissez-en un d'au moins 8 caractères, que vous n'utilisez nulle part ailleurs. Le changer ferme vos autres sessions.",
+    "currentPassword": "Mot de passe actuel",
+    "newPassword": "Nouveau mot de passe",
+    "minLength": "{{ count }} caractères minimum",
+    "confirmPassword": "Confirmer le nouveau mot de passe",
+    "changePassword": "Changer le mot de passe",
+    "changing": "Modification en cours",
+    "profile": "Profil",
+    "profileDescription": "Votre identité sur FerrisGit. L'email est enregistré dès que vous quittez le champ.",
+    "superAdmin": "Super-administrateur",
+    "usernameFixed": "Nom d'utilisateur, non modifiable",
+    "memberSince": "Membre depuis le {{ date }}",
+    "loadingProfile": "Chargement du profil…",
+    "emailHint": "L'adresse à laquelle FerrisGit peut vous joindre.",
+    "sessionHere": "Session ouverte sur ce navigateur.",
+    "tabs": {
+      "profile": "Profil",
+      "password": "Mot de passe",
+      "security": "Sécurité",
+      "tokens": "Jetons d'accès"
+    },
+    "emailUpdated": "Email mis à jour.",
+    "emailUpdateFailed": "Impossible de mettre à jour l'email.",
+    "passwordTooShort": "Le mot de passe doit contenir au moins {{ count }} caractères.",
+    "passwordChanged": "Mot de passe modifié.",
+    "wrongPassword": "Mot de passe actuel incorrect.",
+    "passwordChangeFailed": "Le mot de passe n'a pas pu être modifié. Réessayez plus tard.",
+    "passwordChangeFailedToast": "Impossible de modifier le mot de passe.",
+    "sessions": {
+      "title": "Sessions",
+      "description": "Ferme toutes vos sessions ouvertes, celle-ci comprise. Utile si un appareil est perdu ou compromis. Vos jetons d'accès restent valides : révoquez-les depuis Jetons d'accès.",
+      "everywhere": "Se déconnecter partout",
+      "confirmMessage": "Toutes vos sessions seront fermées, celle-ci comprise. Vous devrez vous reconnecter.",
+      "busy": "Déconnexion en cours",
+      "failed": "Impossible de fermer les sessions. Réessayez."
+    }
+  },
+  "auth": {
+    "createAccount": "Créer un compte",
+    "signIn": "Se connecter",
+    "username": {
+      "hint": "3 à 32 caractères, lettres, chiffres, - et _. Enregistré en minuscules.",
+      "invalid": "Commencez par une lettre ; 3 à 32 caractères : lettres, chiffres, - et _",
+      "empty": "Saisissez un nom d'utilisateur",
+      "reserved": "Ce nom d'utilisateur n'est pas disponible"
+    },
+    "email": {
+      "empty": "Saisissez votre adresse e-mail",
+      "invalid": "Saisissez une adresse e-mail valide, par exemple nom@exemple.fr"
+    },
+    "register": {
+      "invalid": "Vérifiez les champs",
+      "taken": "Ce nom d'utilisateur ou cette adresse e-mail est déjà utilisé",
+      "tooManyAttempts": "Trop de tentatives, réessayez dans quelques minutes.",
+      "mailFailed": "Le message de confirmation n'a pas pu être envoyé. Réessayez plus tard.",
+      "failed": "L'inscription a échoué, réessayez.",
+      "intro": "Rejoignez FerrisGit pour héberger vos dépôts, tickets et demandes de fusion.",
+      "sentMessage": "Un lien de confirmation a été envoyé à {{ email }}. Il est valable 24 heures : suivez-le pour choisir votre mot de passe. Sans activation, le compte est supprimé au bout de 7 jours.",
+      "closedTitle": "Les inscriptions sont fermées",
+      "closedMessage": "Cette instance n'accepte pas les inscriptions libres. Demandez une invitation à un administrateur : vous recevrez un lien par e-mail pour activer votre compte.",
+      "sentTitle": "Consultez votre boîte mail",
+      "resendHint": "Rien reçu au bout de quelques minutes ? Inscrivez-vous de nouveau avec les mêmes informations pour recevoir un nouveau lien.",
+      "username": "Nom d'utilisateur",
+      "email": "Adresse e-mail",
+      "emailHint": "Nous vous y envoyons un lien pour confirmer l'adresse et choisir votre mot de passe.",
+      "submit": "Créer mon compte",
+      "submitting": "Création du compte en cours",
+      "haveAccount": "Vous avez déjà un compte ?"
+    }
   }
 }

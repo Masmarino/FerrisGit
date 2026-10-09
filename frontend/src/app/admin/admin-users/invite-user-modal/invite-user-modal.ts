@@ -7,7 +7,7 @@ import { Modal } from '@masmarino/gabarit/modal';
 import { Switch } from '@masmarino/gabarit/switch';
 import { AdminUsersService, InviteResult } from '../../admin-users.service';
 import { emailError as checkEmail } from '../../../auth/account-rules';
-import { classifyRegisterFailure, REGISTER_INVALID_MESSAGE } from '../../../auth/account-errors';
+import { classifyRegisterFailure, registerInvalidMessage } from '../../../auth/account-errors';
 import { LinkMailFailed } from '../link-mail-failed/link-mail-failed';
 
 const EMAIL_REQUIRED = "Saisissez l'adresse e-mail";
@@ -90,7 +90,7 @@ export class InviteUserModal {
       case 'username-taken':
       case 'username-invalid':
       case 'username-reserved':
-        this.formError.set(REGISTER_INVALID_MESSAGE);
+        this.formError.set(registerInvalidMessage());
         break;
       default:
         this.formError.set(SEND_FAILED);

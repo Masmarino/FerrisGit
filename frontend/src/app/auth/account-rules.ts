@@ -1,16 +1,17 @@
 import { emailProblem, usernameProblem } from '@masmarino/gabarit/auth';
+import { t } from '../shared/i18n/translator';
 
-// French messages over Gabarit's account rules, which mirror the server's (`account_rules.rs`). The server decides in the end.
+// Messages over Gabarit's account rules, which mirror the server's (`account_rules.rs`). The server decides in the end.
 
-export const USERNAME_HINT = '3 à 32 caractères, lettres, chiffres, - et _. Enregistré en minuscules.';
-export const USERNAME_ERROR = 'Commencez par une lettre ; 3 à 32 caractères : lettres, chiffres, - et _';
+export const usernameHint = (): string => t('auth.username.hint');
+export const usernameInvalidMessage = (): string => t('auth.username.invalid');
 
 export function usernameError(raw: string): string | null {
   switch (usernameProblem(raw)) {
     case 'empty':
-      return "Saisissez un nom d'utilisateur";
+      return t('auth.username.empty');
     case 'invalid':
-      return USERNAME_ERROR;
+      return usernameInvalidMessage();
     default:
       return null;
   }
@@ -19,9 +20,9 @@ export function usernameError(raw: string): string | null {
 export function emailError(raw: string): string | null {
   switch (emailProblem(raw)) {
     case 'empty':
-      return 'Saisissez votre adresse e-mail';
+      return t('auth.email.empty');
     case 'invalid':
-      return 'Saisissez une adresse e-mail valide, par exemple nom@exemple.fr';
+      return t('auth.email.invalid');
     default:
       return null;
   }

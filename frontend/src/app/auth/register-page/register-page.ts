@@ -11,16 +11,13 @@ import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { AuthLogo } from '../auth-logo/auth-logo';
 import { GitField } from '@masmarino/gabarit/git-field';
 import { AuthService } from '../auth.service';
-import { emailError, USERNAME_ERROR, USERNAME_HINT, usernameError } from '../account-rules';
-import { classifyRegisterFailure, REGISTER_INVALID_MESSAGE, REGISTER_RESERVED_MESSAGE, REGISTER_TAKEN_MESSAGE } from '../account-errors';
+import { emailError, usernameError, usernameHint, usernameInvalidMessage } from '../account-rules';
+import { classifyRegisterFailure, registerInvalidMessage, registerReservedMessage, registerTakenMessage } from '../account-errors';
 import { provideFerrisgitAuth } from '../auth-kit';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 type Registration = 'loading' | 'open' | 'closed' | 'sent';
-
-const EMAIL_INVALID = 'Saisissez une adresse e-mail valide, par exemple nom@exemple.fr';
-const TOO_MANY_ATTEMPTS = 'Trop de tentatives, réessayez dans quelques minutes.';
-const MAIL_FAILED = "Le message de confirmation n'a pas pu être envoyé. Réessayez plus tard.";
-const FAILED = "L'inscription a échoué, réessayez.";
 
 /**
  * Signing up only asks for a username and an address: the account is created inactive and the password is chosen from
@@ -30,7 +27,7 @@ const FAILED = "L'inscription a échoué, réessayez.";
 @Component({
   selector: 'fg-register-page',
   standalone: true,
-  imports: [FormsModule, RouterLink, AuthPanel, AuthLogo, AuthFooter, AuthFooterLink, Alert, Button, EmptyState, GbtInput, Skeleton, GitField],
+  imports: [TranslocoPipe, FormsModule, RouterLink, AuthPanel, AuthLogo, AuthFooter, AuthFooterLink, Alert, Button, EmptyState, GbtInput, Skeleton, GitField],
   providers: [provideFerrisgitAuth()],
   host: { class: 'fg-auth-page' },
   templateUrl: './register-page.html',
@@ -55,13 +52,13 @@ export class RegisterPage {
   // Bound with [id] in the template: a static id would stay on the <gbt-input> host as well as reach the <input>.
   protected readonly usernameId = 'register-username';
   protected readonly emailId = 'register-email';
-  protected readonly usernameHint = USERNAME_HINT;
-  protected readonly heading = computed(() => (this.registration() === 'open' ? 'Créer un compte' : ''));
+  protected readonly usernameHint = usernameHint();
+  protected readonly heading = computed(() => (this.registration() === 'open' ? t('auth.createAccount') : ''));
   protected readonly intro = computed(() =>
-    this.registration() === 'open' ? 'Rejoignez FerrisGit pour héberger vos dépôts, tickets et demandes de fusion.' : '',
+    this.registration() === 'open' ? t('auth.register.intro') : '',
   );
   protected readonly sentMessage = computed(
-    () => `Un lien de confirmation a été envoyé à ${this.sentTo()}. Il est valable 24 heures : suivez-le pour choisir votre mot de passe. Sans activation, le compte est supprimé au bout de 7 jours.`,
+    () => t('auth.register.sentMessage', { email: this.sentTo() }),
   );
 
   constructor() {
@@ -128,30 +125,30 @@ export class RegisterPage {
         return;
       case 'username-taken':
       case 'email-taken':
-        this.fail(REGISTER_TAKEN_MESSAGE, `#${this.usernameId}`);
+        this.fail(registerTakenMessage(), `#${this.usernameId}`);
         return;
       case 'username-invalid':
-        this.usernameError.set(USERNAME_ERROR);
+        this.usernameError.set(usernameInvalidMessage());
         this.focus(`#${this.usernameId}`);
         return;
       case 'username-reserved':
-        this.usernameError.set(REGISTER_RESERVED_MESSAGE);
+        this.usernameError.set(registerReservedMessage());
         this.focus(`#${this.usernameId}`);
         return;
       case 'email-invalid':
-        this.emailError.set(EMAIL_INVALID);
+        this.emailError.set(t('auth.email.invalid'));
         this.focus(`#${this.emailId}`);
         return;
       case 'invalid':
       case 'password-weak':
-        this.fail(REGISTER_INVALID_MESSAGE, `#${this.usernameId}`);
+        this.fail(registerInvalidMessage(), `#${this.usernameId}`);
         return;
       case 'rate-limited':
-        this.fail(TOO_MANY_ATTEMPTS, `#${this.usernameId}`);
+        this.fail(t('auth.register.tooManyAttempts'), `#${this.usernameId}`);
         return;
       default:
         // 503: no mail configured, or the message could not leave. Either way nothing was sent.
-        this.fail(err instanceof HttpErrorResponse && err.status === 503 ? MAIL_FAILED : FAILED, `#${this.usernameId}`);
+        this.fail(err instanceof HttpErrorResponse && err.status === 503 ? t('auth.register.mailFailed') : t('auth.register.failed'), `#${this.usernameId}`);
     }
   }
 

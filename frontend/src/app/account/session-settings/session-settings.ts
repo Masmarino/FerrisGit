@@ -6,6 +6,8 @@ import { Card } from '@masmarino/gabarit/card';
 import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AuthService } from '../../auth/auth.service';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 /**
  * Signs the account out everywhere, after a confirmation: every session ends, this one included, so the page goes to
@@ -14,28 +16,28 @@ import { AuthService } from '../../auth/auth.service';
 @Component({
   selector: 'fg-session-settings',
   standalone: true,
-  imports: [Button, Card, ConfirmDangerModal],
+  imports: [TranslocoPipe, Button, Card, ConfirmDangerModal],
   template: `
     <gbt-card
       variant="outlined"
       icon="log-out"
-      heading="Sessions"
-      description="Ferme toutes vos sessions ouvertes, celle-ci comprise. Utile si un appareil est perdu ou compromis. Vos jetons d'accès restent valides : révoquez-les depuis Jetons d'accès."
+      [heading]="'account.sessions.title' | transloco"
+      [description]="'account.sessions.description' | transloco"
     >
       <div class="session-settings__actions">
-        <gbt-button variant="danger" iconName="log-out" text="Se déconnecter partout" (clicked)="confirming.set(true)" />
+        <gbt-button variant="danger" iconName="log-out" [text]="'account.sessions.everywhere' | transloco" (clicked)="confirming.set(true)" />
       </div>
     </gbt-card>
     @if (confirming()) {
       <gbt-confirm-danger-modal
         [isOpen]="true"
-        heading="Se déconnecter partout"
-        message="Toutes vos sessions seront fermées, celle-ci comprise. Vous devrez vous reconnecter."
-        confirmLabel="Se déconnecter partout"
+        [heading]="'account.sessions.everywhere' | transloco"
+        [message]="'account.sessions.confirmMessage' | transloco"
+        [confirmLabel]="'account.sessions.everywhere' | transloco"
         confirmIcon="log-out"
-        cancelLabel="Annuler"
-        closeLabel="Fermer"
-        busyLabel="Déconnexion en cours"
+        [cancelLabel]="'common.cancel' | transloco"
+        [closeLabel]="'common.close' | transloco"
+        [busyLabel]="'account.sessions.busy' | transloco"
         [busy]="signingOut()"
         (confirmed)="logoutEverywhere()"
         (closed)="confirming.set(false)"
@@ -77,7 +79,7 @@ export class SessionSettings {
       error: () => {
         this.signingOut.set(false);
         this.confirming.set(false);
-        this.toast.show('Impossible de fermer les sessions. Réessayez.', 'error');
+        this.toast.show(t('account.sessions.failed'), 'error');
       },
     });
   }

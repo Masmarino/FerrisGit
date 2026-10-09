@@ -25,15 +25,16 @@ import { MfaSettings } from '../mfa-settings/mfa-settings';
 import { PasskeySettings } from '../passkey-settings/passkey-settings';
 import { SessionSettings } from '../session-settings/session-settings';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 type AccountSectionKey = 'profile' | 'password' | 'security' | 'tokens';
 
 const SECTIONS: { key: AccountSectionKey; label: string; icon: string }[] = [
-  { key: 'profile', label: 'Profil', icon: 'user' },
-  { key: 'password', label: 'Mot de passe', icon: 'lock' },
-  { key: 'security', label: 'Sécurité', icon: 'shield-check' },
-  { key: 'tokens', label: "Jetons d'accès", icon: 'key' },
+  { key: 'profile', get label() { return t('account.tabs.profile'); }, icon: 'user' },
+  { key: 'password', get label() { return t('account.tabs.password'); }, icon: 'lock' },
+  { key: 'security', get label() { return t('account.tabs.security'); }, icon: 'shield-check' },
+  { key: 'tokens', get label() { return t('account.tabs.tokens'); }, icon: 'key' },
 ];
 
 const DEFAULT_SECTION: AccountSectionKey = 'profile';
@@ -47,7 +48,7 @@ type SaveState = 'saving' | 'saved' | 'error';
 @Component({
   selector: 'fg-account-page',
   standalone: true,
-  imports: [FormsModule, NgTemplateOutlet, Avatar, Badge, Button, GbtInput, Icon, SaveStatus, Skeleton, ApiTokensList, MfaSettings, PasskeySettings, SessionSettings, PageHeader, PageLayout, Card, NavTab, NavTabs, RouterLink, GbtDateTimePipe],
+  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, Avatar, Badge, Button, GbtInput, Icon, SaveStatus, Skeleton, ApiTokensList, MfaSettings, PasskeySettings, SessionSettings, PageHeader, PageLayout, Card, NavTab, NavTabs, RouterLink, GbtDateTimePipe],
   templateUrl: './account-page.html',
   styleUrl: './account-page.scss',
 })
@@ -117,12 +118,12 @@ export class AccountPage implements OnInit {
     this.me.updateEmail(email).subscribe({
       next: () => {
         this.emailState.set('saved');
-        this.toast.show('Email mis à jour.');
+        this.toast.show(t('account.emailUpdated'));
       },
       error: () => {
         this.emailShown.set(previous);
         this.emailState.set('error');
-        this.toast.show("Impossible de mettre à jour l'email.", 'error');
+        this.toast.show(t('account.emailUpdateFailed'), 'error');
       },
     });
   }
@@ -149,7 +150,7 @@ export class AccountPage implements OnInit {
       return;
     }
     if (this.newPassword().length < MIN_PASSWORD_LENGTH) {
-      this.newPasswordError.set(`Le mot de passe doit contenir au moins ${MIN_PASSWORD_LENGTH} caractères.`);
+      this.newPasswordError.set(t('account.passwordTooShort', { count: MIN_PASSWORD_LENGTH }));
       return;
     }
     this.passwordSaving.set(true);
@@ -160,11 +161,11 @@ export class AccountPage implements OnInit {
           this.auth.setToken(res.token);
         }
         this.passwordSaving.set(false);
-        this.passwordResult.set({ state: 'saved', message: 'Mot de passe modifié.' });
+        this.passwordResult.set({ state: 'saved', message: t('account.passwordChanged') });
         this.currentPassword.set('');
         this.newPassword.set('');
         this.confirmPassword.set('');
-        this.toast.show('Mot de passe modifié.');
+        this.toast.show(t('account.passwordChanged'));
       },
       error: (err: { status?: number }) => {
         this.passwordSaving.set(false);
@@ -172,9 +173,9 @@ export class AccountPage implements OnInit {
         const wrongPassword = err?.status === 400;
         this.passwordResult.set({
           state: 'error',
-          message: wrongPassword ? 'Mot de passe actuel incorrect.' : "Le mot de passe n'a pas pu être modifié. Réessayez plus tard.",
+          message: wrongPassword ? t('account.wrongPassword') : t('account.passwordChangeFailed'),
         });
-        this.toast.show('Impossible de modifier le mot de passe.', 'error');
+        this.toast.show(t('account.passwordChangeFailedToast'), 'error');
       },
     });
   }

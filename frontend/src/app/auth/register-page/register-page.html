@@ -4,7 +4,7 @@
 
   @switch (registration()) {
     @case ('loading') {
-      <span class="sr-only" role="status">Chargement en cours</span>
+      <span class="sr-only" role="status">{{ 'common.loadingInProgress' | transloco }}</span>
       <div class="loading" aria-hidden="true">
         <gbt-skeleton width="9rem" height="1.5rem" />
         <gbt-skeleton width="100%" height="var(--gbt-control-height-md)" />
@@ -18,10 +18,10 @@
         icon="lock"
         [headingLevel]="1"
         headingFocusable
-        heading="Les inscriptions sont fermées"
-        message="Cette instance n'accepte pas les inscriptions libres. Demandez une invitation à un administrateur : vous recevrez un lien par e-mail pour activer votre compte."
+        [heading]="'auth.register.closedTitle' | transloco"
+        [message]="'auth.register.closedMessage' | transloco"
       >
-        <gbt-button class="gbt-auth-panel__submit" block size="large" text="Se connecter" (clicked)="toSignIn()" />
+        <gbt-button class="gbt-auth-panel__submit" block size="large" [text]="'auth.signIn' | transloco" (clicked)="toSignIn()" />
       </gbt-empty-state>
     }
     @case ('sent') {
@@ -30,11 +30,11 @@
         icon="circle-check"
         [headingLevel]="1"
         headingFocusable
-        heading="Consultez votre boîte mail"
+        [heading]="'auth.register.sentTitle' | transloco"
         [message]="sentMessage()"
       >
-        <p class="resend-hint">Rien reçu au bout de quelques minutes ? Inscrivez-vous de nouveau avec les mêmes informations pour recevoir un nouveau lien.</p>
-        <gbt-button class="gbt-auth-panel__submit" block size="large" text="Se connecter" (clicked)="toSignIn()" />
+        <p class="resend-hint">{{ 'auth.register.resendHint' | transloco }}</p>
+        <gbt-button class="gbt-auth-panel__submit" block size="large" [text]="'auth.signIn' | transloco" (clicked)="toSignIn()" />
       </gbt-empty-state>
     }
     @default {
@@ -47,7 +47,7 @@
           [id]="usernameId"
           name="username"
           autocomplete="username"
-          label="Nom d'utilisateur"
+          [label]="'auth.register.username' | transloco"
           [hint]="usernameHint"
           [errorMessage]="usernameError()"
           [ngModel]="username()"
@@ -59,8 +59,8 @@
           type="email"
           name="email"
           autocomplete="email"
-          label="Adresse e-mail"
-          hint="Nous vous y envoyons un lien pour confirmer l'adresse et choisir votre mot de passe."
+          [label]="'auth.register.email' | transloco"
+          [hint]="'auth.register.emailHint' | transloco"
           [errorMessage]="emailError()"
           [ngModel]="email()"
           (ngModelChange)="onEmailChange($event)"
@@ -71,14 +71,14 @@
           block
           type="submit"
           size="large"
-          text="Créer mon compte"
+          [text]="'auth.register.submit' | transloco"
           [loading]="submitting()"
-          loadingLabel="Création du compte en cours"
+          [loadingLabel]="'auth.register.submitting' | transloco"
         />
       </form>
 
-      <gbt-auth-footer text="Vous avez déjà un compte ?">
-        <a gbtButton variant="link" gbtAuthFooterLink routerLink="/login">Se connecter</a>
+      <gbt-auth-footer [text]="'auth.register.haveAccount' | transloco">
+        <a gbtButton variant="link" gbtAuthFooterLink routerLink="/login">{{ 'auth.signIn' | transloco }}</a>
       </gbt-auth-footer>
     }
   }

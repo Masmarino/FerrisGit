@@ -7,21 +7,22 @@ import { AuthLogo } from '../auth-logo/auth-logo';
 import { safeReturnUrl } from '../login-link';
 import { GitField } from '@masmarino/gabarit/git-field';
 import { provideFerrisgitAuth } from '../auth-kit';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 @Component({
   selector: 'fg-login-page',
   standalone: true,
-  imports: [AuthLogin, AuthLogo, AuthFooterLink, Button, RouterLink, GitField],
+  imports: [TranslocoPipe, AuthLogin, AuthLogo, AuthFooterLink, Button, RouterLink, GitField],
   providers: [provideFerrisgitAuth()],
   host: { class: 'fg-auth-page' },
   template: `
     <gbt-auth-login (loggedIn)="signedIn()">
       <gbt-git-field auth-backdrop />
       <picture auth-logo fgAuthLogo></picture>
-      <a gbtButton variant="link" gbtAuthFooterLink routerLink="/register">Créer un compte</a>
+      <a gbtButton variant="link" gbtAuthFooterLink routerLink="/register">{{ 'auth.createAccount' | transloco }}</a>
     </gbt-auth-login>
     <footer class="login-page__footer">
-      <a gbtButton variant="link" size="small" iconName="book-open" routerLink="/docs">Documentation</a>
+      <a gbtButton variant="link" size="small" iconName="book-open" routerLink="/docs">{{ 'nav.docs' | transloco }}</a>
     </footer>
   `,
   // The logo artwork has a transparent top margin; the offset pulls it back to the panel's padding. The docs link sits

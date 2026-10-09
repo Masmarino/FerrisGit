@@ -1,10 +1,10 @@
-<gbt-page-header heading="Mon compte">
-  <p header-meta class="account-page__intro">Profil, mot de passe, double authentification et jetons d'accès</p>
+<gbt-page-header [heading]="'nav.account' | transloco">
+  <p header-meta class="account-page__intro">{{ 'account.intro' | transloco }}</p>
 </gbt-page-header>
 
-<gbt-page-layout width="wide" navLabel="Réglages du compte" stickyNav>
+<gbt-page-layout width="wide" [navLabel]="'account.settings' | transloco" stickyNav>
   <!-- The layout already wraps [page-nav] in a labelled <nav>, so no second landmark here. -->
-  <gbt-nav-tabs page-nav orientation="vertical" ariaLabel="Réglages du compte" [landmark]="false">
+  <gbt-nav-tabs page-nav orientation="vertical" [ariaLabel]="'account.settings' | transloco" [landmark]="false">
     @for (section of sections; track section.key) {
       <a gbtNavTab [routerLink]="[]" [queryParams]="section.queryParams" [icon]="section.icon" [active]="section.key === activeSection()">{{ section.label }}</a>
     }
@@ -14,21 +14,21 @@
   <div class="account-page__section">
     @switch (activeSection()) {
       @case ('password') {
-        <gbt-card variant="outlined" icon="lock" heading="Mot de passe" description="Choisissez-en un d'au moins 8 caractères, que vous n'utilisez nulle part ailleurs. Le changer ferme vos autres sessions.">
+        <gbt-card variant="outlined" icon="lock" [heading]="'common.password' | transloco" [description]="'account.passwordDescription' | transloco">
           <!-- ngNoForm keeps it a plain form so Enter submits from any field; the fields are standalone ngModels. -->
           <form ngNoForm class="account-page__password-form" (submit)="$event.preventDefault(); changePassword()">
-            <p class="gbt-form-required-note">Les champs marqués d'un astérisque (*) sont obligatoires.</p>
+            <p class="gbt-form-required-note">{{ 'common.requiredNote' | transloco }}</p>
             <!-- Tells password managers which account this is for. -->
             <input class="sr-only" type="text" name="username" autocomplete="username" tabindex="-1" aria-hidden="true" readonly [value]="me.username()" />
 
             <div class="account-page__field account-page__current">
               <gbt-input
-                label="Mot de passe actuel"
+                [label]="'account.currentPassword' | transloco"
                 required
                 type="password"
                 autocomplete="current-password"
-                showPasswordLabel="Afficher le mot de passe"
-                hidePasswordLabel="Masquer le mot de passe"
+                [showPasswordLabel]="'common.showPassword' | transloco"
+                [hidePasswordLabel]="'common.hidePassword' | transloco"
                 [ngModel]="currentPassword()"
                 (ngModelChange)="currentPassword.set($event)"
               />
@@ -37,29 +37,29 @@
             <div class="account-page__password-row">
               <div class="account-page__field account-page__new">
                 <gbt-input
-                  label="Nouveau mot de passe"
+                  [label]="'account.newPassword' | transloco"
                 required
                   type="password"
                   autocomplete="new-password"
-                  showPasswordLabel="Afficher le mot de passe"
-                  hidePasswordLabel="Masquer le mot de passe"
+                  [showPasswordLabel]="'common.showPassword' | transloco"
+                  [hidePasswordLabel]="'common.hidePassword' | transloco"
                   [errorMessage]="newPasswordError()"
                   [ngModel]="newPassword()"
                   (ngModelChange)="setNewPassword($event)"
                 />
                 <p class="account-page__hint account-page__length-hint" [attr.data-state]="passwordLongEnough() ? 'met' : null">
-                  <gbt-icon [name]="passwordLongEnough() ? 'check' : 'lock'" aria-hidden="true" />{{ minPasswordLength }} caractères minimum
+                  <gbt-icon [name]="passwordLongEnough() ? 'check' : 'lock'" aria-hidden="true" />{{ 'account.minLength' | transloco: { count: minPasswordLength } }}
                 </p>
               </div>
 
               <div class="account-page__field account-page__confirm">
                 <gbt-input
-                  label="Confirmer le nouveau mot de passe"
+                  [label]="'account.confirmPassword' | transloco"
                 required
                   type="password"
                   autocomplete="new-password"
-                  showPasswordLabel="Afficher le mot de passe"
-                  hidePasswordLabel="Masquer le mot de passe"
+                  [showPasswordLabel]="'common.showPassword' | transloco"
+                  [hidePasswordLabel]="'common.hidePassword' | transloco"
                   [errorMessage]="confirmPasswordError()"
                   [ngModel]="confirmPassword()"
                   (ngModelChange)="setConfirmPassword($event)"
@@ -74,8 +74,8 @@
               <gbt-button
                 type="submit"
                 iconName="lock"
-                text="Changer le mot de passe"
-                loadingLabel="Modification en cours"
+                [text]="'account.changePassword' | transloco"
+                [loadingLabel]="'account.changing' | transloco"
                 [variant]="passwordReady() ? 'primary' : 'secondary'"
                 [loading]="passwordSaving()"
               />
@@ -92,7 +92,7 @@
         <fg-api-tokens-list />
       }
       @default {
-        <gbt-card variant="outlined" icon="user" heading="Profil" description="Votre identité sur FerrisGit. L'email est enregistré dès que vous quittez le champ.">
+        <gbt-card variant="outlined" icon="user" [heading]="'account.profile' | transloco" [description]="'account.profileDescription' | transloco">
           <div class="account-page__profile">
             <div class="account-page__identity">
               @if (me.username(); as username) {
@@ -101,17 +101,17 @@
                   <div class="account-page__name-row">
                     <p class="account-page__username">{{ username }}</p>
                     @if (me.isAdmin()) {
-                      <gbt-badge class="account-page__role" variant="info" icon="settings">Super-administrateur</gbt-badge>
+                      <gbt-badge class="account-page__role" variant="info" icon="settings">{{ 'account.superAdmin' | transloco }}</gbt-badge>
                     }
                   </div>
-                  <p class="account-page__identity-meta">Nom d'utilisateur, non modifiable</p>
+                  <p class="account-page__identity-meta">{{ 'account.usernameFixed' | transloco }}</p>
                   @if (me.createdAt(); as createdAt) {
-                    <p class="account-page__identity-meta">Membre depuis le {{ createdAt | gbtDateTime : { locale: locale(), day: 'numeric', month: 'short', year: 'numeric' } }}</p>
+                    <p class="account-page__identity-meta">{{ 'account.memberSince' | transloco: { date: createdAt | gbtDateTime : { locale: locale(), day: 'numeric', month: 'short', year: 'numeric' } } }}</p>
                   }
                 </div>
               } @else {
                 <div class="account-page__identity-loading" aria-busy="true">
-                  <span class="sr-only" role="status">Chargement du profil…</span>
+                  <span class="sr-only" role="status">{{ 'account.loadingProfile' | transloco }}</span>
                   <gbt-skeleton variant="circle" width="3rem" height="3rem" aria-hidden="true" />
                   <div class="account-page__identity-text" aria-hidden="true">
                     <gbt-skeleton width="8rem" height="1rem" />
@@ -123,16 +123,16 @@
 
             <div class="account-page__field account-page__email" data-field="email">
               <!-- (committed), not (ngModelChange), which would save every half-typed address. -->
-              <gbt-input label="Email" type="email" autocomplete="email" [errorMessage]="emailError()" [ngModel]="emailShown()" (committed)="updateEmail($event)" />
+              <gbt-input [label]="'common.email' | transloco" type="email" autocomplete="email" [errorMessage]="emailError()" [ngModel]="emailShown()" (committed)="updateEmail($event)" />
               <div class="account-page__field-footer">
-                <p class="account-page__hint">L'adresse à laquelle FerrisGit peut vous joindre.</p>
+                <p class="account-page__hint">{{ 'account.emailHint' | transloco }}</p>
                 <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: emailState() }" />
               </div>
             </div>
 
             <div class="account-page__session">
-              <p class="account-page__session-text">Session ouverte sur ce navigateur.</p>
-              <gbt-button variant="secondary" iconName="log-out" text="Déconnexion" (clicked)="logout()" />
+              <p class="account-page__session-text">{{ 'account.sessionHere' | transloco }}</p>
+              <gbt-button variant="secondary" iconName="log-out" [text]="'nav.logout' | transloco" (clicked)="logout()" />
             </div>
           </div>
         </gbt-card>
@@ -143,5 +143,5 @@
 
 <!-- A field's save state, a live region that stays in the DOM so every change is announced. -->
 <ng-template #saveState let-state>
-  <gbt-save-status class="account-page__save-state" [state]="state ?? 'idle'" savingLabel="Enregistrement…" savedLabel="Enregistré" errorLabel="Non enregistré" />
+  <gbt-save-status class="account-page__save-state" [state]="state ?? 'idle'" [savingLabel]="'common.savingShort' | transloco" [savedLabel]="'common.saved' | transloco" [errorLabel]="'common.notSaved' | transloco" />
 </ng-template>

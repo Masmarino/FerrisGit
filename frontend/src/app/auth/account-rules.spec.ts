@@ -1,4 +1,4 @@
-import { USERNAME_ERROR, USERNAME_HINT, emailError, usernameError } from './account-rules';
+import { emailError, usernameError, usernameHint, usernameInvalidMessage } from './account-rules';
 
 describe('account rules (client mirror of the server)', () => {
   describe('usernameError', () => {
@@ -16,7 +16,7 @@ describe('account rules (client mirror of the server)', () => {
     });
 
     it.each(['ab', 'a'.repeat(33), '1abc', '_abc', 'a b', 'a.git', 'é'.repeat(3), 'ali ce', 'a@b'])('refuses %s with the rule, not a vague message', (username) => {
-      expect(usernameError(username)).toBe(USERNAME_ERROR);
+      expect(usernameError(username)).toBe(usernameInvalidMessage());
     });
   });
 
@@ -38,6 +38,6 @@ describe('account rules (client mirror of the server)', () => {
   });
 
   it('announces the lower-casing in the hint under the field', () => {
-    expect(USERNAME_HINT).toContain('minuscules');
+    expect(usernameHint()).toContain('minuscules');
   });
 });
