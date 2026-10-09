@@ -15,6 +15,7 @@ import { ProblemView } from './pipeline-problems';
 import { knownTileSecrets } from './pipeline-catalog';
 import { envNameProblem, isEnvName } from '../../repositories/ci-variable-name';
 import { looksLikeSecret, referencedNames, unknownReferences } from './pipeline-references';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /** Images people often start from. A click fills the field, and anything else can still be typed. */
 const IMAGE_SUGGESTIONS = ['alpine:3.20', 'rust:1', 'node:22', 'python:3.13', 'golang:1.23', 'docker:27-cli'];
@@ -27,7 +28,7 @@ const CACHE_SUGGESTIONS = ['cargo-home', 'cargo-target', 'npm', 'pip'];
 @Component({
   selector: 'fg-pipeline-job-form',
   standalone: true,
-  imports: [FormsModule, Alert, Badge, Button, Checkbox, GbtInput, Menu, MenuItem, TagInput, Textarea, HelpTip],
+  imports: [TranslocoPipe, FormsModule, Alert, Badge, Button, Checkbox, GbtInput, Menu, MenuItem, TagInput, Textarea, HelpTip],
   templateUrl: './pipeline-job-form.html',
   styleUrl: './pipeline-job-form.scss',
 })

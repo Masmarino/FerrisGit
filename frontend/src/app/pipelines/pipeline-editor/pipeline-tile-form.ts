@@ -8,6 +8,7 @@ import { SegmentedControl } from '@masmarino/gabarit/segmented-control';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { HelpTip } from './help-tip';
 import { JobTile, ParamValue, ParamValues, TileParam, buildTile, defaultValues, tileProblems } from './pipeline-tile-types';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /**
  * The questions a tile asks before it makes a job, with a preview of what the job will run as they are answered.
@@ -16,7 +17,7 @@ import { JobTile, ParamValue, ParamValues, TileParam, buildTile, defaultValues, 
 @Component({
   selector: 'fg-pipeline-tile-form',
   standalone: true,
-  imports: [FormsModule, Badge, Button, Checkbox, GbtInput, SegmentedControl, Textarea, HelpTip],
+  imports: [TranslocoPipe, FormsModule, Badge, Button, Checkbox, GbtInput, SegmentedControl, Textarea, HelpTip],
   templateUrl: './pipeline-tile-form.html',
   styleUrl: './pipeline-tile-form.scss',
 })

@@ -2,6 +2,7 @@ import { BuilderJob, BuilderState, commandsOf, uniqueName } from './pipeline-bui
 import { GO, NODE, PYTHON, RUST } from './pipeline-recipes';
 import { shQuote } from './pipeline-tiles-deploy';
 import { DetectedProject, PackageManager, RepositoryProfile } from './pipeline-definitions.service';
+import { t } from '../../shared/i18n/translator';
 
 /**
  * Builds a pipeline for one repository from what the server read in it: one set of jobs per project, with the images,
@@ -59,7 +60,7 @@ interface ProjectPlan {
   drafts: Draft[];
 }
 
-const where = (dir: string) => (dir === '' ? 'à la racine' : `dans ${dir}`);
+const where = (dir: string) => (dir === '' ? t('pipelines.prediction.atRoot') : t('pipelines.prediction.inDir', { dir }));
 /**
  * A folder as a shell should read it: left as it is when it is a plain path, quoted when it holds a space or a shell
  * character.
@@ -67,17 +68,17 @@ const where = (dir: string) => (dir === '' ? 'à la racine' : `dans ${dir}`);
 const shellPath = (dir: string) => (/^[A-Za-z0-9._/-]+$/.test(dir) ? dir : shQuote(dir));
 const inDir = (dir: string, script: string[]) => (dir === '' ? script : [`cd ${shellPath(dir)}`, ...script]);
 const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'app';
-const list = (items: string[]) => (items.length <= 1 ? items.join('') : `${items.slice(0, -1).join(', ')} et ${items[items.length - 1]}`);
+const list = (items: string[]) => (items.length <= 1 ? items.join('') : t('pipelines.prediction.and', { items: items.slice(0, -1).join(', '), last: items[items.length - 1] }));
 
 function rustPlan(project: Extract<DetectedProject, { kind: 'rust' }>): ProjectPlan {
   const image = RUST.image(project.toolchain);
   const variables = { ...RUST.cache.variables, ...(project.sqlxOffline ? { SQLX_OFFLINE: 'true' } : {}) };
   const cache = [...RUST.cache.cache];
   const pinned = project.evidence.some((file) => file.endsWith('rust-toolchain.toml') || file.endsWith('rust-toolchain'));
-  const version = project.toolchain ? ` La version ${project.toolchain}${pinned ? ', épinglée par le dépôt,' : ' demandée par le manifeste'} donne l'image ${image}.` : ` Sans version demandée, l'image est ${image}, la dernière stable.`;
-  const sqlx =
-    (project.sqlxOffline ? ' Le dossier .sqlx permet de compiler sans base de données : SQLX_OFFLINE=true.' : '') +
-    (project.sqlxPostgres ? ' Ses tests sqlx demandent PostgreSQL : le job de tests en démarre un.' : '');
+  const version = project.toolchain
+    ? t(pinned ? 'pipelines.prediction.rust.pinnedVersion' : 'pipelines.prediction.rust.manifestVersion', { version: project.toolchain, image })
+    : t('pipelines.prediction.rust.noVersion', { image });
+  const sqlx = (project.sqlxOffline ? t('pipelines.prediction.rust.sqlxOffline') : '') + (project.sqlxPostgres ? t('pipelines.prediction.rust.sqlxPostgres') : '');
   // A job has no service beside it, so tests that need PostgreSQL start their own in the job's container (a Debian
   // image).
   const database: { setup: string[]; variables: Record<string, string> } = project.sqlxPostgres
@@ -89,12 +90,12 @@ function rustPlan(project: Extract<DetectedProject, { kind: 'rust' }>): ProjectP
   return {
     label: project.dir === '' ? 'Rust' : project.dir,
     prefix: project.dir === '' ? 'rust' : slug(project.dir.split('/').pop()!),
-    reason: { evidence: project.evidence, text: `${project.workspace ? 'Un workspace Rust' : 'Un projet Rust'} ${where(project.dir)}.${version}${sqlx}` },
+    reason: { evidence: project.evidence, text: `${t(project.workspace ? 'pipelines.prediction.rust.workspace' : 'pipelines.prediction.rust.project', { where: where(project.dir) })}${version}${sqlx}` },
     notes: [],
     drafts: [
-      { role: 'format', title: 'Vérifier le format', image, script: inDir(project.dir, RUST.format()) },
-      { role: 'clippy', title: 'Analyser avec Clippy', image, script: inDir(project.dir, RUST.clippy(project.workspace)), variables, cache },
-      { role: 'test', title: 'Lancer les tests', image, script: inDir(project.dir, [...database.setup, ...RUST.test(project.workspace)]), variables: { ...variables, ...database.variables }, cache },
+      { role: 'format', title: t('pipelines.prediction.jobs.format'), image, script: inDir(project.dir, RUST.format()) },
+      { role: 'clippy', title: t('pipelines.prediction.jobs.clippy'), image, script: inDir(project.dir, RUST.clippy(project.workspace)), variables, cache },
+      { role: 'test', title: t('pipelines.prediction.jobs.test'), image, script: inDir(project.dir, [...database.setup, ...RUST.test(project.workspace)]), variables: { ...variables, ...database.variables }, cache },
     ],
   };
 }
@@ -120,16 +121,16 @@ function nodePlan(project: Extract<DetectedProject, { kind: 'node' }>): ProjectP
   const format = FORMAT_SCRIPTS.find((name) => name in scripts);
   // The scripts the project has, in the order their jobs run. `ng test` is told to run once.
   const picked: { role: Role; title: string; script: string; args?: string }[] = [
-    ...(format ? [{ role: 'format' as const, title: 'Vérifier le format', script: format }] : []),
-    ...('lint' in scripts ? [{ role: 'lint' as const, title: 'Analyser le code', script: 'lint' }] : []),
-    ...(runsTests ? [{ role: 'test' as const, title: 'Lancer les tests', script: 'test', args: /\bng test\b/.test(test) && !test.includes('--watch') ? '--watch=false' : '' }] : []),
-    ...('build' in scripts ? [{ role: 'build' as const, title: 'Construire', script: 'build' }] : []),
+    ...(format ? [{ role: 'format' as const, title: t('pipelines.prediction.jobs.format'), script: format }] : []),
+    ...('lint' in scripts ? [{ role: 'lint' as const, title: t('pipelines.prediction.jobs.lint'), script: 'lint' }] : []),
+    ...(runsTests ? [{ role: 'test' as const, title: t('pipelines.prediction.jobs.test'), script: 'test', args: /\bng test\b/.test(test) && !test.includes('--watch') ? '--watch=false' : '' }] : []),
+    ...('build' in scripts ? [{ role: 'build' as const, title: t('pipelines.prediction.jobs.build'), script: 'build' }] : []),
   ];
   const drafts = picked.map(({ role, title, script, args }): Draft => ({ role, title, image, script: inDir(project.dir, [...install, NODE.run(script, manager, args)]), variables, cache: cache.cache }));
   const used = picked.map(({ script }) => script);
   const notes =
     runsTests && project.testRunner === 'karma'
-      ? [`Les tests ${project.dir === '' ? 'du projet' : `de ${project.dir}`} passent par Karma, qui demande un navigateur : l'image ${image} n'en contient pas. Choisissez une image avec Chrome, ou passez à Vitest.`]
+      ? [project.dir === '' ? t('pipelines.prediction.node.karmaRoot', { image }) : t('pipelines.prediction.node.karmaDir', { dir: project.dir, image })]
       : [];
   return {
     label: project.dir === '' ? (project.framework ? FRAMEWORK_NAMES[project.framework] : 'Node') : project.dir,
@@ -142,12 +143,16 @@ function nodePlan(project: Extract<DetectedProject, { kind: 'node' }>): ProjectP
 
 /** What was read of a Node project, and what was used from it. */
 function nodeReason(project: Extract<DetectedProject, { kind: 'node' }>, image: string, used: string[]): string {
-  const what = project.framework ? `Une application ${FRAMEWORK_NAMES[project.framework]}` : 'Un projet Node';
+  const what = project.framework ? t('pipelines.prediction.node.application', { framework: FRAMEWORK_NAMES[project.framework] }) : t('pipelines.prediction.node.project');
   const versionSource = project.evidence.find((file) => file.endsWith('.nvmrc') || file.endsWith('.node-version'))?.split('/').pop() ?? 'package.json';
   const version =
-    project.packageManager === 'bun' ? " L'image est oven/bun:1." : project.nodeVersion ? ` Node ${project.nodeVersion} d'après ${versionSource}.` : ` Sans version de Node demandée, l'image est ${image}.`;
-  const taken = used.length > 0 ? ` Scripts repris : ${list(used)}.` : ' Aucun script à reprendre (lint, test, build) : rien à lancer pour lui.';
-  return `${what} ${where(project.dir)}, avec ${MANAGER_NAMES[project.packageManager]}.${version}${taken}`;
+    project.packageManager === 'bun'
+      ? t('pipelines.prediction.node.bun')
+      : project.nodeVersion
+        ? t('pipelines.prediction.node.version', { version: project.nodeVersion, source: versionSource })
+        : t('pipelines.prediction.node.noVersion', { image });
+  const taken = used.length > 0 ? t('pipelines.prediction.node.scripts', { scripts: list(used) }) : t('pipelines.prediction.node.noScript');
+  return t('pipelines.prediction.node.reason', { what, where: where(project.dir), manager: MANAGER_NAMES[project.packageManager], version, taken });
 }
 
 function goPlan(project: Extract<DetectedProject, { kind: 'go' }>): ProjectPlan {
@@ -155,13 +160,17 @@ function goPlan(project: Extract<DetectedProject, { kind: 'go' }>): ProjectPlan 
   return {
     label: project.dir === '' ? 'Go' : project.dir,
     prefix: project.dir === '' ? 'go' : slug(project.dir.split('/').pop()!),
-    reason: { evidence: project.evidence, text: `Un module Go ${where(project.dir)}.${project.goVersion ? ` Go ${project.goVersion} d'après go.mod, image ${image}.` : ` Sans version dans go.mod, l'image est ${image}.`}` },
+    reason: { evidence: project.evidence, text: t('pipelines.prediction.go.reason', {
+        where: where(project.dir),
+        version: project.goVersion ? t('pipelines.prediction.go.version', { version: project.goVersion, image }) : t('pipelines.prediction.go.noVersion', { image }),
+      }),
+    },
     notes: [],
     drafts: [
-      { role: 'format', title: 'Vérifier le format', image, script: inDir(project.dir, GO.format()) },
-      { role: 'vet', title: 'Analyser avec go vet', image, script: inDir(project.dir, GO.vet()) },
-      { role: 'test', title: 'Lancer les tests', image, script: inDir(project.dir, GO.test()) },
-      { role: 'build', title: 'Compiler', image, script: inDir(project.dir, GO.build()) },
+      { role: 'format', title: t('pipelines.prediction.jobs.format'), image, script: inDir(project.dir, GO.format()) },
+      { role: 'vet', title: t('pipelines.prediction.jobs.vet'), image, script: inDir(project.dir, GO.vet()) },
+      { role: 'test', title: t('pipelines.prediction.jobs.test'), image, script: inDir(project.dir, GO.test()) },
+      { role: 'build', title: t('pipelines.prediction.jobs.compile'), image, script: inDir(project.dir, GO.build()) },
     ],
   };
 }
@@ -172,10 +181,10 @@ function pythonPlan(project: Extract<DetectedProject, { kind: 'python' }>): Proj
   const setup = PYTHON.setup(project.tool, requirements);
   const drafts: Draft[] = [];
   if (project.ruff) {
-    drafts.push({ role: 'lint', title: 'Analyser avec Ruff', image, script: inDir(project.dir, project.tool === 'pip' ? ['pip install ruff', 'ruff check .'] : [...setup, PYTHON.exec('ruff check .', project.tool)]) });
+    drafts.push({ role: 'lint', title: t('pipelines.prediction.jobs.ruff'), image, script: inDir(project.dir, project.tool === 'pip' ? ['pip install ruff', 'ruff check .'] : [...setup, PYTHON.exec('ruff check .', project.tool)]) });
   }
   if (project.pytest) {
-    drafts.push({ role: 'test', title: 'Lancer les tests', image, script: inDir(project.dir, [...setup, PYTHON.exec('python -m pytest', project.tool)]) });
+    drafts.push({ role: 'test', title: t('pipelines.prediction.jobs.test'), image, script: inDir(project.dir, [...setup, PYTHON.exec('python -m pytest', project.tool)]) });
   }
   const tools = [project.ruff ? 'Ruff' : '', project.pytest ? 'pytest' : ''].filter(Boolean);
   const manager = { uv: 'uv', poetry: 'Poetry', pip: 'pip' }[project.tool];
@@ -184,7 +193,12 @@ function pythonPlan(project: Extract<DetectedProject, { kind: 'python' }>): Proj
     prefix: project.dir === '' ? 'python' : slug(project.dir.split('/').pop()!),
     reason: {
       evidence: project.evidence,
-      text: `Un projet Python ${where(project.dir)}, avec ${manager}.${project.pythonVersion ? ` Python ${project.pythonVersion}, image ${image}.` : ` Sans version demandée, l'image est ${image}.`}${tools.length > 0 ? ` ${list(tools)} repris.` : ' Ni pytest ni Ruff mentionnés : rien à lancer pour lui.'}`,
+      text: t('pipelines.prediction.python.reason', {
+        where: where(project.dir),
+        manager,
+        version: project.pythonVersion ? t('pipelines.prediction.python.version', { version: project.pythonVersion, image }) : t('pipelines.prediction.python.noVersion', { image }),
+        tools: tools.length > 0 ? t('pipelines.prediction.python.tools', { tools: list(tools) }) : t('pipelines.prediction.python.noTools'),
+      }),
     },
     notes: [],
     drafts,
@@ -225,10 +239,10 @@ function titleOf(profile: RepositoryProfile): string {
 function shippingNotes(profile: RepositoryProfile): string[] {
   const notes: string[] = [];
   for (const dir of profile.dockerfiles) {
-    notes.push(`Un Dockerfile ${where(dir)} : la tuile « Construire et publier une image Docker », à l'étape package, peut le publier. Elle demande un démon Docker distant et l'accès au registre.`);
+    notes.push(t('pipelines.prediction.dockerfile', { where: where(dir), tile: t('pipelines.tiles.docker-build.title') }));
   }
   for (const dir of profile.helmCharts) {
-    notes.push(`Un chart Helm ${where(dir)} : la tuile « Déployer avec Helm » peut l'installer sur un cluster, avec le secret KUBE_CONFIG.`);
+    notes.push(t('pipelines.prediction.helm', { where: where(dir), tile: t('pipelines.tiles.helm-upgrade.title') }));
   }
   return notes;
 }

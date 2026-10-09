@@ -1,6 +1,7 @@
-<gbt-page-header heading="Éditeur de pipeline" description="Déplacez les jobs entre les étapes, ou écrivez le YAML : les deux vues décrivent le même fichier.">
-  <gbt-button header-actions variant="secondary" text="Retour aux pipelines" (clicked)="openList()" />
-  <gbt-button header-actions variant="primary" text="Proposer la modification" [disabled]="!canSave()" (clicked)="openSave()" />
+<gbt-page-header [heading]="'pipelines.editor.title' | transloco">
+  <p header-meta class="pipeline-editor__intro">{{ 'pipelines.editor.description' | transloco }}</p>
+  <gbt-button header-actions variant="secondary" [text]="'pipelines.editor.backToList' | transloco" (clicked)="openList()" />
+  <gbt-button header-actions variant="primary" [text]="'pipelines.editor.propose' | transloco" [disabled]="!canSave()" (clicked)="openSave()" />
 </gbt-page-header>
 
 <gbt-page-layout width="wide">
@@ -16,44 +17,44 @@
         </div>
       }
     </div>
-    <span class="sr-only" role="status">Chargement de la pipeline</span>
+    <span class="sr-only" role="status">{{ 'pipelines.editor.loading' | transloco }}</span>
   } @else if (doc.status() === 'failed') {
-    <gbt-empty-state icon="file" heading="Le fichier n'a pas pu être chargé" message="Le fichier .ferrisgit-ci.yml du dépôt n'a pas pu être lu. Réessayez dans un instant.">
+    <gbt-empty-state icon="file" [heading]="'pipelines.editor.loadFailed' | transloco" [message]="'pipelines.editor.loadFailedMessage' | transloco">
       <gbt-button variant="secondary" [text]="'common.retry' | transloco" (clicked)="load()" />
     </gbt-empty-state>
   } @else if (roleKnown() && !canWrite()) {
-    <gbt-empty-state icon="lock" heading="Réservé aux contributeurs" message="L'éditeur prépare une modification du fichier de CI : il faut avoir le rôle de Contributeur, ou plus, sur ce dépôt." />
+    <gbt-empty-state icon="lock" [heading]="'pipelines.editor.contributorsOnly' | transloco" [message]="'pipelines.editor.contributorsOnlyMessage' | transloco" />
   } @else {
     <div class="pipeline-editor__notes">
       @if (doc.loadNotes().unreadable; as reason) {
-        <gbt-alert variant="warning" appearance="subtle" iconAlign="start">Le fichier du dépôt n'a pas pu être lu. {{ reason }} Vous partez d'une pipeline vide.</gbt-alert>
+        <gbt-alert variant="warning" appearance="subtle" iconAlign="start">{{ 'pipelines.editor.unreadable' | transloco: { reason } }}</gbt-alert>
       } @else if (doc.source() === 'new') {
-        <gbt-alert variant="info" appearance="subtle" iconAlign="start">Ce dépôt n'a pas encore de fichier <code>{{ doc.filePath() }}</code> : vous partez d'une pipeline vide.</gbt-alert>
+        <gbt-alert variant="info" appearance="subtle" iconAlign="start">{{ 'pipelines.editor.newFileBefore' | transloco }} <code>{{ doc.filePath() }}</code> {{ 'pipelines.editor.newFileAfter' | transloco }}</gbt-alert>
       }
       @if (!doc.hasBranch()) {
-        <gbt-alert variant="warning" appearance="subtle" iconAlign="start">Ce dépôt n'a encore aucun commit : il faut en pousser un premier avant de pouvoir proposer une modification. Vous pouvez composer le fichier et le copier en attendant.</gbt-alert>
+        <gbt-alert variant="warning" appearance="subtle" iconAlign="start">{{ 'pipelines.editor.noCommit' | transloco }}</gbt-alert>
       }
       @if (doc.switchLoss(); as loss) {
         <gbt-alert variant="warning" appearance="subtle" iconAlign="start">
-          Passer aux cartes a réécrit le fichier.
+          {{ 'pipelines.editor.switchRewrote' | transloco }}
           @if (loss.hasComments) {
-            Ses commentaires n'y sont plus.
+            {{ 'pipelines.editor.commentsGone' | transloco }}
           }
           @if (loss.ignoredFields.length > 0) {
-            Ces champs, que le serveur ne lit pas, n'y sont plus non plus :
+            {{ 'pipelines.editor.fieldsGone' | transloco }}
             @for (field of loss.ignoredFields; track field; let last = $last) {
               <code>{{ field }}</code>{{ last ? '.' : ', ' }}
             }
           }
-          Revenir au YAML ne les rend pas.
+          {{ 'pipelines.editor.notRestored' | transloco }}
         </gbt-alert>
       }
       @if (doc.loadNotes().hasComments) {
-        <gbt-alert variant="warning" appearance="subtle" iconAlign="start">Le fichier du dépôt contient des commentaires. Le fichier produit ici n'en a pas : ils seraient perdus si vous le remplaciez tel quel.</gbt-alert>
+        <gbt-alert variant="warning" appearance="subtle" iconAlign="start">{{ 'pipelines.editor.hasComments' | transloco }}</gbt-alert>
       }
       @if (doc.loadNotes().ignoredFields.length > 0) {
         <gbt-alert variant="warning" appearance="subtle" iconAlign="start">
-          Le serveur ne lit pas ces champs du fichier du dépôt, ils sont donc absents du fichier produit ici :
+          {{ 'pipelines.editor.ignoredFields' | transloco }}
           @for (field of doc.loadNotes().ignoredFields; track field; let last = $last) {
             <code>{{ field }}</code>{{ last ? '.' : ', ' }}
           }
@@ -62,14 +63,14 @@
     </div>
 
     <div class="pipeline-editor__toolbar">
-      <gbt-segmented-control ariaLabel="Façon de modifier la pipeline" size="sm" tinted [options]="doc.modeOptions()" [value]="doc.mode()" (valueChange)="setMode($event)" />
+      <gbt-segmented-control [ariaLabel]="'pipelines.editor.modeLabel' | transloco" size="sm" tinted [options]="doc.modeOptions()" [value]="doc.mode()" (valueChange)="setMode($event)" />
       <fg-help-tip [help]="doc.mode() === 'yaml' ? help.yaml : help.pipeline" />
       @if (doc.mode() === 'cards') {
         <p class="pipeline-editor__summary">{{ summary() }}</p>
       }
       <div class="pipeline-editor__toolbar-actions">
         @if (doc.mode() === 'cards') {
-          <div class="pipeline-editor__history" role="group" aria-label="Historique des modifications">
+          <div class="pipeline-editor__history" role="group" [attr.aria-label]="'pipelines.editor.history' | transloco">
             <gbt-tooltip [text]="undoTip()">
               <gbt-button variant="ghost" size="small" [iconOnly]="true" iconName="undo-2" [ariaLabel]="undoTip()" [attr.aria-keyshortcuts]="'Meta+Z Control+Z'" [disabled]="!canUndo()" (clicked)="undo()" />
             </gbt-tooltip>
@@ -78,11 +79,11 @@
             </gbt-tooltip>
           </div>
         }
-        <gbt-button variant="secondary" size="small" iconName="key" text="Variables et secrets" (clicked)="openSecrets()" />
+        <gbt-button variant="secondary" size="small" iconName="key" [text]="'pipelines.editor.variablesAndSecrets' | transloco" (clicked)="openSecrets()" />
         @if (missingSecretUses().length > 0) {
-          <gbt-badge variant="warning" class="pipeline-editor__secrets-badge">{{ missingSecretUses().length }} à créer</gbt-badge>
+          <gbt-badge variant="warning" class="pipeline-editor__secrets-badge">{{ 'pipelines.editor.toCreate' | transloco: { count: missingSecretUses().length } }}</gbt-badge>
         }
-        <gbt-button variant="ghost" size="small" text="Revenir au fichier du dépôt" [disabled]="!doc.edited()" (clicked)="askReset()" />
+        <gbt-button variant="ghost" size="small" [text]="'pipelines.editor.resetToFile' | transloco" [disabled]="!doc.edited()" (clicked)="askReset()" />
       </div>
     </div>
 
@@ -99,22 +100,22 @@
         <section class="pipeline-editor__lane" [attr.aria-labelledby]="lane.headingId">
           <!-- The number is visual only (the hidden heading gives the stage's name), but the help bubble is there for everyone. -->
           <p class="pipeline-editor__lane-label">
-            <span aria-hidden="true">Étape {{ lane.index + 1 }}</span>
+            <span aria-hidden="true">{{ 'pipelines.editor.stageNumber' | transloco: { number: lane.index + 1 } }}</span>
             <fg-help-tip [help]="help.stage" />
           </p>
           <header class="pipeline-editor__lane-header">
-            <h2 class="sr-only" [id]="lane.headingId">Étape {{ lane.stage }}</h2>
-            <gbt-input class="pipeline-editor__stage-name" [label]="'Nom de l\'étape ' + lane.stage" hideLabel size="sm" [ngModel]="lane.stage" (committed)="rename(lane.stage, $event)" />
+            <h2 class="sr-only" [id]="lane.headingId">{{ 'pipelines.editor.stageNamed' | transloco: { name: lane.stage } }}</h2>
+            <gbt-input class="pipeline-editor__stage-name" [label]="'pipelines.editor.stageName' | transloco: { name: lane.stage }" hideLabel size="sm" [ngModel]="lane.stage" (committed)="rename(lane.stage, $event)" />
             <gbt-badge [value]="lane.cards.length" />
-            <gbt-menu [label]="'Actions de l\'étape ' + lane.stage" triggerIcon="ellipsis-vertical" align="end">
+            <gbt-menu [label]="'pipelines.editor.stageActions' | transloco: { name: lane.stage }" triggerIcon="ellipsis-vertical" align="end">
               @if (lane.canMoveBefore) {
-                <button gbtMenuItem (click)="shiftStage(lane, -1)">Déplacer vers la gauche</button>
+                <button gbtMenuItem (click)="shiftStage(lane, -1)">{{ 'pipelines.editor.moveLeft' | transloco }}</button>
               }
               @if (lane.canMoveAfter) {
-                <button gbtMenuItem (click)="shiftStage(lane, 1)">Déplacer vers la droite</button>
+                <button gbtMenuItem (click)="shiftStage(lane, 1)">{{ 'pipelines.editor.moveRight' | transloco }}</button>
               }
               @if (lane.removable) {
-                <button gbtMenuItem (click)="deleteStage(lane.stage)">Supprimer l'étape</button>
+                <button gbtMenuItem (click)="deleteStage(lane.stage)">{{ 'pipelines.editor.deleteStage' | transloco }}</button>
               }
             </gbt-menu>
           </header>
@@ -152,18 +153,18 @@
                   </button>
                   <!-- Dragging has no keyboard equivalent: this menu is also how to move a job without a mouse. -->
                   <gbt-menu class="pipeline-editor__actions" [label]="card.menuLabel" triggerIcon="ellipsis-vertical" align="end">
-                    <button gbtMenuItem (click)="openJob(card.job.name)">Modifier</button>
-                    <button gbtMenuItem (click)="duplicate(card.job.name)">Dupliquer</button>
+                    <button gbtMenuItem (click)="openJob(card.job.name)">{{ 'common.edit' | transloco }}</button>
+                    <button gbtMenuItem (click)="duplicate(card.job.name)">{{ 'pipelines.editor.duplicate' | transloco }}</button>
                     @for (target of card.moveTargets; track target) {
-                      <button gbtMenuItem class="pipeline-editor__move" (click)="moveTo(card.job, target)">Déplacer vers {{ target }}</button>
+                      <button gbtMenuItem class="pipeline-editor__move" (click)="moveTo(card.job, target)">{{ 'pipelines.editor.moveTo' | transloco: { stage: target } }}</button>
                     }
-                    <button gbtMenuItem variant="danger" (click)="deleteJob(card.job.name)">Supprimer</button>
+                    <button gbtMenuItem variant="danger" (click)="deleteJob(card.job.name)">{{ 'common.delete' | transloco }}</button>
                   </gbt-menu>
                 </div>
                 @if (card.job.needs.length > 0 || card.problemCount > 0) {
                   <div class="pipeline-editor__card-meta">
                     @if (card.job.needs.length > 0) {
-                      <span class="pipeline-editor__needs">Après {{ card.job.needs.join(', ') }}</span>
+                      <span class="pipeline-editor__needs">{{ 'pipelines.editor.after' | transloco: { jobs: card.job.needs.join(', ') } }}</span>
                     }
                     @if (card.problemCount > 0) {
                       <gbt-badge variant="error">{{ card.problemCount }} {{ card.problemCount === 1 ? 'problème' : 'problèmes' }}</gbt-badge>
@@ -172,22 +173,22 @@
                 }
               </li>
             } @empty {
-              <li class="pipeline-editor__empty">Aucun job</li>
+              <li class="pipeline-editor__empty">{{ 'pipelines.editor.noJob' | transloco }}</li>
             }
           </ul>
 
-          <gbt-button class="pipeline-editor__add-job" variant="ghost" size="small" iconName="plus" text="Ajouter un job" (clicked)="addJobTo(lane.stage)" />
+          <gbt-button class="pipeline-editor__add-job" variant="ghost" size="small" iconName="plus" [text]="'pipelines.editor.addJob' | transloco" (clicked)="addJobTo(lane.stage)" />
         </section>
       }
 
-      <section class="pipeline-editor__lane pipeline-editor__lane--new" aria-label="Nouvelle étape">
+      <section class="pipeline-editor__lane pipeline-editor__lane--new" [attr.aria-label]="'pipelines.editor.newStage' | transloco">
         <p class="pipeline-editor__lane-label">
-          Étape {{ lanes().length + 1 }}
+          {{ 'pipelines.editor.stageNumber' | transloco: { number: lanes().length + 1 } }}
           <fg-help-tip [help]="help.newStage" align="end" />
         </p>
         <form class="pipeline-editor__new-stage" (submit)="$event.preventDefault(); addNewStage()">
-          <gbt-input label="Nouvelle étape" placeholder="deploy" [ngModel]="newStageName()" (ngModelChange)="newStageName.set($event)" [ngModelOptions]="{ standalone: true }" />
-          <gbt-button type="submit" variant="secondary" iconName="plus" text="Ajouter l'étape" />
+          <gbt-input [label]="'pipelines.editor.newStage' | transloco" placeholder="deploy" [ngModel]="newStageName()" (ngModelChange)="newStageName.set($event)" [ngModelOptions]="{ standalone: true }" />
+          <gbt-button type="submit" variant="secondary" iconName="plus" [text]="'pipelines.editor.addStage' | transloco" />
         </form>
       </section>
     </div>
@@ -197,17 +198,17 @@
       <h2 id="pipeline-editor-output">{{ doc.mode() === 'yaml' ? 'Le fichier' : 'Le fichier produit' }}</h2>
 
       @if (doc.renderFailed()) {
-        <gbt-alert variant="error" appearance="subtle" iconAlign="start">Le serveur n'a pas pu produire le fichier. Votre pipeline est conservée ici : modifiez-la pour réessayer.</gbt-alert>
+        <gbt-alert variant="error" appearance="subtle" iconAlign="start">{{ 'pipelines.editor.renderFailed' | transloco }}</gbt-alert>
       }
       @if (doc.problems().length > 0) {
         <gbt-alert variant="error" appearance="subtle" iconAlign="start">
-          <p class="pipeline-editor__notes-title">À corriger avant que le serveur accepte ce fichier</p>
+          <p class="pipeline-editor__notes-title">{{ 'pipelines.editor.toFix' | transloco }}</p>
           <ng-container *ngTemplateOutlet="issueList; context: { $implicit: doc.problems() }" />
         </gbt-alert>
       }
       @if (doc.warnings().length > 0) {
         <gbt-alert variant="warning" appearance="subtle" iconAlign="start">
-          <p class="pipeline-editor__notes-title">À vérifier</p>
+          <p class="pipeline-editor__notes-title">{{ 'pipelines.editor.toCheck' | transloco }}</p>
           <ng-container *ngTemplateOutlet="issueList; context: { $implicit: doc.warnings() }" />
         </gbt-alert>
       }
@@ -229,65 +230,68 @@
 
       <div class="pipeline-editor__yaml-head">
         <code>{{ doc.filePath() }}</code>
-        <gbt-copy-button [value]="doc.yaml()" text="Copier le YAML" [copiedText]="'common.copied' | transloco" failedText="Échec de la copie" variant="secondary" size="small" [disabled]="doc.yaml() === ''" />
+        <gbt-copy-button [value]="doc.yaml()" [text]="'pipelines.editor.copyYaml' | transloco" [copiedText]="'common.copied' | transloco" [failedText]="'pipelines.editor.copyFailed' | transloco" variant="secondary" size="small" [disabled]="doc.yaml() === ''" />
       </div>
       @if (doc.mode() === 'yaml') {
-        <gbt-textarea class="pipeline-editor__yaml-input" label="Contenu du fichier de pipeline" hideLabel mono autosize [rows]="18" [ngModel]="doc.yamlText()" (ngModelChange)="typeYaml($event)" />
+        <gbt-textarea class="pipeline-editor__yaml-input" [label]="'pipelines.editor.yamlContent' | transloco" hideLabel mono autosize [rows]="18" [ngModel]="doc.yamlText()" (ngModelChange)="typeYaml($event)" />
       } @else {
         <!-- The same colours as the repository's code browser, with line numbers for when the server names a line. -->
-        <div class="pipeline-editor__yaml" role="region" aria-label="Contenu du fichier de pipeline produit">
+        <div class="pipeline-editor__yaml" role="region" [attr.aria-label]="'pipelines.editor.yamlProduced' | transloco">
           <fg-code-view [content]="doc.yaml()" fileName="pipeline.yml" [lineNumbers]="true" />
         </div>
       }
       <p class="pipeline-editor__hint">
         @if (doc.hasBranch()) {
           <fg-help-tip [help]="help.propose" />
-          « Proposer la modification » écrit le fichier sur une nouvelle branche et ouvre une merge request vers <code>{{ doc.file()?.branch }}</code> : rien n'est écrit sur <code>{{ doc.file()?.branch }}</code> avant qu'elle soit fusionnée.
+          {{ 'pipelines.editor.proposeBefore' | transloco }} <code>{{ doc.file()?.branch }}</code> {{ 'pipelines.editor.proposeMiddle' | transloco }} <code>{{ doc.file()?.branch }}</code>
+          {{ 'pipelines.editor.proposeAfter' | transloco }}
         } @else {
-          Copiez ce fichier dans <code>{{ doc.filePath() }}</code> à la racine du dépôt, puis poussez-le.
+          {{ 'pipelines.editor.copyBefore' | transloco }} <code>{{ doc.filePath() }}</code> {{ 'pipelines.editor.copyAfter' | transloco }}
         }
       </p>
     </section>
   }
 </gbt-page-layout>
 
-<gbt-modal [isOpen]="saveOpen()" heading="Proposer la modification" [closeLabel]="'common.close' | transloco" [busy]="saving()" busyLabel="Envoi en cours" (closed)="closeSave()">
+<gbt-modal [isOpen]="saveOpen()" [heading]="'pipelines.editor.propose' | transloco" [closeLabel]="'common.close' | transloco" [busy]="saving()" [busyLabel]="'common.sending' | transloco" (closed)="closeSave()">
   <form class="pipeline-editor__save" (submit)="$event.preventDefault(); save()">
-    <p>Le fichier <code>{{ doc.filePath() }}</code> sera écrit sur une nouvelle branche, et une merge request sera ouverte vers <code>{{ doc.file()?.branch }}</code>.</p>
-    <gbt-input label="Titre" [ngModel]="saveTitle()" (ngModelChange)="saveTitle.set($event)" [ngModelOptions]="{ standalone: true }" />
-    <gbt-textarea label="Description" [rows]="3" [ngModel]="saveDescription()" (ngModelChange)="saveDescription.set($event)" [ngModelOptions]="{ standalone: true }" />
+    <p>
+      {{ 'pipelines.editor.saveFileBefore' | transloco }} <code>{{ doc.filePath() }}</code> {{ 'pipelines.editor.saveFileMiddle' | transloco }} <code>{{ doc.file()?.branch }}</code>.
+    </p>
+    <gbt-input [label]="'common.title' | transloco" [ngModel]="saveTitle()" (ngModelChange)="saveTitle.set($event)" [ngModelOptions]="{ standalone: true }" />
+    <gbt-textarea [label]="'common.description' | transloco" [rows]="3" [ngModel]="saveDescription()" (ngModelChange)="saveDescription.set($event)" [ngModelOptions]="{ standalone: true }" />
     @if (saveFailure(); as failure) {
       <gbt-alert variant="error" appearance="subtle" iconAlign="start">
         @switch (failure.kind) {
           @case ('changed') {
-            Le fichier a changé sur <code>{{ doc.file()?.branch }}</code> depuis l'ouverture de l'éditeur. Rouvrez-le pour repartir de la dernière version, puis refaites la modification.
+            {{ 'pipelines.editor.changedBefore' | transloco }} <code>{{ doc.file()?.branch }}</code> {{ 'pipelines.editor.changedAfter' | transloco }}
           }
           @case ('refused') {
-            Le serveur refuse cette modification : {{ failure.detail }}
+            {{ 'pipelines.editor.refused' | transloco: { detail: failure.detail } }}
           }
           @default {
-            La modification n'a pas pu être enregistrée. Réessayez dans un instant.
+            {{ 'pipelines.editor.saveFailed' | transloco }}
           }
         }
         @if (failure.kind === 'changed') {
-          <gbt-button variant="secondary" size="small" text="Rouvrir l'éditeur" (clicked)="reset()" />
+          <gbt-button variant="secondary" size="small" [text]="'pipelines.editor.reopen' | transloco" (clicked)="reset()" />
         }
       </gbt-alert>
     }
     <div class="pipeline-editor__save-actions">
       <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="saving()" (clicked)="closeSave()" />
-      <gbt-button type="submit" variant="primary" text="Proposer la modification" [disabled]="saving()" />
+      <gbt-button type="submit" variant="primary" [text]="'pipelines.editor.propose' | transloco" [disabled]="saving()" />
     </div>
   </form>
 </gbt-modal>
 
-<gbt-drawer [isOpen]="pickerStage() !== null" heading="Ajouter un job" [closeLabel]="'common.close' | transloco" (closed)="closePicker()">
+<gbt-drawer [isOpen]="pickerStage() !== null" [heading]="'pipelines.editor.addJob' | transloco" [closeLabel]="'common.close' | transloco" (closed)="closePicker()">
   @if (pickerStage(); as stage) {
     <fg-pipeline-tile-picker [stage]="stage" [secrets]="secrets()" [engine]="engine()" [suggestions]="suggestions()" (chosen)="chooseTile($event.tile, $event.values)" (chosenJob)="chooseSuggested($event)" />
   }
 </gbt-drawer>
 
-<gbt-drawer [isOpen]="secretsOpen()" heading="Variables et secrets" [closeLabel]="'common.close' | transloco" (closed)="secretsOpen.set(false)">
+<gbt-drawer [isOpen]="secretsOpen()" [heading]="'pipelines.editor.variablesAndSecrets' | transloco" [closeLabel]="'common.close' | transloco" (closed)="secretsOpen.set(false)">
   @if (secretsOpen()) {
     <fg-pipeline-secrets
       [repositoryId]="repositoryId()"
@@ -321,10 +325,10 @@
 <gbt-confirm-danger-modal
   [isOpen]="resetOpen()"
   tone="warning"
-  heading="Revenir au fichier du dépôt ?"
-  message="Les modifications faites ici seront perdues, et ne pourront pas être annulées."
-  confirmLabel="Revenir au fichier"
-  cancelLabel="Garder mes modifications"
+  [heading]="'pipelines.editor.resetTitle' | transloco"
+  [message]="'pipelines.editor.resetMessage' | transloco"
+  [confirmLabel]="'pipelines.editor.resetConfirm' | transloco"
+  [cancelLabel]="'pipelines.editor.keepChanges' | transloco"
   [closeLabel]="'common.close' | transloco"
   (confirmed)="reset()"
   (closed)="resetOpen.set(false)"
@@ -333,10 +337,10 @@
 <gbt-confirm-danger-modal
   [isOpen]="leaving.asking()"
   tone="warning"
-  heading="Quitter l'éditeur ?"
-  message="Vos modifications n'ont pas été proposées : elles seront perdues. Pour les garder, restez et utilisez « Proposer la modification »."
-  confirmLabel="Quitter sans proposer"
-  cancelLabel="Rester dans l'éditeur"
+  [heading]="'pipelines.editor.leaveTitle' | transloco"
+  [message]="'pipelines.editor.leaveMessage' | transloco"
+  [confirmLabel]="'pipelines.editor.leaveConfirm' | transloco"
+  [cancelLabel]="'pipelines.editor.stay' | transloco"
   [closeLabel]="'common.close' | transloco"
   (confirmed)="leaving.answer(true)"
   (closed)="leaving.answer(false)"

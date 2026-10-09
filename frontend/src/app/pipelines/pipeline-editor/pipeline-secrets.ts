@@ -5,6 +5,7 @@ import { Button } from '@masmarino/gabarit/button';
 import { RepositoryCiVariables } from '../../repositories/repository-ci-variables/repository-ci-variables';
 import { HelpTip } from './help-tip';
 import { help } from './pipeline-help';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /** A secret name and the jobs that read it. */
 export interface SecretUse {
@@ -19,7 +20,7 @@ export interface SecretUse {
 @Component({
   selector: 'fg-pipeline-secrets',
   standalone: true,
-  imports: [Alert, Badge, Button, HelpTip, RepositoryCiVariables],
+  imports: [TranslocoPipe, Alert, Badge, Button, HelpTip, RepositoryCiVariables],
   templateUrl: './pipeline-secrets.html',
   styleUrl: './pipeline-secrets.scss',
 })

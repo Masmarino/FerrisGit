@@ -7,12 +7,13 @@ import { jobTiles, JobTile, ParamValues, tileCategories } from './pipeline-catal
 import { PipelineTileForm } from './pipeline-tile-form';
 import { BuilderJob, mainCommand } from './pipeline-builder-model';
 import { PredictedJob } from './pipeline-prediction';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /** The ready-made jobs, grouped by purpose. Picking one is all it takes: it comes with an image and commands. */
 @Component({
   selector: 'fg-pipeline-tile-picker',
   standalone: true,
-  imports: [Badge, Icon, HelpTip, PipelineTileForm],
+  imports: [TranslocoPipe, Badge, Icon, HelpTip, PipelineTileForm],
   templateUrl: './pipeline-tile-picker.html',
   styleUrl: './pipeline-tile-picker.scss',
 })

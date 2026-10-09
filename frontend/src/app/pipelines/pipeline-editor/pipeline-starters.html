@@ -1,8 +1,8 @@
 <section class="starters" aria-labelledby="starters-title">
   @if (engine() === 'kubernetes') {
-    <h2 id="starters-title" class="starters__title">Partir d'un job vide</h2>
+    <h2 id="starters-title" class="starters__title">{{ 'pipelines.starters.empty' | transloco }}</h2>
     <gbt-alert variant="warning" appearance="subtle" iconAlign="start" data-kubernetes>
-      Votre instance exécute les jobs avec Kubernetes : le Pod d'un job ne reçoit pas de copie du dépôt. Les modèles compilent et testent ses fichiers : ils n'y fonctionneraient pas. Ajoutez un job vide à une étape, et faites-lui récupérer le code dont il a besoin (avec <code>git clone</code>, par exemple).
+      <span [innerHTML]="'pipelines.starters.kubernetes' | transloco"></span>
     </gbt-alert>
   } @else {
   @if (predicting()) {
@@ -11,12 +11,12 @@
       <gbt-skeleton width="100%" height="0.875rem" />
       <gbt-skeleton width="80%" height="0.875rem" />
     </div>
-    <span class="sr-only" role="status">Lecture du dépôt</span>
+    <span class="sr-only" role="status">{{ 'pipelines.starters.reading' | transloco }}</span>
   } @else if (prediction(); as proposal) {
     <div class="starters__prediction" data-prediction aria-labelledby="prediction-title" role="group">
-      <h2 id="prediction-title" class="starters__title">Pour ce dépôt : {{ proposal.title }}</h2>
+      <h2 id="prediction-title" class="starters__title">{{ 'pipelines.starters.forRepository' | transloco: { title: proposal.title } }}</h2>
       <p class="starters__summary">
-        D'après les fichiers de la branche {{ branch() ?? 'par défaut' }}. Chaque job reprend les versions, les outils et les scripts du projet ; vous pourrez tout changer ensuite.
+        {{ 'pipelines.starters.fromBranch' | transloco: { branch: branch() ?? ('pipelines.starters.defaultBranch' | transloco) } }}
       </p>
       <ul class="starters__reasons">
         @for (reason of proposal.reasons; track reason.text) {
@@ -30,7 +30,7 @@
           </li>
         }
       </ul>
-      <ol class="starters__plan" aria-label="Étapes proposées, dans l'ordre">
+      <ol class="starters__plan" [attr.aria-label]="'pipelines.starters.proposedStages' | transloco">
         @for (stage of plan(); track stage.name) {
           <li>
             <span class="starters__stage">{{ stage.name }}</span>
@@ -49,20 +49,20 @@
           }
         </ul>
       }
-      <gbt-button class="starters__use" variant="primary" text="Utiliser cette pipeline" (clicked)="usePrediction.emit()" />
+      <gbt-button class="starters__use" variant="primary" [text]="'pipelines.starters.use' | transloco" (clicked)="usePrediction.emit()" />
     </div>
   }
   <div class="starters__head">
     <h2 id="starters-title" class="starters__title">
       @if (prediction()) {
-        Ou partir d'un modèle
+        {{ 'pipelines.starters.orTemplate' | transloco }}
       } @else {
-        Partir d'un modèle
+        {{ 'pipelines.starters.template' | transloco }}
       }
     </h2>
     <fg-help-tip [help]="help.pipeline" />
   </div>
-  <p class="starters__summary">Une pipeline complète pour votre type de projet. Vous pourrez tout changer ensuite, ou ajouter vos propres jobs.</p>
+  <p class="starters__summary">{{ 'pipelines.starters.summary' | transloco }}</p>
   <ul class="starters__list">
     @for (template of templates; track template.id) {
       <li>

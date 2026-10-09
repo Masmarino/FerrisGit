@@ -7,6 +7,7 @@ import { HelpTip } from './help-tip';
 import { help } from './pipeline-help';
 import { pipelineTemplates, PipelineTemplate } from './pipeline-catalog';
 import { Prediction } from './pipeline-prediction';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 /**
  * Whole pipelines to start an empty one from: a click lays out the stages and the jobs. The pipeline proposed for this
@@ -17,7 +18,7 @@ import { Prediction } from './pipeline-prediction';
 @Component({
   selector: 'fg-pipeline-starters',
   standalone: true,
-  imports: [Alert, Button, Icon, HelpTip, Skeleton],
+  imports: [TranslocoPipe, Alert, Button, Icon, HelpTip, Skeleton],
   templateUrl: './pipeline-starters.html',
   styleUrl: './pipeline-starters.scss',
 })

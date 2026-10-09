@@ -1,13 +1,13 @@
 <form class="tile-form" (submit)="$event.preventDefault(); submit()">
   <div class="tile-form__head">
-    <gbt-button type="button" variant="ghost" size="small" iconName="arrow-left" text="Toutes les tuiles" (clicked)="back.emit()" />
+    <gbt-button type="button" variant="ghost" size="small" iconName="arrow-left" [text]="'pipelines.tileForm.allTiles' | transloco" (clicked)="back.emit()" />
   </div>
 
   <h3 class="tile-form__title">
     {{ tile().title }}
     <fg-help-tip [help]="{ title: tile().title, body: tile().help }" />
   </h3>
-  <p class="tile-form__lede">Répondez à quelques questions : le job arrive dans l'étape <strong>{{ stage() }}</strong> avec les commandes qui en découlent.</p>
+  <p class="tile-form__lede">{{ 'pipelines.tileForm.leadBefore' | transloco }} <strong>{{ stage() }}</strong> {{ 'pipelines.tileForm.leadAfter' | transloco }}</p>
 
   @for (param of shown(); track param.id) {
     <div class="tile-form__field" [attr.data-param]="param.id">
@@ -36,23 +36,23 @@
   }
 
   <section class="tile-form__section" aria-labelledby="tile-form-preview">
-    <h4 id="tile-form-preview" class="tile-form__heading">Ce que le job exécutera</h4>
-    <pre class="tile-form__preview" tabindex="0" aria-label="Commandes du job"><code>{{ command() }}</code></pre>
-    <p class="tile-form__hint">Dans une image <code>{{ built().image }}</code>. Vous pourrez tout modifier ensuite.</p>
+    <h4 id="tile-form-preview" class="tile-form__heading">{{ 'pipelines.tileForm.preview' | transloco }}</h4>
+    <pre class="tile-form__preview" tabindex="0" [attr.aria-label]="'pipelines.tileForm.commands' | transloco"><code>{{ command() }}</code></pre>
+    <p class="tile-form__hint">{{ 'pipelines.tileForm.imageBefore' | transloco }} <code>{{ built().image }}</code>{{ 'pipelines.tileForm.imageAfter' | transloco }}</p>
   </section>
 
   @if (needed().length > 0) {
     <section class="tile-form__section" aria-labelledby="tile-form-secrets">
-      <h4 id="tile-form-secrets" class="tile-form__heading">Secrets à prévoir</h4>
-      <p class="tile-form__hint">Valeurs confidentielles que le job lit : elles se saisissent une fois dans « Variables et secrets », jamais dans le fichier.</p>
+      <h4 id="tile-form-secrets" class="tile-form__heading">{{ 'pipelines.tileForm.secrets' | transloco }}</h4>
+      <p class="tile-form__hint">{{ 'pipelines.tileForm.secretsHint' | transloco }}</p>
       <ul class="tile-form__secrets">
         @for (secret of needed(); track secret.name) {
           <li [attr.data-secret]="secret.name">
             <code>{{ secret.name }}</code>
             @if (secret.present === true) {
-              <gbt-badge variant="success" icon="check">Déjà créé</gbt-badge>
+              <gbt-badge variant="success" icon="check">{{ 'pipelines.tileForm.created' | transloco }}</gbt-badge>
             } @else if (secret.present === false) {
-              <gbt-badge variant="warning" icon="key">À créer</gbt-badge>
+              <gbt-badge variant="warning" icon="key">{{ 'pipelines.secrets.toCreate' | transloco }}</gbt-badge>
             }
           </li>
         }
@@ -61,7 +61,7 @@
   }
 
   <div class="tile-form__actions">
-    <gbt-button type="button" variant="secondary" text="Retour" (clicked)="back.emit()" />
-    <gbt-button type="submit" variant="primary" text="Ajouter le job" />
+    <gbt-button type="button" variant="secondary" [text]="'common.back' | transloco" (clicked)="back.emit()" />
+    <gbt-button type="submit" variant="primary" [text]="'pipelines.tileForm.add' | transloco" />
   </div>
 </form>
