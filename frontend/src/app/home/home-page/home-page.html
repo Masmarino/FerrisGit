@@ -9,7 +9,7 @@
     <!-- The grid announces the loading once, as a polite status outside any aria-busy region. The cards' placeholder rows
          stay silent. -->
     <div class="home-page__main home-page__loading">
-      <gbt-stat-grid ariaLabel="Résumé" [loading]="true" loadingLabel="Chargement du tableau de bord…" />
+      <gbt-stat-grid [ariaLabel]="'home.summary' | transloco" [loading]="true" [loadingLabel]="'home.loading' | transloco" />
       <gbt-card variant="outlined" [flush]="true" aria-hidden="true">
         <div card-header>
           <gbt-skeleton width="7rem" height="0.875rem" />
@@ -18,13 +18,13 @@
       </gbt-card>
     </div>
   } @else if (loadFailed()) {
-    <gbt-alert variant="error" appearance="subtle" live="off" heading="Le tableau de bord n'a pas pu être chargé">
-      Vérifiez votre connexion, puis réessayez.
-      <gbt-button alert-actions variant="secondary" size="small" text="Réessayer" (clicked)="load()" />
+    <gbt-alert variant="error" appearance="subtle" live="off" [heading]="'home.loadFailedTitle' | transloco">
+      {{ 'home.loadFailedHint' | transloco }}
+      <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="load()" />
     </gbt-alert>
   } @else {
     <div class="home-page__main">
-      <gbt-stat-grid ariaLabel="Résumé">
+      <gbt-stat-grid [ariaLabel]="'home.summary' | transloco">
         @for (group of todoGroups(); track group.key) {
           <gbt-stat-tile [attr.data-kind]="group.kind" [label]="group.label" [value]="group.count" [icon]="group.icon" [muted]="group.rows.length === 0" />
         }
@@ -35,13 +35,13 @@
           <div class="home-page__empty">
             <gbt-empty-state
               illustration="checklist"
-              heading="Rien à traiter pour l'instant"
-              message="Aucun ticket ni demande de fusion ne vous attend. Ce qui vous est assigné, ce que vous ouvrez et ce qu'on vous demande de relire apparaîtra ici."
+              [heading]="'home.emptyTitle' | transloco"
+              [message]="'home.emptyMessage' | transloco"
             />
           </div>
         </gbt-card>
       } @else {
-        <gbt-card class="home-page__todo" variant="outlined" icon="check-circle" heading="À traiter" [flush]="true">
+        <gbt-card class="home-page__todo" variant="outlined" icon="check-circle" [heading]="'home.todo' | transloco" [flush]="true">
           @for (group of todoGroups(); track group.key) {
             <section class="home-page__group" [attr.aria-labelledby]="group.headingId">
               <h3 class="home-page__group-heading" [id]="group.headingId">
@@ -83,7 +83,7 @@
                   }
                 </ul>
               } @else {
-                <p class="home-page__group-empty"><gbt-icon name="check" aria-hidden="true" />Tout est à jour</p>
+                <p class="home-page__group-empty"><gbt-icon name="check" aria-hidden="true" />{{ 'home.allDone' | transloco }}</p>
               }
             </section>
           }
@@ -94,7 +94,7 @@
 
   @if (!loadFailed()) {
     <div page-aside class="home-page__aside">
-      <gbt-panel heading="Activité récente" [headingLevel]="2">
+      <gbt-panel [heading]="'home.activity' | transloco" [headingLevel]="2">
         @if (unreadLabel(); as unread) {
           <gbt-badge panel-actions class="home-page__unread-count" variant="info">{{ unread }}</gbt-badge>
         }
@@ -125,7 +125,7 @@
               }
             </ol>
           } @else {
-            <p class="home-page__activity-empty">Aucune activité récente</p>
+            <p class="home-page__activity-empty">{{ 'home.noActivity' | transloco }}</p>
           }
         }
       </gbt-panel>

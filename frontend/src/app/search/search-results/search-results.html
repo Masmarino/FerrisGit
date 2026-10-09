@@ -16,8 +16,8 @@
             icon="search"
             [headingLevel]="2"
             headingId="search-results-idle-heading"
-            heading="Que cherchez-vous&nbsp;?"
-            message="Saisissez un terme dans la barre de recherche pour trouver des dépôts, des tickets, des demandes de fusion ou des utilisateurs."
+            [heading]="'search.idleTitle' | transloco"
+            [message]="'search.idleMessage' | transloco"
           />
         </gbt-card>
       </section>
@@ -45,10 +45,10 @@
             icon="alert-circle"
             [headingLevel]="2"
             headingId="search-results-error-heading"
-            heading="La recherche n'a pas abouti"
-            message="Vérifiez votre connexion, puis relancez la recherche."
+            [heading]="'search.failedTitle' | transloco"
+            [message]="'search.failedMessage' | transloco"
           >
-            <gbt-button variant="secondary" iconName="search" text="Réessayer" (clicked)="retry()" />
+            <gbt-button variant="secondary" iconName="search" [text]="'common.retry' | transloco" (clicked)="retry()" />
           </gbt-empty-state>
         </gbt-card>
       </section>
@@ -62,20 +62,20 @@
               icon="search"
               [headingLevel]="2"
               headingId="search-results-empty-heading"
-              [heading]="'Aucun résultat pour ' + quotedQuery()"
-              message="Quelques pistes pour élargir la recherche&nbsp;:"
+              [heading]="'search.noResults' | transloco: { query: quotedQuery() }"
+              [message]="'search.tipsIntro' | transloco"
             >
               <ul class="search-results__suggestions">
-                <li>Vérifiez l'orthographe des mots-clés</li>
-                <li>Essayez un terme plus court ou plus général</li>
-                <li>Cherchez un nom de dépôt, le titre d'un ticket ou d'une demande de fusion, ou un nom d'utilisateur</li>
+                <li>{{ 'search.tipSpelling' | transloco }}</li>
+                <li>{{ 'search.tipShorter' | transloco }}</li>
+                <li>{{ 'search.tipWhat' | transloco }}</li>
               </ul>
             </gbt-empty-state>
           </gbt-card>
         </section>
       } @else {
         <div class="search-results__main">
-          <gbt-segmented-control class="search-results__tabs" ariaLabel="Catégorie de résultats" tinted wrap [options]="tabOptions()" [value]="tab()" (valueChange)="tab.set($event)" />
+          <gbt-segmented-control class="search-results__tabs" [ariaLabel]="'search.categoryLabel' | transloco" tinted wrap [options]="tabOptions()" [value]="tab()" (valueChange)="tab.set($event)" />
 
           @for (card of visibleCards(); track card.key) {
             <section class="search-results__section" [attr.aria-labelledby]="card.headingId">
@@ -121,7 +121,7 @@
 
                             <span row-meta class="search-results__meta">
                               <a class="search-results__repo" [routerLink]="row.repositoryLink" [title]="row.repositoryPath"><gbt-badge mono>{{ row.repositoryPath }}</gbt-badge></a>
-                              <span class="search-results__opened">ouvert <time [attr.datetime]="row.createdAt" [title]="row.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.opened }}</time></span>
+                              <span class="search-results__opened">{{ 'search.issueOpened' | transloco }} <time [attr.datetime]="row.createdAt" [title]="row.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.opened }}</time></span>
                             </span>
 
                             <fg-status-badge row-trailing kind="issue" [status]="row.status" />
@@ -134,7 +134,7 @@
                       @for (row of mergeRequestRows(); track row.id) {
                         <li>
                           <gbt-list-row>
-                            <span row-leading class="search-results__leading" title="Demande de fusion">
+                            <span row-leading class="search-results__leading" [title]="'common.mergeRequest' | transloco">
                               <gbt-icon name="git-pull-request" aria-hidden="true" />
                             </span>
 
@@ -143,13 +143,13 @@
                             <span row-meta class="search-results__meta">
                               <a class="search-results__repo" [routerLink]="row.repositoryLink" [title]="row.repositoryPath"><gbt-badge mono>{{ row.repositoryPath }}</gbt-badge></a>
                               <span class="search-results__branches" [title]="row.branchesTitle">
-                                <span class="sr-only">Branche </span>
+                                <span class="sr-only">{{ 'search.branch' | transloco }}</span>
                                 <gbt-badge mono class="search-results__branch">{{ row.sourceBranch }}</gbt-badge>
                                 <span class="search-results__arrow" aria-hidden="true">→</span>
-                                <span class="sr-only"> vers </span>
+                                <span class="sr-only">{{ 'search.into' | transloco }}</span>
                                 <gbt-badge mono class="search-results__branch">{{ row.targetBranch }}</gbt-badge>
                               </span>
-                              <span class="search-results__opened">ouverte <time [attr.datetime]="row.createdAt" [title]="row.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.opened }}</time></span>
+                              <span class="search-results__opened">{{ 'search.mergeRequestOpened' | transloco }} <time [attr.datetime]="row.createdAt" [title]="row.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ row.opened }}</time></span>
                             </span>
 
                             <fg-status-badge row-trailing kind="merge-request" [status]="row.status" />
@@ -173,7 +173,7 @@
                 @if (card.capped) {
                   <p class="search-results__capped">
                     <gbt-icon name="info" aria-hidden="true" />
-                    Seuls les {{ resultsPerCategory }} résultats les plus pertinents sont affichés&nbsp;: précisez la recherche pour affiner.
+                    {{ 'search.capped' | transloco: { count: resultsPerCategory } }}
                   </p>
                 }
               </gbt-card>

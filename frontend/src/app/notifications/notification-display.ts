@@ -1,44 +1,46 @@
 import { Notification } from './notifications.service';
+import { t } from '../shared/i18n/translator';
 
-const ROLE_LABELS: ReadonlyMap<string, string> = new Map([
-  ['reader', 'lecteur'],
-  ['contributor', 'contributeur'],
-  ['maintainer', 'mainteneur'],
-  ['owner', 'propriétaire'],
-]);
+const ROLES = ['reader', 'contributor', 'maintainer', 'owner'];
 
 function roleLabel(role: string | null): string {
-  return role === null ? 'collaborateur' : (ROLE_LABELS.get(role) ?? role);
+  if (role === null) {
+    return t('notifications.roles.unknown');
+  }
+  return ROLES.includes(role) ? t(`notifications.roles.${role}`) : role;
 }
 
 export function notificationSentence(n: Notification): string {
+  const actor = n.actorUsername;
+  const title = n.mergeRequestTitle;
+  const repository = `${n.repositoryOwner}/${n.repositoryName}`;
   switch (n.kind) {
     case 'merge_request_approved':
-      return `${n.actorUsername} a approuvé votre demande de fusion « ${n.mergeRequestTitle} »`;
+      return t('notifications.kinds.merge_request_approved', { actor, title });
     case 'merge_request_changes_requested':
-      return `${n.actorUsername} a demandé des changements sur votre demande de fusion « ${n.mergeRequestTitle} »`;
+      return t('notifications.kinds.merge_request_changes_requested', { actor, title });
     case 'merge_request_commented':
-      return `${n.actorUsername} a commenté votre demande de fusion « ${n.mergeRequestTitle} »`;
+      return t('notifications.kinds.merge_request_commented', { actor, title });
     case 'merge_request_merged':
-      return `${n.actorUsername} a fusionné votre demande de fusion « ${n.mergeRequestTitle} »`;
+      return t('notifications.kinds.merge_request_merged', { actor, title });
     case 'merge_request_closed':
-      return `${n.actorUsername} a fermé votre demande de fusion « ${n.mergeRequestTitle} »`;
+      return t('notifications.kinds.merge_request_closed', { actor, title });
     case 'collaborator_added':
-      return `${n.actorUsername} vous a ajouté comme ${roleLabel(n.role)} sur ${n.repositoryOwner}/${n.repositoryName}`;
+      return t('notifications.kinds.collaborator_added', { actor, role: roleLabel(n.role), repository });
     case 'collaborator_role_changed':
-      return `${n.actorUsername} a changé votre rôle en ${roleLabel(n.role)} sur ${n.repositoryOwner}/${n.repositoryName}`;
+      return t('notifications.kinds.collaborator_role_changed', { actor, role: roleLabel(n.role), repository });
     case 'collaborator_removed':
-      return `${n.actorUsername} vous a retiré de ${n.repositoryOwner}/${n.repositoryName}`;
+      return t('notifications.kinds.collaborator_removed', { actor, repository });
     case 'pipeline_failed':
-      return `La pipeline sur ${n.commitSha?.slice(0, 8)} a échoué (${n.repositoryOwner}/${n.repositoryName})`;
+      return t('notifications.kinds.pipeline_failed', { commit: n.commitSha?.slice(0, 8), repository });
     case 'issue_assigned':
-      return `${n.actorUsername} vous a assigné un ticket sur ${n.repositoryOwner}/${n.repositoryName}`;
+      return t('notifications.kinds.issue_assigned', { actor, repository });
     case 'issue_commented':
-      return `${n.actorUsername} a commenté un ticket sur ${n.repositoryOwner}/${n.repositoryName}`;
+      return t('notifications.kinds.issue_commented', { actor, repository });
     case 'issue_closed':
-      return `${n.actorUsername} a fermé un ticket sur ${n.repositoryOwner}/${n.repositoryName}`;
+      return t('notifications.kinds.issue_closed', { actor, repository });
     default:
-      return 'Nouvelle notification';
+      return t('notifications.kinds.unknown');
   }
 }
 

@@ -24,6 +24,8 @@ import { notificationLink, notificationQueryParams, notificationSentence } from 
 import { Notification } from '../../notifications/notifications.service';
 import { issueKindPresentation } from '../../issues/issue-kind';
 import { StatusBadge, StatusKind } from '../../shared/layout/status-badge/status-badge';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
 const EMPTY: DashboardResponse = { assignedIssues: [], authoredIssues: [], authoredMergeRequests: [], mergeRequestsToReview: [], activity: [] };
 
@@ -40,10 +42,10 @@ interface Category {
 }
 
 const CATEGORIES: readonly Category[] = [
-  { key: 'assignedIssues', label: 'Tickets assignés', icon: 'circle-dot', kind: 'issue' },
-  { key: 'authoredIssues', label: 'Tickets créés', icon: 'pencil', kind: 'issue' },
-  { key: 'authoredMergeRequests', label: 'Mes demandes de fusion', icon: 'git-pull-request', kind: 'merge-request' },
-  { key: 'mergeRequestsToReview', label: 'À relire', icon: 'eye', kind: 'merge-request' },
+  { key: 'assignedIssues', get label() { return t('home.categories.assignedIssues'); }, icon: 'circle-dot', kind: 'issue' },
+  { key: 'authoredIssues', get label() { return t('home.categories.authoredIssues'); }, icon: 'pencil', kind: 'issue' },
+  { key: 'authoredMergeRequests', get label() { return t('home.categories.authoredMergeRequests'); }, icon: 'git-pull-request', kind: 'merge-request' },
+  { key: 'mergeRequestsToReview', get label() { return t('home.categories.mergeRequestsToReview'); }, icon: 'eye', kind: 'merge-request' },
 ];
 
 interface TodoRow {
@@ -116,7 +118,7 @@ function mergeRequestRow(item: SearchMergeRequestResult): TodoRow {
     ...repositoryFields(item.repository),
     createdAt: item.createdAt,
     icon: 'git-pull-request',
-    iconLabel: 'Demande de fusion',
+    iconLabel: t('common.mergeRequest'),
     status: item.status,
   };
 }
@@ -140,7 +142,7 @@ function activityRow(n: Notification): ActivityRow {
 @Component({
   selector: 'fg-home-page',
   standalone: true,
-  imports: [RouterLink, GbtDateTimePipe, GbtRelativeTimePipe, PageLayout, PageHeader, Panel, ListRow, StatusBadge, Alert, Badge, Button, Card, CardHeader, EmptyState, Icon, Skeleton, SkeletonList, StatGrid, StatTile],
+  imports: [TranslocoPipe, RouterLink, GbtDateTimePipe, GbtRelativeTimePipe, PageLayout, PageHeader, Panel, ListRow, StatusBadge, Alert, Badge, Button, Card, CardHeader, EmptyState, Icon, Skeleton, SkeletonList, StatGrid, StatTile],
   templateUrl: './home-page.html',
   styleUrl: './home-page.scss',
 })
@@ -193,7 +195,7 @@ export class HomePage implements OnInit {
         this.loading.set(false);
       },
       error: () => {
-        this.toast.show('Impossible de charger le tableau de bord. Réessayez plus tard.', 'error');
+        this.toast.show(t('home.loadFailedToast'), 'error');
         this.loadFailed.set(true);
         this.loading.set(false);
       },

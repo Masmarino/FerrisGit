@@ -14,7 +14,8 @@ import { ListRow } from '@masmarino/gabarit/list-row';
 import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { ApiTokenSummary, TokensService } from '../api-tokens.service';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 interface RevealedToken {
   id: string;
@@ -27,7 +28,7 @@ const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30
 @Component({
   selector: 'fg-api-tokens-list',
   standalone: true,
-  imports: [FormsModule, Alert, EmptyState, Badge, Button, GbtInput, Icon, SkeletonList, CopyField, ConfirmDangerModal, ListRow, Card, GbtRelativeTimePipe, GbtDateTimePipe],
+  imports: [TranslocoPipe, FormsModule, Alert, EmptyState, Badge, Button, GbtInput, Icon, SkeletonList, CopyField, ConfirmDangerModal, ListRow, Card, GbtRelativeTimePipe, GbtDateTimePipe],
   templateUrl: './api-tokens-list.html',
   styleUrl: './api-tokens-list.scss',
 })
@@ -43,7 +44,7 @@ export class ApiTokensList implements OnInit {
 
 
   /** "Créé le 12/08/2026" but "Créé il y a 3 j": the article only goes before an absolute date. */
-  protected readonly on = (iso: string) => (/^\d/.test(formatRelativeTime(iso, activeLocale(), undefined, RELATIVE_OPTIONS)) ? 'le ' : '');
+  protected readonly on = (iso: string) => (/^\d/.test(formatRelativeTime(iso, activeLocale(), undefined, RELATIVE_OPTIONS)) ? t('common.dateOn') : '');
 
   protected list = signal<ApiTokenSummary[]>([]);
   protected listState = signal<'loading' | 'loaded' | 'failed'>('loading');
@@ -72,7 +73,7 @@ export class ApiTokensList implements OnInit {
         if (this.listState() !== 'loaded') {
           this.listState.set('failed');
         }
-        this.toast.show('Impossible de charger les jetons. Réessayez plus tard.', 'error');
+        this.toast.show(t('apiTokens.list.toastLoadFailed'), 'error');
       },
     });
   }
@@ -94,14 +95,14 @@ export class ApiTokensList implements OnInit {
         this.revealed.set({ id: res.id, name: res.name, token: res.token });
         this.newTokenName.set('');
         this.refresh();
-        this.toast.show('Jeton généré.');
+        this.toast.show(t('apiTokens.list.toastGenerated'));
         // Emptying the name disables the focused "Générer" button, so focus moves to the token, shown only once. A screen
         // reader reads the card's name, then the token, the warning and the copy button.
         afterNextRender(() => this.focusCard(this.revealCard()), { injector: this.injector });
       },
       error: () => {
         this.creating.set(false);
-        this.toast.show('Impossible de générer le jeton.', 'error');
+        this.toast.show(t('apiTokens.list.toastGenerateFailed'), 'error');
       },
     });
   }
@@ -130,14 +131,14 @@ export class ApiTokensList implements OnInit {
         if (this.revealed()?.id === id) {
           this.revealed.set(null);
         }
-        this.toast.show('Jeton révoqué.');
+        this.toast.show(t('apiTokens.list.toastRevoked'));
         this.refresh();
       },
       // The confirmation covers the page, so an error has to close it first to be visible.
       error: () => {
         this.revoking.set(false);
         this.tokenPendingRevoke.set(null);
-        this.toast.show('Impossible de révoquer ce jeton.', 'error');
+        this.toast.show(t('apiTokens.list.toastRevokeFailed'), 'error');
       },
     });
   }

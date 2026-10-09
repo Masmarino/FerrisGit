@@ -6,7 +6,10 @@ import fr from '../../../../public/i18n/fr.json';
  * The French file is the reference: every key the code names exists in it, and every key in it is used. Keys built at
  * run time (`t(\`issues.state.${state}\`)`) cannot be found in the source, so their prefixes are listed here.
  */
-const DYNAMIC_PREFIXES: string[] = [];
+const DYNAMIC_PREFIXES: string[] = [
+  // notification-display.ts: the role a notification names.
+  'notifications.roles.',
+];
 
 const SOURCE_ROOT = join(process.cwd(), 'src', 'app');
 

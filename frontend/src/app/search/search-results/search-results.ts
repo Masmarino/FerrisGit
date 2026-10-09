@@ -20,7 +20,8 @@ import { SearchIssueResult, SearchMergeRequestResult, SearchRepositoryRef, Searc
 import { PageTitleService } from '../../shell/page-title.service';
 import { issueKindPresentation } from '../../issues/issue-kind';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t, tn } from '../../shared/i18n/translator';
+import { TranslocoPipe } from '@jsverse/transloco';
 
 const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;
 
@@ -41,10 +42,10 @@ interface Category {
 }
 
 const CATEGORIES: readonly Category[] = [
-  { key: 'repositories', label: 'Dépôts', icon: 'folder-git-2' },
-  { key: 'issues', label: 'Tickets', icon: 'circle-dot' },
-  { key: 'mergeRequests', label: 'Demandes de fusion', icon: 'git-pull-request' },
-  { key: 'users', label: 'Utilisateurs', icon: 'user' },
+  { key: 'repositories', get label() { return t('search.categories.repositories'); }, icon: 'folder-git-2' },
+  { key: 'issues', get label() { return t('search.categories.issues'); }, icon: 'circle-dot' },
+  { key: 'mergeRequests', get label() { return t('search.categories.mergeRequests'); }, icon: 'git-pull-request' },
+  { key: 'users', get label() { return t('search.categories.users'); }, icon: 'user' },
 ];
 
 interface CategoryCard extends Category {
@@ -103,7 +104,7 @@ function repositoryFields(repository: SearchRepositoryRef): Pick<RepositoryItemR
 
 function openedWhen(createdAt: string): string {
   const when = formatRelativeTime(createdAt, activeLocale(), undefined, RELATIVE_OPTIONS);
-  return /^\d/.test(when) ? `le ${when}` : when;
+  return /^\d/.test(when) ? `${t('common.dateOn')}${when}` : when;
 }
 
 function repositoryRow(repository: SearchRepositoryResult): RepositoryRow {
@@ -115,7 +116,7 @@ function repositoryRow(repository: SearchRepositoryResult): RepositoryRow {
     path: repository.path.join('/'),
     link: ['/repositories', ...repository.path],
     description: repository.description,
-    visibilityLabel: isPublic ? 'Public' : 'Privé',
+    visibilityLabel: isPublic ? t('common.public') : t('common.private'),
     visibilityIcon: isPublic ? 'globe' : 'lock',
     visibilityVariant: isPublic ? 'info' : 'neutral',
   };
@@ -154,13 +155,13 @@ function mergeRequestRow(mergeRequest: SearchMergeRequestResult): MergeRequestRo
 
 /** French typography: non-breaking spaces inside the « guillemets », so "»" never wraps alone. */
 function quoted(query: string): string {
-  return `«\u00a0${query}\u00a0»`;
+  return t('common.quoted', { text: query });
 }
 
 @Component({
   selector: 'fg-search-results',
   standalone: true,
-  imports: [
+  imports: [TranslocoPipe, 
     RouterLink,
     Badge,
     Button,
@@ -220,7 +221,7 @@ export class SearchResults implements OnInit {
     return this.search.search(q).pipe(
       map((results) => ({ state: 'loaded' as const, results })),
       catchError(() => {
-        this.toast.show("Impossible d'effectuer la recherche. Réessayez plus tard.", 'error');
+        this.toast.show(t('search.failedToast'), 'error');
         return of({ state: 'failed' as const, results: EMPTY_RESULTS });
       }),
     );
@@ -230,7 +231,7 @@ export class SearchResults implements OnInit {
     this.retries.next();
   }
 
-  protected title = computed(() => (this.query() ? `Résultats pour ${quoted(this.query())}` : 'Recherche'));
+  protected title = computed(() => (this.query() ? t('search.titleFor', { query: quoted(this.query()) }) : t('search.title')));
 
   private shellTitle = effect(() => this.pageTitle.set(this.title()));
   protected quotedQuery = computed(() => quoted(this.query()));
@@ -245,16 +246,16 @@ export class SearchResults implements OnInit {
   protected hasResults = computed(() => this.state() === 'loaded' && this.total() > 0);
   protected isEmpty = computed(() => this.state() === 'loaded' && this.total() === 0);
 
-  protected resultCountLabel = computed(() => `${this.totalLabel()} ${this.total() === 1 ? 'résultat' : 'résultats'}`);
+  protected resultCountLabel = computed(() => tn('search.count', this.total(), { count: this.totalLabel() }));
 
   protected statusMessage = computed(() => {
     switch (this.state()) {
       case 'loading':
-        return 'Recherche en cours…';
+        return t('search.searching');
       case 'failed':
-        return 'La recherche a échoué.';
+        return t('search.failed');
       case 'loaded':
-        return this.total() === 0 ? 'Aucun résultat.' : `${this.totalLabel()} ${this.total() === 1 ? 'résultat trouvé' : 'résultats trouvés'}.`;
+        return this.total() === 0 ? t('search.none') : tn('search.found', this.total(), { count: this.totalLabel() });
       default:
         return '';
     }
@@ -265,10 +266,10 @@ export class SearchResults implements OnInit {
   protected tabOptions = computed<SegmentedControlOption<Tab>[]>(() => {
     const r = this.results();
     return [
-      { value: 'all', label: `Tout (${this.totalLabel()})` },
+      { value: 'all', label: t('search.all', { count: this.totalLabel() }) },
       ...CATEGORIES.map((category) => ({
         value: category.key,
-        label: `${category.label} (${countLabel(r[category.key].length)})`,
+        label: t('search.tab', { label: category.label, count: countLabel(r[category.key].length) }),
         disabled: r[category.key].length === 0,
       })),
     ];

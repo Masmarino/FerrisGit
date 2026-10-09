@@ -1,1 +1,127 @@
-{}
+{
+  "common": {
+    "retry": "Réessayer",
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "copied": "Copié",
+    "dateOn": "le ",
+    "quoted": "« {{ text }} »",
+    "mergeRequest": "Demande de fusion",
+    "public": "Public",
+    "private": "Privé"
+  },
+  "apiTokens": {
+    "list": {
+      "newTitle": "Nouveau jeton",
+      "newDescription": "Un jeton remplace votre mot de passe pour Git en HTTPS : cloner, récupérer et pousser. Il ne donne pas accès à l'API REST. Nommez-le d'après l'outil qui s'en sert.",
+      "name": "Nom du jeton",
+      "namePlaceholder": "ex. ci-github-actions",
+      "generate": "Générer",
+      "generating": "Génération en cours",
+      "generatedTitle": "Jeton « {{ name }} » généré",
+      "generatedDescription": "Copiez-le maintenant et rangez-le en lieu sûr : un gestionnaire de secrets, une variable de CI masquée.",
+      "copy": "Copier le jeton",
+      "copyFailed": "Copie impossible, jeton sélectionné",
+      "shownOnce": "Ce jeton ne sera plus jamais affiché. Perdu, il faudra le révoquer et en générer un autre.",
+      "copiedIt": "J'ai copié le jeton",
+      "activeTitle": "Jetons actifs",
+      "activeDescription": "Chacun donne accès à votre compte : révoquez ceux dont vous ne vous servez plus.",
+      "loading": "Chargement des jetons…",
+      "loadFailed": "Les jetons n'ont pas pu être chargés.",
+      "emptyTitle": "Aucun jeton",
+      "emptyMessage": "Générez-en un pour appeler l'API ou cloner en HTTPS depuis un script, une CI ou un autre outil.",
+      "new": "Nouveau",
+      "created": "Créé {{ on }}",
+      "used": "Utilisé {{ on }}",
+      "neverUsed": "Jamais utilisé",
+      "revoke": "Révoquer",
+      "revokeNamed": "Révoquer le jeton {{ name }}",
+      "revokeTitle": "Révoquer le jeton",
+      "revokeMessage": "Les outils et scripts qui utilisent « {{ name }} » ne pourront plus cloner, récupérer ni pousser. Un jeton révoqué ne peut pas être réactivé.",
+      "revoking": "Révocation en cours",
+      "toastGenerated": "Jeton généré.",
+      "toastGenerateFailed": "Impossible de générer le jeton.",
+      "toastRevoked": "Jeton révoqué.",
+      "toastRevokeFailed": "Impossible de révoquer ce jeton.",
+      "toastLoadFailed": "Impossible de charger les jetons. Réessayez plus tard."
+    }
+  },
+  "home": {
+    "summary": "Résumé",
+    "loading": "Chargement du tableau de bord…",
+    "loadFailedTitle": "Le tableau de bord n'a pas pu être chargé",
+    "loadFailedHint": "Vérifiez votre connexion, puis réessayez.",
+    "emptyTitle": "Rien à traiter pour l'instant",
+    "emptyMessage": "Aucun ticket ni demande de fusion ne vous attend. Ce qui vous est assigné, ce que vous ouvrez et ce qu'on vous demande de relire apparaîtra ici.",
+    "todo": "À traiter",
+    "allDone": "Tout est à jour",
+    "activity": "Activité récente",
+    "noActivity": "Aucune activité récente",
+    "categories": {
+      "assignedIssues": "Tickets assignés",
+      "authoredIssues": "Tickets créés",
+      "authoredMergeRequests": "Mes demandes de fusion",
+      "mergeRequestsToReview": "À relire"
+    },
+    "loadFailedToast": "Impossible de charger le tableau de bord. Réessayez plus tard."
+  },
+  "notifications": {
+    "roles": {
+      "reader": "lecteur",
+      "contributor": "contributeur",
+      "maintainer": "mainteneur",
+      "owner": "propriétaire",
+      "unknown": "collaborateur"
+    },
+    "kinds": {
+      "merge_request_approved": "{{ actor }} a approuvé votre demande de fusion « {{ title }} »",
+      "merge_request_changes_requested": "{{ actor }} a demandé des changements sur votre demande de fusion « {{ title }} »",
+      "merge_request_commented": "{{ actor }} a commenté votre demande de fusion « {{ title }} »",
+      "merge_request_merged": "{{ actor }} a fusionné votre demande de fusion « {{ title }} »",
+      "merge_request_closed": "{{ actor }} a fermé votre demande de fusion « {{ title }} »",
+      "collaborator_added": "{{ actor }} vous a ajouté comme {{ role }} sur {{ repository }}",
+      "collaborator_role_changed": "{{ actor }} a changé votre rôle en {{ role }} sur {{ repository }}",
+      "collaborator_removed": "{{ actor }} vous a retiré de {{ repository }}",
+      "pipeline_failed": "La pipeline sur {{ commit }} a échoué ({{ repository }})",
+      "issue_assigned": "{{ actor }} vous a assigné un ticket sur {{ repository }}",
+      "issue_commented": "{{ actor }} a commenté un ticket sur {{ repository }}",
+      "issue_closed": "{{ actor }} a fermé un ticket sur {{ repository }}",
+      "unknown": "Nouvelle notification"
+    }
+  },
+  "search": {
+    "idleTitle": "Que cherchez-vous ?",
+    "idleMessage": "Saisissez un terme dans la barre de recherche pour trouver des dépôts, des tickets, des demandes de fusion ou des utilisateurs.",
+    "failedTitle": "La recherche n'a pas abouti",
+    "failedMessage": "Vérifiez votre connexion, puis relancez la recherche.",
+    "noResults": "Aucun résultat pour {{ query }}",
+    "tipsIntro": "Quelques pistes pour élargir la recherche :",
+    "tipSpelling": "Vérifiez l'orthographe des mots-clés",
+    "tipShorter": "Essayez un terme plus court ou plus général",
+    "tipWhat": "Cherchez un nom de dépôt, le titre d'un ticket ou d'une demande de fusion, ou un nom d'utilisateur",
+    "categoryLabel": "Catégorie de résultats",
+    "issueOpened": "ouvert",
+    "mergeRequestOpened": "ouverte",
+    "branch": "Branche ",
+    "into": " vers ",
+    "capped": "Seuls les {{ count }} résultats les plus pertinents sont affichés : précisez la recherche pour affiner.",
+    "categories": {
+      "repositories": "Dépôts",
+      "issues": "Tickets",
+      "mergeRequests": "Demandes de fusion",
+      "users": "Utilisateurs"
+    },
+    "failedToast": "Impossible d'effectuer la recherche. Réessayez plus tard.",
+    "titleFor": "Résultats pour {{ query }}",
+    "title": "Recherche",
+    "count_one": "{{ count }} résultat",
+    "count_other": "{{ count }} résultats",
+    "searching": "Recherche en cours…",
+    "failed": "La recherche a échoué.",
+    "none": "Aucun résultat.",
+    "found_one": "{{ count }} résultat trouvé.",
+    "found_other": "{{ count }} résultats trouvés.",
+    "all": "Tout ({{ count }})",
+    "tab": "{{ label }} ({{ count }})"
+  }
+}

@@ -32,6 +32,12 @@ export const t: TranslateFn = (key, params) => {
   return current(key, params);
 };
 
+/**
+ * `key_one` for exactly one, `key_other` otherwise, with `count` among the parameters: « 1 résultat », « 0 résultats ».
+ */
+export const tn = (key: string, count: number, params: Record<string, unknown> = {}): string =>
+  t(`${key}_${count === 1 ? 'one' : 'other'}`, { count, ...params });
+
 export function provideTranslator(): EnvironmentProviders {
   return makeEnvironmentProviders([
     provideEnvironmentInitializer(() => {
