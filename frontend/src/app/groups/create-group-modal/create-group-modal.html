@@ -1,12 +1,12 @@
 <form (submit)="$event.preventDefault(); submit()">
-  <gbt-modal [isOpen]="true" heading="Nouveau groupe" [closeLabel]="'common.close' | transloco" [busy]="creating()" busyLabel="Création en cours" (closed)="close.emit()">
+  <gbt-modal [isOpen]="true" [heading]="'groups.create.title' | transloco" [closeLabel]="'common.close' | transloco" [busy]="creating()" [busyLabel]="'common.creating' | transloco" (closed)="close.emit()">
     <div class="create-group">
       <gbt-input
         class="create-group__name"
         name="name"
-        label="Nom du groupe"
+        [label]="'groups.create.name' | transloco"
         placeholder="acme"
-        hint="Lettres, chiffres, - et _ uniquement ; il ne doit pas être celui d'un compte. Il fera partie du chemin de ses dépôts."
+        [hint]="'groups.create.hint' | transloco"
         required
         [errorMessage]="nameError()"
         [ngModel]="name()"
@@ -15,8 +15,8 @@
       <gbt-textarea
         class="create-group__description"
         name="description"
-        label="Description"
-        placeholder="À quoi sert ce groupe (optionnel)"
+        [label]="'common.description' | transloco"
+        [placeholder]="'groups.create.purpose' | transloco"
         [rows]="3"
         [ngModel]="description()"
         (ngModelChange)="description.set($event)"
@@ -27,7 +27,7 @@
     </div>
     <div modal-footer>
       <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="creating()" (clicked)="close.emit()" />
-      <gbt-button type="submit" iconName="plus" text="Créer le groupe" [loading]="creating()" loadingLabel="Création en cours" />
+      <gbt-button type="submit" iconName="plus" [text]="'groups.create.submit' | transloco" [loading]="creating()" [loadingLabel]="'common.creating' | transloco" />
     </div>
   </gbt-modal>
 </form>

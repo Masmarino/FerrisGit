@@ -60,7 +60,21 @@
     "previous": "Précédente",
     "next": "Suivante",
     "commits": "Commits",
-    "notFound": "Introuvable"
+    "notFound": "Introuvable",
+    "creating": "Création en cours",
+    "description": "Description",
+    "remove": "Retirer",
+    "removing": "Retrait en cours",
+    "about": "À propos",
+    "role": "Rôle",
+    "chooseRole": "Choisir un rôle",
+    "roles": "Rôles",
+    "path": "Chemin",
+    "yourRole": "Votre rôle",
+    "newRepository": "Nouveau dépôt",
+    "members": "Membres",
+    "loadingMembers": "Chargement des membres…",
+    "membersFailed": "Les membres n'ont pas pu être chargés."
   },
   "apiTokens": {
     "list": {
@@ -653,6 +667,70 @@
       "sections": "Sections du dépôt",
       "rateLimited": "Trop de requêtes en peu de temps. Patientez une minute avant de réessayer.",
       "failed": "Ce dépôt n'a pas pu être chargé."
+    }
+  },
+  "groups": {
+    "roles": {
+      "reader": "Lecteur",
+      "contributor": "Contributeur",
+      "maintainer": "Mainteneur"
+    },
+    "invalidName": "Nom invalide : lettres, chiffres, - et _ uniquement",
+    "nameTaken": "Ce nom est déjà utilisé",
+    "createFailedGroup": "Impossible de créer le groupe. Réessayez plus tard.",
+    "createFailedSubgroup": "Impossible de créer le sous-groupe. Réessayez plus tard.",
+    "subgroups_one": "{{ count }} sous-groupe",
+    "subgroups_other": "{{ count }} sous-groupes",
+    "detail": {
+      "in": "Dans",
+      "emptyWriter": "Créez un sous-groupe ou un dépôt pour commencer.",
+      "emptyReader": "Ses sous-groupes et ses dépôts apparaîtront ici.",
+      "newSubgroup": "Nouveau sous-groupe",
+      "contents": "Sous-groupes et dépôts",
+      "search": "Rechercher un sous-groupe ou un dépôt",
+      "emptyTitle": "Ce groupe est vide",
+      "noDirectMember": "Aucun membre direct.",
+      "subgroupName": "Nom du sous-groupe",
+      "subgroupHint": "Lettres, chiffres, - et _ uniquement ; il fera partie du chemin de ses dépôts.",
+      "subgroupPurpose": "À quoi sert ce sous-groupe (optionnel)",
+      "createSubgroup": "Créer le sous-groupe",
+      "loadFailed": "Impossible de charger ce groupe.",
+      "subgroupCreated": "Sous-groupe créé."
+    },
+    "members": {
+      "group": "Groupe",
+      "roleOf": "Rôle de {{ name }}",
+      "removeNamed": "Retirer {{ name }}",
+      "removeMessage": "{{ name }} n’aura plus accès à ce groupe ni à ses dépôts privés. Vous pourrez l’ajouter à nouveau plus tard.",
+      "readerHelp": "Consulte le groupe et ses dépôts.",
+      "contributorHelp": "Pousse des branches, ouvre des tickets et des demandes de fusion.",
+      "maintainerHelp": "Administre aussi le groupe : membres, sous-groupes et dépôts.",
+      "title": "Membres du groupe",
+      "add": "Ajouter un membre",
+      "addHelp": "Donne accès à ce groupe, à ses sous-groupes et à leurs dépôts, avec le rôle choisi.",
+      "addSubmit": "Ajouter le membre",
+      "listHelp": "Les personnes membres de ce groupe, et leur rôle.",
+      "emptyTitle": "Aucun membre pour l'instant",
+      "emptyMessage": "Ajoutez des personnes pour qu'elles accèdent au groupe et à ses dépôts.",
+      "roleScope": "Un rôle vaut pour le groupe et tous ses sous-groupes.",
+      "removeTitle": "Retirer le membre",
+      "roleCheckFailed": "Impossible de vérifier votre rôle dans ce groupe. Les actions restent proposées, le serveur vérifie vos droits.",
+      "loadFailed": "Impossible de charger les membres. Réessayez plus tard.",
+      "added": "Membre ajouté.",
+      "addFailed": "Impossible d'ajouter ce membre (nom d'utilisateur inconnu, ou vous n'êtes pas mainteneur de ce groupe).",
+      "removed": "Membre retiré.",
+      "removeFailed": "Impossible de retirer ce membre (vous n'êtes peut-être pas mainteneur de ce groupe).",
+      "roleUpdated": "Rôle mis à jour.",
+      "roleFailed": "Impossible de modifier le rôle de ce membre (vous n'êtes peut-être pas mainteneur de ce groupe)."
+    },
+    "create": {
+      "title": "Nouveau groupe",
+      "name": "Nom du groupe",
+      "hint": "Lettres, chiffres, - et _ uniquement ; il ne doit pas être celui d'un compte. Il fera partie du chemin de ses dépôts.",
+      "purpose": "À quoi sert ce groupe (optionnel)",
+      "submit": "Créer le groupe",
+      "nameRequired": "Le nom est requis",
+      "created": "Groupe créé."
     }
   }
 }

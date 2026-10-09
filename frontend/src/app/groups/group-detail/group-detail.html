@@ -3,13 +3,13 @@
     <p header-meta class="group-detail__summary">{{ summary() }}</p>
   }
   @if (role()) {
-    <a header-actions gbtButton variant="secondary" iconName="user" [routerLink]="membersLink()">Membres</a>
+    <a header-actions gbtButton variant="secondary" iconName="user" [routerLink]="membersLink()">{{ 'common.members' | transloco }}</a>
   }
   <!-- One root per projected block: a conditional block is only projected through a single root element. -->
   @if (canWrite()) {
     <span header-actions class="group-detail__write-actions">
-      <gbt-button variant="secondary" iconName="folder" text="Nouveau sous-groupe" (clicked)="openCreateGroup()" />
-      <gbt-button iconName="plus" text="Nouveau dépôt" (clicked)="createRepoOpen.set(true)" />
+      <gbt-button variant="secondary" iconName="folder" [text]="'groups.detail.newSubgroup' | transloco" (clicked)="openCreateGroup()" />
+      <gbt-button iconName="plus" [text]="'common.newRepository' | transloco" (clicked)="createRepoOpen.set(true)" />
     </span>
   }
 </gbt-page-header>
@@ -17,16 +17,16 @@
 <gbt-page-layout width="wide" asideWidth="md">
   <fg-workspace-grid
     #grid
-    heading="Sous-groupes et dépôts"
+    [heading]="'groups.detail.contents' | transloco"
     [groups]="workspaceGroups()"
     [repositories]="repos()"
     [loading]="loading()"
     [failed]="loadFailed()"
     [scope]="groupId()"
     [basePath]="fullPath()"
-    searchLabel="Rechercher un sous-groupe ou un dépôt"
-    emptyHeading="Ce groupe est vide"
-    [emptyMessage]="canWrite() ? 'Créez un sous-groupe ou un dépôt pour commencer.' : 'Ses sous-groupes et ses dépôts apparaîtront ici.'"
+    [searchLabel]="'groups.detail.search' | transloco"
+    [emptyHeading]="'groups.detail.emptyTitle' | transloco"
+    [emptyMessage]="(canWrite() ? 'groups.detail.emptyWriter' : 'groups.detail.emptyReader') | transloco"
     (changed)="refresh()"
     (retry)="refresh()"
   />
@@ -36,16 +36,16 @@
       <fg-workspace-grid-filters [grid]="grid" />
     }
 
-    <gbt-panel heading="À propos" [headingLevel]="2">
+    <gbt-panel [heading]="'common.about' | transloco" [headingLevel]="2">
       <gbt-description-list class="group-detail__facts" layout="inline" valueAlign="end" [items]="facts()" />
     </gbt-panel>
 
     @if (role()) {
-      <gbt-panel heading="Membres" [headingLevel]="2">
+      <gbt-panel [heading]="'common.members' | transloco" [headingLevel]="2">
         @switch (membersState()) {
           @case ('loading') {
             <div class="group-detail__members-loading" aria-busy="true">
-              <span class="sr-only" role="status">Chargement des membres…</span>
+              <span class="sr-only" role="status">{{ 'common.loadingMembers' | transloco }}</span>
               @for (width of memberSkeletons; track $index) {
                 <div class="group-detail__member-skeleton" aria-hidden="true">
                   <gbt-skeleton variant="circle" width="1.5rem" height="1.5rem" />
@@ -55,11 +55,11 @@
             </div>
           }
           @case ('failed') {
-            <gbt-alert variant="error" appearance="subtle" size="sm">Les membres n'ont pas pu être chargés.</gbt-alert>
+            <gbt-alert variant="error" appearance="subtle" size="sm">{{ 'common.membersFailed' | transloco }}</gbt-alert>
           }
           @default {
             @if (members().length === 0) {
-              <p class="group-detail__muted">Aucun membre direct.</p>
+              <p class="group-detail__muted">{{ 'groups.detail.noDirectMember' | transloco }}</p>
             } @else {
               <ul class="group-detail__members">
                 @for (member of memberPreview(); track member.userId) {
@@ -82,18 +82,18 @@
      it. The form wraps the whole dialog because the submit button is in the footer slot; it's rebuilt on each open. -->
 @if (createGroupOpen()) {
   <form (submit)="$event.preventDefault(); createSubgroup()">
-    <gbt-modal [isOpen]="true" heading="Nouveau sous-groupe" [closeLabel]="'common.close' | transloco" [busy]="creatingGroup()" busyLabel="Création en cours" (closed)="closeCreateGroup()">
+    <gbt-modal [isOpen]="true" [heading]="'groups.detail.newSubgroup' | transloco" [closeLabel]="'common.close' | transloco" [busy]="creatingGroup()" [busyLabel]="'common.creating' | transloco" (closed)="closeCreateGroup()">
       <div class="group-detail__create">
         <p class="group-detail__create-parent">
           <gbt-icon name="folder" aria-hidden="true" />
-          <span>Dans <code>{{ fullPath() }}</code></span>
+          <span>{{ 'groups.detail.in' | transloco }} <code>{{ fullPath() }}</code></span>
         </p>
         <gbt-input
           class="group-detail__create-name"
           name="newGroupName"
-          label="Nom du sous-groupe"
+          [label]="'groups.detail.subgroupName' | transloco"
           placeholder="infra"
-          hint="Lettres, chiffres, - et _ uniquement ; il fera partie du chemin de ses dépôts."
+          [hint]="'groups.detail.subgroupHint' | transloco"
           required
           [ngModel]="newGroupName()"
           (ngModelChange)="newGroupName.set($event)"
@@ -101,8 +101,8 @@
         <gbt-textarea
           class="group-detail__create-description"
           name="newGroupDescription"
-          label="Description"
-          placeholder="À quoi sert ce sous-groupe (optionnel)"
+          [label]="'common.description' | transloco"
+          [placeholder]="'groups.detail.subgroupPurpose' | transloco"
           [rows]="3"
           [ngModel]="newGroupDescription()"
           (ngModelChange)="newGroupDescription.set($event)"
@@ -113,7 +113,7 @@
       </div>
       <div modal-footer>
         <gbt-button variant="secondary" [text]="'common.cancel' | transloco" [disabled]="creatingGroup()" (clicked)="closeCreateGroup()" />
-        <gbt-button type="submit" iconName="plus" text="Créer le sous-groupe" [disabled]="!newGroupName().trim()" [loading]="creatingGroup()" loadingLabel="Création en cours" />
+        <gbt-button type="submit" iconName="plus" [text]="'groups.detail.createSubgroup' | transloco" [disabled]="!newGroupName().trim()" [loading]="creatingGroup()" [loadingLabel]="'common.creating' | transloco" />
       </div>
     </gbt-modal>
   </form>

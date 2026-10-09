@@ -1,5 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
+import { t } from '../shared/i18n/translator';
 
 export interface Group {
   id: string;
@@ -16,7 +17,17 @@ export interface WritableGroup {
 
 export type GroupRole = 'reader' | 'contributor' | 'maintainer';
 
-export const GROUP_ROLE_LABELS: Record<GroupRole, string> = { reader: 'Lecteur', contributor: 'Contributeur', maintainer: 'Mainteneur' };
+export const GROUP_ROLE_LABELS: Record<GroupRole, string> = {
+  get reader() {
+    return t('groups.roles.reader');
+  },
+  get contributor() {
+    return t('groups.roles.contributor');
+  },
+  get maintainer() {
+    return t('groups.roles.maintainer');
+  },
+};
 
 export function isGroupRole(role: string | null): role is GroupRole {
   return role === 'reader' || role === 'contributor' || role === 'maintainer';
@@ -35,12 +46,15 @@ export interface GroupMember {
   createdAt: string;
 }
 
-/** The message for a refused group or subgroup creation; `what` names the thing in the generic failure ("le sous-groupe"). */
-export function groupCreationError(status: number | undefined, what: string): string {
+/** The message for a refused group or subgroup creation. */
+export function groupCreationError(status: number | undefined, what: 'group' | 'subgroup'): string {
   if (status === 400) {
-    return 'Nom invalide : lettres, chiffres, - et _ uniquement';
+    return t('groups.invalidName');
   }
-  return status === 409 ? 'Ce nom est déjà utilisé' : `Impossible de créer ${what}. Réessayez plus tard.`;
+  if (status === 409) {
+    return t('groups.nameTaken');
+  }
+  return what === 'group' ? t('groups.createFailedGroup') : t('groups.createFailedSubgroup');
 }
 
 @Injectable({ providedIn: 'root' })

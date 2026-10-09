@@ -8,8 +8,9 @@ import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { groupCreationError, GroupsService } from '../groups.service';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
-const NAME_REQUIRED = 'Le nom est requis';
+const nameRequired = (): string => t('groups.create.nameRequired');
 
 /**
  * The "Nouveau groupe" dialog, for a group at the root. Any signed-in user can create one; the server only refuses a
@@ -36,12 +37,12 @@ export class CreateGroupModal {
   error = signal('');
   creating = signal(false);
 
-  protected nameError = computed(() => (this.error() === NAME_REQUIRED ? NAME_REQUIRED : null));
-  protected formError = computed(() => (this.error() && this.error() !== NAME_REQUIRED ? this.error() : null));
+  protected nameError = computed(() => (this.error() === nameRequired() ? nameRequired() : null));
+  protected formError = computed(() => (this.error() && this.error() !== nameRequired() ? this.error() : null));
 
   protected onNameChange(value: string): void {
     this.name.set(value);
-    if (this.error() === NAME_REQUIRED && value.trim()) {
+    if (this.error() === nameRequired() && value.trim()) {
       this.error.set('');
     }
   }
@@ -52,7 +53,7 @@ export class CreateGroupModal {
     }
     const name = this.name().trim();
     if (!name) {
-      this.error.set(NAME_REQUIRED);
+      this.error.set(nameRequired());
       return;
     }
     this.error.set('');
@@ -60,12 +61,12 @@ export class CreateGroupModal {
     this.groups.createRoot(name, this.description().trim()).subscribe({
       next: () => {
         this.creating.set(false);
-        this.toast.show('Groupe créé.');
+        this.toast.show(t('groups.create.created'));
         this.created.emit();
       },
       error: (err: { status?: number }) => {
         this.creating.set(false);
-        this.error.set(groupCreationError(err.status, 'le groupe'));
+        this.error.set(groupCreationError(err.status, 'group'));
       },
     });
   }

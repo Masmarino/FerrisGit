@@ -23,12 +23,9 @@ import { CreateRepositoryModal } from '../../repositories/create-repository-moda
 import { WorkspaceGrid, WorkspaceGroupItem } from '../../repositories/workspace-grid/workspace-grid';
 import { WorkspaceGridFilters } from '../../repositories/workspace-grid/workspace-grid-filters';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
 const MEMBER_PREVIEW = 5;
-
-function plural(count: number, one: string, many: string): string {
-  return `${count} ${count > 1 ? many : one}`;
-}
 
 @Component({
   selector: 'fg-group-detail',
@@ -83,8 +80,8 @@ export class GroupDetail implements OnInit {
   private pathTemplate = viewChild.required<TemplateRef<unknown>>('pathTemplate');
   private roleTemplate = viewChild.required<TemplateRef<unknown>>('roleTemplate');
   protected facts = computed<DescriptionListEntry[]>(() => {
-    const entries: DescriptionListEntry[] = [{ term: 'Chemin', value: this.pathTemplate() }];
-    if (this.roleLabel()) entries.push({ term: 'Votre rôle', value: this.roleTemplate() });
+    const entries: DescriptionListEntry[] = [{ term: t('common.path'), value: this.pathTemplate() }];
+    if (this.roleLabel()) entries.push({ term: t('common.yourRole'), value: this.roleTemplate() });
     return entries;
   });
   protected membersLink = computed(() => ['/groups', this.groupId(), 'members']);
@@ -102,7 +99,7 @@ export class GroupDetail implements OnInit {
       createdAt: g.createdAt,
     }));
   });
-  protected summary = computed(() => `${plural(this.children().length, 'sous-groupe', 'sous-groupes')} · ${plural(this.repos().length, 'dépôt', 'dépôts')}`);
+  protected summary = computed(() => `${tn('groups.subgroups', this.children().length)} · ${tn('common.repositoryCount', this.repos().length)}`);
   protected showFilters = computed(() => !this.loading() && !this.loadFailed() && this.children().length + this.repos().length > 0);
 
   protected members = signal<GroupMember[]>([]);
@@ -153,7 +150,7 @@ export class GroupDetail implements OnInit {
       },
       error: () => {
         this.loadFailed.set(true);
-        this.toast.show('Impossible de charger ce groupe.', 'error');
+        this.toast.show(t('groups.detail.loadFailed'), 'error');
         requestSettled();
       },
     });
@@ -164,7 +161,7 @@ export class GroupDetail implements OnInit {
       },
       error: () => {
         this.loadFailed.set(true);
-        this.toast.show('Impossible de charger ce groupe.', 'error');
+        this.toast.show(t('groups.detail.loadFailed'), 'error');
         requestSettled();
       },
     });
@@ -202,12 +199,12 @@ export class GroupDetail implements OnInit {
       next: () => {
         this.creatingGroup.set(false);
         this.closeCreateGroup();
-        this.toast.show('Sous-groupe créé.');
+        this.toast.show(t('groups.detail.subgroupCreated'));
         this.refresh();
       },
       error: (err: HttpErrorResponse) => {
         this.creatingGroup.set(false);
-        this.createGroupError.set(groupCreationError(err.status, 'le sous-groupe'));
+        this.createGroupError.set(groupCreationError(err.status, 'subgroup'));
       },
     });
   }

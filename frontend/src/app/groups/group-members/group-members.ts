@@ -22,11 +22,12 @@ import { UserChip } from '@masmarino/gabarit/user-chip';
 import { GROUP_ROLE_LABELS, GroupMember, GroupMembership, GroupRole, GroupsService } from '../groups.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { t } from '../../shared/i18n/translator';
 
-const ROLE_LEGEND: DescriptionListEntry[] = [
-  { term: GROUP_ROLE_LABELS.reader, value: 'Consulte le groupe et ses dépôts.' },
-  { term: GROUP_ROLE_LABELS.contributor, value: 'Pousse des branches, ouvre des tickets et des demandes de fusion.' },
-  { term: GROUP_ROLE_LABELS.maintainer, value: 'Administre aussi le groupe : membres, sous-groupes et dépôts.' },
+const roleLegend = (): DescriptionListEntry[] => [
+  { term: GROUP_ROLE_LABELS.reader, value: t('groups.members.readerHelp') },
+  { term: GROUP_ROLE_LABELS.contributor, value: t('groups.members.contributorHelp') },
+  { term: GROUP_ROLE_LABELS.maintainer, value: t('groups.members.maintainerHelp') },
 ];
 
 @Component({
@@ -89,7 +90,7 @@ export class GroupMembers implements OnInit {
 
   ngOnInit(): void {
     this.groupId = this.route.snapshot.paramMap.get('id') ?? '';
-    this.pageTitle.set('Membres du groupe');
+    this.pageTitle.set(t('groups.members.title'));
     this.groups.listMember().subscribe({
       next: (memberships) => {
         this.membership.set(memberships.find((m) => m.id === this.groupId) ?? null);
@@ -97,13 +98,13 @@ export class GroupMembers implements OnInit {
       },
       error: () => {
         this.membershipState.set('failed');
-        this.toast.show("Impossible de vérifier votre rôle dans ce groupe. Les actions restent proposées, le serveur vérifie vos droits.", 'error');
+        this.toast.show(t('groups.members.roleCheckFailed'), 'error');
       },
     });
     this.refresh();
   }
 
-  protected readonly roleLegend = ROLE_LEGEND;
+  protected readonly roleLegend = roleLegend();
 
   protected roleLabel(role: GroupRole): string {
     return GROUP_ROLE_LABELS[role];
@@ -119,7 +120,7 @@ export class GroupMembers implements OnInit {
         if (this.listState() !== 'loaded') {
           this.listState.set('failed');
         }
-        this.toast.show('Impossible de charger les membres. Réessayez plus tard.', 'error');
+        this.toast.show(t('groups.members.loadFailed'), 'error');
       },
     });
   }
@@ -137,10 +138,10 @@ export class GroupMembers implements OnInit {
     this.groups.addMember(this.groupId, username, this.newMemberRole()).subscribe({
       next: () => {
         this.newMemberUsername.set('');
-        this.toast.show('Membre ajouté.');
+        this.toast.show(t('groups.members.added'));
         this.refresh();
       },
-      error: () => this.toast.show("Impossible d'ajouter ce membre (nom d'utilisateur inconnu, ou vous n'êtes pas mainteneur de ce groupe).", 'error'),
+      error: () => this.toast.show(t('groups.members.addFailed'), 'error'),
     });
   }
 
@@ -157,14 +158,14 @@ export class GroupMembers implements OnInit {
       next: () => {
         this.removing.set(false);
         this.memberPendingRemoval.set(null);
-        this.toast.show('Membre retiré.');
+        this.toast.show(t('groups.members.removed'));
         this.refresh();
       },
       // The confirmation covers the page, so close it or the error stays hidden.
       error: () => {
         this.removing.set(false);
         this.memberPendingRemoval.set(null);
-        this.toast.show("Impossible de retirer ce membre (vous n'êtes peut-être pas mainteneur de ce groupe).", 'error');
+        this.toast.show(t('groups.members.removeFailed'), 'error');
       },
     });
   }
@@ -176,11 +177,11 @@ export class GroupMembers implements OnInit {
       next: () => {
         this.members.update((list) => list.map((m) => (m.userId === userId ? { ...m, role } : m)));
         this.setPendingRole(userId, null);
-        this.toast.show('Rôle mis à jour.');
+        this.toast.show(t('groups.members.roleUpdated'));
       },
       error: () => {
         this.setPendingRole(userId, null);
-        this.toast.show("Impossible de modifier le rôle de ce membre (vous n'êtes peut-être pas mainteneur de ce groupe).", 'error');
+        this.toast.show(t('groups.members.roleFailed'), 'error');
       },
     });
   }

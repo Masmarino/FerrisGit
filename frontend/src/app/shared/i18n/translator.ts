@@ -33,10 +33,11 @@ export const t: TranslateFn = (key, params) => {
 };
 
 /**
- * `key_one` for exactly one, `key_other` otherwise, with `count` among the parameters: « 1 résultat », « 0 résultats ».
+ * `key_one` or `key_other`, chosen by the plural rules of the active language, with `count` among the parameters. French
+ * puts 0 and 1 in the singular: « 0 dépôt », « 1 dépôt », « 2 dépôts ».
  */
 export const tn = (key: string, count: number, params: Record<string, unknown> = {}): string =>
-  t(`${key}_${count === 1 ? 'one' : 'other'}`, { count, ...params });
+  t(`${key}_${new Intl.PluralRules(activeLocale()).select(count) === 'one' ? 'one' : 'other'}`, { count, ...params });
 
 export function provideTranslator(): EnvironmentProviders {
   return makeEnvironmentProviders([
