@@ -29,6 +29,9 @@ import { UserRef } from '../../shared/user-ref';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
 import { PageTitleService } from '../../shell/page-title.service';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { TranslocoCountPipe } from '../../shared/i18n/transloco-count.pipe';
+import { t } from '../../shared/i18n/translator';
 
 interface DiscussionCard {
   id: string;
@@ -40,12 +43,10 @@ interface DiscussionCard {
   description: boolean;
 }
 
-const UNKNOWN_USER = 'Utilisateur inconnu';
-
 @Component({
   selector: 'fg-issue-detail',
   standalone: true,
-  imports: [
+  imports: [TranslocoCountPipe, TranslocoPipe, 
     FormsModule,
     Alert,
     Avatar,
@@ -104,8 +105,8 @@ export class IssueDetail implements OnInit {
   protected dateEntries = computed<DescriptionListEntry[]>(() => {
     const i = this.issue();
     if (!i) return [];
-    const entries: DescriptionListEntry[] = [{ term: 'Créé', value: this.createdTemplate() }];
-    if (i.closedAt) entries.push({ term: 'Fermé', value: this.closedTemplate() });
+    const entries: DescriptionListEntry[] = [{ term: t('common.createdMasculine'), value: this.createdTemplate() }];
+    if (i.closedAt) entries.push({ term: t('common.closedLabel'), value: this.closedTemplate() });
     return entries;
   });
   protected closed = computed(() => {
@@ -121,9 +122,9 @@ export class IssueDetail implements OnInit {
     const authorId = issue.author?.id ?? null;
     const description: DiscussionCard = {
       id: 'description',
-      authorName: issue.author?.username ?? UNKNOWN_USER,
+      authorName: issue.author?.username ?? t('common.unknownUser'),
       byIssueAuthor: authorId !== null,
-      verb: 'a ouvert ce ticket',
+      verb: t('issues.openedVerb'),
       createdAt: issue.createdAt,
       body: issue.description.trim(),
       description: true,
@@ -132,9 +133,9 @@ export class IssueDetail implements OnInit {
       description,
       ...this.comments().map((comment) => ({
         id: comment.id,
-        authorName: comment.author?.username ?? UNKNOWN_USER,
+        authorName: comment.author?.username ?? t('common.unknownUser'),
         byIssueAuthor: authorId !== null && comment.author?.id === authorId,
-        verb: 'a commenté',
+        verb: t('issues.commentedVerb'),
         createdAt: comment.createdAt,
         body: comment.body,
         description: false,
@@ -151,7 +152,7 @@ export class IssueDetail implements OnInit {
   // re-applied the value and re-triggered detection forever.
   protected labelIds = computed(() => this.issue()?.labels.map((label) => label.id) ?? []);
   protected labelOptions = computed(() => labelSelectOptions(this.labels()));
-  protected milestoneOptions = computed(() => milestoneSelectOptions(this.milestones(), 'Aucun milestone'));
+  protected milestoneOptions = computed(() => milestoneSelectOptions(this.milestones(), t('issues.noMilestone')));
   protected milestoneTitle = computed(() => {
     const id = this.issue()?.milestoneId;
     return id ? (this.milestones().find((milestone) => milestone.id === id)?.title ?? null) : null;
@@ -186,20 +187,20 @@ export class IssueDetail implements OnInit {
       next: (issue) => this.issue.set(issue),
       error: () => {
         this.loadFailed.set(true);
-        this.toast.show('Impossible de charger ce ticket.', 'error');
+        this.toast.show(t('issues.oneFailedToast'), 'error');
       },
     });
     this.issuesService.listComments(this.repositoryId(), this.number()).subscribe({
       next: (comments) => this.comments.set(comments),
-      error: () => this.toast.show('Impossible de charger ce ticket.', 'error'),
+      error: () => this.toast.show(t('issues.oneFailedToast'), 'error'),
     });
     this.labelsService.listForRepository(this.repositoryId()).subscribe({
       next: (labels) => this.labels.set(labels),
-      error: () => this.toast.show('Impossible de charger ce ticket.', 'error'),
+      error: () => this.toast.show(t('issues.oneFailedToast'), 'error'),
     });
     this.milestonesService.listForRepository(this.repositoryId()).subscribe({
       next: (milestones) => this.milestones.set(milestones),
-      error: () => this.toast.show('Impossible de charger ce ticket.', 'error'),
+      error: () => this.toast.show(t('issues.oneFailedToast'), 'error'),
     });
   }
 
@@ -207,9 +208,9 @@ export class IssueDetail implements OnInit {
     this.labelsService.setForIssue(this.repositoryId(), this.issue()!.number, labelIds).subscribe({
       next: (labels) => {
         this.issue.update((i) => (i ? { ...i, labels } : i));
-        this.toast.show('Labels mis à jour.');
+        this.toast.show(t('issues.labelsUpdated'));
       },
-      error: () => this.toast.show('Impossible de mettre à jour les labels.', 'error'),
+      error: () => this.toast.show(t('issues.labelsFailed'), 'error'),
     });
   }
 
@@ -221,9 +222,9 @@ export class IssueDetail implements OnInit {
     this.issuesService.update(this.repositoryId(), issue.number, issue.title, issue.description, issue.kind, milestoneId).subscribe({
       next: (updated) => {
         this.issue.set(updated);
-        this.toast.show('Milestone mis à jour.');
+        this.toast.show(t('issues.milestoneUpdated'));
       },
-      error: () => this.toast.show('Impossible de mettre à jour le milestone.', 'error'),
+      error: () => this.toast.show(t('issues.milestoneFailed'), 'error'),
     });
   }
 
@@ -235,9 +236,9 @@ export class IssueDetail implements OnInit {
     this.issuesService.assign(this.repositoryId(), this.number(), me).subscribe({
       next: (updated) => {
         this.issue.set(updated);
-        this.toast.show('Ticket assigné.');
+        this.toast.show(t('issues.assigned'));
       },
-      error: () => this.toast.show('Impossible de vous assigner le ticket. Réessayez plus tard.', 'error'),
+      error: () => this.toast.show(t('issues.assignFailed'), 'error'),
     });
   }
 
@@ -252,15 +253,15 @@ export class IssueDetail implements OnInit {
       next: () => {
         this.posting.set(false);
         this.clearDraft();
-        this.toast.show('Commentaire ajouté.');
+        this.toast.show(t('issues.commentAdded'));
         this.issuesService.listComments(this.repositoryId(), this.number()).subscribe({
           next: (comments) => this.comments.set(comments),
-          error: () => this.toast.show('Commentaire envoyé, mais impossible de recharger la liste.', 'error'),
+          error: () => this.toast.show(t('issues.commentReloadFailed'), 'error'),
         });
       },
       error: () => {
         this.posting.set(false);
-        this.toast.show("Impossible d'envoyer le commentaire.", 'error');
+        this.toast.show(t('issues.commentFailed'), 'error');
       },
     });
   }
@@ -273,9 +274,9 @@ export class IssueDetail implements OnInit {
     this.issuesService.close(this.repositoryId(), this.number()).subscribe({
       next: (issue) => {
         this.issue.set(issue);
-        this.toast.show('Ticket fermé.');
+        this.toast.show(t('issues.closed'));
       },
-      error: () => this.toast.show('Impossible de fermer le ticket.', 'error'),
+      error: () => this.toast.show(t('issues.closeFailed'), 'error'),
     });
   }
 
@@ -283,9 +284,9 @@ export class IssueDetail implements OnInit {
     this.issuesService.reopen(this.repositoryId(), this.number()).subscribe({
       next: (issue) => {
         this.issue.set(issue);
-        this.toast.show('Ticket rouvert.');
+        this.toast.show(t('issues.reopened'));
       },
-      error: () => this.toast.show('Impossible de rouvrir le ticket.', 'error'),
+      error: () => this.toast.show(t('issues.reopenFailed'), 'error'),
     });
   }
 }

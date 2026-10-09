@@ -5,22 +5,22 @@
 
     <p header-meta class="issue-detail__meta">
       <span>
-        ouvert
+        {{ 'common.opened' | transloco }}
         <time [attr.datetime]="i.createdAt" [title]="i.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ i.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
         @if (i.author; as author) {
-          par <span class="issue-detail__meta-author">{{ author.username }}</span>
+          {{ 'common.by' | transloco }} <span class="issue-detail__meta-author">{{ author.username }}</span>
         }
       </span>
       <!-- Each separator belongs to the segment after it, so a wrapped line never ends on a dangling "·". -->
       @if (i.closedAt; as closedAt) {
         <span class="issue-detail__meta-closed">
-          <span aria-hidden="true"> · </span>fermé
+          <span aria-hidden="true"> · </span>{{ 'common.closedMasculine' | transloco }}
           <time [attr.datetime]="closedAt" [title]="closedAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ closedAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
         </span>
       }
       @if (comments().length > 0) {
         <span class="issue-detail__meta-count">
-          <span aria-hidden="true"> · </span>{{ comments().length }} {{ comments().length === 1 ? 'commentaire' : 'commentaires' }}
+          <span aria-hidden="true"> · </span>{{ 'common.comments' | translocoCount: comments().length }}
         </span>
       }
     </p>
@@ -31,7 +31,7 @@
         header-actions
         variant="secondary"
         [iconName]="closed() ? 'circle-dot' : 'circle-check'"
-        [text]="closed() ? 'Rouvrir le ticket' : 'Fermer le ticket'"
+        [text]="(closed() ? 'issues.reopenIssue' : 'issues.closeIssue') | transloco"
         (clicked)="closed() ? reopenIssue() : closeIssue()"
       />
     }
@@ -39,7 +39,7 @@
 
   <gbt-page-layout width="wide" asideWidth="md">
     <section class="issue-detail__discussion" aria-labelledby="issue-discussion-heading">
-      <h2 id="issue-discussion-heading" class="sr-only">Discussion</h2>
+      <h2 id="issue-discussion-heading" class="sr-only">{{ 'common.discussion' | transloco }}</h2>
       <ol class="issue-timeline">
         @for (card of cards(); track card.id) {
           <li class="issue-timeline__item">
@@ -51,7 +51,7 @@
                     <span class="issue-comment__verb">{{ card.verb }}</span>
                   </p>
                   @if (card.byIssueAuthor) {
-                    <span class="issue-comment__badge">Auteur</span>
+                    <span class="issue-comment__badge">{{ 'common.author' | transloco }}</span>
                   }
                   <time class="issue-comment__date" [attr.datetime]="card.createdAt" [title]="card.createdAt | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ card.createdAt | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
                   <gbt-avatar class="issue-comment__avatar" [name]="card.authorName" aria-hidden="true" />
@@ -60,7 +60,7 @@
                   @if (card.body) {
                     <fg-markdown-view [content]="card.body" [headingOffset]="2" />
                   } @else {
-                    <p class="issue-comment__empty">Aucune description.</p>
+                    <p class="issue-comment__empty">{{ 'common.noDescription' | transloco }}</p>
                   }
                 </div>
               </gbt-card>
@@ -73,14 +73,14 @@
         <gbt-icon-marker class="issue-detail__composer-marker" appearance="outline" icon="pencil" />
         <gbt-card variant="outlined" [flush]="true">
           <div class="issue-detail__composer-card">
-            <gbt-textarea label="Ajouter un commentaire" placeholder="Écrire un commentaire…" [rows]="4" [ngModel]="draft()" (ngModelChange)="draft.set($event)" />
+            <gbt-textarea [label]="'common.addComment' | transloco" [placeholder]="'common.writeComment' | transloco" [rows]="4" [ngModel]="draft()" (ngModelChange)="draft.set($event)" />
             <gbt-button
               class="issue-detail__comment-button"
               variant="secondary"
               size="small"
-              text="Commenter"
+              [text]="'common.comment' | transloco"
               [loading]="posting()"
-              loadingLabel="Envoi du commentaire"
+              [loadingLabel]="'common.sendingComment' | transloco"
               (clicked)="addComment()"
             />
           </div>
@@ -89,25 +89,25 @@
     </section>
 
     <div page-aside class="issue-detail__aside">
-      <gbt-panel heading="Statut" [headingLevel]="2">
+      <gbt-panel [heading]="'common.status' | transloco" [headingLevel]="2">
         <fg-status-badge kind="issue" [status]="i.status" />
       </gbt-panel>
 
-      <gbt-panel heading="Assigné" [headingLevel]="2">
+      <gbt-panel [heading]="'common.assignee' | transloco" [headingLevel]="2">
         @if (canAssignToMe()) {
-          <gbt-button panel-actions class="issue-detail__panel-action" variant="secondary" size="small" text="M'assigner" (clicked)="assignToMe()" />
+          <gbt-button panel-actions class="issue-detail__panel-action" variant="secondary" size="small" [text]="'common.assignMe' | transloco" (clicked)="assignToMe()" />
         }
         @if (i.assignee; as assignee) {
           <gbt-user-chip class="issue-detail__person" size="md" [name]="assignee.username" />
         } @else {
-          <p class="issue-detail__empty">Personne</p>
+          <p class="issue-detail__empty">{{ 'common.nobody' | transloco }}</p>
         }
       </gbt-panel>
 
-      <gbt-panel heading="Labels" [headingLevel]="2">
+      <gbt-panel [heading]="'common.labels' | transloco" [headingLevel]="2">
         @if (canWrite()) {
           <gbt-select
-            label="Labels"
+            [label]="'common.labels' | transloco"
             hideLabel
             fullWidth
             [options]="labelOptions()"
@@ -115,35 +115,35 @@
             [chips]="true"
             [ngModel]="labelIds()"
             (ngModelChange)="onLabelsChange($event)"
-            placeholder="Ajouter des labels"
+            [placeholder]="'common.addLabels' | transloco"
           />
         } @else if (i.labels.length > 0) {
-          <ul class="issue-detail__tags" aria-label="Labels du ticket">
+          <ul class="issue-detail__tags" [attr.aria-label]="'issues.issueLabels' | transloco">
             @for (label of i.labels; track label.id) {
               <li><gbt-tag [color]="label.color">{{ label.name }}</gbt-tag></li>
             }
           </ul>
         } @else {
-          <p class="issue-detail__empty">Aucun</p>
+          <p class="issue-detail__empty">{{ 'common.none' | transloco }}</p>
         }
       </gbt-panel>
 
-      <gbt-panel heading="Milestone" [headingLevel]="2">
+      <gbt-panel [heading]="'common.milestone' | transloco" [headingLevel]="2">
         @if (canWrite()) {
-          <gbt-select label="Milestone" hideLabel fullWidth [options]="milestoneOptions()" [ngModel]="i.milestoneId" (ngModelChange)="onMilestoneChange($event)" placeholder="Aucun milestone" />
+          <gbt-select [label]="'common.milestone' | transloco" hideLabel fullWidth [options]="milestoneOptions()" [ngModel]="i.milestoneId" (ngModelChange)="onMilestoneChange($event)" [placeholder]="'issues.noMilestone' | transloco" />
         } @else if (milestoneTitle(); as milestone) {
           <p class="issue-detail__milestone"><gbt-icon name="flag" aria-hidden="true" />{{ milestone }}</p>
         } @else {
-          <p class="issue-detail__empty">Aucun</p>
+          <p class="issue-detail__empty">{{ 'common.none' | transloco }}</p>
         }
       </gbt-panel>
 
-      <gbt-panel heading="Dates" [headingLevel]="2">
+      <gbt-panel [heading]="'common.dates' | transloco" [headingLevel]="2">
         <gbt-description-list class="issue-detail__dates" layout="inline" [items]="dateEntries()" />
       </gbt-panel>
 
       @if (participants().length > 0) {
-        <gbt-panel heading="Participants" [headingLevel]="2">
+        <gbt-panel [heading]="'common.participants' | transloco" [headingLevel]="2">
           <ul class="issue-detail__people">
             @for (person of participants(); track person.id) {
               <li><gbt-user-chip [name]="person.username" /></li>
@@ -155,11 +155,11 @@
   </gbt-page-layout>
 } @else if (loadFailed()) {
   <gbt-page-layout width="wide">
-    <gbt-alert variant="error" appearance="subtle" live="off">Ce ticket n'a pas pu être chargé.</gbt-alert>
+    <gbt-alert variant="error" appearance="subtle" live="off">{{ 'issues.oneFailed' | transloco }}</gbt-alert>
   </gbt-page-layout>
 } @else {
   <div class="issue-detail__loading" aria-busy="true">
-    <span class="sr-only" role="status">Chargement du ticket…</span>
+    <span class="sr-only" role="status">{{ 'issues.loadingOne' | transloco }}</span>
     <div class="issue-detail__loading-header" aria-hidden="true">
       <gbt-skeleton width="min(28rem, 80%)" height="1.75rem" />
       <gbt-skeleton width="14rem" height="0.875rem" />

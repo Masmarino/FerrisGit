@@ -1,4 +1,4 @@
-import { ISSUE_KIND_OPTIONS, issueKindPresentation } from './issue-kind';
+import { issueKindOptions, issueKindPresentation } from './issue-kind';
 
 describe('issueKindPresentation', () => {
   it('names every issue kind in French with its icon', () => {
@@ -18,7 +18,7 @@ describe('issueKindPresentation', () => {
   });
 
   it('offers the three kinds a new issue can have, labelled like the rows', () => {
-    expect(ISSUE_KIND_OPTIONS).toEqual([
+    expect(issueKindOptions()).toEqual([
       { value: 'bug', label: 'Bug' },
       { value: 'feature', label: 'Fonctionnalité' },
       { value: 'task', label: 'Tâche' },

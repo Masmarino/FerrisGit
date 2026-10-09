@@ -22,6 +22,8 @@ import { createIssueFilters } from '../issue-filters';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { PageTitleService } from '../../shell/page-title.service';
+import { TranslocoPipe } from '@jsverse/transloco';
+import { t, tn } from '../../shared/i18n/translator';
 
 const STATUSES = ['todo', 'in_progress', 'in_review', 'done'] as const;
 type Status = (typeof STATUSES)[number];
@@ -70,7 +72,7 @@ function insertionIndex(full: Issue[], shown: Issue[], index: number): number {
 @Component({
   selector: 'fg-issue-kanban',
   standalone: true,
-  imports: [FormsModule, RouterLink, DragDropModule, CdkScrollable, PageLayout, PageHeader, UserChip, Alert, Badge, Button, GbtInput, Icon, Menu, MenuItem, Select, Skeleton, Tag],
+  imports: [TranslocoPipe, FormsModule, RouterLink, DragDropModule, CdkScrollable, PageLayout, PageHeader, UserChip, Alert, Badge, Button, GbtInput, Icon, Menu, MenuItem, Select, Skeleton, Tag],
   templateUrl: './issue-kanban.html',
   styleUrl: './issue-kanban.scss',
 })
@@ -126,8 +128,8 @@ export class IssueKanban implements OnInit {
           link: ['/repositories', ...this.path(), '-', 'issues', String(issue.number)],
           kind: issueKindPresentation(issue.kind),
           milestoneTitle: issue.milestoneId ? (milestoneTitles.get(issue.milestoneId) ?? null) : null,
-          commentsLabel: `${issue.commentCount} ${issue.commentCount === 1 ? 'commentaire' : 'commentaires'}`,
-          menuLabel: `Déplacer le ticket #${issue.number} vers`,
+          commentsLabel: tn('common.comments', issue.commentCount),
+          menuLabel: t('issues.moveTo', { number: issue.number }),
           moveTargets: MOVE_TARGETS[status],
         })),
       };
@@ -138,15 +140,14 @@ export class IssueKanban implements OnInit {
   private shownCount = computed(() => this.lanes().reduce((sum, lane) => sum + lane.issues.length, 0));
   protected summary = computed(() => {
     const total = this.totalCount();
-    const noun = total === 1 ? 'ticket' : 'tickets';
-    return this.query() ? `${this.shownCount()} ${noun} sur ${total}` : `${total} ${noun}`;
+    return this.query() ? tn('issues.filtered', this.shownCount(), { total }) : tn('issues.count', total);
   });
 
   protected hasActiveFilters = computed(() => this.query() !== '' || this.filters.hasSelection());
   protected isEmptyRepository = computed(() => !this.loading() && !this.loadFailed() && this.totalCount() === 0 && !this.filters.hasSelection());
 
   ngOnInit(): void {
-    this.pageTitle.set('Tickets');
+    this.pageTitle.set(t('nav.issues'));
     this.load();
     this.filters.loadOptions();
   }
@@ -166,7 +167,7 @@ export class IssueKanban implements OnInit {
       error: () => {
         this.loading.set(false);
         this.loadFailed.set(true);
-        this.toast.show('Impossible de charger les tickets.', 'error');
+        this.toast.show(t('issues.kanbanLoadFailed'), 'error');
       },
     });
   }
@@ -194,7 +195,7 @@ export class IssueKanban implements OnInit {
       return;
     }
     this.place(issue, origin, target, (full) => full.length);
-    this.announcement.set(`Ticket #${issue.number} déplacé vers ${statusPresentation('issue', target).label}`);
+    this.announcement.set(t('issues.moved', { number: issue.number, status: statusPresentation('issue', target).label }));
     afterNextRender(() => this.host.nativeElement.querySelector<HTMLElement>(`#${laneId(target)} [data-issue-id="${issue.id}"] .issue-kanban__card-link`)?.focus(), {
       injector: this.injector,
     });
@@ -223,7 +224,7 @@ export class IssueKanban implements OnInit {
           originList.splice(Math.min(originIndex, originList.length), 0, { ...moved, status: origin });
           this.board.set({ ...current, [target]: current[target].filter((candidate) => candidate.id !== issue.id), [origin]: originList });
         }
-        this.toast.show('Impossible de déplacer le ticket.', 'error');
+        this.toast.show(t('issues.moveFailed'), 'error');
       },
     });
   }

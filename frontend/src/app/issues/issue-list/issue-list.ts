@@ -22,15 +22,16 @@ import { Textarea } from '@masmarino/gabarit/textarea';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { UserChip } from '@masmarino/gabarit/user-chip';
 import { Issue, IssuesService, isClosed } from '../issues.service';
-import { CreatableIssueKind, ISSUE_KIND_OPTIONS, IssueKindPresentation, issueKindPresentation } from '../issue-kind';
+import { CreatableIssueKind, issueKindOptions, IssueKindPresentation, issueKindPresentation } from '../issue-kind';
 import { createIssueFilters } from '../issue-filters';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { MeService } from '../../shell/me.service';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { PageTitleService } from '../../shell/page-title.service';
 import { openWhenAsked } from '../../shared/open-when-asked';
-import { activeLocale } from '../../shared/i18n/translator';
+import { activeLocale, t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { TranslocoCountPipe } from '../../shared/i18n/transloco-count.pipe';
 
 type SortKey = 'date' | 'title';
 type StateTab = 'open' | 'closed';
@@ -38,14 +39,14 @@ type StateTab = 'open' | 'closed';
 /** Client-side pagination: the API returns every issue of the repository at once. */
 const ISSUES_PAGE_SIZE = 25;
 
-const SORT_OPTIONS: ListToolbarSortOption<SortKey>[] = [
-  { value: 'date', label: 'Date de création' },
-  { value: 'title', label: 'Titre' },
+const sortOptions = (): ListToolbarSortOption<SortKey>[] => [
+  { value: 'date', label: t('common.createdAt') },
+  { value: 'title', label: t('common.title') },
 ];
 
-const DIRECTION_OPTIONS: SegmentedControlOption<'asc' | 'desc'>[] = [
-  { value: 'asc', label: 'Croissant' },
-  { value: 'desc', label: 'Décroissant' },
+const directionOptions = (): SegmentedControlOption<'asc' | 'desc'>[] => [
+  { value: 'asc', label: t('common.ascending') },
+  { value: 'desc', label: t('common.descending') },
 ];
 
 interface IssueRow {
@@ -60,7 +61,7 @@ interface IssueRow {
 @Component({
   selector: 'fg-issue-list',
   standalone: true,
-  imports: [TranslocoPipe, 
+  imports: [TranslocoCountPipe, TranslocoPipe, 
     FormsModule,
     RouterLink,
     GbtDateTimePipe,
@@ -103,12 +104,12 @@ export class IssueList implements OnInit {
   protected loadFailed = signal(false);
   protected filters = createIssueFilters(() => this.repositoryId(), () => this.load());
 
-  private readonly searchSort = createListToolbarState<SortKey>({ sortOptions: SORT_OPTIONS, defaultSort: 'date' });
+  private readonly searchSort = createListToolbarState<SortKey>({ sortOptions: sortOptions(), defaultSort: 'date' });
   protected search = this.searchSort.search;
   protected sortValue = this.searchSort.sortValue;
   protected direction = this.searchSort.direction;
   protected readonly sortOptions = this.searchSort.sortOptions as SelectOption<SortKey>[];
-  protected readonly directionOptions = DIRECTION_OPTIONS;
+  protected readonly directionOptions = directionOptions();
   protected filteredIssues = this.searchSort.filtered(() => this.issues(), {
     text: (issue) => issue.title,
     sortBy: { title: (issue) => issue.title, date: (issue) => issue.createdAt },
@@ -119,8 +120,8 @@ export class IssueList implements OnInit {
   private openIssues = computed(() => this.filteredIssues().filter((issue) => !isClosed(issue)));
   private closedIssues = computed(() => this.filteredIssues().filter(isClosed));
   protected tabOptions = computed<SegmentedControlOption<StateTab>[]>(() => [
-    { value: 'open', label: `Ouverts (${this.openIssues().length})` },
-    { value: 'closed', label: `Fermés (${this.closedIssues().length})` },
+    { value: 'open', label: t('issues.openTab', { count: this.openIssues().length }) },
+    { value: 'closed', label: t('issues.closedTab', { count: this.closedIssues().length }) },
   ]);
   protected tabIssues = computed(() => (this.tab() === 'open' ? this.openIssues() : this.closedIssues()));
 
@@ -146,7 +147,7 @@ export class IssueList implements OnInit {
         closed: isClosed(issue),
       }));
   });
-  protected readonly pageLabel = (page: number) => `Page ${page}`;
+  protected readonly pageLabel = (page: number) => t('common.pageNumber', { page });
 
   protected hasActiveFilters = computed(() => this.search().trim() !== '' || this.filters.hasSelection());
   protected isEmptyRepository = computed(() => !this.loading() && !this.loadFailed() && this.issues().length === 0 && !this.filters.hasSelection());
@@ -164,9 +165,9 @@ export class IssueList implements OnInit {
   protected newDescription = signal('');
   protected newKind = signal<CreatableIssueKind>('task');
   protected titleTouched = signal(false);
-  protected readonly kindOptions = ISSUE_KIND_OPTIONS;
+  protected readonly kindOptions = issueKindOptions();
   protected canSubmit = computed(() => this.newTitle().trim() !== '' && !this.creating());
-  protected titleError = computed(() => (this.titleTouched() && this.newTitle().trim() === '' ? 'Le titre est requis' : null));
+  protected titleError = computed(() => (this.titleTouched() && this.newTitle().trim() === '' ? t('issues.titleRequired') : null));
 
   constructor() {
     // Newest first: with tabs and pages, oldest-first would bury new work on the last page. Set here, not in
@@ -176,7 +177,7 @@ export class IssueList implements OnInit {
   }
 
   ngOnInit(): void {
-    this.pageTitle.set('Tickets');
+    this.pageTitle.set(t('nav.issues'));
     this.load();
     this.filters.loadOptions();
   }
@@ -193,7 +194,7 @@ export class IssueList implements OnInit {
         // Already on the failed card: a second failure gets a toast, since the alert is unchanged and wouldn't be
         // announced again.
         if (this.loadFailed()) {
-          this.toast.show('Impossible de charger les tickets. Réessayez plus tard.', 'error');
+          this.toast.show(t('issues.loadFailedToast'), 'error');
         }
         this.loadFailed.set(true);
       },
@@ -232,12 +233,12 @@ export class IssueList implements OnInit {
         this.creating.set(false);
         this.closeCreate();
         this.load();
-        this.toast.show('Ticket créé.');
+        this.toast.show(t('issues.created'));
       },
       // The dialog stays open with the draft, so nothing typed is lost.
       error: () => {
         this.creating.set(false);
-        this.toast.show('Impossible de créer le ticket.', 'error');
+        this.toast.show(t('issues.createFailed'), 'error');
       },
     });
   }
@@ -252,9 +253,9 @@ export class IssueList implements OnInit {
     action.subscribe({
       next: (updated) => {
         this.replace(updated);
-        this.toast.show(reopening ? 'Ticket rouvert.' : 'Ticket fermé.');
+        this.toast.show(reopening ? t('issues.reopened') : t('issues.closed'));
       },
-      error: () => this.toast.show('Impossible de mettre à jour le ticket. Réessayez plus tard.', 'error'),
+      error: () => this.toast.show(t('issues.updateFailed'), 'error'),
     });
   }
 
@@ -265,9 +266,9 @@ export class IssueList implements OnInit {
     this.issuesService.assign(this.repositoryId(), issue.number, this.me.id()).subscribe({
       next: (updated) => {
         this.replace(updated);
-        this.toast.show('Ticket assigné.');
+        this.toast.show(t('issues.assigned'));
       },
-      error: () => this.toast.show('Impossible de vous assigner le ticket. Réessayez plus tard.', 'error'),
+      error: () => this.toast.show(t('issues.assignFailed'), 'error'),
     });
   }
 

@@ -2,6 +2,7 @@ import { computed, inject, signal } from '@angular/core';
 import type { SelectOption } from '@masmarino/gabarit/select';
 import { Label, LabelsService } from '../labels/labels.service';
 import { Milestone, MilestonesService } from '../milestones/milestones.service';
+import { t } from '../shared/i18n/translator';
 
 export const labelSelectOptions = (labels: Label[]): SelectOption<string>[] => labels.map((label) => ({ value: label.id, label: label.name, color: label.color }));
 
@@ -29,7 +30,7 @@ export function createIssueFilters(repositoryId: () => string, refetch: () => vo
     selectedMilestoneId,
     hasSelection,
     labelOptions: computed(() => labelSelectOptions(labels())),
-    milestoneOptions: computed(() => milestoneSelectOptions(milestones(), 'Tous les milestones')),
+    milestoneOptions: computed(() => milestoneSelectOptions(milestones(), t('issues.allMilestones'))),
     milestoneTitleById: computed(() => new Map(milestones().map((milestone) => [milestone.id, milestone.title]))),
 
     /** The server filters to send with the issues request. */

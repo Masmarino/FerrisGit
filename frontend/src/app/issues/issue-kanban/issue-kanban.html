@@ -1,23 +1,23 @@
-<gbt-page-header heading="Tickets">
-  <gbt-button header-actions variant="secondary" iconName="list" text="Vue liste" (clicked)="openList()" />
+<gbt-page-header [heading]="'nav.issues' | transloco">
+  <gbt-button header-actions variant="secondary" iconName="list" [text]="'issues.listView' | transloco" (clicked)="openList()" />
 </gbt-page-header>
 
 <gbt-page-layout width="full">
   <!-- Filters stay when a filtered refetch fails, so the failing one can be changed or cleared. Hidden while the repository has no issues at all. -->
   @if (!isEmptyRepository() && (!loadFailed() || filters.hasSelection())) {
-    <div class="issue-kanban__toolbar" role="search" aria-label="Filtrer les tickets">
+    <div class="issue-kanban__toolbar" role="search" [attr.aria-label]="'issues.filter' | transloco">
       <gbt-input
         class="issue-kanban__search"
-        label="Rechercher un ticket"
+        [label]="'issues.search' | transloco"
         hideLabel
         leadingIcon="search"
-        placeholder="Rechercher un ticket"
+        [placeholder]="'issues.search' | transloco"
         [ngModel]="search()"
         (ngModelChange)="search.set($event)"
       />
       <gbt-select
         class="issue-kanban__labels"
-        label="Filtrer par label"
+        [label]="'common.filterByLabel' | transloco"
         hideLabel
         fullWidth
         [options]="filters.labelOptions()"
@@ -25,20 +25,20 @@
         [chips]="true"
         [ngModel]="filters.selectedLabelIds()"
         (ngModelChange)="filters.selectLabels($event)"
-        placeholder="Tous les labels"
+        [placeholder]="'common.allLabels' | transloco"
       />
       <gbt-select
         class="issue-kanban__milestone-filter"
-        label="Filtrer par milestone"
+        [label]="'common.filterByMilestone' | transloco"
         hideLabel
         fullWidth
         [options]="filters.milestoneOptions()"
         [ngModel]="filters.selectedMilestoneId()"
         (ngModelChange)="filters.selectMilestone($event)"
-        placeholder="Tous les milestones"
+        [placeholder]="'issues.allMilestones' | transloco"
       />
       @if (hasActiveFilters()) {
-        <gbt-button class="issue-kanban__reset" variant="secondary" size="small" iconName="x" text="Réinitialiser" ariaLabel="Réinitialiser les filtres" (clicked)="resetFilters()" />
+        <gbt-button class="issue-kanban__reset" variant="secondary" size="small" iconName="x" [text]="'common.reset' | transloco" [ariaLabel]="'common.resetFilters' | transloco" (clicked)="resetFilters()" />
       }
       @if (!loading() && !loadFailed()) {
         <p class="issue-kanban__summary">{{ summary() }}</p>
@@ -47,11 +47,11 @@
   }
 
   @if (loadFailed()) {
-    <gbt-alert variant="error" appearance="subtle" live="off">Les tickets n'ont pas pu être chargés.</gbt-alert>
+    <gbt-alert variant="error" appearance="subtle" live="off">{{ 'issues.loadFailed' | transloco }}</gbt-alert>
   } @else {
     <div class="issue-kanban__board" cdkScrollable [attr.aria-busy]="loading() ? 'true' : null">
       @if (loading()) {
-        <span class="sr-only" role="status">Chargement des tickets…</span>
+        <span class="sr-only" role="status">{{ 'issues.loading' | transloco }}</span>
       }
       @for (lane of lanes(); track lane.status) {
         <section class="issue-kanban__lane" [attr.data-status]="lane.status" [attr.aria-labelledby]="lane.headingId">
@@ -126,7 +126,7 @@
                     <div class="issue-kanban__card-footer">
                       @if (card.issue.assignee; as assignee) {
                         <span class="issue-kanban__assignee">
-                          <span class="sr-only">Assigné à</span>
+                          <span class="sr-only">{{ 'common.assignedTo' | transloco }}</span>
                           <gbt-user-chip [name]="assignee.username" />
                         </span>
                       }
@@ -141,7 +141,7 @@
                   }
                 </li>
               } @empty {
-                <li class="issue-kanban__empty">Aucun ticket</li>
+                <li class="issue-kanban__empty">{{ 'issues.noIssue' | transloco }}</li>
               }
             </ul>
           }
