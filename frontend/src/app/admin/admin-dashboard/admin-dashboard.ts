@@ -18,6 +18,7 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import type { ChartSeries } from '@masmarino/gabarit/chart';
 import { AdminMetricsService, AdminStats, MetricsSnapshot } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';
+import { activeLocale } from '../../shared/i18n/translator';
 
 const BYTE_UNITS = ['Ko', 'Mo', 'Go', 'To'];
 
@@ -65,7 +66,7 @@ export class AdminDashboard implements OnInit {
   private pageTitle = inject(PageTitleService);
   private toast = inject(GbtToastService);
   // Gabarit's charts take their own `locale` input, they don't read LOCALE_ID.
-  protected readonly locale = 'fr-FR';
+  protected readonly locale = activeLocale;
 
   protected stats = signal<AdminStats | null>(null);
   protected statsState = signal<LoadState>('loading');
@@ -93,7 +94,7 @@ export class AdminDashboard implements OnInit {
       {
         key: 'storage',
         label: 'Stockage',
-        value: latest ? formatBytes(latest.totalStorageBytes, 'fr', { binaryUnits: 'legacy' }) : '—',
+        value: latest ? formatBytes(latest.totalStorageBytes, activeLocale(), { binaryUnits: 'legacy' }) : '—',
         hint: latest ? 'dernier relevé' : 'aucun relevé',
         icon: 'hard-drive',
       },

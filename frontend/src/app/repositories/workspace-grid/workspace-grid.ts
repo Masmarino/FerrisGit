@@ -19,6 +19,7 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { GroupsService } from '../../groups/groups.service';
 import { MemberRole, Repository, RepositoriesService, RepositoryRole } from '../repositories.service';
 import { canMaintain } from '../repository-role';
+import { activeLocale } from '../../shared/i18n/translator';
 
 /** Paginated client-side: the API returns every group and repository at once. */
 export const WORKSPACE_PAGE_SIZE = 25;
@@ -113,7 +114,7 @@ function repositoryRow(repository: Repository, basePath: string): WorkspaceRow {
     visibility: isPublic ? { label: 'Public', variant: 'info' } : { label: 'Privé', variant: 'neutral' },
     description: repository.description,
     createdAt: repository.createdAt,
-    size: repository.sizeBytes === undefined ? null : formatBytes(repository.sizeBytes, 'fr', { binaryUnits: 'legacy' }),
+    size: repository.sizeBytes === undefined ? null : formatBytes(repository.sizeBytes, activeLocale(), { binaryUnits: 'legacy' }),
     stars: repository.starCount ?? null,
     role: ROLE_LABELS[repository.role],
     menuLabel: `Actions du dépôt ${path}`,
@@ -176,12 +177,12 @@ export class WorkspaceGrid {
       }
       return this.direction() === 'desc' ? b.path.localeCompare(a.path) : a.path.localeCompare(b.path);
     },
-    locale: 'fr',
+    locale: activeLocale(),
   });
   private filteredRepositories = this.searchSort.filtered(() => this.repositories(), {
     text: (repository) => relativePath(repository.path.join('/'), this.basePath()),
     sortBy: { date: (repository) => repository.createdAt, name: (repository) => repository.path.join('/') },
-    locale: 'fr',
+    locale: activeLocale(),
   });
   private allRows = computed<WorkspaceRow[]>(() => {
     const base = this.basePath();

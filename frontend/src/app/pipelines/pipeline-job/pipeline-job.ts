@@ -3,8 +3,9 @@ import { JobStatus } from '@masmarino/gabarit/job-status';
 import { Stepper } from '@masmarino/gabarit/stepper';
 import { JobSummary } from '../pipelines.service';
 import { STATUS_LABELS, StageGroup, isNearBottom, jobDurationLabel, jobGlyphStatus, stageIndexOf, stageSteps } from '../pipeline-helpers';
+import { activeLocale } from '../../shared/i18n/translator';
 
-const PURGE_DATE = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' });
+const purgeDate = () => new Intl.DateTimeFormat(activeLocale(), { day: 'numeric', month: 'long', year: 'numeric' });
 
 @Component({
   selector: 'fg-pipeline-job',
@@ -31,7 +32,7 @@ export class PipelineJob {
   protected logPlaceholder = computed(() => {
     const { status, logsPurgedAt } = this.job();
     if (logsPurgedAt) {
-      return `Journal supprimé le ${PURGE_DATE.format(new Date(logsPurgedAt))} (rétention des journaux de l'instance).`;
+      return `Journal supprimé le ${purgeDate().format(new Date(logsPurgedAt))} (rétention des journaux de l'instance).`;
     }
     return status === 'skipped' ? "Ce job n'a pas démarré : un job dont il dépend n'a pas réussi." : '(pas encore de logs)';
   });

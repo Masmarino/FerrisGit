@@ -24,6 +24,7 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { PageTitleService } from '../../shell/page-title.service';
 import { CreateReleaseModal } from '../create-release-modal/create-release-modal';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
+import { activeLocale } from '../../shared/i18n/translator';
 
 type SortKey = 'date' | 'title';
 
@@ -111,7 +112,7 @@ export class ReleaseList implements OnInit {
   protected filteredItems = this.searchSort.filtered(() => this.items(), {
     text: (release) => [release.title, release.tagName],
     sortBy: { title: (release) => release.title, date: (release) => release.publishedAt ?? release.createdAt },
-    locale: 'fr',
+    locale: activeLocale(),
   });
 
   protected readonly pageSize = RELEASES_PAGE_SIZE;

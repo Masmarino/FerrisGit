@@ -28,6 +28,7 @@ import { PageTitleService } from '../../shell/page-title.service';
 import { injectRepositoryPermissions } from '../../repositories/repository-role';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { openWhenAsked } from '../../shared/open-when-asked';
+import { activeLocale } from '../../shared/i18n/translator';
 
 type SortKey = 'date' | 'title';
 type StateTab = MergeRequestSummary['status'];
@@ -125,7 +126,7 @@ export class MergeRequestList implements OnInit {
   protected filteredList = this.searchSort.filtered(() => this.list(), {
     text: (mr) => mr.title,
     sortBy: { title: (mr) => mr.title, date: (mr) => mr.createdAt },
-    locale: 'fr',
+    locale: activeLocale(),
   });
 
   protected tab = signal<StateTab>('open');

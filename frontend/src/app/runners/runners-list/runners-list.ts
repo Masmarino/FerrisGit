@@ -22,6 +22,7 @@ import { TagInput } from '@masmarino/gabarit/tag-input';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RunnerSummary, RunnersService } from '../runners.service';
 import { PageTitleService } from '../../shell/page-title.service';
+import { activeLocale } from '../../shared/i18n/translator';
 
 const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;
 const ABSOLUTE_OPTIONS = { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' } as const;
@@ -69,8 +70,8 @@ interface RunnerRow {
 }
 
 function rowDate(iso: string, now: Date): RowDate {
-  const relative = formatRelativeTime(iso, 'fr', now, RELATIVE_OPTIONS);
-  return { iso, label: /^\d/.test(relative) ? `le ${relative}` : relative, title: formatDateTime(iso, 'fr', ABSOLUTE_OPTIONS) };
+  const relative = formatRelativeTime(iso, activeLocale(), now, RELATIVE_OPTIONS);
+  return { iso, label: /^\d/.test(relative) ? `le ${relative}` : relative, title: formatDateTime(iso, activeLocale(), ABSOLUTE_OPTIONS) };
 }
 
 /** "En ligne" is derived from the last heartbeat when the list loads; the page doesn't poll. */

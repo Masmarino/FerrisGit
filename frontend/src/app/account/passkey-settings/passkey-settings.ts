@@ -3,6 +3,7 @@ import { Router } from '@angular/router';
 import { PasskeySettings as GbtPasskeySettings } from '@masmarino/gabarit/passkey-settings';
 import { AuthService } from '../../auth/auth.service';
 import { provideFerrisgitAuth } from '../../auth/auth-kit';
+import { activeLocale } from '../../shared/i18n/translator';
 
 /**
  * Deleting a passkey revokes every session of the account, this one included, with no fresh token. On `sessionRevoked`
@@ -14,10 +15,11 @@ import { provideFerrisgitAuth } from '../../auth/auth-kit';
   standalone: true,
   imports: [GbtPasskeySettings],
   providers: [provideFerrisgitAuth()],
-  template: `<gbt-passkey-settings [locale]="'fr'" (sessionRevoked)="signOut()" />`,
+  template: `<gbt-passkey-settings [locale]="locale()" (sessionRevoked)="signOut()" />`,
   styles: ':host { display: block; min-width: 0; }',
 })
 export class PasskeySettings {
+  protected readonly locale = activeLocale;
   private auth = inject(AuthService);
   private router = inject(Router);
 

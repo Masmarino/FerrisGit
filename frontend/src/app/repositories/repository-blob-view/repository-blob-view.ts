@@ -22,6 +22,7 @@ import { RepositoryHeader } from '../repository-header/repository-header';
 import { pathBreadcrumb, repositoryLink, sortEntries } from '../repository-links';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { CodeView, lineCount } from '../../shared/code-view/code-view';
+import { activeLocale } from '../../shared/i18n/translator';
 
 type MarkdownMode = 'preview' | 'source';
 
@@ -38,7 +39,7 @@ interface Navigator {
 /** Id suffix of a fake "Chargement…" child, so a folder shows a chevron before its content loads. */
 const PLACEHOLDER_SUFFIX = '/\u0000chargement';
 
-const LINE_COUNT = new Intl.NumberFormat('fr-FR');
+const numberFormat = () => new Intl.NumberFormat(activeLocale());
 
 /** The navigator only needs names and kinds, so skip the per-entry last-commit lookup. */
 const NAMES_ONLY = { lastCommit: false } as const;
@@ -83,12 +84,12 @@ export class RepositoryBlobView implements OnInit {
   protected hasText = computed(() => !!this.content());
   protected showsSource = computed(() => this.hasText() && (!this.isMarkdown() || this.markdownMode() === 'source'));
 
-  protected sizeLabel = computed(() => formatBytes(this.size(), 'fr', { binaryUnits: 'legacy' }));
+  protected sizeLabel = computed(() => formatBytes(this.size(), activeLocale(), { binaryUnits: 'legacy' }));
   protected lineCountLabel = computed(() => {
     const content = this.content();
     if (content === null) return '';
     const count = lineCount(content);
-    return `${LINE_COUNT.format(count)} ${count > 1 ? 'lignes' : 'ligne'}`;
+    return `${numberFormat().format(count)} ${count > 1 ? 'lignes' : 'ligne'}`;
   });
 
   protected rootLink = computed(() => {

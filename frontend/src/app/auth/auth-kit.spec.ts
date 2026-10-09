@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
 import { AUTH_LABELS, AUTH_PORT, MFA_PORT } from '@masmarino/gabarit/auth';
 import { TOTP_QR_RENDERER } from '@masmarino/gabarit/mfa-enrollment';
 import { appConfig } from '../app.config';
@@ -34,7 +35,8 @@ describe('provideFerrisgitAuth', () => {
   });
 
   it('stays out of the root config: the pages that use the kit provide it, so it loads with them', () => {
-    TestBed.configureTestingModule({ providers: appConfig.providers });
+    // The testing backend keeps the language file's request pending: no server answers it here.
+    TestBed.configureTestingModule({ providers: [...appConfig.providers, provideHttpClientTesting()] });
 
     expect(TestBed.inject(AUTH_PORT, null)).toBeNull();
     expect(TestBed.inject(MFA_PORT, null)).toBeNull();

@@ -1,6 +1,7 @@
 import { Component, inject, input, OnInit, signal } from '@angular/core';
 import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { LanguageStat, RepositoriesService } from '../repositories.service';
+import { activeLocale } from '../../shared/i18n/translator';
 
 const LANGUAGE_COLORS = ['#dea584', '#f1e05a', '#3572a5', '#e34c26', '#563d7c', '#00add8', '#701516'];
 
@@ -37,10 +38,10 @@ export function colorForLanguage(name: string): string {
   return LANGUAGE_COLOR_MAP[name] ?? LANGUAGE_COLORS[hashString(name) % LANGUAGE_COLORS.length];
 }
 
-const PERCENT_FORMAT = new Intl.NumberFormat('fr-FR', { minimumFractionDigits: 1, maximumFractionDigits: 1 });
+const percent = () => new Intl.NumberFormat(activeLocale(), { minimumFractionDigits: 1, maximumFractionDigits: 1 });
 
 function formatPercent(value: number): string {
-  return `${PERCENT_FORMAT.format(value)}\u00a0%`;
+  return `${percent().format(value)}\u00a0%`;
 }
 
 @Component({

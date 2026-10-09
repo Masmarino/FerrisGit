@@ -71,7 +71,7 @@
       <gbt-line-chart
         [series]="storageSeries()"
         xKind="time"
-        [locale]="locale"
+        [locale]="locale()"
         [area]="true"
         label="Évolution du stockage"
         tableCaption="Stockage total par relevé"
@@ -82,7 +82,7 @@
       <gbt-line-chart
         [series]="countsSeries()"
         xKind="time"
-        [locale]="locale"
+        [locale]="locale()"
         label="Évolution des utilisateurs et dépôts"
         tableCaption="Utilisateurs et dépôts par relevé"
         xColumn="Date"

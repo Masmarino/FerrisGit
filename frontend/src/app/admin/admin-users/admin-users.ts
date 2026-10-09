@@ -51,6 +51,7 @@ import {
   SELF_DEMOTED_TOAST,
   SUPER_ADMIN,
 } from './admin-user-presentation';
+import { activeLocale } from '../../shared/i18n/translator';
 
 type UsersFilter = 'all' | 'pending';
 type SortKey = 'createdAt' | 'username';
@@ -135,7 +136,7 @@ export class AdminUsers implements OnInit {
   private filteredUsers = this.searchSort.filtered(() => this.filtered(), {
     text: (user) => [user.username, user.email],
     sortBy: { username: (user) => user.username, createdAt: (user) => user.createdAt },
-    locale: 'fr',
+    locale: activeLocale(),
   });
 
   /** Shown from the first paint so the layout doesn't shift when the list arrives. */

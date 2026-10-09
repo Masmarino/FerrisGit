@@ -24,6 +24,7 @@ import { ContributorAvatars } from '../contributor-avatars/contributor-avatars';
 import { LanguageBar } from '../language-bar/language-bar';
 import { commitTitle, shortSha } from '../commit-format';
 import { pathBreadcrumb, repositoryLink, sortEntries } from '../repository-links';
+import { activeLocale } from '../../shared/i18n/translator';
 
 interface TreeRow {
   entry: TreeEntry;
@@ -33,7 +34,7 @@ interface TreeRow {
   link: string[];
 }
 
-const LONG_DATE = new Intl.DateTimeFormat('fr-FR', { dateStyle: 'long' });
+const longDate = () => new Intl.DateTimeFormat(activeLocale(), { dateStyle: 'long' });
 
 function without<T>(set: ReadonlySet<T>, value: T): Set<T> {
   const next = new Set(set);
@@ -129,12 +130,12 @@ export class RepositoryTreeView implements OnInit {
     const createdAt = this.repo()?.createdAt;
     if (!createdAt) return '';
     const date = new Date(createdAt);
-    return Number.isNaN(date.getTime()) ? createdAt : LONG_DATE.format(date);
+    return Number.isNaN(date.getTime()) ? createdAt : longDate().format(date);
   });
 
   protected sizeLabel = computed(() => {
     const bytes = this.repo()?.sizeBytes;
-    return bytes === undefined || bytes === null ? '' : formatBytes(bytes, 'fr', { binaryUnits: 'legacy' });
+    return bytes === undefined || bytes === null ? '' : formatBytes(bytes, activeLocale(), { binaryUnits: 'legacy' });
   });
 
   private createdTemplate = viewChild.required<TemplateRef<unknown>>('createdTemplate');

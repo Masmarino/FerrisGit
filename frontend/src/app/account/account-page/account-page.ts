@@ -25,6 +25,7 @@ import { MfaSettings } from '../mfa-settings/mfa-settings';
 import { PasskeySettings } from '../passkey-settings/passkey-settings';
 import { SessionSettings } from '../session-settings/session-settings';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
+import { activeLocale } from '../../shared/i18n/translator';
 
 type AccountSectionKey = 'profile' | 'password' | 'security' | 'tokens';
 
@@ -51,6 +52,7 @@ type SaveState = 'saving' | 'saved' | 'error';
   styleUrl: './account-page.scss',
 })
 export class AccountPage implements OnInit {
+  protected readonly locale = activeLocale;
   private auth = inject(AuthService);
   private router = inject(Router);
   private route = inject(ActivatedRoute);

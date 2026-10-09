@@ -14,6 +14,7 @@ import { ListRow } from '@masmarino/gabarit/list-row';
 import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { ApiTokenSummary, TokensService } from '../api-tokens.service';
+import { activeLocale } from '../../shared/i18n/translator';
 
 interface RevealedToken {
   id: string;
@@ -42,7 +43,7 @@ export class ApiTokensList implements OnInit {
 
 
   /** "Créé le 12/08/2026" but "Créé il y a 3 j": the article only goes before an absolute date. */
-  protected readonly on = (iso: string) => (/^\d/.test(formatRelativeTime(iso, 'fr', undefined, RELATIVE_OPTIONS)) ? 'le ' : '');
+  protected readonly on = (iso: string) => (/^\d/.test(formatRelativeTime(iso, activeLocale(), undefined, RELATIVE_OPTIONS)) ? 'le ' : '');
 
   protected list = signal<ApiTokenSummary[]>([]);
   protected listState = signal<'loading' | 'loaded' | 'failed'>('loading');

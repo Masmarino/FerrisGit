@@ -15,8 +15,9 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AdminMetricsService, HealthStatus } from '../admin-metrics.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { ABSOLUTE_OPTIONS } from '../row-date';
+import { activeLocale } from '../../shared/i18n/translator';
 
-const bytes = (value: number) => formatBytes(value, 'fr', { binaryUnits: 'legacy' });
+const bytes = (value: number) => formatBytes(value, activeLocale(), { binaryUnits: 'legacy' });
 
 interface StatusBadge {
   label: string;
@@ -113,7 +114,7 @@ export class AdminHealth implements OnInit {
                 label: 'Espace utilisé',
                 value: storage.usedBytes,
                 max: storage.totalBytes,
-                formatted: `${bytes(storage.usedBytes)} sur ${bytes(storage.totalBytes)} · ${formatPercent(storage.totalBytes > 0 ? storage.usedBytes / storage.totalBytes : 0, 'fr')}`,
+                formatted: `${bytes(storage.usedBytes)} sur ${bytes(storage.totalBytes)} · ${formatPercent(storage.totalBytes > 0 ? storage.usedBytes / storage.totalBytes : 0, activeLocale())}`,
               }
             : null,
       },
@@ -140,7 +141,7 @@ export class AdminHealth implements OnInit {
       return null;
     }
     const startedAt = new Date(checkedAt.getTime() - health.uptimeSeconds * 1000).toISOString();
-    return { value: formatDuration(health.uptimeSeconds * 1000, 'fr', { days: true }), startedAt: formatDateTime(startedAt, 'fr', ABSOLUTE_OPTIONS) };
+    return { value: formatDuration(health.uptimeSeconds * 1000, activeLocale(), { days: true }), startedAt: formatDateTime(startedAt, activeLocale(), ABSOLUTE_OPTIONS) };
   });
 
   protected checkedAtLabel = computed(() => {

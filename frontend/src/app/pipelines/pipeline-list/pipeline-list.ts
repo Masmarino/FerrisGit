@@ -21,6 +21,7 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { canWrite } from '../../repositories/repository-role';
 import { PageTitleService } from '../../shell/page-title.service';
 import { StatusBadge, StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
+import { activeLocale } from '../../shared/i18n/translator';
 
 type StatusTab = 'all' | 'active' | 'success' | 'failed';
 
@@ -124,7 +125,7 @@ export class PipelineList implements OnInit {
     // A SHA matches from its start, a commit message anywhere: `text`'s plain substring matching can't express both.
     matches: (pipeline, query) => pipeline.commitSha.toLowerCase().startsWith(query) || (pipeline.commitMessage?.toLowerCase().includes(query) ?? false),
     sortBy: { date: (pipeline) => pipeline.createdAt },
-    locale: 'fr',
+    locale: activeLocale(),
   });
 
   protected tab = signal<StatusTab>('all');

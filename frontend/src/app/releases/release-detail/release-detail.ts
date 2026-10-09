@@ -25,6 +25,7 @@ import { RepositoryContextService } from '../../repositories/repository-context.
 import { PageTitleService } from '../../shell/page-title.service';
 import { MarkdownView } from '../../shared/markdown-view/markdown-view';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
+import { activeLocale } from '../../shared/i18n/translator';
 
 @Component({
   selector: 'fg-release-detail',
@@ -88,7 +89,7 @@ export class ReleaseDetail implements OnInit {
   protected treeLink = computed(() => ['/repositories', ...this.path(), '-', 'tree', this.tagName()]);
   protected shortSha = computed(() => this.release()?.targetCommitSha?.slice(0, 7) ?? null);
   protected totalSize = computed(() => this.formatBytes((this.release()?.assets ?? []).reduce((sum, asset) => sum + asset.sizeBytes, 0)));
-  protected readonly formatBytes = (bytes: number) => formatBytesFn(bytes, 'fr', { binaryUnits: 'legacy' });
+  protected readonly formatBytes = (bytes: number) => formatBytesFn(bytes, activeLocale(), { binaryUnits: 'legacy' });
 
   private createdTemplate = viewChild.required<TemplateRef<unknown>>('createdTemplate');
   private publishedTemplate = viewChild.required<TemplateRef<unknown>>('publishedTemplate');

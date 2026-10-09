@@ -29,6 +29,7 @@ import { MeService } from '../../shell/me.service';
 import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { PageTitleService } from '../../shell/page-title.service';
 import { openWhenAsked } from '../../shared/open-when-asked';
+import { activeLocale } from '../../shared/i18n/translator';
 
 type SortKey = 'date' | 'title';
 type StateTab = 'open' | 'closed';
@@ -110,7 +111,7 @@ export class IssueList implements OnInit {
   protected filteredIssues = this.searchSort.filtered(() => this.issues(), {
     text: (issue) => issue.title,
     sortBy: { title: (issue) => issue.title, date: (issue) => issue.createdAt },
-    locale: 'fr',
+    locale: activeLocale(),
   });
 
   protected tab = signal<StateTab>('open');

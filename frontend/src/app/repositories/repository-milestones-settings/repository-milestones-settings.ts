@@ -14,10 +14,11 @@ import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { createSettingsList } from '../settings-list';
+import { activeLocale } from '../../shared/i18n/translator';
 
 // A due date is a calendar day stored as UTC midnight. Formatting in local time would show the
 // previous day west of UTC.
-const DUE_DATE_FORMAT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+const dueDate = () => new Intl.DateTimeFormat(activeLocale(), { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
 
 @Component({
   selector: 'fg-repository-milestones-settings',
@@ -27,6 +28,7 @@ const DUE_DATE_FORMAT = new Intl.DateTimeFormat('fr-FR', { day: 'numeric', month
   styleUrl: './repository-milestones-settings.scss',
 })
 export class RepositoryMilestonesSettings implements OnInit {
+  protected readonly locale = activeLocale;
   repositoryId = input.required<string>();
 
   private milestonesService = inject(MilestonesService);
@@ -44,7 +46,7 @@ export class RepositoryMilestonesSettings implements OnInit {
       const validDue = due && !Number.isNaN(due.getTime()) ? due : null;
       return {
         milestone,
-        due: validDue ? `Échéance le ${DUE_DATE_FORMAT.format(validDue)}` : 'Sans échéance',
+        due: validDue ? `Échéance le ${dueDate().format(validDue)}` : 'Sans échéance',
         late: milestone.state === 'open' && validDue !== null && validDue.getTime() < today,
       };
     });

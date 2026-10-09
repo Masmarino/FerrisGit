@@ -20,6 +20,7 @@ import { SearchIssueResult, SearchMergeRequestResult, SearchRepositoryRef, Searc
 import { PageTitleService } from '../../shell/page-title.service';
 import { issueKindPresentation } from '../../issues/issue-kind';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
+import { activeLocale } from '../../shared/i18n/translator';
 
 const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;
 
@@ -101,7 +102,7 @@ function repositoryFields(repository: SearchRepositoryRef): Pick<RepositoryItemR
 }
 
 function openedWhen(createdAt: string): string {
-  const when = formatRelativeTime(createdAt, 'fr', undefined, RELATIVE_OPTIONS);
+  const when = formatRelativeTime(createdAt, activeLocale(), undefined, RELATIVE_OPTIONS);
   return /^\d/.test(when) ? `le ${when}` : when;
 }
 

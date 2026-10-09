@@ -2,6 +2,7 @@ import { BadgeVariant } from '@masmarino/gabarit/badge';
 import { formatDateTime } from '@masmarino/gabarit/format';
 import { AdminUser } from '../admin-users.service';
 import { ABSOLUTE_OPTIONS, RowDate, rowDate } from '../row-date';
+import { activeLocale } from '../../shared/i18n/translator';
 
 export interface Presentation {
   label: string;
@@ -25,7 +26,7 @@ export function accountState(user: AdminUser, now: Date): { state: Presentation;
     return { state: PENDING, expiry: null };
   }
   const expired = new Date(expiresAt).getTime() <= now.getTime();
-  const title = formatDateTime(expiresAt, 'fr', ABSOLUTE_OPTIONS);
+  const title = formatDateTime(expiresAt, activeLocale(), ABSOLUTE_OPTIONS);
   return { state: expired ? EXPIRED : PENDING, expiry: { iso: expiresAt, title, label: expired ? `a expiré ${rowDate(expiresAt, now).label}` : `expire le ${title}` } };
 }
 

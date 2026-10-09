@@ -106,7 +106,7 @@
                   </div>
                   <p class="account-page__identity-meta">Nom d'utilisateur, non modifiable</p>
                   @if (me.createdAt(); as createdAt) {
-                    <p class="account-page__identity-meta">Membre depuis le {{ createdAt | gbtDateTime : { locale: 'fr', day: 'numeric', month: 'short', year: 'numeric' } }}</p>
+                    <p class="account-page__identity-meta">Membre depuis le {{ createdAt | gbtDateTime : { locale: locale(), day: 'numeric', month: 'short', year: 'numeric' } }}</p>
                   }
                 </div>
               } @else {

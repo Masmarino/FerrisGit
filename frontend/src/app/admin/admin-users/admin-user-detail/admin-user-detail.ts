@@ -53,12 +53,13 @@ import {
   RESEND_FAILED,
   SUPER_ADMIN,
 } from '../admin-user-presentation';
+import { activeLocale } from '../../../shared/i18n/translator';
 
 type LoadState = 'loading' | 'loaded' | 'failed';
 type View = 'loading' | 'failed' | 'not-found' | 'self' | 'ready';
 
 const USERS_LINK = '/admin/users';
-const bytes = (value: number) => formatBytes(value, 'fr', { binaryUnits: 'legacy' });
+const bytes = (value: number) => formatBytes(value, activeLocale(), { binaryUnits: 'legacy' });
 
 /** Sum of the known sizes, so a lower bound when some couldn't be computed. */
 export function totalSize(repositories: AdminUserRepository[]): { label: string; complete: boolean } | null {
