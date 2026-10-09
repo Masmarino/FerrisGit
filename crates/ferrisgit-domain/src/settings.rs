@@ -85,8 +85,8 @@ pub struct CiVariable {
     pub masked: bool,
 }
 
-/// A name a shell can export, so one a CI variable can have: ASCII letters, digits and `_`, no digit first. The web
-/// form says the same before sending (ci-variable-name.ts); a name that is not one would never reach a job's script.
+/// Whether a shell can export `name`, which is what a CI variable name has to be: ASCII letters, digits and `_`, not
+/// starting with a digit. The web form checks the same thing before sending (ci-variable-name.ts).
 pub fn is_env_name(name: &str) -> bool {
     let mut chars = name.chars();
     chars

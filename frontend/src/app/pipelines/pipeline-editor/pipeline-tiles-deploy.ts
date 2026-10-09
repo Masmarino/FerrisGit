@@ -1,6 +1,6 @@
 import { JobTile, ParamValues, TileBuild, TileParam, defaultValues } from './pipeline-tile-types';
 
-/** Quotes a text for a POSIX shell so it reaches the command as one argument, whatever it contains. */
+/** Quotes a text for a POSIX shell, so that it reaches the command as a single argument whatever it contains. */
 export const shQuote = (text: string): string => `'${text.replace(/'/g, `'\\''`)}'`;
 
 const lines = (value: unknown): string[] =>
@@ -22,7 +22,7 @@ const IMAGE_REF = /^[A-Za-z0-9][A-Za-z0-9._:/@-]*$/;
 const pathMessage = 'Lettres, chiffres et . _ / ~ - seulement, sans espace ni tiret au début.';
 const k8sMessage = 'Minuscules, chiffres, - et . ; commence et finit par une lettre ou un chiffre.';
 
-/** A tile with questions: its default fields are what the default answers build. */
+/** A tile with questions. Its default fields are what the default answers build. */
 function questionTile(tile: Omit<JobTile, keyof TileBuild | 'needsSecrets'> & { params: TileParam[]; build: (values: ParamValues) => TileBuild }): JobTile {
   const defaults = tile.build(defaultValues(tile.params));
   return { ...tile, ...defaults, needsSecrets: (defaults.secrets ?? []).length > 0 };
@@ -85,7 +85,7 @@ const sshParams = (): TileParam[] => [
   },
 ];
 
-/** The commands that put the key (and the server's fingerprint) where ssh looks, for the answers. */
+/** The commands that put the key (and the server's fingerprint) where ssh looks for them, for the given answers. */
 function sshSetup(values: ParamValues): { script: string[]; secrets: string[]; options: string } {
   const verify = values['verify'] !== 'skip';
   return {

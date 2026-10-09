@@ -9,13 +9,13 @@ export interface HistoryEntry<T> {
 export interface EditHistory<T> {
   past: HistoryEntry<T>[];
   future: HistoryEntry<T>[];
-  /** The change being typed: further changes with the same key soon after are the same step. */
+  /** The change being typed: further changes with the same key soon after belong to the same step. */
   typing: { key: string; at: number } | null;
 }
 
-/** Enough to walk back through an afternoon's work without holding every keystroke. */
+/** Enough to walk back through an afternoon of work without keeping every keystroke. */
 export const HISTORY_LIMIT = 100;
-/** Keystrokes closer than this in one field are one step to undo, not one per letter. */
+/** Keystrokes closer together than this in one field make one undo step, not one per letter. */
 export const TYPING_PAUSE_MS = 1500;
 
 export function emptyHistory<T>(): EditHistory<T> {
@@ -24,7 +24,7 @@ export function emptyHistory<T>(): EditHistory<T> {
 
 /**
  * Records a change made over `before`. A change with the same `typingKey` as the previous one, within the pause, joins
- * it: undoing goes back to before the first of them. Any new change drops what could be redone.
+ * it: undoing goes back to before the first of them. Any new change clears what could be redone.
  */
 export function record<T>(history: EditHistory<T>, before: T, label: string, typingKey: string | null, now: number): EditHistory<T> {
   const typing = typingKey === null ? null : { key: typingKey, at: now };
@@ -35,7 +35,7 @@ export function record<T>(history: EditHistory<T>, before: T, label: string, typ
   return { past: [...history.past, { state: before, label }].slice(-HISTORY_LIMIT), future: [], typing };
 }
 
-/** Steps back from `current`: what to show, and what was undone. `null` when there is nothing to undo. */
+/** Steps back from `current`: the value to show, and what was undone. `null` when there is nothing to undo. */
 export function undo<T>(history: EditHistory<T>, current: T): { history: EditHistory<T>; state: T; label: string } | null {
   const entry = history.past.at(-1);
   if (!entry) {
@@ -54,8 +54,8 @@ export function redo<T>(history: EditHistory<T>, current: T): { history: EditHis
 }
 
 /**
- * An undo history over a signal: every change goes through `change`, and `undo` and `redo` put a recorded value back,
- * returning what they took back (the change's label), or `null` when there was nothing to take back.
+ * An undo history over a signal. Every change goes through `change`, while `undo` and `redo` put a recorded value back
+ * and return the label of the change they took back, or `null` when there was nothing to take back.
  */
 export function createUndoStack<T>(value: WritableSignal<T>) {
   const history = signal(emptyHistory<T>());
@@ -69,11 +69,11 @@ export function createUndoStack<T>(value: WritableSignal<T>) {
     return taken.label;
   };
   return {
-    /** What `undo` would take back, `null` when nothing. */
+    /** What `undo` would take back, or `null`. */
     nextUndo: computed(() => history().past.at(-1)?.label ?? null),
-    /** What `redo` would put back, `null` when nothing. */
+    /** What `redo` would put back, or `null`. */
     nextRedo: computed(() => history().future.at(-1)?.label ?? null),
-    /** `typingKey` makes one step of the keystrokes of one field (see `record`). */
+    /** `typingKey` makes the keystrokes of one field a single step (see `record`). */
     change(next: T, label: string, typingKey: string | null = null): void {
       if (next === value()) {
         return;
@@ -87,14 +87,14 @@ export function createUndoStack<T>(value: WritableSignal<T>) {
   };
 }
 
-/** How the person's keyboard writes the shortcuts: they are shown, and announced, as they would press them. */
+/** The shortcuts as the person's keyboard writes them: they are shown and announced the way they would press them. */
 const onApple = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform);
 export const UNDO_KEYS = onApple ? '⌘Z' : 'Ctrl+Z';
 export const REDO_KEYS = onApple ? '⇧⌘Z' : 'Ctrl+Y';
 
 /**
- * The step a key asks for: ⌘Z or Ctrl+Z undoes, with Shift, or Ctrl+Y, redoes. `null` for any other key, and for one
- * typed in a field, which undoes what was typed there itself.
+ * The step a key asks for: ⌘Z or Ctrl+Z undoes, and the same with Shift, or Ctrl+Y, redoes. `null` for any other key,
+ * and for a key typed in a text field, which handles its own undo.
  */
 export function undoShortcut(event: KeyboardEvent): 'undo' | 'redo' | null {
   const key = event.key.toLowerCase();

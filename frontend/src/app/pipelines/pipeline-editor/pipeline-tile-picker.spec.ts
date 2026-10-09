@@ -61,7 +61,7 @@ describe('PipelineTilePicker', () => {
 
     const note = el.querySelector('[data-tile="docker-build"] [data-note="secrets"]')!;
     expect(Array.from(note.querySelectorAll('gbt-badge'), text)).toEqual(['DOCKER_HOST', 'REGISTRY_USER', 'REGISTRY_PASSWORD']);
-    // Read aloud as words, not as one run of names.
+    // Read aloud as separate words, not as one run of names.
     expect(note.textContent!.replace(/\s+/g, ' ').trim()).toBe('Secrets à créer : DOCKER_HOST REGISTRY_USER REGISTRY_PASSWORD');
   });
 

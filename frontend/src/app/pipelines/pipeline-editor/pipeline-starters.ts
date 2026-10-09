@@ -9,9 +9,10 @@ import { PIPELINE_TEMPLATES, PipelineTemplate } from './pipeline-catalog';
 import { Prediction } from './pipeline-prediction';
 
 /**
- * Whole pipelines to start from, for an empty one: a click lays out the stages and the jobs. The one made for this
- * repository comes first, with what it was read from; the generic templates stay below for what it did not recognise.
- * With Kubernetes, neither is offered: they all work on the repository's files, and a Pod gets no copy of them.
+ * Whole pipelines to start an empty one from: a click lays out the stages and the jobs. The pipeline proposed for this
+ * repository comes first, with the files it was read from. The generic templates stay below for whatever it did not
+ * recognise. With Kubernetes, neither is offered: they all work on the repository's files, and a Pod gets no copy of
+ * them.
  */
 @Component({
   selector: 'fg-pipeline-starters',
@@ -21,9 +22,9 @@ import { Prediction } from './pipeline-prediction';
   styleUrl: './pipeline-starters.scss',
 })
 export class PipelineStarters {
-  /** The pipeline made for this repository, `null` when nothing in it was recognised. */
+  /** The pipeline proposed for this repository, or `null` when nothing in it was recognised. */
   prediction = input<Prediction | null>(null);
-  /** The repository is being read: its proposal is on its way. */
+  /** True while the repository is being read and its proposal is on its way. */
   predicting = input(false);
   /** The default branch the proposal was read from. */
   branch = input<string | null>(null);

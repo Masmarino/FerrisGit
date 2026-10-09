@@ -4,21 +4,21 @@ import { shQuote } from './pipeline-tiles-deploy';
 import { DetectedProject, PackageManager, RepositoryProfile } from './pipeline-definitions.service';
 
 /**
- * A pipeline made for one repository, from what the server read in it: one set of jobs per project, with the images,
- * tools and scripts the project itself names, and why. Only what works without a secret is laid out: an image to
- * publish or a deployment is pointed at instead, with the tile that does it.
+ * Builds a pipeline for one repository from what the server read in it: one set of jobs per project, with the images,
+ * tools and scripts the project itself names, and the reasons for each choice. Only jobs that work without a secret are
+ * laid out. Publishing an image or deploying is only pointed at, with the tile that does it.
  */
 
-/** The order the jobs run in: what fails fast and cheap first. */
+/** The order jobs run in: the fast and cheap checks fail first. */
 export const PREDICTED_STAGES = ['check', 'test', 'build'] as const;
 type Stage = (typeof PREDICTED_STAGES)[number];
 
-/** What a job is for in its project; jobs of a project wait for those of the earlier stages. */
+/** What a job is for in its project. A project's jobs wait for its jobs of the earlier stages. */
 type Role = 'format' | 'lint' | 'clippy' | 'vet' | 'test' | 'build';
 
 const STAGE_OF: Record<Role, Stage> = { format: 'check', lint: 'check', clippy: 'check', vet: 'check', test: 'test', build: 'build' };
 
-/** One project, as the proposal explains it: the files it was read from, then what was made of them. */
+/** One project as the proposal explains it: the files it was read from, then what was made of them. */
 export interface PredictionReason {
   evidence: string[];
   text: string;
@@ -26,9 +26,9 @@ export interface PredictionReason {
 
 export interface PredictedJob {
   job: BuilderJob;
-  /** The project, as a person names it: `Rust`, `frontend`. */
+  /** The project as people call it: `Rust`, `frontend`. */
   project: string;
-  /** What the job does, for the tile picker. */
+  /** What the job does, as the tile picker shows it. */
   title: string;
 }
 
@@ -36,7 +36,7 @@ export interface Prediction {
   /** What the repository is, in a few words: « Rust et Angular ». */
   title: string;
   reasons: PredictionReason[];
-  /** What was seen but not laid out (an image to publish, a chart), and what will need a hand. */
+  /** What was seen but not laid out (an image to publish, a chart), and what will need a manual touch. */
   notes: string[];
   jobs: PredictedJob[];
   state: BuilderState;
@@ -60,7 +60,10 @@ interface ProjectPlan {
 }
 
 const where = (dir: string) => (dir === '' ? 'à la racine' : `dans ${dir}`);
-/** A folder as a shell reads it: as it is when it is a plain path, quoted when it holds a space or a shell character. */
+/**
+ * A folder as a shell should read it: left as it is when it is a plain path, quoted when it holds a space or a shell
+ * character.
+ */
 const shellPath = (dir: string) => (/^[A-Za-z0-9._/-]+$/.test(dir) ? dir : shQuote(dir));
 const inDir = (dir: string, script: string[]) => (dir === '' ? script : [`cd ${shellPath(dir)}`, ...script]);
 const slug = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'app';
@@ -75,7 +78,8 @@ function rustPlan(project: Extract<DetectedProject, { kind: 'rust' }>): ProjectP
   const sqlx =
     (project.sqlxOffline ? ' Le dossier .sqlx permet de compiler sans base de données : SQLX_OFFLINE=true.' : '') +
     (project.sqlxPostgres ? ' Ses tests sqlx demandent PostgreSQL : le job de tests en démarre un.' : '');
-  // A job has no service beside it: tests that need PostgreSQL get one started in their own container (a Debian image).
+  // A job has no service beside it, so tests that need PostgreSQL start their own in the job's container (a Debian
+  // image).
   const database: { setup: string[]; variables: Record<string, string> } = project.sqlxPostgres
     ? {
         setup: ['apt-get update -qq', 'apt-get install -y -qq postgresql > /dev/null', 'pg_ctlcluster "$(ls /etc/postgresql)" main start', `runuser -u postgres -- psql -q -c "ALTER USER postgres PASSWORD 'postgres'"`],
@@ -97,7 +101,7 @@ function rustPlan(project: Extract<DetectedProject, { kind: 'rust' }>): ProjectP
 
 const FRAMEWORK_NAMES = { angular: 'Angular', react: 'React', vue: 'Vue', svelte: 'Svelte', next: 'Next.js' } as const;
 const MANAGER_NAMES: Record<PackageManager, string> = { npm: 'npm', pnpm: 'pnpm', yarnClassic: 'Yarn 1', yarn: 'Yarn', bun: 'Bun' };
-/** The scripts that check formatting without changing anything, as projects usually name them. */
+/** The scripts that check formatting without changing anything, under the names projects usually give them. */
 const FORMAT_SCRIPTS = ['format:check', 'check:format', 'prettier:check', 'lint:format', 'fmt:check'];
 /** What `npm init` writes in `test`: a script that only fails. */
 const isPlaceholderTest = (command: string) => command.includes('no test specified');
@@ -108,13 +112,13 @@ function nodePlan(project: Extract<DetectedProject, { kind: 'node' }>): ProjectP
   const locked = project.evidence.some((file) => /(package-lock\.json|pnpm-lock\.yaml|yarn\.lock|bun\.lockb?)$/.test(file));
   const install = NODE.install(manager, locked);
   const cache = NODE.cache(manager);
-  // Test runners run once instead of watching when CI is set.
+  // With CI set, test runners run once instead of watching.
   const variables = { ...cache.variables, CI: 'true' };
   const scripts = project.scripts;
   const test = scripts['test'];
   const runsTests = test !== undefined && !isPlaceholderTest(test);
   const format = FORMAT_SCRIPTS.find((name) => name in scripts);
-  // The scripts the project has, in the order their jobs run; `ng test` is told to run once.
+  // The scripts the project has, in the order their jobs run. `ng test` is told to run once.
   const picked: { role: Role; title: string; script: string; args?: string }[] = [
     ...(format ? [{ role: 'format' as const, title: 'Vérifier le format', script: format }] : []),
     ...('lint' in scripts ? [{ role: 'lint' as const, title: 'Analyser le code', script: 'lint' }] : []),
@@ -136,7 +140,7 @@ function nodePlan(project: Extract<DetectedProject, { kind: 'node' }>): ProjectP
   };
 }
 
-/** What was read of a Node project, and what was taken from it. */
+/** What was read of a Node project, and what was used from it. */
 function nodeReason(project: Extract<DetectedProject, { kind: 'node' }>, image: string, used: string[]): string {
   const what = project.framework ? `Une application ${FRAMEWORK_NAMES[project.framework]}` : 'Un projet Node';
   const versionSource = project.evidence.find((file) => file.endsWith('.nvmrc') || file.endsWith('.node-version'))?.split('/').pop() ?? 'package.json';
@@ -200,7 +204,7 @@ function planOf(project: DetectedProject): ProjectPlan {
   }
 }
 
-/** The title of the proposal: the kinds of projects, each once, in the order found. */
+/** The proposal's title: the kinds of projects, each once, in the order they were found. */
 function titleOf(profile: RepositoryProfile): string {
   const kinds = profile.projects.map((project) => {
     switch (project.kind) {
@@ -229,10 +233,9 @@ function shippingNotes(profile: RepositoryProfile): string[] {
   return notes;
 }
 
-/** The pipeline for this repository, or `null` when nothing in it was recognised. */
 /**
- * The jobs a project's plan makes. They are named after the project when there are several (`frontend-test`), each
- * name free of those `taken`, which it adds to.
+ * The jobs of a project's plan. When there are several projects, the jobs are named after them (`frontend-test`). Each
+ * name avoids those in `taken`, and is added to it.
  */
 function jobsOfPlan(plan: ProjectPlan, prefix: string | null, taken: string[]): PredictedJob[] {
   const names = new Map<Role, string>();
@@ -257,12 +260,13 @@ function jobsOfPlan(plan: ProjectPlan, prefix: string | null, taken: string[]): 
   }));
 }
 
-/** The same project's jobs of the closest earlier stage that has some: a broken format stops the tests. */
+/** The same project's jobs of the closest earlier stage that has any, so that a broken format stops the tests. */
 function waitsFor(plan: ProjectPlan, draft: Draft): Draft[] {
   const earlier = PREDICTED_STAGES.slice(0, PREDICTED_STAGES.indexOf(STAGE_OF[draft.role])).reverse();
   return earlier.map((stage) => plan.drafts.filter((other) => STAGE_OF[other.role] === stage)).find((found) => found.length > 0) ?? [];
 }
 
+/** The pipeline proposed for this repository, or `null` when nothing in it was recognised. */
 export function predictPipeline(profile: RepositoryProfile | null): Prediction | null {
   if (!profile || profile.projects.length === 0) {
     return null;
@@ -274,7 +278,7 @@ export function predictPipeline(profile: RepositoryProfile | null): Prediction |
     if (plans.length === 1) {
       return jobsOfPlan(plan, null, taken);
     }
-    // Two folders of the same name (apps/web, packages/web) still get jobs of their own: web-…, web-2-….
+    // Two folders with the same name (apps/web, packages/web) still get jobs of their own: web-…, web-2-….
     const prefix = uniqueName(prefixes, plan.prefix);
     prefixes.push(prefix);
     return jobsOfPlan(plan, prefix, taken);
@@ -293,25 +297,28 @@ export function predictPipeline(profile: RepositoryProfile | null): Prediction |
   };
 }
 
-/** The folder a job works in: its leading `cd`, or the root, written alike whether quoted, with `./` or a final `/`. */
+/**
+ * The folder a job works in: its leading `cd`, or the root. Quoting, a leading `./` and a trailing `/` make no
+ * difference.
+ */
 const folderOf = (job: BuilderJob) => {
   const dir = commandsOf(job).find((line) => line.startsWith('cd '))?.slice(3).trim() ?? '';
   return dir.replace(/^'(.*)'$/, '$1').replace(/^\.\/+/, '').replace(/\/+$/, '').replace(/^\.$/, '');
 };
 
-/** What a command does, its options aside: `cargo clippy --workspace -- -D warnings` is `cargo clippy`. */
+/** What a command does, options aside: `cargo clippy --workspace -- -D warnings` is `cargo clippy`. */
 const intentOf = (line: string) => {
   const words = line.trim().split(/\s+/);
   const options = words.findIndex((word) => word.startsWith('-'));
   return (options === -1 ? words : words.slice(0, options)).join(' ');
 };
 
-/** Each command a job runs, as what it does in which folder. */
+/** Each command a job runs, as "what it does, in which folder". */
 const intentsOf = (job: BuilderJob) => commandsOf(job).filter((line) => !line.startsWith('cd ')).map((line) => `${folderOf(job)}|${intentOf(line)}`);
 
 /**
- * The predicted jobs the pipeline does not have yet: none of its jobs bears the name or does what the predicted one is
- * for (its last command) in the same folder. Options do not count: a `cargo clippy` with other flags is still Clippy.
+ * The proposed jobs the pipeline does not have yet: no job of the pipeline has the same name, or does the same thing
+ * (its last command) in the same folder. Options do not count: a `cargo clippy` with other flags is still Clippy.
  */
 export function missingJobs(prediction: Prediction | null, state: BuilderState): PredictedJob[] {
   if (!prediction) {

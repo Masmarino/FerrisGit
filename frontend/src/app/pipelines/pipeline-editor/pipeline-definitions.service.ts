@@ -18,7 +18,10 @@ export interface DefinitionDto {
   jobs: Record<string, JobDto>;
 }
 
-/** What the server found wrong, with a stable `code` and the names it is about. `message` is the parser's own English. */
+/**
+ * What the server found wrong, with a stable `code` and the names it concerns. `message` is the parser's own English
+ * text.
+ */
 export interface PipelineProblem {
   code: string;
   message: string;
@@ -37,7 +40,7 @@ export interface PipelineWarning {
 }
 
 export interface ParsedPipeline {
-  /** `null` when the YAML itself is malformed. A file with wrong stages or dependencies still has one. */
+  /** `null` when the YAML itself is malformed. A file with wrong stages or dependencies still has a definition. */
   definition: DefinitionDto | null;
   problems: PipelineProblem[];
   warnings: PipelineWarning[];
@@ -52,12 +55,15 @@ export interface RenderedPipeline {
   warnings: PipelineWarning[];
 }
 
-/** The repository's pipeline file as its default branch has it. A repository with no commit has neither branch nor file. */
+/**
+ * The repository's pipeline file as it is on the default branch. A repository without any commit has neither branch nor
+ * file.
+ */
 export interface RepositoryPipelineFile {
-  /** Where the repository keeps it: a repository setting, `.ferrisgit-ci.yml` unless changed. */
+  /** Where the repository keeps it: a repository setting, `.ferrisgit-ci.yml` by default. */
   path: string;
   branch: string | null;
-  /** The branch's tip the file was read at: saving checks the file did not change since. */
+  /** The tip of the branch the file was read at: saving checks that the file has not changed since. */
   baseSha: string | null;
   yaml: string | null;
 }
@@ -69,7 +75,7 @@ export interface PipelineProposalRequest {
   description: string;
 }
 
-/** The new branch and the merge request that holds the change. */
+/** The new branch, and the merge request that holds the change. */
 export interface PipelineProposal {
   branch: string;
   commitSha: string;
@@ -95,9 +101,9 @@ export type DetectedProject =
   | (ProjectBase & { kind: 'python'; tool: PythonTool; pythonVersion: string | null; pytest: boolean; ruff: boolean });
 
 /**
- * What the default branch is made of, as the server read it: the editor's predictions start from here. These types
- * mirror repository_profile.rs; repository-profile.contract.spec.ts checks them against a sample the server's own tests
- * keep up to date.
+ * What the default branch is made of, as the server read it. The editor's proposals start from here. These types mirror
+ * repository_profile.rs, and repository-profile.contract.spec.ts checks them against a sample that the server's own
+ * tests keep up to date.
  */
 export interface RepositoryProfile {
   projects: DetectedProject[];
@@ -107,7 +113,10 @@ export interface RepositoryProfile {
   helmCharts: string[];
 }
 
-/** The pipeline builder's calls: both are done by the server's own parser, so the builder cannot disagree with it. */
+/**
+ * The pipeline editor's calls. Parsing and writing are done by the server's own parser, so the editor can never
+ * disagree with it.
+ */
 @Injectable({ providedIn: 'root' })
 export class PipelineDefinitionsService {
   private http = inject(HttpClient);

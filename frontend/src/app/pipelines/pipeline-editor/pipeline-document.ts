@@ -23,50 +23,49 @@ function askAfterPause<T, R>(requests: Observable<T>, ask: (request: T) => Obser
   );
 }
 
-/** What the editor shows when the repository does not say where its pipeline file is: the engine's own default. */
+/** The path shown when the repository settings name none: the engine's default. */
 const DEFAULT_PIPELINE_FILE = '.ferrisgit-ci.yml';
 
 export type EditorMode = 'cards' | 'yaml';
 
 /**
- * The pipeline being edited, in two views that stay in step: the cards, and the YAML as typed. Reading and writing the
- * YAML is the server's parser, so what is shown is what the engine would run. It knows where the file came from, what
- * the server says about what is on screen, and whether that differs from the repository's file. The page around it
- * (drawers, tiles, secrets, the save dialog) is the editor's.
- *
- * Made in an injection context: it follows its own changes, and stops with the component that made it.
+ * The pipeline being edited, in two views that stay in step: the cards, and the YAML as typed. The server's parser
+ * reads and writes the YAML, so what is shown is exactly what the engine would run. This class knows where the file
+ * came from, what the server says about what is on screen, and whether it differs from the repository's file. The page
+ * around it (drawers, tiles, secrets, the save dialog) belongs to the editor component. Create it in an injection
+ * context: it reacts to its own changes, and stops with the component that created it.
  */
 export class PipelineDocument {
   readonly status = signal<'loading' | 'ready' | 'failed'>('loading');
   /** Whether the pipeline started from the repository's file, or from nothing because it has none. */
   readonly source = signal<'file' | 'new'>('new');
   readonly state = signal<BuilderState>(NEW_PIPELINE);
-  /** What opening the file showed: what a rewrite loses, or why it could not be read. */
+  /** What opening the file revealed: what a rewrite would lose, or why the file could not be read. */
   readonly loadNotes = signal<{ hasComments: boolean; ignoredFields: string[]; unreadable: string | null }>({ hasComments: false, ignoredFields: [], unreadable: null });
-  /** What the repository's default branch has, and where: the starting point and what a save is checked against. */
+  /** The file on the default branch, and where it lives: the starting point, and what a save is checked against. */
   readonly file = signal<RepositoryPipelineFile | null>(null);
   readonly filePath = computed(() => this.file()?.path ?? DEFAULT_PIPELINE_FILE);
   readonly mode = signal<EditorMode>('cards');
-  /** The YAML as typed, comments and all: it is saved as it is, not rewritten. */
+  /** The YAML as typed, comments included. It is saved exactly as typed, never rewritten. */
   readonly yamlText = signal('');
   private yamlTouched = signal(false);
   /** What the server made of the typed YAML. `null` until it has answered. */
   private yamlCheck = signal<ParsedPipeline | null>(null);
-  /** What switching from the YAML to the cards dropped, so that the loss is told once it has happened. */
+  /** What switching from the YAML to the cards dropped, so that the loss can be shown once it has happened. */
   readonly switchLoss = signal<{ hasComments: boolean; ignoredFields: string[] } | null>(null);
   private loadedDefinition = signal('');
   readonly rendered = signal<RenderedPipeline | null>(null);
-  /** The cards `rendered` was written from: a later change, or a render that failed since, makes it out of date. */
+  /** The cards that `rendered` was produced from. A later change, or a render that failed since, makes it stale. */
   private renderedState = signal<BuilderState | null>(null);
   readonly renderFailed = signal(false);
 
-  /** What the cards went through, to undo and redo. The YAML has its own: the text field's. */
+  /** The undo history of the cards. The YAML has its own: the text field's. */
   readonly edits = createUndoStack(this.state);
 
   /**
-   * The server has answered about what is on screen. With the cards, the file shown and saved is the server's writing of
-   * them: it has to be of these very cards, or a save would propose an older file (after a change still being sent, or
-   * one the server could not write).
+   * Whether the server has answered for what is on screen. With the cards, the file shown and saved is the server's
+   * rendering of them, so it has to come from these exact cards. Otherwise a save could propose an older file (while a
+   * change is still on its way, or after the server failed to render one).
    */
   private checked = computed(() =>
     this.mode() === 'yaml' ? this.yamlCheck() !== null : this.rendered() !== null && this.renderedState() === this.state() && !this.renderFailed(),
@@ -75,18 +74,21 @@ export class PipelineDocument {
   readonly warnings = computed<ProblemView[]>(() => ((this.mode() === 'yaml' ? this.yamlCheck()?.warnings : this.rendered()?.warnings) ?? []).map(describeWarning));
   /** The file as it would be saved: the typed text in YAML mode, the server's writing of the cards otherwise. */
   readonly yaml = computed(() => (this.mode() === 'yaml' ? this.yamlText() : (this.rendered()?.yaml ?? '')));
-  /** The typed YAML cannot be read: the cards cannot follow it until it is fixed. */
+  /** The typed YAML cannot be parsed, so the cards cannot follow it until it is fixed. */
   readonly yamlUnreadable = computed(() => this.mode() === 'yaml' && this.yamlCheck()?.definition === null);
   readonly modeOptions = computed(() => [
     { value: 'cards' as EditorMode, label: 'Cartes', disabled: this.yamlUnreadable() || (this.mode() === 'yaml' && this.yamlCheck() === null) },
     { value: 'yaml' as EditorMode, label: 'YAML' },
   ]);
 
-  /** Whether anything differs from the repository's file, in either mode: saving a file as it already is would be a no-op. */
+  /**
+   * Whether anything differs from the repository's file, in either view. Proposing an unchanged file would be
+   * pointless.
+   */
   readonly edited = computed(() => this.yamlTouched() || JSON.stringify(toDefinition(this.state())) !== this.loadedDefinition());
   /** An empty repository has no branch to open a merge request against. */
   readonly hasBranch = computed(() => this.file()?.baseSha != null);
-  /** What is on screen can go out as a merge request: it changed, the server read it, and found nothing wrong. */
+  /** What is on screen can be proposed: it changed, the server read it, and it found nothing wrong. */
   readonly proposable = computed(() => this.hasBranch() && this.edited() && this.checked() && this.problems().length === 0 && !this.yamlUnreadable());
 
   private renderRequests = new Subject<BuilderState>();
@@ -96,7 +98,7 @@ export class PipelineDocument {
     private definitions: PipelineDefinitionsService,
     private repositoryId: () => string,
   ) {
-    // The server writes and checks the YAML: the cards are sent to it, and what is typed, after a short pause.
+    // The server writes and checks the YAML: the cards are sent to it, and so is what is typed, after a short pause.
     askAfterPause(this.renderRequests, (state) => this.definitions.render(toDefinition(state)))
       .pipe(takeUntilDestroyed())
       .subscribe(({ request, answer }) => {
@@ -116,7 +118,7 @@ export class PipelineDocument {
     });
   }
 
-  /** A failed answer is said, and the last good one stays shown. */
+  /** A failed answer is flagged, and the last good one stays on screen. */
   private keepAnswer<T>(answer: T | null, into: WritableSignal<T | null>): void {
     this.renderFailed.set(answer === null);
     if (answer !== null) {
@@ -190,7 +192,10 @@ export class PipelineDocument {
     }
   }
 
-  /** The repository's own text while nothing was changed (it keeps its comments), the server's writing of the cards after. */
+  /**
+   * Shows the repository's own text while nothing has changed (its comments are kept), and the server's rendering of
+   * the cards after a change.
+   */
   private showYaml(): void {
     const original = this.file()?.yaml ?? null;
     const open = (yaml: string) => {
@@ -204,7 +209,7 @@ export class PipelineDocument {
       open(this.yamlTouched() ? this.yamlText() : original);
       return;
     }
-    // The cards changed a moment ago: ask for their YAML now rather than trust one that may still be on its way.
+    // The cards changed a moment ago: ask for their YAML now, rather than trust an answer that may still be on its way.
     this.definitions.render(toDefinition(this.state())).subscribe({
       next: (rendered) => open(rendered.yaml),
       error: () => this.renderFailed.set(true),

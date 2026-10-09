@@ -27,7 +27,7 @@ const DEFINITION: DefinitionDto = {
   },
 };
 
-/** A readable stand-in for the server's YAML, so the story shows a real-looking file. */
+/** A readable stand-in for the server's YAML, so that the story shows a realistic file. */
 function yamlOf(definition: DefinitionDto): string {
   const jobs = Object.entries(definition.jobs)
     .map(([name, j]) => `  ${name}:\n    stage: ${j.stage}\n    image: ${j.image}\n    script:\n${j.script.map((line) => `    - ${line}`).join('\n')}${j.needs.length ? `\n    needs:\n${j.needs.map((n) => `    - ${n}`).join('\n')}` : ''}`)
@@ -48,11 +48,11 @@ interface Options {
   engine?: 'docker-runners' | 'kubernetes';
   file?: Observable<RepositoryPipelineFile>;
   parsed?: ParsedPipeline;
-  /** What typed YAML is reported as; the default says it reads fine. */
+  /** How typed YAML is reported. By default, it parses fine. */
   parse?: (yaml: string) => Observable<ParsedPipeline>;
   render?: (definition: DefinitionDto) => Observable<RenderedPipeline>;
   propose?: () => Observable<PipelineProposal>;
-  /** What the repository is made of; by default nothing the editor recognises. */
+  /** What the repository is made of. By default, nothing the editor recognises. */
   profile?: Observable<RepositoryProfile>;
 }
 
@@ -96,7 +96,10 @@ function withData(options: Options = {}) {
 
 const rect = (el: Element) => el.getBoundingClientRect();
 
-/** Layout checks jsdom can't make: the page doesn't scroll sideways, the lanes sit level and inside the board, each card inside its lane. */
+/**
+ * Layout checks jsdom cannot do: the page does not scroll sideways, the lanes are level and inside the board, and each
+ * card stays inside its lane.
+ */
 function assertBoardLayout(canvas: HTMLElement): void {
   const board = canvas.querySelector('.pipeline-editor__board');
   const lanes = Array.from(canvas.querySelectorAll('.pipeline-editor__lane:not(.pipeline-editor__lane--new)'));
@@ -223,7 +226,7 @@ export const PhoneWidth: Story = {
   },
 };
 
-/** The same file, typed: what is saved is this text, comments included. */
+/** The same file, typed: what gets saved is this text, comments included. */
 export const YamlMode: Story = {
   decorators: [withData({ file: of({ ...FILE, yaml: '# Build and test\nstages: [build, test]\njobs:\n  compile:\n    stage: build\n    image: rust:1\n    script: [cargo build]\n' }) })],
   play: async (context) => {
@@ -234,7 +237,7 @@ export const YamlMode: Story = {
   },
 };
 
-/** What the server says about typed YAML that cannot be read: the cards wait until it can. */
+/** Typed YAML the server cannot parse: the cards wait until it can. */
 export const YamlUnreadable: Story = {
   decorators: [withData({ parse: (yaml) => of(yaml.includes('[') && !yaml.includes(']') ? { ...PARSED, definition: null, problems: [{ code: 'invalid_yaml', message: 'invalid YAML: did not find expected node at line 2 column 1' }] } : PARSED) })],
   play: async (context) => {
@@ -250,7 +253,7 @@ export const YamlUnreadable: Story = {
   },
 };
 
-/** A change made, then the dialog that turns it into a branch and a merge request. */
+/** A change, then the dialog that turns it into a branch and a merge request. */
 export const SaveDialog: Story = {
   decorators: [withData()],
   play: async (context) => {
@@ -283,7 +286,7 @@ export const NoCommitYet: Story = {
   },
 };
 
-/** The empty pipeline: whole templates to start from. */
+/** An empty pipeline: whole templates to start from. */
 export const Templates: Story = {
   decorators: [withData({ file: of({ ...FILE, yaml: null }) })],
   play: async (context) => {
@@ -292,7 +295,9 @@ export const Templates: Story = {
   },
 };
 
-/** An empty pipeline in a repository the editor recognises: the pipeline made for it comes first, with why. */
+/**
+ * An empty pipeline in a repository the editor recognises: the pipeline proposed for it comes first, with the reasons.
+ */
 export const ProposedForTheRepository: Story = {
   decorators: [withData({ file: of({ ...FILE, yaml: null }), profile: of(FERRISGIT_PROFILE) })],
   play: async (context) => {
@@ -314,7 +319,7 @@ export const ProposedAtPhoneWidth: Story = {
   },
 };
 
-/** While the repository is read. */
+/** While the repository is being read. */
 export const ReadingTheRepository: Story = {
   decorators: [withData({ file: of({ ...FILE, yaml: null }), profile: NEVER })],
   play: async (context) => {
@@ -332,7 +337,7 @@ export const TilePickerForTheRepository: Story = {
   },
 };
 
-/** "Ajouter un job": the tiles, by what they are for. */
+/** "Ajouter un job": the tiles, grouped by purpose. */
 export const TilePicker: Story = {
   decorators: [withData({ secrets: ['REGISTRY_USER'] })],
   play: async (context) => {
@@ -370,7 +375,7 @@ export const SecretsPanelForAContributor: Story = {
   },
 };
 
-/** A job that reads a secret nobody created, with a variable that is one in disguise. */
+/** A job that reads a secret nobody created, and has a variable that is a secret in disguise. */
 export const JobWithSecrets: Story = {
   decorators: [
     withData({
@@ -455,7 +460,10 @@ export const DockerBuild: Story = {
   },
 };
 
-/** With Kubernetes running the jobs, the tiles that read secrets or work on the repository cannot work and say so. */
+/**
+ * With Kubernetes running the jobs, the tiles that read secrets or work on the repository's files are disabled, and say
+ * why.
+ */
 export const CatalogueWithKubernetes: Story = {
   decorators: [withData({ engine: 'kubernetes' })],
   play: async (context) => {
@@ -468,7 +476,7 @@ export const CatalogueWithKubernetes: Story = {
   },
 };
 
-/** An empty pipeline with Kubernetes: no proposal and no template, since all of them work on the repository. */
+/** An empty pipeline with Kubernetes: no proposal and no template, since all of them work on the repository's files. */
 export const EmptyWithKubernetes: Story = {
   decorators: [withData({ engine: 'kubernetes', file: of({ ...FILE, yaml: null }), profile: of(FERRISGIT_PROFILE) })],
   play: async ({ canvasElement }) => {

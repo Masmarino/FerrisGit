@@ -256,7 +256,7 @@ describe('PipelineEditor board', () => {
       ctx.internals.moveTo({ name: 'compile' }, 'test');
       ctx.fixture.detectChanges();
 
-      // The moved card takes the focus, so its tie may also stand out: only whether it is refused matters here.
+      // The moved card takes the focus, so its link may also be highlighted. Only whether it is refused matters here.
       expect(ctx.internals.links()).toEqual([expect.objectContaining({ from: 'compile', to: 'unit', invalid: false })]);
       expect(ctx.el.querySelector('fg-pipeline-links path')!.hasAttribute('data-invalid')).toBe(false);
       await answerRender(ctx);

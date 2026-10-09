@@ -145,7 +145,7 @@ impl BranchFileWriterPort for GitBranchFileWriter {
         commit_sha: &str,
     ) -> Result<(), DomainError> {
         let repo_path = self.storage_root.join(repository_disk_path);
-        // With an old value, git deletes the ref only if it still holds it.
+        // With an old value given, git only deletes the ref while it still points there.
         let branch_ref = format!("refs/heads/{branch}");
         let deleted = git_cli::run(
             &repo_path,

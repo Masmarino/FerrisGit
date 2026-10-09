@@ -3,7 +3,7 @@
     <gbt-alert variant="error" appearance="subtle" iconAlign="start">{{ problem.message }}</gbt-alert>
   }
 
-  <!-- The name is applied when the field is left: renaming on every key would rename the job under the cursor. -->
+  <!-- The name is applied when the field loses the focus: renaming on every keystroke would rename the job while it is being typed. -->
   <div class="job-form__field">
     <gbt-input [id]="'job-name'" label="Nom du job" hint="Unique dans la pipeline. Les jobs qui l'attendent suivent son nouveau nom." [ngModel]="job().name" (committed)="patch.emit({ name: $event })" />
     <fg-help-tip class="job-form__help" [help]="help.name" align="end" />
@@ -49,7 +49,7 @@
     <div class="job-form__row-actions">
       <gbt-button variant="secondary" size="small" iconName="plus" text="Ajouter une commande" (clicked)="addCommand()" />
       @if (insertable().length > 0) {
-        <!-- The menu and its bubble wrap together: alone on a line, the bubble would not say what it explains. -->
+        <!-- The menu and its help bubble wrap together: alone on a line, the bubble would not show what it explains. -->
         <span class="job-form__insert-group">
           <gbt-menu class="job-form__insert" label="Insérer une variable" chevron align="start">
             @for (name of insertable(); track name) {

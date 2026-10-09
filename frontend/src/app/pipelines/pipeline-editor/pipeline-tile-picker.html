@@ -38,7 +38,7 @@
             <span class="tile-picker__text">
               <span class="tile-picker__title">{{ tile.title }}</span>
               <span class="tile-picker__what">{{ tile.summary }}</span>
-              <!-- A badge does not wrap: it says one short thing, and the rest goes in text that does. -->
+              <!-- A badge does not wrap, so it only says one short thing. The rest goes in text that does wrap. -->
               @if (unavailable(tile); as reason) {
                 <span class="tile-picker__note" data-note="kubernetes">
                   <gbt-badge variant="warning" icon="lock">Pas avec Kubernetes</gbt-badge>&ngsp;

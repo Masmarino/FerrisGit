@@ -1,12 +1,13 @@
-# FerrisGit's own pipeline, run by FerrisGit: the checks of the GitHub workflow (.github/workflows/ci-cd.yml) without
+# FerrisGit's own pipeline, run by FerrisGit: the checks of the GitHub workflow (.github/workflows/ci-cd.yml), without
 # what ships (the Docker images, the GitHub release, the deployments).
 #
-# It needs a Docker runner: only those clone the repository into the job (the Kubernetes engine does not). Jobs get no
-# Docker daemon, so the images are not built here, and caches have no effect with Docker runners: each job downloads
-# and compiles from scratch. Script lines are joined with `&&`: the first one that fails fails the job.
+# It needs a Docker runner, since only runners clone the repository into the job (the Kubernetes engine does not). Jobs
+# have no Docker daemon, so the images are not built here, and caches have no effect with Docker runners: each job
+# downloads and compiles everything from scratch. Script lines are joined with `&&`, so the first one that fails fails
+# the job.
 #
-# Images are pinned by digest, as in the GitHub workflow, so a retagged image cannot change what runs. To move to a
-# newer one: `docker buildx imagetools inspect <image:tag>` gives the digest to put after the tag.
+# Images are pinned by digest, as in the GitHub workflow, so that a retagged image cannot change what runs. To move to a
+# newer one, `docker buildx imagetools inspect <image:tag>` gives the digest to put after the tag.
 stages: [check, test, build]
 
 jobs:
@@ -54,9 +55,9 @@ jobs:
       - npm ci
       - npm run lint
 
-  # The integration tests need PostgreSQL, and a job has no service next to it: the job runs its own, in the container.
-  # sqlx::test creates a database per test, so the role needs CREATEDB, which the postgres superuser has. One test
-  # thread, because the from_env tests of ferrisgit-api's config.rs change environment variables.
+  # The integration tests need PostgreSQL, and a job has no service next to it, so the job runs its own in its
+  # container. sqlx::test creates a database per test, so the role needs CREATEDB, which the postgres superuser has. One
+  # test thread, because the from_env tests of ferrisgit-api's config.rs change environment variables.
   rust-test:
     stage: test
     image: rust:1.98.1@sha256:a8a5f0a1e5fe7dfe1d352591e4a1c7dd2c08fd70475cae872cf3458ba0df0546

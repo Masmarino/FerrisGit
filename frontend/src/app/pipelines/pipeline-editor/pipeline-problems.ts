@@ -1,6 +1,6 @@
 import { PipelineProblem, PipelineWarning } from './pipeline-definitions.service';
 
-/** A problem or warning in French, and the job it is about (so the editor can mark its card and open it). */
+/** A problem or a warning in French, with the job it concerns (so that the editor can mark its card and open it). */
 export interface ProblemView {
   message: string;
   job: string | null;

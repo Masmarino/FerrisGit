@@ -1,6 +1,6 @@
 export type TileCategory = 'compile' | 'test' | 'quality' | 'package' | 'deploy' | 'custom';
 
-/** What a person fills in to adapt a tile: a few words, a choice, a switch, or a few lines. */
+/** What people fill in to adapt a tile: a few words, a choice, a switch, or a few lines. */
 export type ParamValue = string | boolean;
 export type ParamValues = Record<string, ParamValue>;
 
@@ -8,69 +8,72 @@ export interface TileParam {
   id: string;
   label: string;
   kind: 'text' | 'choice' | 'toggle' | 'lines';
-  /** What it is for and what to put in it. */
+  /** What it is for, and what to put in it. */
   hint?: string;
   placeholder?: string;
   default: ParamValue;
   options?: { value: string; label: string }[];
   /** An empty value is refused (a toggle is never empty). */
   required?: boolean;
-  /** What a text may look like. Anything that ends up in a command has one, so that nothing needs escaping. */
+  /** What a text may look like. Every value that ends up in a command has one, so that nothing ever needs escaping. */
   pattern?: RegExp;
   patternMessage?: string;
-  /** Shown only for some answers to the others. */
+  /** Shown only for some answers to the other questions. */
   showIf?: (values: ParamValues) => boolean;
 }
 
-/** The parts of a job a tile decides, from the answers when it has questions. */
+/** The parts of a job that a tile decides, from the answers when it asks questions. */
 export interface TileBuild {
   image: string;
   script: string[];
   variables?: Record<string, string>;
   cache?: string[];
   tags?: string[];
-  /** Secrets of the repository its commands read: they have to exist for the job to work. */
+  /** The repository secrets its commands read. They have to exist for the job to work. */
   secrets?: string[];
 }
 
-/** A job ready to drop in a stage: what it does in a sentence, and the image and commands that do it. */
+/** A job ready to drop into a stage: what it does in one sentence, and the image and commands that do it. */
 export interface JobTile extends TileBuild {
   id: string;
   category: TileCategory;
   title: string;
-  /** What it does, in a sentence anyone can read. */
+  /** What it does, in a sentence anyone can understand. */
   summary: string;
-  /** What to know before using it: what it needs, what it does not do. */
+  /** What to know before using it: what it needs, and what it does not do. */
   help: string;
   icon: string;
-  /** The name a new job gets (made unique if taken). */
+  /** The name a new job gets (made unique if it is taken). */
   jobName: string;
-  /** The stage it usually sits in. */
+  /** The stage it usually goes in. */
   stage: string;
-  /** Questions to answer first. The fields above are what the answers' defaults give. */
+  /** Questions to answer first. The fields above are what the default answers give. */
   params?: TileParam[];
-  /** The job for some answers. */
+  /** The job for a given set of answers. */
   build?: (values: ParamValues) => TileBuild;
   /**
-   * Whether it reads secrets of the repository: those only reach jobs run by Docker runners, so with Kubernetes it
-   * cannot work. Set for every tile that names secrets.
+   * Whether it reads repository secrets. Those only reach jobs run by Docker runners, so it cannot work with
+   * Kubernetes. Set on every tile that names secrets.
    */
   needsSecrets?: boolean;
   /**
-   * Whether its commands work on the repository's files. A Kubernetes Pod gets no copy of the repository, so with
-   * Kubernetes it cannot work as it is.
+   * Whether its commands work on the repository's files. A Kubernetes Pod gets no copy of the repository, so it cannot
+   * work there as it is.
    */
   needsSource?: boolean;
 }
 
 export const defaultValues = (params: readonly TileParam[] = []): ParamValues => Object.fromEntries(params.map((param) => [param.id, param.default]));
 
-/** What a tile builds for some answers, the others being their defaults. */
+/** What a tile builds for the given answers, the others taking their defaults. */
 export function buildTile(tile: JobTile, values: ParamValues = {}): TileBuild {
   return tile.build ? tile.build({ ...defaultValues(tile.params), ...values }) : tile;
 }
 
-/** The question's problem, or `null`: a shown question that is required and empty, or whose text does not fit. */
+/**
+ * What is wrong with an answer, or `null`: a visible question that is required and empty, or a text that does not match
+ * its pattern.
+ */
 function paramProblem(param: TileParam, values: ParamValues): string | null {
   if (param.showIf && !param.showIf(values)) {
     return null;

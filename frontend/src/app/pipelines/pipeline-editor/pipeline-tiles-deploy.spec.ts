@@ -16,7 +16,7 @@ function parses(commands: string[]): boolean {
   }
 }
 
-/** What a shell makes of a quoted text: it must come back as it went in. */
+/** What a shell makes of a quoted text: it must come back exactly as it went in. */
 const throughShell = (value: string) => execFileSync('sh', ['-c', `printf %s ${shQuote(value)}`]).toString();
 
 describe('deployment tiles', () => {

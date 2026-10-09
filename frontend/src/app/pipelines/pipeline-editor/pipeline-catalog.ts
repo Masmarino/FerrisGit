@@ -204,7 +204,10 @@ const SIMPLE_TILES: readonly JobTile[] = [
   },
 ];
 
-/** The catalogue. Within a category the order is the one shown: deployments to a machine or a cluster before the plain HTTP calls. */
+/**
+ * The catalogue. Within a category, the order is the order shown: deployments to a machine or a cluster come before the
+ * plain HTTP calls.
+ */
 export const JOB_TILES: readonly JobTile[] = [
   ...SIMPLE_TILES.filter((tile) => tile.category !== 'deploy' && tile.category !== 'custom'),
   ...DEPLOY_TILES,
@@ -214,7 +217,7 @@ export const JOB_TILES: readonly JobTile[] = [
 
 export const tileById = (id: string): JobTile | undefined => JOB_TILES.find((tile) => tile.id === id);
 
-/** The job a tile makes, named so as not to collide. `values` answer the tile's questions, when it has some. */
+/** The job a tile makes, with a name that does not collide. `values` answers the tile's questions, when it has some. */
 export function jobFromTile(tile: JobTile, stage: string, taken: readonly string[], values: ParamValues = {}): BuilderJob {
   const built = buildTile(tile, values);
   return {
@@ -229,13 +232,13 @@ export function jobFromTile(tile: JobTile, stage: string, taken: readonly string
   };
 }
 
-/** Drops a tile's job at the end of a stage. */
+/** Adds a tile's job at the end of a stage. */
 export function addTile(state: BuilderState, tile: JobTile, stage: string, values: ParamValues = {}): { state: BuilderState; job: BuilderJob } {
   const job = jobFromTile(tile, stage, state.jobs.map((existing) => existing.name), values);
   return { state: insertJob(state, job), job };
 }
 
-/** A whole pipeline to start from: its stages and, for each job, the tile it comes from and what it waits for. */
+/** A whole pipeline to start from: its stages, and for each job the tile it comes from and what it waits for. */
 export interface PipelineTemplate {
   id: string;
   title: string;
@@ -332,7 +335,7 @@ export function stateFromTemplate(template: PipelineTemplate): BuilderState {
   return { stages: [...template.stages], jobs };
 }
 
-/** The secrets the pipeline's tiles expect, to name them when the repository does not have them. */
+/** The secrets a set of tiles expects, to name them when the repository does not have them. */
 export const secretsOfTiles = (ids: readonly string[]): string[] => [...new Set(ids.flatMap((id) => tileById(id)?.secrets ?? []))];
 
 /** Every secret a tile expects: the names worth offering to create when a command reads one that does not exist. */

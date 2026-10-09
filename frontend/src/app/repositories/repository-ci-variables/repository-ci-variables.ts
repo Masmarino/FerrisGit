@@ -24,9 +24,9 @@ import { envNameProblem } from '../ci-variable-name';
 })
 export class RepositoryCiVariables implements OnInit {
   repositoryId = input.required<string>();
-  /** A name to start the new variable with, when something else already knows which one is wanted. */
+  /** A name to start the new variable with, when another part of the page already knows which one is needed. */
   prefillKey = input<string | null>(null);
-  /** The list changed: a variable was added, replaced or deleted. */
+  /** Emitted when the list changes: a variable was added, replaced or deleted. */
   changed = output<void>();
 
   private repositorySettings = inject(RepositorySettingsService);
@@ -35,7 +35,7 @@ export class RepositoryCiVariables implements OnInit {
   protected list = createSettingsList(() => this.repositorySettings.listCiVariables(this.repositoryId()));
   protected newVariableKey = signal('');
   protected newVariableValue = signal('');
-  /** The name has to be one an environment variable can have, or the job would never see it. */
+  /** The name has to be a valid environment variable name, or the job would never see it. */
   protected keyProblem = computed(() => envNameProblem(this.newVariableKey().trim()));
   protected variablePendingDelete = signal<CiVariableSummary | null>(null);
   /** Keeps the confirmation open and inert while the delete request runs. */

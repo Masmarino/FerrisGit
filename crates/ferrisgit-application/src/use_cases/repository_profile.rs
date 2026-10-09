@@ -12,9 +12,9 @@ use ferrisgit_domain::repository_profile::{
 /// How many profiles the server keeps: a few hundred repositories' worth, a few kilobytes each.
 pub const PROFILE_CACHE_CAPACITY: usize = 256;
 
-/// The profiles already read, by repository and commit. A commit never changes, so neither does what it is made of:
-/// a profile kept is never stale, and opening the editor again spares a tree walk and up to `MAX_MANIFESTS` reads.
-/// Past its capacity, the oldest profile goes.
+/// Profiles already read, by repository and commit. A commit never changes, so a kept profile never goes stale, and
+/// opening the editor again skips a tree walk and up to `MAX_MANIFESTS` reads. Past its capacity, the oldest profile is
+/// dropped.
 pub struct RepositoryProfileCache {
     capacity: usize,
     entries: Mutex<VecDeque<(ProfileKey, RepositoryProfile)>>,
@@ -77,7 +77,7 @@ impl DetectRepositoryProfileUseCase {
         }
     }
 
-    /// An empty profile for a repository with no commit: there is nothing to read yet.
+    /// A repository without any commit gets an empty profile: there is nothing to read yet.
     pub async fn execute(
         &self,
         repository_disk_path: &str,
@@ -100,7 +100,7 @@ impl DetectRepositoryProfileUseCase {
                 MAX_FILES,
             )
             .await?;
-        // A manifest too big or not text says nothing reliable: it is left out, and the project judged on the others.
+        // A manifest that is too big or not text is left out, and the project is judged on the others.
         let contents = self
             .files
             .read_text_files_at_revision(

@@ -8,7 +8,7 @@ import { PipelineTileForm } from './pipeline-tile-form';
 import { BuilderJob, mainCommand } from './pipeline-builder-model';
 import { PredictedJob } from './pipeline-prediction';
 
-/** The jobs ready to use, by what they are for. Picking one is the whole gesture: it comes with an image and commands. */
+/** The ready-made jobs, grouped by purpose. Picking one is all it takes: it comes with an image and commands. */
 @Component({
   selector: 'fg-pipeline-tile-picker',
   standalone: true,
@@ -18,20 +18,20 @@ import { PredictedJob } from './pipeline-prediction';
 })
 export class PipelineTilePicker {
   stage = input.required<string>();
-  /** The repository's secrets by name, or `null` when this person cannot see them. */
+  /** The repository's secret names, or `null` when this person cannot see them. */
   secrets = input<string[] | null>(null);
 
   engine = input<string | null>(null);
 
-  /** The jobs made for this repository that the pipeline does not have yet: offered first. */
+  /** The jobs proposed for this repository that the pipeline does not have yet. They are offered first. */
   suggestions = input<PredictedJob[]>([]);
 
   /** A tile and the answers to its questions (none for a tile without questions). */
   chosen = output<{ tile: JobTile; values: ParamValues }>();
-  /** A job made for this repository, as it was predicted. */
+  /** A job proposed for this repository, as it was predicted. */
   chosenJob = output<BuilderJob>();
 
-  /** What a suggested job runs, its setup aside: what tells two of them apart. */
+  /** What a suggested job runs, setup aside: that is what tells two of them apart. */
   protected readonly mainCommand = mainCommand;
 
   /** The tile whose questions are being answered. */
@@ -47,8 +47,8 @@ export class PipelineTilePicker {
   }
 
   /**
-   * Why a tile cannot work with this instance, `null` when it can. A Kubernetes Pod gets neither the repository's
-   * secrets nor a copy of the repository: a tile that reads either cannot work there.
+   * Why a tile cannot work on this instance, or `null` when it can. A Kubernetes Pod gets neither the repository's
+   * secrets nor a copy of the repository, so a tile that needs either cannot work there.
    */
   protected unavailable(tile: JobTile): 'secrets' | 'source' | null {
     if (this.engine() !== 'kubernetes') {

@@ -1,7 +1,7 @@
 import { BuilderJob } from './pipeline-builder-model';
 import { KNOWN_TILE_SECRETS } from './pipeline-catalog';
 
-/** Names that look like a credential, which do not belong in a file everyone reads. */
+/** Names that look like a credential, which do not belong in a file everyone can read. */
 const SECRET_LOOKING = /(TOKEN|SECRET|PASSWORD|PASSWD|PASSPHRASE|CREDENTIAL|PRIVATE|API_?KEY|ACCESS_?KEY|_KEY$)/i;
 
 export const looksLikeSecret = (name: string) => SECRET_LOOKING.test(name);
@@ -12,7 +12,7 @@ const ALWAYS_THERE = new Set(['HOME', 'PATH', 'PWD', 'OLDPWD', 'USER', 'HOSTNAME
 const REFERENCE = /\$(?:\{([A-Za-z_][A-Za-z0-9_]*)[^}]*\}|([A-Za-z_][A-Za-z0-9_]*))/g;
 const ASSIGNMENT = /(?:^|[\s;&|])(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)=/g;
 
-/** The variables the job's commands read: `$NOM` and `${NOM}`, in order of first use. */
+/** The variables the job's commands read (`$NOM` and `${NOM}`), in order of first use. */
 export function referencedNames(job: Pick<BuilderJob, 'script'>): string[] {
   const names: string[] = [];
   for (const line of job.script) {
@@ -26,7 +26,7 @@ export function referencedNames(job: Pick<BuilderJob, 'script'>): string[] {
   return names;
 }
 
-/** Variables the commands define themselves (`NOM=valeur`, `export NOM=…`), which are therefore not missing. */
+/** Variables the commands set themselves (`NOM=valeur`, `export NOM=…`), which are therefore not missing. */
 function assignedNames(job: Pick<BuilderJob, 'script'>): Set<string> {
   const names = new Set<string>();
   for (const line of job.script) {
@@ -38,16 +38,16 @@ function assignedNames(job: Pick<BuilderJob, 'script'>): Set<string> {
 }
 
 /**
- * The names a job's commands read that nothing here provides: neither one of its variables, nor a secret of the
- * repository, nor something the shell or the commands define. The image may still provide them (CARGO_HOME…), so this is a
- * thing to check, not an error.
+ * The names a job's commands read that nothing here provides: not one of its variables, not a repository secret, and
+ * not something the shell or the commands set. The image may still provide them (CARGO_HOME…), so this is something to
+ * check, not an error.
  */
 export function unknownReferences(job: Pick<BuilderJob, 'script' | 'variables'>, secretNames: readonly string[]): string[] {
   const known = new Set<string>([...job.variables.map((row) => row.key.trim()), ...secretNames, ...assignedNames(job), ...ALWAYS_THERE]);
   return referencedNames(job).filter((name) => !known.has(name));
 }
 
-/** Which jobs read each secret, by name. A secret nothing reads has an empty list. */
+/** Which jobs read each secret, by name. A secret nothing reads gets an empty list. */
 export function secretUsage(jobs: readonly BuilderJob[], secretNames: readonly string[]): Map<string, string[]> {
   const usage = new Map<string, string[]>(secretNames.map((name) => [name, []]));
   for (const job of jobs) {

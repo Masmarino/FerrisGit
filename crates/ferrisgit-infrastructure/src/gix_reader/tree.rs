@@ -86,9 +86,9 @@ impl GixRepositoryReader {
         Ok(Some(entries))
     }
 
-    /// The files of a commit at most `max_depth` folders down, breadth first so that a cut at `limit` keeps the
-    /// shallow ones. Folders are listed too, with a trailing `/`, those named in `skip` without being entered.
-    /// `Ok(None)` for a revision that doesn't resolve to a commit.
+    /// The files of a commit at most `max_depth` folders down, breadth first so that a cut at `limit` keeps the shallow
+    /// ones. Folders are listed too, with a trailing `/`, and those named in `skip` are listed without being entered.
+    /// `Ok(None)` for a revision that does not resolve to a commit.
     pub fn list_files_at_revision(
         &self,
         disk_path: &Path,
@@ -131,9 +131,9 @@ impl GixRepositoryReader {
         Ok(Some(paths))
     }
 
-    /// The text of each of `paths` that is a file of at most `max_bytes` and valid UTF-8, in one opening of the
-    /// repository. A file over the limit is measured from its object header and never loaded; a missing path, a
-    /// folder, or a revision that doesn't resolve leaves its entries out.
+    /// The text of each path that is a UTF-8 file of at most `max_bytes`, read in a single opening of the repository. A
+    /// file over the limit is measured from its object header and never loaded. A missing path, a folder, or a revision
+    /// that does not resolve is left out.
     pub fn read_text_files_at_revision(
         &self,
         disk_path: &Path,

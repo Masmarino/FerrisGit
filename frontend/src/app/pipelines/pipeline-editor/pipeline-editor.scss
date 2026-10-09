@@ -29,15 +29,15 @@
   font-variant-numeric: tabular-nums;
 }
 
-// Stages share the width down to 260px, below that the board scrolls sideways inside itself.
+// Stages share the width down to 260px each. Below that, the board scrolls sideways inside itself.
 .pipeline-editor__board {
   position: relative;
-  // The ties and the stages stack among themselves, not with the rest of the page.
+  // The links and the stages are stacked among themselves, not with the rest of the page.
   isolation: isolate;
   display: grid;
   grid-auto-columns: minmax(260px, 1fr);
   grid-auto-flow: column;
-  // Room between the stages for the ties to curve, as on a pipeline's page.
+  // Room between the stages for the links to curve, as on a pipeline's page.
   gap: 0.75rem 2.5rem;
   overflow-x: auto;
   overscroll-behavior-x: contain;
@@ -45,8 +45,8 @@
   scrollbar-width: thin;
 }
 
-// Positioned, and after the ties in the board (fg-pipeline-links), so painted over them: the ties pass behind the cards.
-// No z-index of its own, so a card's menu still rises over the next stage.
+// Positioned, and placed after the links (fg-pipeline-links) in the board, so it is painted over them and the links
+// pass behind the cards. No z-index of its own, so that a card's menu still opens over the next stage.
 .pipeline-editor__lane {
   position: relative;
   display: flex;
@@ -59,7 +59,8 @@
   border: 1px solid var(--gbt-hairline);
   border-radius: var(--site-border-radius);
 
-  // Where a carried job would land, in the family's accent (that of the focus): colour only, so nothing on the board moves.
+  // Where a dragged job would land, in the accent colour (the focus colour). Only the colour changes, so nothing on the
+  // board moves.
   &:has(> .cdk-drop-list-dragging) {
     border-color: var(--accent);
     background: color-mix(in srgb, var(--accent) 6%, transparent);
@@ -105,7 +106,8 @@
   list-style: none;
 }
 
-// The same box as a job of the pipeline's page (gbt-job-graph), so a job looks alike where it is written and where it runs.
+// The same box as a job on the pipeline's page (gbt-job-graph), so a job looks the same where it is written and where
+// it runs.
 .pipeline-editor__card {
   padding: 0.625rem 0.75rem;
   border: 1px solid var(--border-color);
@@ -123,9 +125,9 @@
   background: color-mix(in srgb, var(--color-error-bg) 60%, var(--bg-principal));
 }
 
-// The job under the pointer or the focus, and its ties, in the colour of information (indigo), apart from the red of a
-// problem: the jobs it waits for have a full border, those that wait for it a dashed one, as what comes next. Only
-// borders and a tint change, so nothing on the board moves.
+// The job under the pointer or with the focus, and its links, in the information colour (indigo), distinct from the red
+// of a problem. The jobs it waits for get a solid border, those that wait for it a dashed one. Only borders and a tint
+// change, so nothing on the board moves.
 .pipeline-editor__card--pointed {
   border-color: var(--color-info-vivid-base);
 }
@@ -232,7 +234,7 @@
   align-self: flex-start;
 }
 
-// What the CDK shows while a card is carried.
+// What the CDK shows while a card is being dragged.
 .cdk-drag-preview {
   box-sizing: border-box;
   box-shadow: var(--site-shadow-lg);

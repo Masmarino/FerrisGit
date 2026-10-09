@@ -5,14 +5,14 @@ use ferrisgit_domain::pipeline_definition::{
     pipeline_definition_warnings, read_pipeline_definition, render_pipeline_definition,
 };
 
-/// What a `.ferrisgit-ci.yml` holds, for the builder. The definition is there as soon as the YAML is well formed, even
-/// if its stages or dependencies are wrong, so a broken file can be opened and fixed.
+/// What a `.ferrisgit-ci.yml` holds, for the editor. The definition comes back as soon as the YAML is well formed, even
+/// if its stages or dependencies are wrong, so that a broken file can still be opened and fixed.
 #[derive(Debug, Clone, PartialEq)]
 pub struct PipelineDefinitionReport {
     pub definition: Option<PipelineDefinition>,
     pub problems: Vec<PipelineDefinitionError>,
     pub warnings: Vec<PipelineDefinitionWarning>,
-    /// Fields of the file that the builder cannot keep (the parser does not read them): a rewrite would drop them.
+    /// Fields the parser does not read, so the editor cannot keep them: rewriting the file would drop them.
     pub ignored_fields: Vec<String>,
     /// Comments in the file, which a rewrite would lose.
     pub has_comments: bool,
@@ -42,7 +42,7 @@ impl ReadPipelineDefinitionUseCase {
     }
 }
 
-/// A definition drawn in the builder, as the file it would produce, with what is wrong with it.
+/// A definition drawn in the editor, as the file it would produce, with its problems.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RenderedPipelineDefinition {
     pub yaml: String,
@@ -54,7 +54,7 @@ pub struct RenderedPipelineDefinition {
 pub struct RenderPipelineDefinitionUseCase;
 
 impl RenderPipelineDefinitionUseCase {
-    /// The YAML is produced even when there are problems: the builder shows it next to them.
+    /// The YAML is produced even when there are problems, so that the editor can show both.
     pub fn execute(
         &self,
         definition: &PipelineDefinition,

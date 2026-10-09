@@ -10,7 +10,8 @@
   border-radius: var(--site-border-radius);
 }
 
-// What was made for this repository, on the family's rust rail: the generic templates below have none.
+// The pipeline proposed for this repository, on the family's rust-coloured rail. The generic templates below do not
+// have one.
 .starters__prediction {
   display: flex;
   flex-direction: column;
@@ -87,7 +88,7 @@
   font-size: 0.8125rem;
 }
 
-// The width the proposal is given, not the screen's: the editor can sit in a narrow column of a wide window.
+// Based on the width the proposal gets, not the screen's: the editor can sit in a narrow column of a wide window.
 @container starters (max-width: 40rem) {
   .starters__reasons li {
     grid-template-columns: minmax(0, 1fr);
@@ -163,7 +164,7 @@
   color: var(--text-secondary);
 }
 
-// With Kubernetes, the reason there is nothing to start from, under the title.
+// With Kubernetes, the explanation of why there is nothing to start from, under the title.
 .starters gbt-alert[data-kubernetes] {
   display: block;
   margin-top: 0.75rem;

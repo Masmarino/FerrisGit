@@ -2,8 +2,8 @@ import { BuilderJob, BuilderState, commandsOf, jobsOf } from './pipeline-builder
 import { PipelineLink } from './pipeline-links';
 
 /**
- * What the board shows of a pipeline: a stage per column, a card per job, and the ties between them. Pure, so that what
- * a card says follows from the pipeline alone.
+ * What the board shows of a pipeline: a column per stage, a card per job, and the links between them. Pure functions,
+ * so that what a card says only depends on the pipeline.
  */
 
 export const stageId = (index: number) => `pipeline-stage-${index}`;
@@ -14,11 +14,11 @@ export interface CardView {
   problemCount: number;
   menuLabel: string;
   moveTargets: string[];
-  /** What the job is for: its last command, the ones before only set it up (`cd web`, `npm ci`). */
+  /** What the job is for: its last command. The ones before only set it up (`cd web`, `npm ci`). */
   mainCommand: string | null;
-  /** How many commands come before it. */
+  /** How many commands come before the main one. */
   setupCommands: number;
-  /** Its tie to the pointed job: one it waits for, or one that waits for it. */
+  /** Its link to the pointed job: a job the pointed one waits for, or one that waits for it. */
   relation: 'waited' | 'waiting' | null;
 }
 
@@ -30,11 +30,11 @@ export interface LaneView {
   cards: CardView[];
   canMoveBefore: boolean;
   canMoveAfter: boolean;
-  /** Only an empty stage can go: deleting its jobs with it is not something a click should do. */
+  /** Only an empty stage can be removed: deleting its jobs with it is not something a single click should do. */
   removable: boolean;
 }
 
-/** The tie of `job` to the pointed job, seen from `job`. */
+/** The link between `job` and the pointed job, seen from `job`. */
 function relationTo(pointed: BuilderJob | null, job: BuilderJob): CardView['relation'] {
   if (!pointed || pointed.name === job.name) {
     return null;
@@ -43,8 +43,8 @@ function relationTo(pointed: BuilderJob | null, job: BuilderJob): CardView['rela
 }
 
 /**
- * The columns of the board. `problemJobs` names the job of each problem the server reports (one entry per problem);
- * `pointed` is the job under the pointer or the focus.
+ * The columns of the board. `problemJobs` names the job of each problem the server reports (one entry per problem), and
+ * `pointed` is the job under the pointer or with the focus.
  */
 export function boardLanes(state: BuilderState, problemJobs: readonly (string | null | undefined)[], pointed: string | null): LaneView[] {
   const pointedJob = state.jobs.find((job) => job.name === pointed) ?? null;
@@ -81,8 +81,9 @@ export function boardLanes(state: BuilderState, problemJobs: readonly (string | 
 }
 
 /**
- * Every `needs` of the board, as on a pipeline's page. A need of a job that does not exist draws nothing; one of a job
- * in a later stage is refused by the server (check_pipeline_definition), and says so. The same stage is allowed.
+ * Every `needs` of the board, as on a pipeline's page. A need on a job that does not exist draws nothing. A need on a
+ * job of a later stage is drawn as refused, since the server refuses it (check_pipeline_definition). The same stage is
+ * allowed.
  */
 export function boardLinks(state: BuilderState, pointed: string | null): PipelineLink[] {
   const rank = new Map(state.jobs.map((job) => [job.name, state.stages.indexOf(job.stage)]));

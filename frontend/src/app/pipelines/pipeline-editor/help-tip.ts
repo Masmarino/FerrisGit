@@ -4,8 +4,8 @@ import { Popover } from '@masmarino/gabarit/popover';
 import { HelpText } from './pipeline-help';
 
 /**
- * A small "?" that opens an explanation. A click or a tap opens it, so it works on a phone, where a hover bubble would
- * not; Escape or a click elsewhere closes it.
+ * A small "?" that opens an explanation. It opens on click or tap, so that it also works on a phone, where a hover
+ * bubble would not. Escape or a click elsewhere closes it.
  */
 @Component({
   selector: 'fg-help-tip',

@@ -75,7 +75,7 @@ describe('PipelineSecrets', () => {
     const changed = vi.fn();
     fixture.componentInstance.changed.subscribe(changed);
 
-    // The inner component reports through its output: reach it as the host would.
+    // The inner component reports through its output: trigger it the way the host would.
     const inner = fixture.debugElement.query((d) => d.name === 'fg-repository-ci-variables').componentInstance;
     inner.changed.emit();
 

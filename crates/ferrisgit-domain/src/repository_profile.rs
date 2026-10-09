@@ -1,6 +1,7 @@
-//! What a repository is made of, read from its files, so that the pipeline editor can propose a pipeline that fits it:
-//! the projects it holds (Rust, Node, Go, Python), where, with which versions and tools, and what it ships (a
-//! Dockerfile, a Helm chart). Pure: the caller lists the files and reads the few this asks for.
+//! Works out what a repository is made of from its files, so that the pipeline editor can propose a pipeline that fits
+//! it: which projects it holds (Rust, Node, Go, Python), where they live, which versions and tools they use, and
+//! whether it ships a Dockerfile or a Helm chart. This is pure code: the caller lists the files and reads the few that
+//! this module asks for.
 
 use std::collections::{BTreeMap, BTreeSet};
 
@@ -9,11 +10,13 @@ use serde::Serialize;
 
 use crate::error::DomainError;
 
-/// How deep the listing goes: a project at the root, in `frontend/` or in `apps/web/`. Deeper is rare and costly.
+/// How many folders deep the listing goes, enough for `frontend/` or `apps/web/`. Deeper projects are rare and listing
+/// them costs more.
 pub const MAX_DEPTH: usize = 3;
-/// Past this many files the listing stops: a big repository still answers quickly, from what was seen.
+/// The listing stops after this many entries, so that a huge repository still answers quickly with what was seen so
+/// far.
 pub const MAX_FILES: usize = 5_000;
-/// Folders that hold what a build produces or downloads, never a project of their own.
+/// Folders of build output and downloaded dependencies: never a project of their own, and often huge.
 pub const SKIPPED_DIRS: &[&str] = &[
     ".git",
     "node_modules",
@@ -27,16 +30,16 @@ pub const SKIPPED_DIRS: &[&str] = &[
     "__pycache__",
     ".next",
     "coverage",
-    // Only its presence matters: offline sqlx queries, which may be hundreds of files.
+    // `.sqlx` holds sqlx's offline query data, often hundreds of files. Only whether it exists matters.
     ".sqlx",
 ];
 /// A manifest larger than this is not read: real ones are a few KiB.
 pub const MAX_MANIFEST_BYTES: usize = 256 * 1024;
-/// At most this many manifests are read, the shallowest first: a repository built to hold thousands of them cannot make
-/// one opening of the editor load them all.
+/// At most this many manifests are read, shallowest first, so that a repository with thousands of them cannot make
+/// opening the editor slow.
 pub const MAX_MANIFESTS: usize = 200;
 
-/// The files whose content says something; the others only count by their presence (lockfiles, Dockerfile).
+/// The files whose content is read. The others only matter by their presence (lockfiles, Dockerfile).
 const READ_NAMES: &[&str] = &[
     "Cargo.toml",
     "rust-toolchain.toml",
@@ -52,8 +55,8 @@ const READ_NAMES: &[&str] = &[
 /// The files of a commit, read without checking it out. Paths are repo-relative and `/`-separated.
 #[async_trait]
 pub trait RepositoryFilesPort: Send + Sync {
-    /// Every file and folder at most `max_depth` folders down, not entering those named in `skip`, stopping after
-    /// `limit`. Folders are listed with a trailing `/`, the skipped ones included.
+    /// Every file and folder at most `max_depth` levels down, without entering the folders named in `skip`, and
+    /// stopping after `limit` entries. Folders end with `/`, skipped ones included.
     async fn list_files_at_revision(
         &self,
         repository_disk_path: &str,
@@ -63,8 +66,8 @@ pub trait RepositoryFilesPort: Send + Sync {
         limit: usize,
     ) -> Result<Vec<String>, DomainError>;
 
-    /// The text of each of `paths` that is a file of at most `max_bytes` and valid UTF-8, by path. The others are left
-    /// out, and a file over the limit is not loaded.
+    /// The text of each path that is a UTF-8 file of at most `max_bytes`, keyed by path. Anything else is left out, and
+    /// a file over the limit is never loaded.
     async fn read_text_files_at_revision(
         &self,
         repository_disk_path: &str,
@@ -89,7 +92,7 @@ pub struct RepositoryProfile {
 pub struct DetectedProject {
     /// The project's folder, `""` for the root.
     pub dir: String,
-    /// The files it was recognised by, repo-relative, to say why.
+    /// The files that identified the project, shown to explain the proposal.
     pub evidence: Vec<String>,
     #[serde(flatten)]
     pub kind: ProjectKind,
@@ -114,7 +117,6 @@ pub enum ProjectKind {
         package_manager: PackageManager,
         /// The major version asked for by `.nvmrc`, `.node-version` or `engines.node`.
         node_version: Option<String>,
-        /// The scripts of `package.json`, by name.
         scripts: BTreeMap<String, String>,
         framework: Option<NodeFramework>,
         /// The test runner, when the dependencies name one.
@@ -175,7 +177,7 @@ pub enum PythonTool {
     Uv,
 }
 
-/// The listed files whose content `detect` reads: manifests and version files, at the root of a project.
+/// The listed files whose content `detect` needs: manifests and version files at the root of a project.
 pub fn files_to_read(paths: &[String]) -> Vec<String> {
     paths
         .iter()
@@ -185,7 +187,7 @@ pub fn files_to_read(paths: &[String]) -> Vec<String> {
         .collect()
 }
 
-/// What the repository holds, from its file list and the contents of `files_to_read` (those that could be read).
+/// What the repository holds, given its file list and the contents of the `files_to_read` that could be read.
 pub fn detect(paths: &[String], contents: &BTreeMap<String, String>) -> RepositoryProfile {
     let tree = Tree::new(paths, contents);
     let mut projects = rust_projects(&tree);
@@ -199,7 +201,7 @@ pub fn detect(paths: &[String], contents: &BTreeMap<String, String>) -> Reposito
     }
 }
 
-/// The commit's files as `detect` looks at them: which exist, and what the read ones say.
+/// The commit's files as `detect` sees them: which ones exist, and the text of those that were read.
 struct Tree<'a> {
     paths: &'a [String],
     present: BTreeSet<&'a str>,
@@ -235,7 +237,8 @@ impl<'a> Tree<'a> {
         dirs
     }
 
-    /// Those of `names` that `dir` holds, as repo-relative paths: what a project was recognised by.
+    /// The files among `names` that `dir` contains, as repo-relative paths. They are the evidence a project was
+    /// recognised by.
     fn evidence(&self, dir: &str, names: &[&str]) -> Vec<String> {
         names
             .iter()
@@ -255,7 +258,8 @@ impl<'a> Tree<'a> {
         })
     }
 
-    /// A Cargo.toml in `dir` or below it that declares sqlx with its `postgres` feature, on one line as workspaces do.
+    /// Whether a Cargo.toml in `dir` or below declares sqlx with its `postgres` feature, on a single line as workspaces
+    /// usually write it.
     fn declares_sqlx_postgres(&self, dir: &str) -> bool {
         self.contents.iter().any(|(path, text)| {
             file_name(path) == "Cargo.toml"
@@ -284,8 +288,8 @@ fn rust_projects(tree: &Tree) -> Vec<DetectedProject> {
                     .filter(|text| !text.is_empty() && !text.contains('['))
             })
             .or_else(|| toml_string(manifest, "rust-version"))
-            // Only a version picks an image (rust:1.98.1): a named channel (`nightly`) or anything else read in the
-            // repository is not written into the proposed pipeline.
+            // Only a plain version becomes an image tag (rust:1.98.1). A channel such as `nightly`, or anything else
+            // found in the repository, is never copied into the proposed pipeline.
             .filter(|version| is_plain_version(version));
         projects.push(DetectedProject {
             evidence: tree.evidence(
@@ -364,7 +368,7 @@ fn node_projects(tree: &Tree) -> Vec<DetectedProject> {
     projects
 }
 
-/// By its lockfile, or else by the `packageManager` the manifest declares; npm when neither says.
+/// Found from the lockfile, or else from the `packageManager` field of the manifest. npm when neither says.
 fn package_manager(tree: &Tree, dir: &str, manifest: &serde_json::Value) -> PackageManager {
     let declared = manifest
         .get("packageManager")
@@ -407,7 +411,7 @@ fn scripts(manifest: &serde_json::Value) -> BTreeMap<String, String> {
         .unwrap_or_default()
 }
 
-/// The first that applies: a Next app also depends on React, so the order matters.
+/// The first match wins: a Next app also depends on React, so the order matters.
 fn framework(angular_json: bool, dependencies: &BTreeSet<&str>) -> Option<NodeFramework> {
     if angular_json || dependencies.contains("@angular/core") {
         return Some(NodeFramework::Angular);
@@ -552,7 +556,7 @@ fn toml_string(text: &str, key: &str) -> Option<String> {
     })
 }
 
-/// `1`, `1.98` or `1.98.1`: numbers and dots, nothing a pipeline file or a shell could read otherwise.
+/// `1`, `1.98` or `1.98.1`. Digits and dots only, so the value is safe in a pipeline file or a shell command.
 fn is_plain_version(text: &str) -> bool {
     let parts: Vec<&str> = text.split('.').collect();
     parts.len() <= 3
@@ -999,9 +1003,10 @@ mod tests {
         );
     }
 
-    /// The pipeline editor reads this JSON with types of its own (pipeline-definitions.service.ts): a sample of every
-    /// field and every value sits beside them, and the frontend's tests check its types against it. This test keeps the
-    /// sample what the server sends. After a deliberate change: `UPDATE_CONTRACTS=1 cargo test -p ferrisgit-domain`.
+    /// The pipeline editor has its own TypeScript types for this JSON (pipeline-definitions.service.ts). A sample with
+    /// every field and every value sits next to them, and the frontend tests check the types against it. This test
+    /// keeps the sample in step with what the server sends. After an intentional change, run `UPDATE_CONTRACTS=1 cargo
+    /// test -p ferrisgit-domain`.
     #[test]
     fn the_sample_the_frontend_checks_its_types_against_is_what_the_server_sends() {
         use PackageManager::*;

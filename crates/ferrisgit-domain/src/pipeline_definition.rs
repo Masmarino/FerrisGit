@@ -103,12 +103,12 @@ fn is_valid_cache_key(key: &str) -> bool {
             .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
 }
 
-/// Every problem of a definition whose YAML was well formed, in the order `parse_pipeline_definition` would hit them: the
-/// first one is the error the parser reports. The builder shows them all at once.
+/// Every problem of a definition whose YAML is well formed, in the order `parse_pipeline_definition` would find them,
+/// so the first one is the error the parser reports. The editor shows them all at once.
 pub fn check_pipeline_definition(definition: &PipelineDefinition) -> Vec<PipelineDefinitionError> {
     let mut problems: Vec<PipelineDefinitionError> = Vec::new();
     let mut report = |problem: PipelineDefinitionError| {
-        // A dependency in an undeclared stage is reported for that job too; once is enough.
+        // A dependency in an undeclared stage is also reported for that job, and once is enough.
         if !problems.contains(&problem) {
             problems.push(problem);
         }
@@ -172,9 +172,9 @@ pub fn check_pipeline_definition(definition: &PipelineDefinition) -> Vec<Pipelin
 /// twenty seconds for a 256 KiB file of nested brackets), so a file past it is refused before being parsed.
 pub const MAX_FLOW_NESTING: usize = 64;
 
-/// The deepest `[`/`{` nesting of a YAML text, quoted strings and comments aside. Inside a flow collection brackets are
-/// always structure (a plain scalar cannot hold them there); outside, only one that opens a value counts, so that
-/// `echo [x]` in a command is not taken for nesting.
+/// The deepest `[`/`{` nesting of a YAML text, ignoring quoted strings and comments. Inside a flow collection a bracket
+/// is always structure (a plain scalar cannot contain one there). Outside, it only counts when it opens a value, so
+/// that `echo [x]` in a command is not mistaken for nesting.
 pub fn flow_nesting(yaml: &str) -> usize {
     let mut depth = 0usize;
     let mut deepest = 0usize;
@@ -246,8 +246,8 @@ pub fn flow_nesting(yaml: &str) -> usize {
     deepest
 }
 
-/// The YAML read into a definition, without any of the checks: a file whose stages or dependencies are wrong can still be
-/// opened and fixed in the builder.
+/// Reads the YAML into a definition without any check, so that a file with wrong stages or dependencies can still be
+/// opened and fixed in the editor.
 pub fn read_pipeline_definition(yaml: &str) -> Result<PipelineDefinition, PipelineDefinitionError> {
     if flow_nesting(yaml) > MAX_FLOW_NESTING {
         return Err(PipelineDefinitionError::InvalidYaml(format!(
@@ -267,7 +267,8 @@ pub fn parse_pipeline_definition(
     }
 }
 
-/// Things the server accepts but that are very likely a mistake, shown next to the problems and never blocking.
+/// Things the server accepts but that are very likely mistakes. They are shown next to the problems and never block
+/// anything.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PipelineDefinitionWarning {
     EmptyImage { job: String },
@@ -301,9 +302,9 @@ pub fn pipeline_definition_warnings(
     warnings
 }
 
-/// The definition as YAML, jobs grouped by stage in the order of `stages` and by name inside a stage, with the empty
-/// optional fields left out. Comments, anchors and formatting of an earlier file are not kept: only what the parser
-/// reads is written.
+/// The definition as YAML, jobs grouped by stage in the order of `stages` and by name within a stage, with empty
+/// optional fields left out. Comments, anchors and formatting of an earlier file are lost: only what the parser reads
+/// is written.
 pub fn render_pipeline_definition(
     definition: &PipelineDefinition,
 ) -> Result<String, PipelineDefinitionError> {
@@ -348,8 +349,8 @@ const JOB_FIELDS: [&str; 7] = [
     "cache",
 ];
 
-/// The fields of a pipeline file that the parser does not read (`jobs.build.when`, `include`...), as dotted paths. A
-/// builder that rewrites the file would drop them, so it has to say so first. Empty when the YAML does not parse.
+/// The fields of a pipeline file that the parser does not read (`jobs.build.when`, `include`...), as dotted paths. An
+/// editor that rewrites the file would drop them, so it has to warn first. Empty when the YAML does not parse.
 pub fn ignored_pipeline_fields(yaml: &str) -> Vec<String> {
     if flow_nesting(yaml) > MAX_FLOW_NESTING {
         return Vec::new();
@@ -381,8 +382,8 @@ pub fn ignored_pipeline_fields(yaml: &str) -> Vec<String> {
     ignored
 }
 
-/// Whether the file has YAML comments, which a rewrite would lose. It leans towards saying yes: a quoted ` #` is
-/// reported too, and a false alarm costs a warning where a miss would cost a comment.
+/// Whether the file has YAML comments, which a rewrite would lose. It errs on the side of yes: a quoted ` #` counts
+/// too, because a false alarm only costs a warning while a miss costs a comment.
 pub fn has_yaml_comments(yaml: &str) -> bool {
     yaml.lines()
         .any(|line| line.trim_start().starts_with('#') || line.contains(" #"))

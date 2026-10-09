@@ -1,4 +1,6 @@
-/** What each part of the editor is for, in the words of someone who has never written a pipeline. Shown in help bubbles. */
+/**
+ * What each part of the editor is for, written for someone who has never written a pipeline. Shown in the help bubbles.
+ */
 export interface HelpText {
   title: string;
   body: string;

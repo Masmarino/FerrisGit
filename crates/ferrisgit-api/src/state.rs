@@ -164,7 +164,7 @@ pub struct AppState {
     pub pipeline_file_reader: Arc<dyn PipelineFileReaderPort>,
     /// Lists and reads a commit's files, for the pipeline editor to see what the repository is made of.
     pub repository_files: Arc<dyn RepositoryFilesPort>,
-    /// The profiles already read, by commit: what the repository is made of does not change while its branch does not.
+    /// Profiles already read, by commit. A commit never changes, so a kept profile never goes stale.
     pub repository_profiles: Arc<RepositoryProfileCache>,
     pub merge_requests: Arc<dyn MergeRequestStorePort>,
     pub merge_request_comments: Arc<dyn MergeRequestCommentPort>,

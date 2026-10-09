@@ -42,7 +42,7 @@ describe('PendingChanges', () => {
           ]),
         ],
       });
-      // A reused route's guard runs only when an outlet shows its page, as the shell's does.
+      // A reused route's guard only runs when an outlet shows its page, as the shell's outlet does.
       await RouterTestingHarness.create('/repositories/acme/widget/-/pipelines/editor');
       return TestBed.inject(Router);
     }

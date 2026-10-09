@@ -12,14 +12,14 @@ use uuid::Uuid;
 
 use crate::use_cases::create_merge_request::CreateMergeRequestUseCase;
 
-/// The pipeline file of a repository as its default branch has it, which is what the editor starts from.
+/// The repository's pipeline file as it is on the default branch: what the editor starts from.
 #[derive(Debug, Clone, PartialEq)]
 pub struct RepositoryPipelineFile {
-    /// Where the repository keeps it: set per repository, `.ferrisgit-ci.yml` unless changed.
+    /// The path the repository settings give, `.ferrisgit-ci.yml` by default.
     pub path: String,
     /// `None` for a repository with no commit yet.
     pub branch: Option<String>,
-    /// The default branch's tip the file was read at. A proposal is checked against it.
+    /// The tip of the default branch the file was read at. A proposal is checked against it.
     pub base_sha: Option<String>,
     /// `None` when the branch has no such file.
     pub yaml: Option<String>,
@@ -102,8 +102,8 @@ pub struct ProposedPipelineDefinition {
     pub merge_request: MergeRequest,
 }
 
-/// Saves an edited pipeline file the way any change is made here: on a new branch, with a merge request into the default
-/// branch, so it is reviewed and merged like the rest. Nothing is written to the default branch itself.
+/// Saves an edited pipeline file the way any change is made here: on a new branch, with a merge request into the
+/// default branch, so that it is reviewed and merged like anything else. The default branch itself is never written to.
 pub struct ProposePipelineDefinitionUseCase {
     settings: Arc<dyn RepositorySettingsStorePort>,
     users: Arc<dyn UserRepositoryPort>,
@@ -118,7 +118,7 @@ pub struct PipelineProposal {
     pub repository_disk_path: String,
     pub author_id: Uuid,
     pub yaml: String,
-    /// The `base_sha` the editor was opened at: the file must not have changed on the default branch since.
+    /// The `base_sha` the editor was opened at. The file must not have changed on the default branch since.
     pub base_sha: String,
     pub title: String,
     pub description: String,
@@ -147,7 +147,7 @@ impl ProposePipelineDefinitionUseCase {
         &self,
         proposal: PipelineProposal,
     ) -> Result<ProposedPipelineDefinition, DomainError> {
-        // The server refuses what the engine would refuse: a file saved here always makes a pipeline.
+        // Refuse what the engine would refuse, so that a saved file always produces a pipeline.
         let definition = read_pipeline_definition(&proposal.yaml)
             .map_err(|e| DomainError::Validation(e.to_string()))?;
         if let Some(problem) = check_pipeline_definition(&definition).first() {
@@ -235,7 +235,7 @@ impl ProposePipelineDefinitionUseCase {
         let merge_request = match opened {
             Ok(merge_request) => merge_request,
             Err(error) => {
-                // Without its merge request, the branch is one nobody asked for and nobody would find.
+                // Without its merge request the branch is useless, and nobody would find it: remove it.
                 if let Err(cleanup) = self
                     .writer
                     .delete_new_branch(disk_path, &branch, &commit_sha)
@@ -366,7 +366,7 @@ mod tests {
         let author_id = author.id;
         let writer = Arc::new(Writer::default());
         let merge_requests = Arc::new(FakeMergeRequests::empty());
-        // The new branch exists once the writer has "created" it: the merge request checks for it.
+        // The writer's branch is listed once it exists, because opening the merge request checks for it.
         let branches = Arc::new(BranchesWithNew {
             inner: FakeBranchReader::new(branches),
             writer: writer.clone(),

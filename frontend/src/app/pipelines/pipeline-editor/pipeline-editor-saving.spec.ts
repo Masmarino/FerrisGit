@@ -37,7 +37,7 @@ describe('PipelineEditor saving', () => {
       ctx.internals.patchJob('compile', { image: 'changed-again' });
       ctx.fixture.detectChanges();
 
-      // The file shown is still the one written before this change: proposing it would drop the change.
+      // The file shown is still the one rendered before this change, so proposing it would drop the change.
       expect(headerSave(ctx.el).disabled).toBe(true);
       await answerRender(ctx);
       expect(headerSave(ctx.el).disabled).toBe(false);

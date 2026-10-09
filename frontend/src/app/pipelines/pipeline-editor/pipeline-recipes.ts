@@ -1,12 +1,14 @@
 import { PackageManager, PythonTool } from './pipeline-definitions.service';
 
 /**
- * How each language is checked, tested and built: the images and the commands. The tiles take them with the defaults,
- * the proposal made for a repository with what the repository says (its toolchain, its package manager, its scripts),
- * so that both always run a project the same way.
+ * How each language is checked, tested and built: the images and the commands. The tiles use them with their defaults,
+ * and the proposal for a repository with what the repository says (its toolchain, package manager and scripts), so that
+ * both always run a project the same way.
  */
 
-/** A cache key and the variables that send a tool's downloads into it (Kubernetes mounts it at /ferrisgit-cache). */
+/**
+ * A cache key, and the variables that send a tool's downloads into it (Kubernetes mounts it under /ferrisgit-cache).
+ */
 export interface CacheRecipe {
   cache: string[];
   variables: Record<string, string>;
@@ -15,7 +17,7 @@ export interface CacheRecipe {
 export const RUST = {
   image: (toolchain?: string | null) => (toolchain ? `rust:${toolchain}` : 'rust:1'),
   cache: { cache: ['cargo-home', 'cargo-target'], variables: { CARGO_HOME: '/ferrisgit-cache/cargo-home', CARGO_TARGET_DIR: '/ferrisgit-cache/cargo-target' } } satisfies CacheRecipe,
-  /** The rust image has neither rustfmt nor Clippy: each job adds the one it runs. */
+  /** The rust image has neither rustfmt nor Clippy, so each job installs the one it runs. */
   format: () => ['rustup component add rustfmt', 'cargo fmt --all -- --check'],
   clippy: (workspace = false) => ['rustup component add clippy', `cargo clippy${workspace ? ' --workspace' : ''} --all-targets -- -D warnings`],
   test: (workspace = false) => [`cargo test${workspace ? ' --workspace' : ''} --all-targets`],
@@ -34,7 +36,7 @@ const PACKAGE_CACHES: Record<PackageManager, CacheRecipe> = {
 export const NODE = {
   image: (manager: PackageManager = 'npm', version?: string | null) => (manager === 'bun' ? 'oven/bun:1' : `node:${version ?? '22'}`),
   cache: (manager: PackageManager = 'npm'): CacheRecipe => PACKAGE_CACHES[manager],
-  /** The frozen install of each package manager: the lockfile is the truth, never updated by a job. */
+  /** The frozen install of each package manager: the lockfile is the reference, and a job never updates it. */
   install: (manager: PackageManager = 'npm', locked = true): string[] =>
     ({
       npm: [locked ? 'npm ci' : 'npm install'],
@@ -43,7 +45,7 @@ export const NODE = {
       yarn: ['corepack enable', 'yarn install --immutable'],
       bun: ['bun install --frozen-lockfile'],
     })[manager],
-  /** Runs a script of package.json; `args` reach the script itself (npm needs a `--` before them). */
+  /** Runs a script of package.json. `args` are passed to the script itself (npm needs a `--` before them). */
   run: (script: string, manager: PackageManager = 'npm', args = ''): string => {
     const extra = args === '' ? '' : manager === 'npm' ? ` -- ${args}` : ` ${args}`;
     if (manager === 'yarnClassic' || manager === 'yarn') {
@@ -63,9 +65,9 @@ export const GO = {
 
 export const PYTHON = {
   image: (version?: string | null) => `python:${version ?? '3.13'}`,
-  /** Installs the project and its dependencies; with pip, from requirements.txt when there is one. */
+  /** Installs the project and its dependencies. With pip, from requirements.txt when there is one. */
   setup: (tool: PythonTool = 'pip', requirements = true): string[] =>
     ({ uv: ['pip install uv', 'uv sync --frozen'], poetry: ['pip install poetry', 'poetry install'], pip: [requirements ? 'pip install -r requirements.txt' : 'pip install -e .'] })[tool],
-  /** A command run with the project's own environment. */
+  /** A command run in the project's own environment. */
   exec: (command: string, tool: PythonTool = 'pip') => `${{ uv: 'uv run ', poetry: 'poetry run ', pip: '' }[tool]}${command}`,
 };

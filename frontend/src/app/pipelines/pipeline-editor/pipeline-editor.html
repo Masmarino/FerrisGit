@@ -97,7 +97,7 @@
       }
       @for (lane of lanes(); track lane.stage) {
         <section class="pipeline-editor__lane" [attr.aria-labelledby]="lane.headingId">
-          <!-- The number is for the eye (the hidden heading says the stage's name); the help bubble stays for everyone. -->
+          <!-- The number is visual only (the hidden heading gives the stage's name), but the help bubble is there for everyone. -->
           <p class="pipeline-editor__lane-label">
             <span aria-hidden="true">Étape {{ lane.index + 1 }}</span>
             <fg-help-tip [help]="help.stage" />
@@ -212,7 +212,7 @@
         </gbt-alert>
       }
 
-      <!-- What the server says, each item leading to its job when it names one. -->
+      <!-- What the server reports. Each item leads to its job when it names one. -->
       <ng-template #issueList let-issues>
         <ul class="pipeline-editor__issues">
           @for (issue of issues; track issue.message) {
@@ -234,7 +234,7 @@
       @if (doc.mode() === 'yaml') {
         <gbt-textarea class="pipeline-editor__yaml-input" label="Contenu du fichier de pipeline" hideLabel mono autosize [rows]="18" [ngModel]="doc.yamlText()" (ngModelChange)="typeYaml($event)" />
       } @else {
-        <!-- The same colours as the repository's code browser, and line numbers for when the server names a line. -->
+        <!-- The same colours as the repository's code browser, with line numbers for when the server names a line. -->
         <div class="pipeline-editor__yaml" role="region" aria-label="Contenu du fichier de pipeline produit">
           <fg-code-view [content]="doc.yaml()" fileName="pipeline.yml" [lineNumbers]="true" />
         </div>
@@ -342,5 +342,5 @@
   (closed)="leaving.answer(false)"
 />
 
-<!-- What the last move or change did, for those who cannot see the board change. -->
+<!-- What the last move or change did, for people who cannot see the board change. -->
 <p class="sr-only" role="status">{{ announcement() }}</p>

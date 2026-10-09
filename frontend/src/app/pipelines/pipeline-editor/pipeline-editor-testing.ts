@@ -8,7 +8,8 @@ import { DefinitionDto, ParsedPipeline, RenderedPipeline, RepositoryPipelineFile
 import { RepositoryContextService } from '../../repositories/repository-context.service';
 import { SettingsService } from '../../settings/settings.service';
 
-// What the editor's specs share: the files and answers the server gives, the editor set up and opened, and how to read the board.
+// Shared by the editor's specs: the files and answers the server gives, the editor set up and opened, and helpers to
+// read the board.
 export const FILE_URL = '/api/repositories/repo-1/pipeline-definition';
 export const PROPOSAL_URL = '/api/repositories/repo-1/pipeline-definition/proposal';
 export const PARSE_URL = '/api/pipeline-definitions/parse';
@@ -35,7 +36,7 @@ export const text = (el: Element | null | undefined) => (el?.textContent ?? '').
 
 export type Role = 'owner' | 'contributor' | 'maintainer' | 'reader';
 
-/** The members the specs reach into: the component keeps them protected. */
+/** The members the specs reach into (the component keeps them protected). */
 export interface Internals {
   drop(event: unknown, stage: string): void;
   moveTo(job: { name: string }, stage: string): void;
@@ -126,8 +127,10 @@ export function menuItems(ctx: ReturnType<typeof setup>, job: string): string[] 
   return Array.from(card(ctx.el, job).querySelectorAll('[role="menuitem"]'), text);
 }
 
-/** Every spec of the editor ends here: no request left unanswered. Reading the repository is a bonus asked for in the
-background, so a spec about something else lets it find nothing. */
+/**
+ * Every spec of the editor ends with this check: no request left unanswered. Reading the repository is a background
+ * bonus, so a spec about something else answers it with a repository where nothing is recognised.
+ */
 export function verifyRequestsAfterEach(): void {
   afterEach(() => {
     TestBed.inject(HttpTestingController)

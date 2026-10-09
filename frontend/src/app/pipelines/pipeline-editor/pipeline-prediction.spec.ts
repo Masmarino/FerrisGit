@@ -81,7 +81,7 @@ describe('pipeline prediction', () => {
     it('runs Rust on the pinned toolchain, across the workspace, without a database', () => {
       expect(job('rust-clippy')).toMatchObject({ image: 'rust:1.98.1', script: ['rustup component add clippy', 'cargo clippy --workspace --all-targets -- -D warnings'], cache: ['cargo-home', 'cargo-target'] });
       expect(job('rust-test').variables).toContainEqual({ key: 'SQLX_OFFLINE', value: 'true' });
-      // Its sqlx tests need PostgreSQL: the job starts one, and only the tests' job does.
+      // Its sqlx tests need PostgreSQL: the tests job starts one, and it is the only job that does.
       expect(job('rust-test').script.slice(0, 3)).toEqual(['apt-get update -qq', 'apt-get install -y -qq postgresql > /dev/null', 'pg_ctlcluster "$(ls /etc/postgresql)" main start']);
       expect(job('rust-test').variables).toContainEqual({ key: 'DATABASE_URL', value: 'postgres://postgres:postgres@localhost:5432/postgres' });
       expect(job('rust-clippy').script.some((line) => line.includes('postgresql'))).toBe(false);

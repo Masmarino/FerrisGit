@@ -109,18 +109,18 @@
   overflow-wrap: anywhere;
 }
 
-// The jobs made for this repository carry the family's accent, like the proposal of an empty pipeline.
+// The jobs proposed for this repository carry the accent colour, like the proposal for an empty pipeline.
 .tile-picker__icon--repository {
   color: var(--accent-text);
 }
 
-// Their section stands on the same rust rail.
+// Their section sits on the same rust-coloured rail.
 [data-suggestions] {
   padding-left: 0.75rem;
   box-shadow: inset 2px 0 0 var(--accent);
 }
 
-// What keeps a tile from working as is: short badges that wrap among themselves, beside text that wraps too.
+// What keeps a tile from working as it is: short badges that wrap together, next to text that wraps too.
 .tile-picker__note {
   display: flex;
   flex-wrap: wrap;

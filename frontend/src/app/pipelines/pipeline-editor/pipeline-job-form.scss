@@ -38,7 +38,7 @@
   font-size: 0.8125rem;
 }
 
-// gbt-tag-input has no hint of its own: this one sits where gbt-input puts its own, below the field, never over it.
+// gbt-tag-input has no hint of its own: this one sits where gbt-input puts its hint, below the field and never over it.
 .job-form__hint {
   margin: 0.375rem 0 0;
   color: var(--text-secondary);
@@ -50,7 +50,7 @@
   margin-top: 0.5rem;
 }
 
-// A field with a help bubble at the top right of its label line.
+// A field with a help bubble at the top right of its label.
 .job-form__field {
   position: relative;
 }

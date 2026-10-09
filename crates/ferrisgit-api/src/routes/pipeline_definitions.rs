@@ -27,8 +27,8 @@ use crate::state::AppState;
 /// A pipeline file is a few KiB; this leaves room for a large one and nothing more.
 const BODY_LIMIT_BYTES: usize = 256 * 1024;
 
-/// A job as the builder holds it. Every field but the stage may be missing or empty, because a draft is not finished:
-/// what is wrong with it is the answer, not a refusal.
+/// A job as the editor holds it. Every field except the stage may be missing or empty: a draft is unfinished, so the
+/// answer says what is wrong with it instead of refusing it.
 #[derive(Debug, Default, Serialize, Deserialize)]
 #[serde(default)]
 struct JobDto {
@@ -100,8 +100,7 @@ impl From<DefinitionDto> for PipelineDefinition {
     }
 }
 
-/// A stable `code` for the interface to translate, the English `message` as the parser words it, and the names it is
-/// about.
+/// A stable `code` for the interface to translate, the parser's English `message`, and the names the problem is about.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct ProblemDto {
@@ -256,7 +255,7 @@ struct RepositoryFileResponse {
     yaml: Option<String>,
 }
 
-/// The pipeline file as the default branch has it, from where the repository keeps it, for the editor to start from.
+/// The pipeline file on the default branch, at the path the repository settings give, for the editor to start from.
 async fn repository_file(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
@@ -359,7 +358,7 @@ async fn propose(
         description: req.description,
     })
     .await?;
-    // Best effort, as for any merge request: remember the branch tip so a later push is journaled as new commits.
+    // Best effort, as for any merge request: remember the branch tip so that a later push is recorded as new commits.
     state
         .merge_request_events
         .set_head_sha(proposed.merge_request.id, &proposed.commit_sha)

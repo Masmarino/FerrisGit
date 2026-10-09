@@ -1,5 +1,5 @@
-// The two routes the pipeline builder talks to: read a pipeline file with the server's own parser, and write a drawn
-// definition back as YAML. Both are pure, so what matters is the shape of the answers and what they report.
+// The stateless routes the pipeline editor relies on: reading a pipeline file with the server's own parser, and writing
+// a drawn definition back as YAML. What matters is the shape of the answers and what they report.
 
 mod common;
 

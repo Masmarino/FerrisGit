@@ -13,8 +13,8 @@ export interface SecretUse {
 }
 
 /**
- * The secrets of the repository, next to the pipeline that reads them: which ones the jobs expect and are missing, which
- * ones nothing reads, and the form to create them. The values are never shown again once saved.
+ * The repository's secrets, next to the pipeline that reads them: the ones the jobs expect but are missing, the ones
+ * nothing reads, and the form to create them. A value is never shown again once saved.
  */
 @Component({
   selector: 'fg-pipeline-secrets',
@@ -28,7 +28,7 @@ export class PipelineSecrets {
   /** Only a maintainer can read or write the repository's secrets. */
   canManage = input(false);
   engine = input<string | null>(null);
-  /** Read by the jobs and absent from the repository. */
+  /** Read by the jobs, but missing from the repository. */
   missing = input<SecretUse[]>([]);
   /** In the repository, with the jobs that read them. */
   existing = input<SecretUse[]>([]);

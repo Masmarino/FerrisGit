@@ -4,9 +4,9 @@ import { Component, DestroyRef, ElementRef, afterNextRender, afterRenderEffect, 
 export interface PipelineLink {
   from: string;
   to: string;
-  /** A tie of the job under the pointer or the focus. */
+  /** A link of the job under the pointer or with the focus. */
   highlighted: boolean;
-  /** `from` is in a later stage than `to`: the server refuses it. */
+  /** `from` is in a later stage than `to`, which the server refuses. */
   invalid: boolean;
 }
 
@@ -27,9 +27,9 @@ interface DrawnLink {
 const round = (value: number) => Math.round(value * 10) / 10;
 
 /**
- * The curve of a pipeline's page (gbt-job-graph): from the right edge of the job waited for to the left edge of the job
- * that waits, so both pages draw a tie the same way. Two jobs of one stage (the server allows it) sit one above the
- * other: their tie is a bracket on the right of the column, from one right edge to the other.
+ * The same curve as on a pipeline's page (gbt-job-graph): from the right edge of the job waited for to the left edge of
+ * the job that waits, so that both pages draw links alike. Two jobs of the same stage (the server allows it) sit one
+ * above the other, so their link is a bracket on the right of the column, from one right edge to the other.
  */
 export function linkPath(from: Box, to: Box): string {
   const x1 = from.left + from.width;
@@ -46,9 +46,9 @@ export function linkPath(from: Box, to: Box): string {
 }
 
 /**
- * The ties between the jobs of the board, drawn behind the cards. It sits in the board, measures the cards it finds
- * there by their `data-job`, and draws again whenever the links or the board's size change. Decorative: the cards say
- * the same in words ("Après …"), so it is hidden from assistive technology.
+ * The links between the jobs of the board, drawn behind the cards. It sits inside the board, measures the cards it
+ * finds there by their `data-job`, and redraws whenever the links or the board's size change. It is decorative (the
+ * cards say the same thing in words, "Après …"), so it is hidden from assistive technology.
  */
 @Component({
   selector: 'fg-pipeline-links',
@@ -77,11 +77,11 @@ export function linkPath(from: Box, to: Box): string {
       stroke: var(--border-color);
       stroke-width: 2;
     }
-    /* The ties of the pointed job, in the indigo its cards take. */
+    /* The links of the pointed job, in the indigo its cards take. */
     path[data-highlighted] {
       stroke: var(--color-info-vivid-base);
     }
-    /* A tie the server refuses, in the red of its problem. */
+    /* A link the server refuses, in the red of its problem. */
     path[data-invalid] {
       stroke: var(--color-error-base);
       stroke-dasharray: 4 4;
@@ -100,8 +100,9 @@ export class PipelineLinks {
       this.links();
       this.measure();
     });
-    // Cards move when anything above them in their stage changes size (a card that grows, a stage's header once its font
-    // has loaded), without the board changing: every part of every stage is watched, and the board for the window.
+    // Cards move whenever something above them in their stage changes size (a card that grows, a stage header once its
+    // font has loaded), without the board itself changing. So every part of every stage is watched, and the board too
+    // for window resizes.
     afterNextRender(() => {
       const board = this.host.nativeElement.parentElement;
       if (!board) return;
@@ -114,7 +115,7 @@ export class PipelineLinks {
         board.querySelectorAll('.pipeline-editor__lane, .pipeline-editor__lane > *, [data-job]').forEach((part) => observer.observe(part));
       };
       watch();
-      // Cards and stages coming and going; not the ties being drawn, which would make every drawing ask for another.
+      // Cards and stages being added or removed. Not the links being drawn, or every drawing would trigger another.
       const stages = new MutationObserver((changes) => {
         if (changes.some((change) => !this.host.nativeElement.contains(change.target))) watch();
       });
@@ -140,7 +141,7 @@ export class PipelineLinks {
       const to = boxes.get(link.to);
       return from && to ? [{ key: `${link.from}->${link.to}`, d: linkPath(from, to), highlighted: link.highlighted, invalid: link.invalid }] : [];
     });
-    // Highlighted ties last, so they are drawn over the others where they cross.
+    // Highlighted links last, so that they are drawn over the others where they cross.
     this.drawn.set([...drawn.filter((link) => !link.highlighted), ...drawn.filter((link) => link.highlighted)]);
   }
 }

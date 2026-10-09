@@ -16,13 +16,13 @@ import { KNOWN_TILE_SECRETS } from './pipeline-catalog';
 import { envNameProblem, isEnvName } from '../../repositories/ci-variable-name';
 import { looksLikeSecret, referencedNames, unknownReferences } from './pipeline-references';
 
-/** Images people start from. A click fills the field; anything else can still be typed. */
+/** Images people often start from. A click fills the field, and anything else can still be typed. */
 const IMAGE_SUGGESTIONS = ['alpine:3.20', 'rust:1', 'node:22', 'python:3.13', 'golang:1.23', 'docker:27-cli'];
 const CACHE_SUGGESTIONS = ['cargo-home', 'cargo-target', 'npm', 'pip'];
 
 /**
- * The fields of one job, in the drawer. It holds no state of its own: every change goes out as a patch and the editor
- * applies it, so what is shown is always the editor's job.
+ * The fields of one job, in the drawer. It holds no state of its own: every change goes out as a patch that the editor
+ * applies, so what is shown is always the editor's job.
  */
 @Component({
   selector: 'fg-pipeline-job-form',
@@ -36,15 +36,15 @@ export class PipelineJobForm {
   /** The jobs this one may wait for. */
   needOptions = input<string[]>([]);
   problems = input<ProblemView[]>([]);
-  /** The repository's secrets by name; `null` when this person cannot see them (only maintainers can). */
+  /** The repository's secret names, or `null` when this person cannot see them (only maintainers can). */
   secrets = input<string[] | null>(null);
-  /** Whether this person can create secrets, so that a variable which is really one can be turned into one. */
+  /** Whether this person can create secrets, so that a variable that is really a secret can be turned into one. */
   canManageSecrets = input(false);
   engine = input<string | null>(null);
 
   patch = output<Partial<BuilderJob>>();
   remove = output<void>();
-  /** A variable of the job is a secret in disguise: save it as one and take it out of the file. */
+  /** One of the job's variables is a secret in disguise: save it as a secret and take it out of the file. */
   makeSecret = output<number>();
   /** A secret the commands read does not exist yet. */
   createSecret = output<string>();
@@ -53,19 +53,22 @@ export class PipelineJobForm {
   protected readonly imageSuggestions = IMAGE_SUGGESTIONS;
   protected readonly cacheSuggestions = computed(() => CACHE_SUGGESTIONS.filter((key) => !this.job().cache.includes(key)));
 
-  /** What can be ticked: the possible jobs, plus any that is already waited for but no longer possible, so it can be unticked. */
+  /**
+   * What can be ticked: the possible jobs, plus any job already waited for that is no longer possible, so that it can
+   * be unticked.
+   */
   protected readonly needChoices = computed(() => {
     const options = this.needOptions();
     return [...options, ...this.job().needs.filter((need) => !options.includes(need))];
   });
 
-  /** Something to insert in a command: the job's own variables, then the repository's secrets. */
+  /** What can be inserted into a command: the job's own variables, then the repository's secrets. */
   protected readonly insertable = computed(() => {
     const own = this.job().variables.map((row) => row.key.trim()).filter((key) => isEnvName(key));
     return [...new Set([...own, ...(this.secrets() ?? [])])];
   });
 
-  /** The secrets of the repository the commands read, and those they read that do not exist. */
+  /** The repository secrets the commands read, and the names they read that do not exist. */
   protected readonly usedSecrets = computed(() => {
     const secrets = this.secrets();
     return secrets === null ? [] : referencedNames(this.job()).filter((name) => secrets.includes(name) && !this.hasVariable(name));
@@ -74,11 +77,11 @@ export class PipelineJobForm {
     const secrets = this.secrets();
     return secrets === null ? [] : unknownReferences(this.job(), secrets);
   });
-  /** Names that are surely secrets nobody has created yet, which a maintainer can create from here. */
+  /** Names that are surely secrets nobody has created yet. A maintainer can create them from here. */
   protected readonly creatable = computed(() => (this.canManageSecrets() ? this.unknown().filter((name) => looksLikeSecret(name) || KNOWN_TILE_SECRETS.includes(name)) : []));
   protected readonly cachesIgnored = computed(() => this.engine() === 'docker-runners' && this.job().cache.length > 0);
 
-  /** The command last typed in, so that an inserted variable lands there, at the cursor. */
+  /** The command typed in last, so that an inserted variable lands there, at the cursor. */
   private focused: { index: number; field: HTMLTextAreaElement | null } = { index: -1, field: null };
 
   private hasVariable(name: string): boolean {
@@ -120,7 +123,7 @@ export class PipelineJobForm {
     this.focused = { index, field };
   }
 
-  /** Writes `$NAME` where the cursor was in the last command touched, or in a new command when there is none. */
+  /** Writes `$NAME` at the cursor in the last command touched, or in a new command when there is none. */
   protected insert(name: string): void {
     const script = [...this.job().script];
     const token = `$${name}`;

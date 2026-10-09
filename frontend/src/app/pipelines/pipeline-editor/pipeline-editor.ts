@@ -45,14 +45,14 @@ import { PipelineTilePicker } from './pipeline-tile-picker';
 import { missingSecrets, secretUsage, wantedSecretNames } from './pipeline-references';
 import { REDO_KEYS, UNDO_KEYS, undoShortcut } from './pipeline-history';
 
-/** Why a save did not go through, in the words the dialog needs. */
+/** Why a save failed, as the dialog explains it. */
 type SaveFailure = 'changed' | 'refused' | 'failed';
 
 /**
- * Edits a pipeline two ways that stay in step: as cards dragged between stages, or as the YAML itself (the document,
- * pipeline-document.ts). This is the page around it: the board's gestures, the job drawer, the tiles, the secrets and
- * the proposal made for the repository. Saving never writes to the default branch: it opens a merge request, so the
- * change is reviewed like any other.
+ * Edits a pipeline in two views that stay in step: cards dragged between stages, or the YAML itself (see
+ * PipelineDocument). This component is the page around them: the board's gestures, the job drawer, the tiles, the
+ * secrets and the pipeline proposed for the repository. Saving never writes to the default branch: it opens a merge
+ * request, so the change is reviewed like any other.
  */
 @Component({
   selector: 'fg-pipeline-editor',
@@ -77,9 +77,9 @@ export class PipelineEditor implements OnInit {
   private injector = inject(Injector);
 
   protected readonly help = HELP;
-  /** The pipeline itself, with what the server says about it. */
+  /** The pipeline being edited, and what the server says about it. */
   protected readonly doc = new PipelineDocument(this.definitions, () => this.repositoryId());
-  /** The cards: what nearly every gesture of the page changes. */
+  /** The cards. Almost every action on the page changes them. */
   protected readonly state = this.doc.state;
   protected selected = signal<string | null>(null);
   protected newStageName = signal('');
@@ -91,7 +91,7 @@ export class PipelineEditor implements OnInit {
   private permissions = injectRepositoryPermissions();
   protected canWrite = this.permissions.canWrite;
   protected roleKnown = computed(() => this.repoContext.current()?.role != null);
-  /** The repository's secrets belong to maintainers: they alone can list them or create one. */
+  /** Only maintainers can list the repository's secrets or create one. */
   protected canManageSecrets = this.permissions.canMaintain;
 
   protected canUndo = computed(() => this.doc.mode() === 'cards' && this.doc.edits.nextUndo() !== null);
@@ -105,20 +105,25 @@ export class PipelineEditor implements OnInit {
     return label ? `Rétablir : ${label} (${REDO_KEYS})` : 'Rien à rétablir';
   });
 
-  /** The job under the pointer or the focus, whose ties to the others the board shows. */
+  /** The job under the pointer or with the focus. The board highlights its links to the other jobs. */
   protected pointedJob = signal<string | null>(null);
-  /** A card is being carried: the cards move under it, so the ties are hidden until it lands. */
+  /**
+   * True while a card is being dragged: the other cards shift under it, so the links are hidden until it is dropped.
+   */
   protected dragging = signal(false);
 
-  /** Every `needs` of the board, drawn as on a pipeline's page; those of the pointed job stand out. */
+  /** Every `needs` of the board, drawn as on a pipeline's page, with the links of the pointed job highlighted. */
   protected links = computed(() => boardLinks(this.state(), this.pointedJob()));
 
   protected resetOpen = signal(false);
-  /** Set once the change went out as a merge request: going to it loses nothing. */
+  /** Set once the change has gone out as a merge request: leaving then loses nothing. */
   private proposed = false;
-  /** Leaving with changes that were not proposed asks first. */
+  /** Leaving with changes that were not proposed asks for confirmation first. */
   protected leaving = confirmLeaving(() => this.holdsWork());
-  /** Their names, or `null` while unknown (not a maintainer, or not loaded). Values are never sent back by the server. */
+  /**
+   * The names of the repository's secrets, or `null` while unknown (not a maintainer, or not loaded yet). The server
+   * never sends their values.
+   */
   protected secrets = signal<string[] | null>(null);
   protected engine = computed(() => this.appSettings.publicSettings()?.executionEngine ?? null);
   protected pickerStage = signal<string | null>(null);
@@ -145,10 +150,16 @@ export class PipelineEditor implements OnInit {
   });
   protected showStarters = computed(() => this.state().jobs.length === 0 && this.doc.mode() === 'cards');
 
-  /** What the repository is made of, read once, when a proposal is first useful: an empty pipeline, or a job to add. */
+  /**
+   * What the repository is made of. It is read once, the first time a proposal is useful: when the pipeline is empty,
+   * or when a job is being added.
+   */
   private profile = signal<RepositoryProfile | null>(null);
   protected profileState = signal<'idle' | 'loading' | 'done'>('idle');
-  /** Nothing is proposed with Kubernetes: every job it would make works on the repository, which a Pod does not get. */
+  /**
+   * Nothing is proposed with Kubernetes: every proposed job works on the repository's files, and a Pod does not get
+   * them.
+   */
   protected prediction = computed(() => (this.engine() === 'kubernetes' ? null : predictPipeline(this.profile())));
   /** The jobs made for this repository that the pipeline lacks, offered first when a job is added. */
   protected suggestions = computed(() => missingJobs(this.prediction(), this.state()));
@@ -212,7 +223,7 @@ export class PipelineEditor implements OnInit {
     return this.afterStep(this.doc.edits.redo(), 'Rétabli');
   }
 
-  /** A drawer about a job or a stage that the step took away closes with it, and the step is announced. */
+  /** When the step removed the job or the stage a drawer was showing, the drawer closes. The step is then announced. */
   private afterStep(label: string | null, verb: string): boolean {
     if (label === null) {
       return false;
@@ -238,7 +249,7 @@ export class PipelineEditor implements OnInit {
     }
   }
 
-  /** Work that would be lost by leaving: something changed, and it has not gone out as a merge request. */
+  /** Work that leaving would lose: something changed, and it has not gone out as a merge request yet. */
   private holdsWork(): boolean {
     return this.doc.status() === 'ready' && this.doc.edited() && !this.proposed;
   }
@@ -259,7 +270,7 @@ export class PipelineEditor implements OnInit {
     this.router.navigate(['/repositories', ...this.path(), '-', 'pipelines']);
   }
 
-  /** A job dropped on a stage. The CDK index is its place among that stage's cards once dropped. */
+  /** A job dropped on a stage. The CDK index is its position among that stage's cards after the drop. */
   protected drop(event: CdkDragDrop<CardView[]>, stage: string): void {
     const name = event.item.data as string;
     if (event.previousContainer === event.container && event.previousIndex === event.currentIndex) {
@@ -268,7 +279,10 @@ export class PipelineEditor implements OnInit {
     this.change(moveJob(this.state(), name, stage, event.currentIndex), `déplacement du job ${name}`);
   }
 
-  /** The way to move a job without dragging: it goes to the end of the stage, is announced, and focus follows it. */
+  /**
+   * Moves a job without dragging: it goes to the end of the stage, the move is announced, and the focus follows the
+   * card.
+   */
   protected moveTo(job: BuilderJob, stage: string): void {
     this.change(moveJob(this.state(), job.name, stage, Number.MAX_SAFE_INTEGER), `déplacement du job ${job.name}`);
     this.announcement.set(`Job ${job.name} déplacé vers l'étape ${stage}`);
@@ -300,7 +314,7 @@ export class PipelineEditor implements OnInit {
     this.announcement.set(`Étape ${stage} supprimée`);
   }
 
-  /** Asks what the job should do: every kind of job is a tile, the empty one included. */
+  /** Opens the tile picker for the stage: every kind of job is a tile, the empty one included. */
   protected addJobTo(stage: string): void {
     this.pickerStage.set(stage);
   }
@@ -318,11 +332,12 @@ export class PipelineEditor implements OnInit {
     this.change(state, `ajout du job ${job.name}`);
     this.pickerStage.set(null);
     this.announcement.set(`Job ${job.name} ajouté à l'étape ${stage}`);
-    // Open it: the commands are a starting point, and the image or the variables are what a person adjusts first.
+    // Open it straight away: the commands are a starting point, and the image or the variables are what people adjust
+    // first.
     this.selected.set(job.name);
   }
 
-  /** A proposal is a bonus: if the repository cannot be read, the generic templates and tiles are still there. */
+  /** The proposal is a bonus: if the repository cannot be read, the generic templates and tiles still work. */
   private loadProfile(): void {
     this.profileState.set('loading');
     this.definitions.repositoryProfile(this.repositoryId()).subscribe({
@@ -344,8 +359,8 @@ export class PipelineEditor implements OnInit {
   }
 
   /**
-   * A job made for this repository, in the stage it was asked for. It keeps what it waits for only where those jobs
-   * exist in that stage or an earlier one: the pipeline it lands in is not the predicted one.
+   * Adds a job proposed for this repository to the stage the picker was opened for. It only keeps the dependencies that
+   * exist in that stage or an earlier one, since the pipeline it lands in is not the proposed one.
    */
   protected chooseSuggested(predicted: BuilderJob): void {
     const stage = this.pickerStage();
@@ -357,7 +372,7 @@ export class PipelineEditor implements OnInit {
     const name = uniqueName(state.jobs.map((job) => job.name), predicted.name);
     const needs = predicted.needs.filter((need) => {
       const other = state.jobs.find((job) => job.name === need);
-      // The server takes a need in the same stage or an earlier one.
+      // The server accepts a need in the same stage or an earlier one.
       return other !== undefined && state.stages.indexOf(other.stage) <= rank;
     });
     this.change(insertJob(state, { ...predicted, name, stage, needs, script: [...predicted.script], variables: predicted.variables.map((row) => ({ ...row })), tags: [...predicted.tags], cache: [...predicted.cache] }), `ajout du job ${name}`);
@@ -387,7 +402,10 @@ export class PipelineEditor implements OnInit {
     this.secretsOpen.set(true);
   }
 
-  /** A variable that holds a secret goes to the repository, encrypted, and leaves the file everyone reads. */
+  /**
+   * Moves a variable that holds a secret into the repository's encrypted secrets, and out of the file everyone can
+   * read.
+   */
   protected convertToSecret(jobName: string, index: number): void {
     const row = this.state().jobs.find((job) => job.name === jobName)?.variables[index];
     if (!row || row.key.trim() === '' || row.value === '') {
@@ -396,8 +414,8 @@ export class PipelineEditor implements OnInit {
     const key = row.key.trim();
     this.repositorySettings.setCiVariable(this.repositoryId(), key, row.value, true).subscribe({
       next: () => {
-        // By its name, not its place: the job's variables may have changed while the secret was being saved. A step of
-        // its own, so that it is never undone along with the keystrokes that came before it.
+        // Look the job up by name, not by position: its variables may have changed while the secret was being saved. It
+        // is a step of its own, so that it is never undone together with the keystrokes before it.
         const job = this.state().jobs.find((candidate) => candidate.name === jobName);
         if (job) {
           this.change(updateJob(this.state(), jobName, { variables: job.variables.filter((variable) => variable.key.trim() !== key) }), `passage de ${key} en secret`);
@@ -421,18 +439,18 @@ export class PipelineEditor implements OnInit {
     const before = this.state();
     const next = updateJob(before, name, patch);
     const renaming = patch.name !== undefined && patch.name.trim() !== name;
-    // Keystrokes in one field of one job are one step. A rename (applied when its field is left) and a ticked dependency
-    // are choices, each a step of its own.
+    // Keystrokes in one field of one job make a single step. A rename (applied when the field loses the focus) and a
+    // ticked dependency are deliberate choices, each a step of its own.
     const typed = !renaming && patch.needs === undefined;
     this.change(next, renaming ? `renommage du job ${name}` : `modification du job ${name}`, typed ? `job:${name}:${Object.keys(patch).sort().join(',')}` : null);
     const requested = patch.name?.trim();
-    // The drawer follows the job to its new name, when the name was accepted.
+    // When the new name was accepted, the drawer follows the job to it.
     if (requested && requested !== name && next.jobs.some((job) => job.name === requested) && !before.jobs.some((job) => job.name === requested)) {
       this.selected.set(requested);
     }
   }
 
-  /** No question asked: the step can be undone, and the notice says how. */
+  /** No confirmation: the deletion can be undone, and the notification says how. */
   protected deleteJob(name: string): void {
     this.change(removeJob(this.state(), name), `suppression du job ${name}`);
     this.selected.set(null);
@@ -440,7 +458,7 @@ export class PipelineEditor implements OnInit {
     this.toast.show(`Job « ${name} » supprimé. ${UNDO_KEYS} pour l'annuler.`);
   }
 
-  /** The copy opens in the drawer: a copy is made to be changed (another version, another target). */
+  /** The copy opens in the drawer: a copy is usually made to be changed (another version, another target). */
   protected duplicate(name: string): void {
     const result = duplicateJob(this.state(), name);
     if (!result) {
@@ -472,7 +490,7 @@ export class PipelineEditor implements OnInit {
     }
   }
 
-  /** Sends the file on a new branch with a merge request, then goes to it. */
+  /** Pushes the file to a new branch with a merge request, then opens that merge request. */
   protected save(): void {
     const baseSha = this.doc.file()?.baseSha;
     if (!baseSha || this.saving()) {
@@ -495,14 +513,14 @@ export class PipelineEditor implements OnInit {
     });
   }
 
-  /** Throwing the changes away cannot be undone: it is asked first, and only offered when there is something to lose. */
+  /** Discarding the changes cannot be undone, so it asks first, and is only offered when there is something to lose. */
   protected askReset(): void {
     if (this.doc.edited()) {
       this.resetOpen.set(true);
     }
   }
 
-  /** Starts again from the repository's file, dropping what was changed here. */
+  /** Starts over from the repository's file, dropping the changes made here. */
   protected reset(): void {
     this.resetOpen.set(false);
     this.selected.set(null);

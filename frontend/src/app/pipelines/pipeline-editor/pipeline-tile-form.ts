@@ -10,8 +10,8 @@ import { HelpTip } from './help-tip';
 import { JobTile, ParamValue, ParamValues, TileParam, buildTile, defaultValues, tileProblems } from './pipeline-tile-types';
 
 /**
- * The questions a tile asks before it makes a job, with what the job will run shown as they are answered. Nothing is
- * created until the last button: going back drops the answers.
+ * The questions a tile asks before it makes a job, with a preview of what the job will run as they are answered.
+ * Nothing is created until the last button, and going back drops the answers.
  */
 @Component({
   selector: 'fg-pipeline-tile-form',
@@ -23,7 +23,7 @@ import { JobTile, ParamValue, ParamValues, TileParam, buildTile, defaultValues, 
 export class PipelineTileForm {
   tile = input.required<JobTile>();
   stage = input.required<string>();
-  /** The repository's secrets by name, or `null` when this person cannot see them. */
+  /** The repository's secret names, or `null` when this person cannot see them. */
   secrets = input<string[] | null>(null);
 
   confirmed = output<ParamValues>();
@@ -34,15 +34,15 @@ export class PipelineTileForm {
   protected readonly problems = computed(() => tileProblems(this.tile(), this.answers()));
   protected readonly valid = computed(() => Object.keys(this.problems()).length === 0);
   protected readonly built = computed(() => buildTile(this.tile(), this.answers()));
-  /** The questions that apply to the answers so far. */
+  /** The questions that apply, given the answers so far. */
   protected readonly shown = computed(() => (this.tile().params ?? []).filter((param) => !param.showIf || param.showIf(this.answers())));
-  /** The secrets the job will read, with whether the repository has them (when that can be known). */
+  /** The secrets the job will read, and whether the repository has them (when that can be known). */
   protected readonly needed = computed(() => {
     const known = this.secrets();
     return (this.built().secrets ?? []).map((name) => ({ name, present: known === null ? null : known.includes(name) }));
   });
   protected readonly command = computed(() => this.built().script.join('\n'));
-  /** A problem is shown once the person has touched the field, not on a form just opened. */
+  /** A problem shows once the person has touched the field, not on a freshly opened form. */
   protected readonly touched = signal<Set<string>>(new Set());
 
   protected text(param: TileParam): string {
@@ -64,7 +64,7 @@ export class PipelineTileForm {
 
   protected submit(): void {
     if (!this.valid()) {
-      // Show every problem at once, so that nobody has to find the field by trying.
+      // Show every problem at once, so that nobody has to find the faulty field by trial and error.
       this.touched.set(new Set(Object.keys(this.problems())));
       return;
     }

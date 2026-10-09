@@ -53,7 +53,8 @@ export const routes: Routes = [
 
       // Bare `/repositories` is the workspace; anything deeper resolves to a group or a repository.
       { path: 'repositories', loadComponent: () => import('./repositories/workspace-page/workspace-page').then((m) => m.WorkspacePage) },
-      // A page with unsaved work (the pipeline editor) asks before any move, to another page of a repository included.
+      // A page with unsaved work (the pipeline editor) asks before any navigation, including to another page of the
+      // same repository.
       { path: 'repositories/**', canDeactivate: [pendingChangesGuard], loadComponent: () => import('./repositories/repository-path-resolver/repository-path-resolver').then((m) => m.RepositoryPathResolver) },
       { path: 'groups', loadComponent: () => import('./groups/groups-redirect/groups-redirect').then((m) => m.GroupsRedirect) },
       { path: 'groups/:id/members', loadComponent: () => import('./groups/group-members/group-members').then((m) => m.GroupMembers) },
