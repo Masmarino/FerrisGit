@@ -192,7 +192,7 @@
       "loading": "Chargement des jetons…",
       "loadFailed": "Les jetons n'ont pas pu être chargés.",
       "emptyTitle": "Aucun jeton",
-      "emptyMessage": "Générez-en un pour appeler l'API ou cloner en HTTPS depuis un script, une CI ou un autre outil.",
+      "emptyMessage": "Générez-en un pour cloner, récupérer et pousser en HTTPS depuis un script, une CI ou un autre outil.",
       "new": "Nouveau",
       "created": "Créé {{ on }}",
       "used": "Utilisé {{ on }}",
