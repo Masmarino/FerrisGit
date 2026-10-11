@@ -147,7 +147,7 @@ describe('WikiLayout', () => {
 
   it('shows an empty wiki as such, with no search field', () => {
     const { el, host } = setup({ list: { headSha: null, pages: [] } });
-    expect(text(el.querySelector('.wiki-nav__empty'))).toBe('Aucune page pour l’instant.');
+    expect(text(el.querySelector('.wiki-nav__empty'))).toBe('Aucune page pour l\'instant.');
     expect(el.querySelector('.wiki-nav__search')).toBeNull();
     expect(host.loaded).toEqual([{ headSha: null, pages: [] }]);
   });
@@ -155,7 +155,7 @@ describe('WikiLayout', () => {
   it('explains a failed load in the nav and tells the view', () => {
     const { el, host } = setup({ fail: true });
     const failed = el.querySelector('gbt-alert .gbt-alert');
-    expect(text(failed)).toBe('Les pages n’ont pas pu être chargées.');
+    expect(text(failed)).toBe('Les pages n\'ont pas pu être chargées.');
     expect(failed?.getAttribute('data-variant')).toBe('error');
     // No other view (detail, edit) announces the nav's failure, so the nav does, once.
     expect(failed?.getAttribute('role')).toBe('alert');

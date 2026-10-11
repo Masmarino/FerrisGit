@@ -285,7 +285,7 @@ describe('WikiPageDetail', () => {
       fixture.detectChanges();
       fixture.componentInstance.confirmDelete();
       fixture.detectChanges();
-      expect(toastStub.show).toHaveBeenCalledWith('Impossible de supprimer la page', 'error');
+      expect(toastStub.show).toHaveBeenCalledWith('Impossible de supprimer la page. Réessayez plus tard.', 'error');
       expect(el.querySelector('gbt-confirm-danger-modal')).toBeNull();
       expect(text(el.querySelector('h1'))).toBe('Home');
     });
@@ -303,7 +303,7 @@ describe('WikiPageDetail', () => {
       const { fixture, el } = setup('reader', true, { revisionsPending: pending });
 
       const status = el.querySelector('[role="status"]');
-      expect(text(status)).toBe('Chargement de l’historique…');
+      expect(text(status)).toBe('Chargement de l\'historique…');
       expect(status?.closest('[aria-busy="true"]')).toBeNull();
       expect(el.querySelector('gbt-skeleton-list')).toBeTruthy();
 

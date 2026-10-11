@@ -326,7 +326,7 @@ describe('ReleaseDetail', () => {
       fixture.detectChanges();
 
       expect(el.querySelector('.release-detail__edit')).toBeTruthy();
-      expect(TestBed.inject(GbtToastService).toasts().at(-1)).toMatchObject({ message: "Impossible d'enregistrer les modifications", variant: 'error' });
+      expect(TestBed.inject(GbtToastService).toasts().at(-1)).toMatchObject({ message: "Impossible d'enregistrer les modifications. Réessayez plus tard.", variant: 'error' });
     });
 
     it('cancels back to the notes card, with the header actions', async () => {
@@ -461,7 +461,7 @@ describe('ReleaseDetail', () => {
       expect(() => component.download(asset)).not.toThrow();
       fixture.detectChanges();
 
-      expect(showSpy).toHaveBeenCalledWith('Échec du téléchargement', 'error');
+      expect(showSpy).toHaveBeenCalledWith('Le fichier n\'a pas pu être téléchargé. Réessayez plus tard.', 'error');
     });
 
     it('deletes a file after a light confirmation (no native confirm, no typed name), then drops its row', () => {

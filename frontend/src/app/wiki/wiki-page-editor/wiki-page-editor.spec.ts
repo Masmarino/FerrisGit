@@ -153,7 +153,7 @@ describe('WikiPageEditor', () => {
 
   it('shows a placeholder in the preview while the source is empty', () => {
     const { el } = setup(null);
-    expect(text(el.querySelector('.wiki-page-editor__preview-empty'))).toBe('L’aperçu s’affichera ici.');
+    expect(text(el.querySelector('.wiki-page-editor__preview-empty'))).toBe('L\'aperçu s\'affichera ici.');
   });
 
   it('offers "Enregistrer" as the only primary button, next to "Annuler"', () => {
@@ -195,7 +195,7 @@ describe('WikiPageEditor', () => {
     const field = create.el.querySelector('.wiki-page-editor__slug')!;
     expect(text(field.querySelector('label'))).toBe('Nom de la page');
     const input = field.querySelector('input')!;
-    expect(text(create.el.querySelector(`#${input.getAttribute('aria-describedby')}`))).toBe('Lettres, chiffres, « - » et « _ » : il devient l’adresse de la page.');
+    expect(text(create.el.querySelector(`#${input.getAttribute('aria-describedby')}`))).toBe('Lettres, chiffres, « - » et « _ » : il devient l\'adresse de la page.');
     TestBed.resetTestingModule();
     const edit = setup('Existing');
     expect(edit.el.querySelector('.wiki-page-editor__slug')).toBeNull();

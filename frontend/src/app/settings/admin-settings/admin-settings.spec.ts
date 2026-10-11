@@ -294,7 +294,7 @@ describe('AdminSettings', () => {
         http.expectOne('/api/admin/settings').flush({ message: 'boom' }, { status: 500, statusText: 'Server Error' });
         await settle(harness);
 
-        expect(toastStub.show).toHaveBeenCalledWith("Échec de l'enregistrement. Réessayez.", 'error');
+        expect(toastStub.show).toHaveBeenCalledWith("Les réglages n'ont pas pu être enregistrés. Réessayez.", 'error');
         expect(checkedEngine(el())).toBe('Kubernetes');
         expect(summary(el())).toBe('Modifications non enregistrées');
       });
@@ -704,7 +704,7 @@ describe('AdminSettings', () => {
       http.expectOne('/api/admin/settings').flush({ message: 'boom' }, { status: 500, statusText: 'Server Error' });
       await settle(harness);
 
-      expect(toastStub.show).toHaveBeenCalledWith("Échec de l'enregistrement. Réessayez.", 'error');
+      expect(toastStub.show).toHaveBeenCalledWith("Les réglages n'ont pas pu être enregistrés. Réessayez.", 'error');
       expect(toggle(el(), 'publicPagesEnabled').checked).toBe(false);
       expect(summary(el())).toBe('Modifications non enregistrées');
     });
