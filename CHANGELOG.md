@@ -82,8 +82,11 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 - The interface's text moved out of the code into a translation file, `frontend/public/i18n/fr.json`, read with
   Transloco and loaded before the first page; dates, durations, sizes and numbers follow the language's locale instead
-  of a fixed `fr-FR`, and plurals its own rules (« 0 dépôt », « 2 dépôts »). French stays the only language; adding
-  one is a new file. The tests fail on a missing or unused key, and on a language whose keys differ from French.
+  of a fixed `fr-FR`, and plurals its own rules (« 0 dépôt », « 2 dépôts »). The tests fail on a missing or unused
+  key, and on a language whose keys or parameters differ from French.
+- The interface is translated into English, Spanish, Italian and German, and shown in the browser's language when it
+  is one of them (French otherwise). The French wording of failures is now the same everywhere ("Impossible de …",
+  "… n'a pas pu être …"), and a date written in full gets its "le" (or "on", "el"…) whatever the language.
 - The "Exécution" settings only show the chosen engine's: the runners' for Docker, the cluster's for Kubernetes.
   "Exécution" and "Sécurité" now keep their changes until "Enregistrer", which sends them in one request and confirms
   with a notification, or says it failed and keeps them; "Annuler les modifications" puts everything back as saved.
