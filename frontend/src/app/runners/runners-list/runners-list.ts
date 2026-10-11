@@ -5,7 +5,7 @@ import { Badge, BadgeVariant } from '@masmarino/gabarit/badge';
 import { Button } from '@masmarino/gabarit/button';
 import { Card, CardHeader } from '@masmarino/gabarit/card';
 import { EmptyState } from '@masmarino/gabarit/empty-state';
-import { formatDateTime, formatRelativeTime } from '@masmarino/gabarit/format';
+import { formatDateTime } from '@masmarino/gabarit/format';
 import { Icon } from '@masmarino/gabarit/icon';
 import { IconMarker } from '@masmarino/gabarit/icon-marker';
 import { GbtInput } from '@masmarino/gabarit/input';
@@ -22,6 +22,7 @@ import { TagInput } from '@masmarino/gabarit/tag-input';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RunnerSummary, RunnersService } from '../runners.service';
 import { PageTitleService } from '../../shell/page-title.service';
+import { relativeWithOn } from '../../shared/i18n/dated';
 import { activeLocale, t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
@@ -71,8 +72,7 @@ interface RunnerRow {
 }
 
 function rowDate(iso: string, now: Date): RowDate {
-  const relative = formatRelativeTime(iso, activeLocale(), now, RELATIVE_OPTIONS);
-  return { iso, label: /^\d/.test(relative) ? `${t('common.dateOn')}${relative}` : relative, title: formatDateTime(iso, activeLocale(), ABSOLUTE_OPTIONS) };
+  return { iso, label: relativeWithOn(iso, now, RELATIVE_OPTIONS), title: formatDateTime(iso, activeLocale(), ABSOLUTE_OPTIONS) };
 }
 
 /** "En ligne" is derived from the last heartbeat when the list loads; the page doesn't poll. */

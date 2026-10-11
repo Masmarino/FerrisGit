@@ -7,14 +7,15 @@ import { Card } from '@masmarino/gabarit/card';
 import { ConfirmDangerModal } from '@masmarino/gabarit/confirm-danger-modal';
 import { CopyField } from '@masmarino/gabarit/copy-field';
 import { EmptyState } from '@masmarino/gabarit/empty-state';
-import { GbtDateTimePipe, GbtRelativeTimePipe, formatRelativeTime } from '@masmarino/gabarit/format';
+import { GbtDateTimePipe, GbtRelativeTimePipe } from '@masmarino/gabarit/format';
 import { Icon } from '@masmarino/gabarit/icon';
 import { GbtInput } from '@masmarino/gabarit/input';
 import { ListRow } from '@masmarino/gabarit/list-row';
 import { SkeletonList } from '@masmarino/gabarit/skeleton-list';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { ApiTokenSummary, TokensService } from '../api-tokens.service';
-import { activeLocale, t } from '../../shared/i18n/translator';
+import { isAbsoluteDate } from '../../shared/i18n/dated';
+import { t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 interface RevealedToken {
@@ -43,8 +44,8 @@ export class ApiTokensList implements OnInit {
   private focusAfterRevoke: number | null = null;
 
 
-  /** "Créé le 12/08/2026" but "Créé il y a 3 j": the article only goes before an absolute date. */
-  protected readonly on = (iso: string) => (/^\d/.test(formatRelativeTime(iso, activeLocale(), undefined, RELATIVE_OPTIONS)) ? t('common.dateOn') : '');
+  /** "Created on 12/08/2026" but "Created 3 days ago": the "on" only goes before an absolute date. */
+  protected readonly on = (iso: string) => (isAbsoluteDate(iso, undefined, RELATIVE_OPTIONS.absoluteAfterDays) ? t('common.dateOn') : '');
 
   protected list = signal<ApiTokenSummary[]>([]);
   protected listState = signal<'loading' | 'loaded' | 'failed'>('loading');
