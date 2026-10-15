@@ -333,7 +333,7 @@ describe('SmtpSettings', () => {
       await save();
       await answer(fixture, http.expectOne(URL), null, true);
 
-      expect(toast.show).toHaveBeenCalledWith("Échec de l'enregistrement. Réessayez.", 'error');
+      expect(toast.show).toHaveBeenCalledWith("Les réglages n'ont pas pu être enregistrés. Réessayez.", 'error');
       expect(input('Hôte').value).toBe('smtp.other.org');
       expect(input('Mot de passe').value).toBe('S3cret!');
       expect(button('Enregistrer').disabled).toBe(false);
@@ -348,7 +348,7 @@ describe('SmtpSettings', () => {
       await answer(fixture, http.expectOne(URL), null, 400);
 
       expect(toast.show).toHaveBeenCalledWith('Réglages refusés : vérifiez les champs.', 'error');
-      expect(toast.show).not.toHaveBeenCalledWith("Échec de l'enregistrement. Réessayez.", 'error');
+      expect(toast.show).not.toHaveBeenCalledWith("Les réglages n'ont pas pu être enregistrés. Réessayez.", 'error');
       expect(input('Hôte').value).toBe('smtp.other.org');
       expect(button('Enregistrer').disabled).toBe(false);
     });
@@ -501,7 +501,7 @@ describe('SmtpSettings', () => {
       await settle(fixture);
       await answer(fixture, http.expectOne(TEST_URL), { sent: false, error: 'authentication failed' });
 
-      expect(testStatus()).toBe("Échec de l'envoi : authentication failed");
+      expect(testStatus()).toBe("L'e-mail de test n'a pas pu être envoyé : authentication failed");
       expect(el.querySelector('.smtp-settings__test-status')?.getAttribute('role')).toBe('status');
       expect(el.querySelector('.smtp-settings__test-status [role="alert"]')).toBeNull();
       expect(el.querySelector('.smtp-settings__banner')?.getAttribute('data-state')).toBe('failed');
@@ -515,7 +515,7 @@ describe('SmtpSettings', () => {
       await settle(fixture);
       await answer(fixture, http.expectOne(TEST_URL), null, true);
 
-      expect(testStatus()).toContain("Échec de l'envoi");
+      expect(testStatus()).toContain("L'e-mail de test n'a pas pu être envoyé");
       expect(testStatus()).not.toContain('refused');
     });
 

@@ -6,7 +6,7 @@ import { Badge } from '@masmarino/gabarit/badge';
 import { Button } from '@masmarino/gabarit/button';
 import { Card, CardHeader } from '@masmarino/gabarit/card';
 import { EmptyState } from '@masmarino/gabarit/empty-state';
-import { GbtDateTimePipe, formatRelativeTime } from '@masmarino/gabarit/format';
+import { GbtDateTimePipe } from '@masmarino/gabarit/format';
 import { Icon } from '@masmarino/gabarit/icon';
 import { ListRow } from '@masmarino/gabarit/list-row';
 import { PageHeader } from '@masmarino/gabarit/page-header';
@@ -20,7 +20,8 @@ import { SearchIssueResult, SearchMergeRequestResult, SearchRepositoryRef, Searc
 import { PageTitleService } from '../../shell/page-title.service';
 import { issueKindPresentation } from '../../issues/issue-kind';
 import { StatusBadge } from '../../shared/layout/status-badge/status-badge';
-import { activeLocale, t, tn } from '../../shared/i18n/translator';
+import { relativeWithOn } from '../../shared/i18n/dated';
+import { t, tn } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
 const RELATIVE_OPTIONS = { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } as const;
@@ -103,8 +104,7 @@ function repositoryFields(repository: SearchRepositoryRef): Pick<RepositoryItemR
 }
 
 function openedWhen(createdAt: string): string {
-  const when = formatRelativeTime(createdAt, activeLocale(), undefined, RELATIVE_OPTIONS);
-  return /^\d/.test(when) ? `${t('common.dateOn')}${when}` : when;
+  return relativeWithOn(createdAt, undefined, RELATIVE_OPTIONS);
 }
 
 function repositoryRow(repository: SearchRepositoryResult): RepositoryRow {

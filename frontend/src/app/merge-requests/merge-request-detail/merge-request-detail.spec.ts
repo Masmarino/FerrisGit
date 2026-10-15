@@ -751,7 +751,7 @@ describe('MergeRequestDetail', () => {
         httpMock.expectOne('/api/merge-requests/mr-1/comments').flush('boom', { status: 500, statusText: 'Server Error' });
         fixture.detectChanges();
 
-        expect(toasts()).toContainEqual(['error', 'Impossible d’ajouter le commentaire.']);
+        expect(toasts()).toContainEqual(['error', 'Impossible d\'ajouter le commentaire.']);
         expect(textarea.value).toBe('Nice work');
         clickComment(fixture);
         expect(httpMock.expectOne('/api/merge-requests/mr-1/comments').request.body).toEqual({ body: 'Nice work' });

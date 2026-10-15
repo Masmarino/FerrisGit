@@ -161,7 +161,7 @@ describe('DocsPage', () => {
       page: (key) => (failing ? FAILING_DOCS() : fakeDocsService().page(...(key.split('/') as [string, string]))),
     });
 
-    expect(text(el().querySelector('gbt-alert'))).toContain('La documentation n’a pas pu être chargée.');
+    expect(text(el().querySelector('gbt-alert'))).toContain('La documentation n\'a pas pu être chargée.');
     failing = false;
     el().querySelector<HTMLButtonElement>('gbt-alert button')!.click();
     await settle();

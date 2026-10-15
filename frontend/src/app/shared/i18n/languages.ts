@@ -4,6 +4,10 @@
  */
 export const LANGUAGE_LOCALES = {
   fr: 'fr-FR',
+  en: 'en-US',
+  es: 'es-ES',
+  it: 'it-IT',
+  de: 'de-DE',
 } as const;
 
 export type Language = keyof typeof LANGUAGE_LOCALES;
