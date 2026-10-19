@@ -2,7 +2,7 @@ use crate::error::{conflict_on_duplicate, infra};
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::protected_branch::{
-    NewProtectedBranch, ProtectedBranch, ProtectedBranchStorePort,
+    NewProtectedBranch, ProtectedBranch, ProtectedBranchStorePort, ProtectedBranchUpdate,
 };
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -25,7 +25,7 @@ impl ProtectedBranchStorePort for PostgresProtectedBranchStore {
     ) -> Result<Vec<ProtectedBranch>, DomainError> {
         sqlx::query_as!(
             ProtectedBranch,
-            "SELECT id, repository_id, pattern, created_at FROM protected_branches WHERE repository_id = $1 ORDER BY created_at, pattern",
+            "SELECT id, repository_id, pattern, required_approvals, required_checks, created_at FROM protected_branches WHERE repository_id = $1 ORDER BY created_at, pattern",
             repository_id
         )
         .fetch_all(&self.pool)
@@ -37,15 +37,37 @@ impl ProtectedBranchStorePort for PostgresProtectedBranchStore {
         let pattern = new.pattern.clone();
         sqlx::query_as!(
             ProtectedBranch,
-            "INSERT INTO protected_branches (repository_id, pattern) VALUES ($1, $2) RETURNING id, repository_id, pattern, created_at",
+            "INSERT INTO protected_branches (repository_id, pattern, required_approvals, required_checks) VALUES ($1, $2, $3, $4) RETURNING id, repository_id, pattern, required_approvals, required_checks, created_at",
             new.repository_id,
-            new.pattern
+            new.pattern,
+            new.required_approvals,
+            &new.required_checks
         )
         .fetch_one(&self.pool)
         .await
         .map_err(conflict_on_duplicate(|| {
             format!("branch pattern {pattern} is already protected")
         }))
+    }
+
+    async fn update(
+        &self,
+        repository_id: Uuid,
+        id: Uuid,
+        update: ProtectedBranchUpdate,
+    ) -> Result<ProtectedBranch, DomainError> {
+        sqlx::query_as!(
+            ProtectedBranch,
+            "UPDATE protected_branches SET required_approvals = COALESCE($3, required_approvals), required_checks = COALESCE($4, required_checks) WHERE id = $1 AND repository_id = $2 RETURNING id, repository_id, pattern, required_approvals, required_checks, created_at",
+            id,
+            repository_id,
+            update.required_approvals,
+            update.required_checks.as_deref()
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(infra)?
+        .ok_or_else(|| DomainError::NotFound("protected branch".to_string()))
     }
 
     async fn delete(&self, repository_id: Uuid, id: Uuid) -> Result<(), DomainError> {
@@ -78,6 +100,8 @@ mod tests {
             .create(NewProtectedBranch {
                 repository_id,
                 pattern: "main".to_string(),
+                required_approvals: 0,
+                required_checks: vec![],
             })
             .await
             .unwrap();
@@ -85,6 +109,8 @@ mod tests {
             .create(NewProtectedBranch {
                 repository_id,
                 pattern: "release/*".to_string(),
+                required_approvals: 0,
+                required_checks: vec![],
             })
             .await
             .unwrap();
@@ -111,6 +137,8 @@ mod tests {
         let new = || NewProtectedBranch {
             repository_id,
             pattern: "main".to_string(),
+            required_approvals: 0,
+            required_checks: vec![],
         };
 
         store.create(new()).await.unwrap();
@@ -129,6 +157,8 @@ mod tests {
             .create(NewProtectedBranch {
                 repository_id,
                 pattern: "main".to_string(),
+                required_approvals: 0,
+                required_checks: vec![],
             })
             .await
             .unwrap();
@@ -145,5 +175,42 @@ mod tests {
                 .len(),
             1
         );
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn a_rule_keeps_its_requirements_and_they_can_be_changed(pool: PgPool) {
+        let (_, repository_id) = seed_owned_repository(&pool, "florian").await;
+        let store = PostgresProtectedBranchStore::new(pool);
+        let rule = store
+            .create(NewProtectedBranch {
+                repository_id,
+                pattern: "main".to_string(),
+                required_approvals: 2,
+                required_checks: vec!["pipeline".to_string()],
+            })
+            .await
+            .unwrap();
+        assert_eq!(rule.required_approvals, 2);
+        assert_eq!(rule.required_checks, vec!["pipeline"]);
+
+        let updated = store
+            .update(
+                repository_id,
+                rule.id,
+                ProtectedBranchUpdate {
+                    required_checks: Some(vec!["pipeline/lint".to_string()]),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.required_approvals, 2, "a field left out is kept");
+        assert_eq!(updated.required_checks, vec!["pipeline/lint"]);
+        assert!(matches!(
+            store
+                .update(Uuid::new_v4(), rule.id, ProtectedBranchUpdate::default())
+                .await,
+            Err(DomainError::NotFound(_))
+        ));
     }
 }

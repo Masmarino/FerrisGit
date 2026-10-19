@@ -1313,7 +1313,18 @@
       "squash": "Squash",
       "rebase": "Rebase"
     },
-    "mergeRefused": "Merge rifiutato: {{ reason }}"
+    "mergeRefused": "Merge rifiutato: {{ reason }}",
+    "conditions": {
+      "title": "Condizioni di merge",
+      "approvals": "{{ given }}/{{ required }} approvazioni",
+      "noChangesRequested": "Nessuna modifica richiesta",
+      "changesRequestedBy": "Modifiche richieste da {{ users }}",
+      "check": "{{ name }}: {{ status }}",
+      "notRun": "non eseguito sull'ultimo commit",
+      "skipped": "Saltato",
+      "met": "Soddisfatta:",
+      "missing": "Mancante:"
+    }
   },
   "repositories": {
     "sections": {
@@ -1679,7 +1690,19 @@
       "addFailed": "Impossibile proteggere il branch.",
       "alreadyProtected": "Questo pattern è già protetto.",
       "deleted": "Il branch non è più protetto.",
-      "deleteFailed": "Impossibile rimuovere la protezione."
+      "deleteFailed": "Impossibile rimuovere la protezione.",
+      "edit": "Modifica la regola",
+      "editNamed": "Modifica la regola {{ pattern }}",
+      "save": "Salva",
+      "approvals": "Approvazioni richieste",
+      "approvalsHint": "Oltre a quelle del repository: vale il valore più alto.",
+      "approvalsProblem": "Un numero tra 0 e 100.",
+      "checks": "Controlli richiesti",
+      "checksHint": "Separati da virgole: pipeline per la pipeline della richiesta, pipeline/<job> per uno dei suoi job.",
+      "approvalsCount_one": "{{ count }} approvazione",
+      "approvalsCount_other": "{{ count }} approvazioni",
+      "updated": "Regola salvata.",
+      "updateFailed": "Impossibile salvare la regola."
     }
   },
   "pipelines": {

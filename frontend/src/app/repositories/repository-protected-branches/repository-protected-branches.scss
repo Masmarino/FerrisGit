@@ -8,6 +8,16 @@
   @include settings-section.form;
 }
 
+.repository-protected-branches__requirements {
+  @include settings-section.field-row(minmax(0, 1fr) minmax(0, 3fr));
+}
+
+@container settings-card (max-width: 519px) {
+  .repository-protected-branches__requirements {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
 .repository-protected-branches__actions {
   @include settings-section.form-actions;
 }

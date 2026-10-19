@@ -41,7 +41,8 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 - Per-repository and per-group roles: **Reader**, **Contributor** and **Maintainer**.
 - **Protected branches**: Maintainers name branches (or `*` patterns such as `release/*`) that nobody pushes to; a push
   that would move, force-push or delete one is refused over Git HTTP with the reason, and changes arrive through a merge
-  request.
+  request. A rule can require approvals and named checks (`pipeline`, `pipeline/<job>`) before a merge, and the merge
+  request page and API say which condition is missing.
 - **Merge requests** with threaded inline comments, code suggestions that can be applied from the interface,
   approvals and change requests, conflict detection, and a timeline of everything that happened. They land as a merge
   commit, squashed into one commit, or rebased onto the target, with a default method per repository.

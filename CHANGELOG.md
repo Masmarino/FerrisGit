@@ -8,6 +8,13 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ### Added
 
+- Required approvals and checks on protected branches: a protection rule can require a number of approvals (on top of
+  the repository's setting, the higher one applying) and named checks that must have succeeded on the merge request's
+  current source commit: `pipeline` for its pipeline, `pipeline/<job>` for one of its jobs, so later quality gates and
+  scans can plug in by name (`requiredApprovals` and `requiredChecks` on `/api/repositories/{id}/protected-branches`,
+  editable with `PUT`). `GET /api/merge-requests/{id}/mergeability` lists each condition, met or missing; a refused
+  merge names every missing one, and the merge request page shows them in a *Conditions de fusion* panel, with
+  *Fusionner* disabled until they are met.
 - Protected branches: under *Réglages > Branches protégées*, Maintainers protect branches by name or with a `*` pattern
   (`release/*`). Nobody pushes to a protected branch, its owner included: an update, a force push or a deletion is
   refused over Git HTTP, and `git push` prints why (`branch 'main' is protected: push to another branch and open a merge

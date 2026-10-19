@@ -48,7 +48,7 @@ use ferrisgit_domain::pipeline::{NewPipeline, Pipeline, PipelineStatus, Pipeline
 use ferrisgit_domain::pipeline_events::{JobEvent, PipelineEvent, PipelineEventPublisherPort};
 use ferrisgit_domain::pipeline_file_reader::PipelineFileReaderPort;
 use ferrisgit_domain::protected_branch::{
-    NewProtectedBranch, ProtectedBranch, ProtectedBranchStorePort,
+    NewProtectedBranch, ProtectedBranch, ProtectedBranchStorePort, ProtectedBranchUpdate,
 };
 use ferrisgit_domain::public_pages::{
     PublicPagesSettings, PublicPagesSettingsPort, PublicPagesSettingsUpdate,
@@ -4304,10 +4304,32 @@ impl ProtectedBranchStorePort for FakeProtectedBranches {
             id: Uuid::new_v4(),
             repository_id: new.repository_id,
             pattern: new.pattern,
+            required_approvals: new.required_approvals,
+            required_checks: new.required_checks,
             created_at: Utc::now(),
         };
         rules.push(rule.clone());
         Ok(rule)
+    }
+
+    async fn update(
+        &self,
+        repository_id: Uuid,
+        id: Uuid,
+        update: ProtectedBranchUpdate,
+    ) -> Result<ProtectedBranch, DomainError> {
+        let mut rules = self.rules.lock().unwrap();
+        let rule = rules
+            .iter_mut()
+            .find(|r| r.id == id && r.repository_id == repository_id)
+            .ok_or_else(|| DomainError::NotFound("protected branch".to_string()))?;
+        if let Some(required_approvals) = update.required_approvals {
+            rule.required_approvals = required_approvals;
+        }
+        if let Some(required_checks) = update.required_checks {
+            rule.required_checks = required_checks;
+        }
+        Ok(rule.clone())
     }
 
     async fn delete(&self, repository_id: Uuid, id: Uuid) -> Result<(), DomainError> {

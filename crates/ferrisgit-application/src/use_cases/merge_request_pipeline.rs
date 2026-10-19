@@ -4,9 +4,7 @@ use ferrisgit_domain::branch::BranchReaderPort;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::merge_executor::MergeExecutorPort;
 use ferrisgit_domain::merge_request::{MergeRequest, MergeRequestStatus};
-use ferrisgit_domain::pipeline::{
-    MergeRequestPipeline, Pipeline, PipelineStatus, PipelineStorePort,
-};
+use ferrisgit_domain::pipeline::{MergeRequestPipeline, Pipeline, PipelineStorePort};
 use ferrisgit_domain::repository::Repository;
 use uuid::Uuid;
 
@@ -111,31 +109,6 @@ impl RunMergeRequestPipelineUseCase {
     }
 }
 
-/// Why the merge request can't be merged yet under "pipelines must succeed", or `None` when its latest pipeline, the
-/// one of the current source commit, succeeded. `pipelines` is the merge request's, newest first.
-pub fn pipeline_requirement_problem(pipelines: &[Pipeline], source_sha: &str) -> Option<String> {
-    let latest = pipelines.first().filter(|pipeline| {
-        pipeline
-            .merge_request
-            .as_ref()
-            .is_some_and(|run| run.source_sha == source_sha)
-    });
-    match latest.map(|pipeline| pipeline.status) {
-        Some(PipelineStatus::Success) => None,
-        Some(PipelineStatus::Pending | PipelineStatus::Running) => {
-            Some("the merge request pipeline has not finished yet: it must succeed before the merge".to_string())
-        }
-        Some(status) => Some(format!(
-            "the merge request pipeline is {}: it must succeed before the merge",
-            status.as_str()
-        )),
-        None => Some(
-            "no merge request pipeline has run on the latest commit of the source branch: one must succeed before the merge"
-                .to_string(),
-        ),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -149,6 +122,7 @@ mod tests {
     use async_trait::async_trait;
     use ferrisgit_domain::branch::BranchInfo;
     use ferrisgit_domain::merge_executor::{MergeOutcome, MergeRef, MergeRequestMerge};
+    use ferrisgit_domain::pipeline::PipelineStatus;
     use ferrisgit_domain::settings::RepositorySettings;
     use std::sync::Mutex;
 
@@ -378,29 +352,5 @@ mod tests {
                 .is_none()
         );
         assert!(w.pipelines.snapshot().is_empty());
-    }
-
-    #[test]
-    fn only_a_successful_pipeline_of_the_current_source_commit_lets_the_merge_through() {
-        let mr = merge_request(Uuid::new_v4(), Uuid::new_v4());
-        let ok = merge_request_pipeline(&mr, "tip", PipelineStatus::Success);
-        assert_eq!(
-            pipeline_requirement_problem(std::slice::from_ref(&ok), "tip"),
-            None
-        );
-
-        let problem =
-            |pipelines: &[Pipeline]| pipeline_requirement_problem(pipelines, "tip").unwrap();
-        assert!(problem(&[]).contains("no merge request pipeline"));
-        let stale = merge_request_pipeline(&mr, "old", PipelineStatus::Success);
-        assert!(
-            pipeline_requirement_problem(&[stale], "tip")
-                .unwrap()
-                .contains("no merge request pipeline")
-        );
-        let running = merge_request_pipeline(&mr, "tip", PipelineStatus::Running);
-        assert!(problem(&[running]).contains("not finished"));
-        let failed = merge_request_pipeline(&mr, "tip", PipelineStatus::Failed);
-        assert!(problem(&[failed]).contains("is failed"));
     }
 }

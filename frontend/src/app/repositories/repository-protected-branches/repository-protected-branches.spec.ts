@@ -1,11 +1,11 @@
 import { of, throwError } from 'rxjs';
-import { RepositoryProtectedBranches } from './repository-protected-branches';
+import { parseCheckNames, RepositoryProtectedBranches } from './repository-protected-branches';
 import { ProtectedBranchRule, RepositorySettingsService } from '../repository-settings.service';
 import { createSettingsSection } from '../settings-section-testing';
 
 const RULES: ProtectedBranchRule[] = [
-  { id: 'p1', pattern: 'main', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'p2', pattern: 'release/*', createdAt: '2026-01-02T00:00:00Z' },
+  { id: 'p1', pattern: 'main', requiredApprovals: 0, requiredChecks: [], createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'p2', pattern: 'release/*', requiredApprovals: 2, requiredChecks: ['pipeline', 'pipeline/test'], createdAt: '2026-01-02T00:00:00Z' },
 ];
 
 describe('RepositoryProtectedBranches', () => {
@@ -14,6 +14,7 @@ describe('RepositoryProtectedBranches', () => {
       listProtectedBranches: vi.fn(() => of<ProtectedBranchRule[]>([])),
       protectBranch: vi.fn(() => of<ProtectedBranchRule>(RULES[0])),
       unprotectBranch: vi.fn(() => of<void>(undefined)),
+      updateProtectedBranch: vi.fn(() => of<ProtectedBranchRule>(RULES[1])),
     };
     return { ...createSettingsSection(RepositoryProtectedBranches, [{ provide: RepositorySettingsService, useValue: repositorySettingsStub }]), repositorySettingsStub };
   }
@@ -29,6 +30,59 @@ describe('RepositoryProtectedBranches', () => {
     expect(text).toContain('release/*');
   });
 
+  it('shows what a merge into each rule\'s branches needs', () => {
+    const { fixture, repositorySettingsStub } = setup();
+    repositorySettingsStub.listProtectedBranches.mockReturnValue(of(RULES));
+    fixture.detectChanges();
+
+    const rows = Array.from<HTMLElement>(fixture.nativeElement.querySelectorAll('li')).map((li) => li.textContent?.replace(/\s+/g, ' ').trim());
+    expect(rows[0]).toBe('main');
+    expect(rows[1]).toContain('2 approbations');
+    expect(rows[1]).toContain('pipeline/test');
+  });
+
+  it('protects a pattern with the approvals and checks it requires', () => {
+    const { component, repositorySettingsStub } = setup();
+
+    component['newPattern'].set('main');
+    component['newApprovals'].set('2');
+    component['newChecks'].set(' pipeline, pipeline/test ,, pipeline');
+    component.protect();
+
+    expect(repositorySettingsStub.protectBranch).toHaveBeenCalledWith('repo-1', 'main', 2, ['pipeline', 'pipeline/test']);
+  });
+
+  it('edits the requirements of an existing rule, its pattern staying as it is', () => {
+    const { component, repositorySettingsStub, toastStub } = setup();
+
+    component.edit(RULES[1]);
+    expect(component['newPattern']()).toBe('release/*');
+    expect(component['newChecks']()).toBe('pipeline, pipeline/test');
+    component['newApprovals'].set('1');
+    component.protect();
+
+    expect(repositorySettingsStub.updateProtectedBranch).toHaveBeenCalledWith('repo-1', 'p2', { requiredApprovals: 1, requiredChecks: ['pipeline', 'pipeline/test'] });
+    expect(repositorySettingsStub.protectBranch).not.toHaveBeenCalled();
+    expect(component['editing']()).toBeNull();
+    expect(toastStub.show).toHaveBeenCalledWith('Règle enregistrée.');
+  });
+
+  it('refuses a number of approvals the server would refuse', () => {
+    const { component, repositorySettingsStub } = setup();
+
+    component['newPattern'].set('main');
+    component['newApprovals'].set('-1');
+    component.protect();
+
+    expect(component['approvalsProblem']()).toBe('Un nombre entre 0 et 100.');
+    expect(repositorySettingsStub.protectBranch).not.toHaveBeenCalled();
+  });
+
+  it('reads check names from a comma-separated list', () => {
+    expect(parseCheckNames(' a, b ,,a, c/d ')).toEqual(['a', 'b', 'c/d']);
+    expect(parseCheckNames('')).toEqual([]);
+  });
+
   it('says what an empty list means', () => {
     const { fixture } = setup();
     fixture.detectChanges();
@@ -42,7 +96,7 @@ describe('RepositoryProtectedBranches', () => {
     component['newPattern'].set('  release/*  ');
     component.protect();
 
-    expect(repositorySettingsStub.protectBranch).toHaveBeenCalledWith('repo-1', 'release/*');
+    expect(repositorySettingsStub.protectBranch).toHaveBeenCalledWith('repo-1', 'release/*', 0, []);
     expect(component['newPattern']()).toBe('');
     expect(repositorySettingsStub.listProtectedBranches).toHaveBeenCalledTimes(1);
     expect(toastStub.show).toHaveBeenCalledWith('Branche protégée.');

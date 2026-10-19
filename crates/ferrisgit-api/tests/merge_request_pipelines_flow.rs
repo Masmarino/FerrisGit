@@ -268,7 +268,7 @@ async fn a_push_that_leaves_the_merge_request_failing_blocks_a_required_merge(po
         error["error"]
             .as_str()
             .unwrap()
-            .contains("no merge request pipeline has run"),
+            .contains("check 'pipeline' has not run"),
         "{error:#}"
     );
     let open: i64 = sqlx::query_scalar("SELECT count(*) FROM merge_requests WHERE status = 'open'")

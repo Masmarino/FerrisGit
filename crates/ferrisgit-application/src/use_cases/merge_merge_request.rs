@@ -7,7 +7,7 @@ use ferrisgit_domain::merge_executor::{
     CommitAuthor, MergeExecutorPort, MergeMethod, MergeOutcome, MergeRequestMerge,
 };
 use ferrisgit_domain::merge_request::{
-    MergeRequest, MergeRequestReviewPort, MergeRequestStatus, MergeRequestStorePort, ReviewDecision,
+    MergeRequest, MergeRequestReviewPort, MergeRequestStatus, MergeRequestStorePort,
 };
 use ferrisgit_domain::notification::{NewNotification, NotificationKind, NotificationStorePort};
 use ferrisgit_domain::pipeline::PipelineStorePort;
@@ -21,10 +21,10 @@ use ferrisgit_domain::webhook_event::WebhookEvent;
 use uuid::Uuid;
 
 use crate::job_execution_resolver::JobExecutionResolver;
+use crate::mergeability::MergeabilityChecker;
 use crate::use_cases::create_pipeline::CreatePipelineUseCase;
 use crate::use_cases::event_context::EventContext;
-use crate::use_cases::merge_request_pipeline::pipeline_requirement_problem;
-use crate::use_cases::source_branch_tip::source_branch_tip;
+use crate::use_cases::protected_branches::ProtectedBranches;
 
 #[derive(Debug)]
 pub enum MergeMergeRequestResult {
@@ -67,6 +67,7 @@ pub struct MergeMergeRequestUseCase {
     users: Arc<dyn UserRepositoryPort>,
     notifications: Arc<dyn NotificationStorePort>,
     webhooks: Arc<dyn WebhookDispatcherPort>,
+    protected_branches: Arc<ProtectedBranches>,
 }
 
 impl MergeMergeRequestUseCase {
@@ -87,6 +88,7 @@ impl MergeMergeRequestUseCase {
         users: Arc<dyn UserRepositoryPort>,
         notifications: Arc<dyn NotificationStorePort>,
         webhooks: Arc<dyn WebhookDispatcherPort>,
+        protected_branches: Arc<ProtectedBranches>,
     ) -> Self {
         Self {
             merge_requests,
@@ -104,6 +106,7 @@ impl MergeMergeRequestUseCase {
             users,
             notifications,
             webhooks,
+            protected_branches,
         }
     }
 
@@ -131,28 +134,29 @@ impl MergeMergeRequestUseCase {
             .await?
             .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
 
-        let settings = self
-            .repository_settings
-            .get_or_create_default(repo.id)
-            .await?;
-        if settings.required_approvals > 0 {
-            self.require_approvals(&mr, &repo.disk_path, settings.required_approvals as usize)
-                .await?;
-        }
-        if settings.pipeline_must_succeed {
-            let tip_sha = source_branch_tip(
-                self.branch_reader.as_ref(),
-                &repo.disk_path,
-                &mr.source_branch,
-            )
-            .await?;
-            let pipelines = self.pipelines.list_for_merge_request(mr.id).await?;
-            if let Some(problem) = pipeline_requirement_problem(&pipelines, &tip_sha) {
-                return Err(DomainError::Validation(problem));
-            }
+        let mergeability = MergeabilityChecker::new(
+            self.repository_settings.clone(),
+            self.protected_branches.clone(),
+            self.merge_request_reviews.clone(),
+            self.branch_reader.clone(),
+            self.pipelines.clone(),
+            self.jobs.clone(),
+        )
+        .evaluate(&mr, &repo)
+        .await?;
+        if let Some(refusal) = mergeability.refusal() {
+            return Err(DomainError::Validation(refusal));
         }
 
-        let method = method.unwrap_or(settings.default_merge_method);
+        let method = match method {
+            Some(method) => method,
+            None => {
+                self.repository_settings
+                    .get_or_create_default(repo.id)
+                    .await?
+                    .default_merge_method
+            }
+        };
         let (message, squash_author) = match method {
             MergeMethod::Squash => (squash_message(&mr), self.squash_author(&mr).await?),
             MergeMethod::Merge | MergeMethod::Rebase => (
@@ -262,43 +266,6 @@ impl MergeMergeRequestUseCase {
                 email: user.email,
             }))
     }
-
-    /// Only reviews of the current tip count, a push after a review makes it stale.
-    async fn require_approvals(
-        &self,
-        mr: &MergeRequest,
-        repository_disk_path: &str,
-        required: usize,
-    ) -> Result<(), DomainError> {
-        let tip_sha = source_branch_tip(
-            self.branch_reader.as_ref(),
-            repository_disk_path,
-            &mr.source_branch,
-        )
-        .await?;
-        let reviews = self.merge_request_reviews.list_reviews(mr.id).await?;
-        let live: Vec<_> = reviews.iter().filter(|r| r.source_sha == tip_sha).collect();
-
-        if let Some(blocker) = live
-            .iter()
-            .find(|r| r.decision == ReviewDecision::ChangesRequested)
-        {
-            return Err(DomainError::Validation(format!(
-                "changes requested by {}",
-                blocker.username
-            )));
-        }
-        let approvals = live
-            .iter()
-            .filter(|r| r.decision == ReviewDecision::Approved)
-            .count();
-        if approvals < required {
-            return Err(DomainError::Validation(format!(
-                "{approvals}/{required} approvals"
-            )));
-        }
-        Ok(())
-    }
 }
 
 /// A squash commit says what the merge request did: its title, then its description when it has one.
@@ -315,9 +282,9 @@ fn squash_message(mr: &MergeRequest) -> String {
 mod tests {
     use super::*;
     use crate::test_support::{
-        FakeBranchReader, FakeEvents, FakeFileReader, FakeJobs, FakeMergeRequests,
-        FakeNotifications, FakePipelines, FakeRepositories, FakeRepositorySettings,
-        FakeSystemSettings, FakeUsers, FakeWebhooks,
+        FakeBranchReader, FakeCollaborators, FakeEvents, FakeFileReader, FakeGroups, FakeJobs,
+        FakeMergeRequests, FakeNotifications, FakePipelines, FakeProtectedBranches,
+        FakeRepositories, FakeRepositorySettings, FakeSystemSettings, FakeUsers, FakeWebhooks,
     };
     use crate::use_cases::fixtures;
     use async_trait::async_trait;
@@ -470,6 +437,13 @@ mod tests {
                 })
                 .collect();
             let pipelines = Arc::new(FakePipelines::new(self.pipelines));
+            let groups = Arc::new(FakeGroups::empty());
+            let protected_branches = Arc::new(ProtectedBranches::new(
+                Arc::new(FakeProtectedBranches::default()),
+                Arc::new(FakeCollaborators::empty()),
+                groups.clone(),
+                groups,
+            ));
             let notifications = Arc::new(FakeNotifications::empty());
             let webhooks = Arc::new(FakeWebhooks::default());
             let docker: Arc<dyn JobExecutionPort> = Arc::new(NoopExecutor);
@@ -496,6 +470,7 @@ mod tests {
                 Arc::new(FakeUsers::new(users)),
                 notifications.clone(),
                 webhooks.clone(),
+                protected_branches.clone(),
             );
             Harness {
                 use_case,
@@ -506,6 +481,7 @@ mod tests {
                 pipelines,
                 notifications,
                 webhooks,
+                protected_branches,
             }
         }
     }
@@ -519,6 +495,7 @@ mod tests {
         pipelines: Arc<FakePipelines>,
         notifications: Arc<FakeNotifications>,
         webhooks: Arc<FakeWebhooks>,
+        protected_branches: Arc<ProtectedBranches>,
     }
 
     impl Harness {
@@ -905,5 +882,36 @@ mod tests {
     fn a_squash_message_without_description_is_the_title_alone() {
         let mr = merge_request(MergeRequestStatus::Open);
         assert_eq!(squash_message(&mr), "Add feature");
+    }
+
+    #[tokio::test]
+    async fn the_protection_of_the_target_branch_adds_approvals_and_checks_and_says_what_is_missing()
+     {
+        let mr = merge_request(MergeRequestStatus::Open);
+        let h = Scenario {
+            source_tip: Some("tip1"),
+            reviews: vec![review(&mr, "alice", ReviewDecision::Approved, "tip1")],
+            pipelines: vec![merge_request_pipeline(&mr, "tip1", PipelineStatus::Success)],
+            ..Scenario::new(mr.clone())
+        }
+        .build();
+        h.protected_branches
+            .protect(
+                h.repo.id,
+                "main",
+                2,
+                &["pipeline".to_string(), "pipeline/lint".to_string()],
+            )
+            .await
+            .unwrap();
+
+        let result = h.merge_as_author().await;
+
+        assert!(
+            matches!(&result, Err(DomainError::Validation(m))
+                if m == "1/2 approvals; check 'pipeline/lint' has not run on the latest commit of the source branch"),
+            "{result:?}"
+        );
+        assert_eq!(h.executor_calls(), 0);
     }
 }

@@ -257,21 +257,37 @@ Une règle protège toutes les branches dont le nom correspond à son motif. Une
 
 Liste les règles, de la plus ancienne à la plus récente. Rôle minimal : Lecteur.
 
-Réponse 200 : `[ { "id": "5b1e…", "pattern": "main", "createdAt": "2026-03-01T10:00:00Z" } ]`.
+Réponse 200 : `[ { "id": "5b1e…", "pattern": "main", "requiredApprovals": 1, "requiredChecks": ["pipeline"], "createdAt": "2026-03-01T10:00:00Z" } ]`.
+
+`requiredApprovals` et `requiredChecks` sont ce qu'une fusion vers ces branches exige : voir [Conditions de fusion](/docs/utilisation/merge-requests#conditions-de-fusion).
 
 ### `POST /api/repositories/{repository_id}/protected-branches`
 
 Protège un motif. Rôle minimal : Mainteneur.
 
-Corps : `{ "pattern": "release/*" }`. Le motif est un nom de branche, sans `refs/heads/`, où `*` remplace n'importe quelle suite de caractères, `/` compris. Les espaces autour sont retirés.
+Corps :
 
-Réponse 201 : la règle, comme dans la liste. Erreurs : 400 `invalid branch pattern: …` (vide, plus de 255 caractères, commence par `refs/`, `-` ou `/`, contient `..`, `//`, un espace ou l'un de `~ ^ : ? [ \`), 404 `repository`, 409 si le motif est déjà protégé.
+| Champ | Type | Obligatoire | Description |
+|---|---|---|---|
+| `pattern` | texte | oui | Un nom de branche, sans `refs/heads/`, où `*` remplace n'importe quelle suite de caractères, `/` compris. Les espaces autour sont retirés. |
+| `requiredApprovals` | entier | non | Approbations qu'une fusion vers ces branches exige, de 0 (par défaut) à 100. |
+| `requiredChecks` | liste de textes | non | Vérifications qui doivent avoir réussi sur le commit source de la demande : `pipeline` pour sa pipeline, `pipeline/<job>` pour l'un de ses jobs. Les noms sont nettoyés de leurs espaces et des doublons ; 50 au plus. |
+
+Réponse 201 : la règle, comme dans la liste. Erreurs : 400 `invalid branch pattern: …` (vide, plus de 255 caractères, commence par `refs/`, `-` ou `/`, contient `..`, `//`, un espace ou l'un de `~ ^ : ? [ \`), 400 `required approvals must be between 0 and 100`, 400 `invalid check name: …`, 400 `a rule names at most 50 checks`, 404 `repository`, 409 si le motif est déjà protégé.
 
 ```bash
 curl -s -X POST "$BASE/api/repositories/$REPO_ID/protected-branches" \
   -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' \
   -d '{"pattern":"main"}'
 ```
+
+### `PUT /api/repositories/{repository_id}/protected-branches/{id}`
+
+Change ce qu'une fusion vers les branches de la règle exige. Rôle minimal : Mainteneur. Le motif ne change pas.
+
+Corps : `{ "requiredApprovals": 2, "requiredChecks": ["pipeline", "pipeline/test"] }`. Seuls les champs présents changent.
+
+Réponse 200 : la règle. Erreurs : comme pour `POST`, et 404 `protected branch` (règle inconnue ou d'un autre dépôt).
 
 ### `DELETE /api/repositories/{repository_id}/protected-branches/{id}`
 

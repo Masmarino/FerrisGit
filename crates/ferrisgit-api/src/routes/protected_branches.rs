@@ -1,6 +1,6 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::routing::{delete, get};
+use axum::routing::{get, put};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use ferrisgit_domain::protected_branch::ProtectedBranch;
@@ -18,6 +18,8 @@ use crate::state::AppState;
 struct ProtectedBranchResponse {
     id: Uuid,
     pattern: String,
+    required_approvals: i32,
+    required_checks: Vec<String>,
     created_at: DateTime<Utc>,
 }
 
@@ -26,6 +28,8 @@ impl From<ProtectedBranch> for ProtectedBranchResponse {
         Self {
             id: rule.id,
             pattern: rule.pattern,
+            required_approvals: rule.required_approvals,
+            required_checks: rule.required_checks,
             created_at: rule.created_at,
         }
     }
@@ -43,8 +47,23 @@ async fn list_protected_branches(
 }
 
 #[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ProtectBranchRequest {
     pattern: String,
+    #[serde(default)]
+    required_approvals: i32,
+    #[serde(default)]
+    required_checks: Vec<String>,
+}
+
+/// Only the fields sent change.
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct UpdateProtectedBranchRequest {
+    #[serde(default)]
+    required_approvals: Option<i32>,
+    #[serde(default)]
+    required_checks: Option<Vec<String>>,
 }
 
 async fn protect_branch(
@@ -56,9 +75,33 @@ async fn protect_branch(
     require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Maintainer).await?;
     let rule = state
         .protected_branches
-        .protect(repository_id, &req.pattern)
+        .protect(
+            repository_id,
+            &req.pattern,
+            req.required_approvals,
+            &req.required_checks,
+        )
         .await?;
     Ok((StatusCode::CREATED, Json(rule.into())))
+}
+
+async fn update_protected_branch(
+    AuthUser(user_id): AuthUser,
+    State(state): State<AppState>,
+    Path((repository_id, id)): Path<(Uuid, Uuid)>,
+    Json(req): Json<UpdateProtectedBranchRequest>,
+) -> Result<Json<ProtectedBranchResponse>, ApiError> {
+    require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Maintainer).await?;
+    let rule = state
+        .protected_branches
+        .update_requirements(
+            repository_id,
+            id,
+            req.required_approvals,
+            req.required_checks,
+        )
+        .await?;
+    Ok(Json(rule.into()))
 }
 
 async fn unprotect_branch(
@@ -82,6 +125,6 @@ pub fn router() -> Router<AppState> {
         )
         .route(
             "/repositories/{repository_id}/protected-branches/{id}",
-            delete(unprotect_branch),
+            put(update_protected_branch).delete(unprotect_branch),
         )
 }

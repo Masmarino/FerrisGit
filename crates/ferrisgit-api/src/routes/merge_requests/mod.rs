@@ -32,6 +32,7 @@ use crate::state::AppState;
 
 mod comments;
 mod diff;
+mod mergeability;
 mod reviews;
 mod timeline;
 
@@ -483,6 +484,7 @@ async fn merge(
         state.users.clone(),
         state.notifications.clone(),
         state.webhooks.clone(),
+        state.protected_branches.clone(),
     );
     match use_case.execute(merge_request_id, user_id, method).await? {
         MergeMergeRequestResult::Merged(mr, method) => {
@@ -540,6 +542,7 @@ pub fn router() -> Router<AppState> {
         .route("/merge-requests/{id}/merge", post(merge))
         .route("/merge-requests/{id}/close", post(close))
         .merge(diff::router())
+        .merge(mergeability::router())
         .merge(comments::router())
         .merge(timeline::router())
         .merge(reviews::router())

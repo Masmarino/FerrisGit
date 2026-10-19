@@ -275,6 +275,38 @@ describe('MergeRequestDetail', () => {
       httpMock.expectNone('/api/repositories/repo-1/settings');
     });
 
+    it('lists the merge conditions, met or missing, and keeps Fusionner disabled while one is missing', () => {
+      const { fixture, httpMock } = loaded();
+      httpMock.expectOne('/api/merge-requests/mr-1/mergeability').flush({
+        mergeable: false,
+        conditions: [
+          { kind: 'noChangesRequested', met: true, requestedBy: [], message: null },
+          { kind: 'approvals', met: false, required: 2, given: 1, message: '1/2 approvals' },
+          { kind: 'check', met: true, name: 'pipeline', status: 'success', message: null },
+          { kind: 'check', met: false, name: 'pipeline/lint', status: null, message: "check 'pipeline/lint' has not run" },
+        ],
+      });
+      fixture.detectChanges();
+
+      const conditions = Array.from(asidePanel(fixture, 'Conditions de fusion')!.querySelectorAll('li')).map((li) => [li.classList.contains('mr-detail__condition--met'), text(li)]);
+      expect(conditions).toEqual([
+        [true, 'Remplie : Aucun changement demandé'],
+        [false, 'Manquante : 1/2 approbations'],
+        [true, 'Remplie : pipeline : Réussie'],
+        [false, 'Manquante : pipeline/lint : pas lancée sur le dernier commit'],
+      ]);
+      expect(headerButton(fixture, 'Fusionner')!.disabled).toBe(true);
+    });
+
+    it('has no conditions panel when nothing is required, and lets the merge through', () => {
+      const { fixture, httpMock } = loaded();
+      httpMock.expectOne('/api/merge-requests/mr-1/mergeability').flush({ mergeable: true, conditions: [] });
+      fixture.detectChanges();
+
+      expect(asidePanel(fixture, 'Conditions de fusion')).toBeNull();
+      expect(headerButton(fixture, 'Fusionner')!.disabled).toBe(false);
+    });
+
     it('keeps the blocked Merge button disabled while approvals are missing', () => {
       const { fixture } = loaded('owner', { reviews: { reviews: [], liveApprovalCount: 0, requiredApprovals: 1, blocked: true } });
 

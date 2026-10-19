@@ -3,8 +3,9 @@ import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
-import { Comment, FileDiff, MergeMethod, MergeRequestSummary, MergeRequestsService, ReviewSummary, TimelineResponse } from '../merge-requests.service';
+import { Comment, FileDiff, MergeCondition, Mergeability, MergeMethod, MergeRequestSummary, MergeRequestsService, ReviewSummary, TimelineResponse } from '../merge-requests.service';
 import { RepositorySettingsService } from '../../repositories/repository-settings.service';
+import { statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { PageTitleService } from '../../shell/page-title.service';
 import { injectRepositoryPermissions } from '../../repositories/repository-role';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
@@ -137,6 +138,10 @@ export class MergeRequestDetail implements OnInit {
   protected timeline = signal<TimelineResponse>({ author: null, items: [] });
   protected mergeConflict = signal(false);
   protected reviewSummary = signal<ReviewSummary | null>(null);
+  /** What the merge needs, condition by condition; `null` until loaded, or when it could not be. */
+  protected mergeability = signal<Mergeability | null>(null);
+  protected conditionRows = computed(() => (this.mergeability()?.conditions ?? []).map((condition) => ({ met: condition.met, text: conditionText(condition) })));
+  protected mergeBlocked = computed(() => !!this.reviewSummary()?.blocked || this.mergeability()?.mergeable === false);
   protected canWrite = this.permissions.canWrite;
   /** The server only lets the owner and Maintainers merge, so a Contributor gets no button. */
   protected canMerge = this.permissions.canMaintain;
@@ -312,6 +317,15 @@ export class MergeRequestDetail implements OnInit {
 
   private reloadReviews(): void {
     this.loadInto(this.mergeRequests.listReviews(this.mergeRequestId()), this.reviewSummary);
+    this.reloadMergeability();
+  }
+
+  /** Quietly: without it the merge button still works, and the server still refuses what is missing. */
+  private reloadMergeability(): void {
+    this.mergeRequests.mergeability(this.mergeRequestId()).subscribe({
+      next: (mergeability) => this.mergeability.set(mergeability),
+      error: () => this.mergeability.set(null),
+    });
   }
 
   protected onTimelineComment(body: string): void {
@@ -388,12 +402,14 @@ export class MergeRequestDetail implements OnInit {
           this.mergeConflict.set(true);
           return;
         }
+        this.mergeability.set(null);
         this.mergeRequest.set(result);
         this.reloadTimeline();
         this.toast.show(t('mergeRequests.mergedToast'));
       },
       // A refused merge says why (approvals, a pipeline, a branch that can't be rebased): show it rather than a generic error.
       error: (error: HttpErrorResponse) => {
+        this.reloadMergeability();
         const reason = error.status === 400 && typeof error.error?.error === 'string' ? error.error.error : null;
         this.toast.show(reason ? t('mergeRequests.mergeRefused', { reason }) : t('mergeRequests.mergeError'), 'error');
       },
@@ -410,5 +426,19 @@ export class MergeRequestDetail implements OnInit {
       },
       error: () => this.toast.show(t('mergeRequests.closeFailed'), 'error'),
     });
+  }
+}
+
+/** A condition of the merge in the reader's language. */
+export function conditionText(condition: MergeCondition): string {
+  switch (condition.kind) {
+    case 'approvals':
+      return t('mergeRequests.conditions.approvals', { given: condition.given, required: condition.required });
+    case 'noChangesRequested':
+      return condition.met ? t('mergeRequests.conditions.noChangesRequested') : t('mergeRequests.conditions.changesRequestedBy', { users: condition.requestedBy.join(', ') });
+    case 'check': {
+      const status = condition.status === null ? t('mergeRequests.conditions.notRun') : condition.status === 'skipped' ? t('mergeRequests.conditions.skipped') : statusPresentation('pipeline', condition.status).label;
+      return t('mergeRequests.conditions.check', { name: condition.name, status });
+    }
   }
 }

@@ -4,8 +4,9 @@ use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::group::GroupStorePort;
 use ferrisgit_domain::group_membership::GroupMembershipPort;
 use ferrisgit_domain::protected_branch::{
-    NewProtectedBranch, ProtectedBranch, ProtectedBranchStorePort, RefRefusal, RefUpdate,
-    is_protected, normalize_pattern, refused_ref_updates,
+    BranchRequirements, NewProtectedBranch, ProtectedBranch, ProtectedBranchStorePort,
+    ProtectedBranchUpdate, RefRefusal, RefUpdate, branch_requirements, check_required_approvals,
+    is_protected, normalize_check_names, normalize_pattern, refused_ref_updates,
 };
 use ferrisgit_domain::repository::Repository;
 use ferrisgit_domain::repository_authz::effective_repository_role;
@@ -40,18 +41,55 @@ impl ProtectedBranches {
         self.store.list_for_repository(repository_id).await
     }
 
+    /// Protects `pattern`, a merge into it needing `required_approvals` approvals and every check of `required_checks`.
     pub async fn protect(
         &self,
         repository_id: Uuid,
         pattern: &str,
+        required_approvals: i32,
+        required_checks: &[String],
     ) -> Result<ProtectedBranch, DomainError> {
         let pattern = normalize_pattern(pattern)?;
         self.store
             .create(NewProtectedBranch {
                 repository_id,
                 pattern,
+                required_approvals: check_required_approvals(required_approvals)?,
+                required_checks: normalize_check_names(required_checks)?,
             })
             .await
+    }
+
+    /// Changes what a merge into the rule's branches needs. `None` keeps a requirement as it is.
+    pub async fn update_requirements(
+        &self,
+        repository_id: Uuid,
+        id: Uuid,
+        required_approvals: Option<i32>,
+        required_checks: Option<Vec<String>>,
+    ) -> Result<ProtectedBranch, DomainError> {
+        let update = ProtectedBranchUpdate {
+            required_approvals: required_approvals
+                .map(check_required_approvals)
+                .transpose()?,
+            required_checks: required_checks
+                .as_deref()
+                .map(normalize_check_names)
+                .transpose()?,
+        };
+        self.store.update(repository_id, id, update).await
+    }
+
+    /// What a merge into `branch` needs from the repository's protections.
+    pub async fn requirements(
+        &self,
+        repository_id: Uuid,
+        branch: &str,
+    ) -> Result<BranchRequirements, DomainError> {
+        Ok(branch_requirements(
+            &self.store.list_for_repository(repository_id).await?,
+            branch,
+        ))
     }
 
     pub async fn unprotect(&self, repository_id: Uuid, id: Uuid) -> Result<(), DomainError> {
@@ -127,17 +165,43 @@ mod tests {
         let service = service(vec![]);
         let repository_id = Uuid::new_v4();
 
-        let rule = service.protect(repository_id, " main ").await.unwrap();
+        let rule = service
+            .protect(repository_id, " main ", 0, &[])
+            .await
+            .unwrap();
         assert_eq!(rule.pattern, "main");
         assert!(matches!(
-            service.protect(repository_id, "refs/heads/main").await,
+            service
+                .protect(repository_id, "refs/heads/main", 0, &[])
+                .await,
             Err(DomainError::Validation(_))
         ));
         assert!(matches!(
-            service.protect(repository_id, "main").await,
+            service.protect(repository_id, "main", 0, &[]).await,
             Err(DomainError::Conflict(_))
         ));
         assert!(service.is_protected(repository_id, "main").await.unwrap());
+
+        let checks = vec![" pipeline ".to_string(), "pipeline".to_string()];
+        let updated = service
+            .update_requirements(repository_id, rule.id, Some(2), Some(checks))
+            .await
+            .unwrap();
+        assert_eq!(updated.required_checks, vec!["pipeline"]);
+        assert_eq!(
+            service
+                .requirements(repository_id, "main")
+                .await
+                .unwrap()
+                .required_approvals,
+            2
+        );
+        assert!(matches!(
+            service
+                .update_requirements(repository_id, rule.id, Some(-1), None)
+                .await,
+            Err(DomainError::Validation(_))
+        ));
 
         service.unprotect(repository_id, rule.id).await.unwrap();
         assert!(!service.is_protected(repository_id, "main").await.unwrap());
@@ -149,7 +213,7 @@ mod tests {
         let contributor = Uuid::new_v4();
         let repo = repository(owner);
         let service = service(vec![(repo.id, contributor, CollaboratorRole::Contributor)]);
-        service.protect(repo.id, "main").await.unwrap();
+        service.protect(repo.id, "main", 0, &[]).await.unwrap();
 
         let refused = service
             .refused_updates(&repo, contributor, &[update(A, B, "main")])
@@ -171,7 +235,7 @@ mod tests {
         let contributor = Uuid::new_v4();
         let repo = repository(owner);
         let service = service(vec![(repo.id, contributor, CollaboratorRole::Contributor)]);
-        service.protect(repo.id, "main").await.unwrap();
+        service.protect(repo.id, "main", 0, &[]).await.unwrap();
         let first_push = [update(ZERO, A, "main")];
 
         assert!(

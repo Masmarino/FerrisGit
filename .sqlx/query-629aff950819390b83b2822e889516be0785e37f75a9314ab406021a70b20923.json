@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO protected_branches (repository_id, pattern) VALUES ($1, $2) RETURNING id, repository_id, pattern, created_at",
+  "query": "INSERT INTO protected_branches (repository_id, pattern, required_approvals, required_checks) VALUES ($1, $2, $3, $4) RETURNING id, repository_id, pattern, required_approvals, required_checks, created_at",
   "describe": {
     "columns": [
       {
@@ -38,6 +38,28 @@
       },
       {
         "ordinal": 3,
+        "name": "required_approvals",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "protected_branches",
+            "name": "required_approvals"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "required_checks",
+        "type_info": "TextArray",
+        "origin": {
+          "Table": {
+            "table": "protected_branches",
+            "name": "required_checks"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
         "name": "created_at",
         "type_info": "Timestamptz",
         "origin": {
@@ -51,15 +73,19 @@
     "parameters": {
       "Left": [
         "Uuid",
-        "Text"
+        "Text",
+        "Int4",
+        "TextArray"
       ]
     },
     "nullable": [
       false,
       false,
       false,
+      false,
+      false,
       false
     ]
   },
-  "hash": "2a85decf19cd41adbe3ce896238cb65d929082016fedfccc393abfe69666928b"
+  "hash": "629aff950819390b83b2822e889516be0785e37f75a9314ab406021a70b20923"
 }
