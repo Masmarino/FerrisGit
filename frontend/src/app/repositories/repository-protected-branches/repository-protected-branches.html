@@ -1,0 +1,74 @@
+<gbt-card variant="outlined" icon="plus" [heading]="'repositories.protectedBranches.add' | transloco" [description]="'repositories.protectedBranches.addHelp' | transloco">
+  <form class="repository-protected-branches__form" (submit)="$event.preventDefault(); protect()">
+    <gbt-input
+      name="pattern"
+      [label]="'repositories.protectedBranches.pattern' | transloco"
+      mono
+      placeholder="main"
+      autocomplete="off"
+      [hint]="'repositories.protectedBranches.patternHint' | transloco"
+      [errorMessage]="patternProblem()"
+      [ngModel]="newPattern()"
+      (ngModelChange)="newPattern.set($event)"
+    />
+    <div class="repository-protected-branches__actions">
+      <gbt-button type="submit" iconName="lock" [text]="'repositories.protectedBranches.submit' | transloco" [disabled]="!newPattern().trim() || patternProblem() !== null" />
+    </div>
+  </form>
+</gbt-card>
+
+<gbt-card variant="outlined" icon="lock" [heading]="'repositories.protectedBranches.title' | transloco" [description]="'repositories.protectedBranches.listHelp' | transloco" [count]="list.state() === 'loaded' ? list.items().length : null" [flush]="list.state() !== 'failed'">
+  @switch (list.state()) {
+    @case ('loading') {
+      <gbt-skeleton-list [rows]="2" leadingSize="1rem" [lines]="1" [loadingLabel]="'repositories.protectedBranches.loading' | transloco" />
+    }
+    @case ('failed') {
+      <gbt-alert variant="error" appearance="subtle" live="off">
+        {{ 'repositories.protectedBranches.loadFailed' | transloco }}
+        <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="list.retry()" />
+      </gbt-alert>
+    }
+    @default {
+      @if (list.items().length === 0) {
+        <gbt-empty-state size="compact" icon="lock" [heading]="'repositories.protectedBranches.emptyTitle' | transloco" [message]="'repositories.protectedBranches.emptyMessage' | transloco" />
+      } @else {
+        <ul class="repository-protected-branches__rows" [attr.aria-label]="'repositories.sections.branches' | transloco">
+          @for (rule of list.items(); track rule.id) {
+            <li>
+              <gbt-list-row>
+                <gbt-icon row-leading name="lock" aria-hidden="true" />
+                <span class="repository-protected-branches__pattern" [title]="rule.pattern">{{ rule.pattern }}</span>
+                <gbt-button
+                  row-trailing
+                  variant="ghost-danger"
+                  size="medium"
+                  [iconOnly]="true"
+                  iconName="trash-2"
+                  [title]="'repositories.protectedBranches.unprotect' | transloco"
+                  [ariaLabel]="'repositories.protectedBranches.unprotectNamed' | transloco: { pattern: rule.pattern }"
+                  (clicked)="confirmDelete(rule)"
+                />
+              </gbt-list-row>
+            </li>
+          }
+        </ul>
+      }
+    }
+  }
+</gbt-card>
+
+@if (rulePendingDelete(); as rule) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    [heading]="'repositories.protectedBranches.deleteTitle' | transloco"
+    [message]="'repositories.protectedBranches.deleteMessage' | transloco: { pattern: rule.pattern }"
+    [confirmLabel]="'repositories.protectedBranches.unprotect' | transloco"
+    confirmIcon="trash-2"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
+    [busyLabel]="'common.deleting' | transloco"
+    [busy]="deleting()"
+    (confirmed)="unprotect(rule.id)"
+    (closed)="rulePendingDelete.set(null)"
+  />
+}

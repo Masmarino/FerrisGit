@@ -12,6 +12,7 @@ use ferrisgit_application::passkey_ceremonies::PasskeyCeremonies;
 use ferrisgit_application::single_use_tokens::SingleUseTokens;
 use ferrisgit_application::use_cases::mfa::MfaService;
 use ferrisgit_application::use_cases::passkeys::{PasskeyService, build_webauthn};
+use ferrisgit_application::use_cases::protected_branches::ProtectedBranches;
 use ferrisgit_application::use_cases::purge_expired_job_logs::PurgeExpiredJobLogsUseCase;
 use ferrisgit_application::use_cases::record_metrics_snapshot::RecordMetricsSnapshotUseCase;
 use ferrisgit_application::use_cases::report_job_result::{
@@ -105,6 +106,7 @@ use ferrisgit_infrastructure::postgres::notification_store::PostgresNotification
 use ferrisgit_infrastructure::postgres::password_reset_store::PostgresPasswordResetStore;
 use ferrisgit_infrastructure::postgres::pending_account_store::PostgresPendingAccountStore;
 use ferrisgit_infrastructure::postgres::pipeline_store::PostgresPipelineStore;
+use ferrisgit_infrastructure::postgres::protected_branch_store::PostgresProtectedBranchStore;
 use ferrisgit_infrastructure::postgres::public_catalog_store::PostgresPublicCatalogStore;
 use ferrisgit_infrastructure::postgres::public_pages_settings_store::PostgresPublicPagesSettingsStore;
 use ferrisgit_infrastructure::postgres::registration_settings_store::PostgresRegistrationSettingsStore;
@@ -177,6 +179,8 @@ pub struct AppState {
     pub milestones: Arc<dyn MilestoneStorePort>,
     pub labels: Arc<dyn LabelStorePort>,
     pub branch_reader: Arc<dyn BranchReaderPort>,
+    /// The protected branch rules of each repository, and the check pushes and branch writes go through.
+    pub protected_branches: Arc<ProtectedBranches>,
     pub diff_reader: Arc<dyn DiffReaderPort>,
     pub merge_executor: Arc<dyn MergeExecutorPort>,
     pub suggestion_executor: Arc<dyn ApplySuggestionExecutorPort>,
@@ -415,6 +419,15 @@ impl AppState {
             metrics_snapshots.clone(),
         ));
 
+        let repository_collaborators: Arc<dyn RepositoryCollaboratorStorePort> =
+            Arc::new(PostgresRepositoryCollaboratorStore::new(pool.clone()));
+        let protected_branches = Arc::new(ProtectedBranches::new(
+            Arc::new(PostgresProtectedBranchStore::new(pool.clone())),
+            repository_collaborators.clone(),
+            groups.clone(),
+            group_membership.clone(),
+        ));
+
         let purge_expired_job_logs = Arc::new(PurgeExpiredJobLogsUseCase::new(
             system_settings.clone(),
             job_log_retention.clone(),
@@ -424,9 +437,7 @@ impl AppState {
             users,
             api_tokens: Arc::new(PostgresApiTokenRepository::new(pool.clone())),
             repositories,
-            repository_collaborators: Arc::new(PostgresRepositoryCollaboratorStore::new(
-                pool.clone(),
-            )),
+            repository_collaborators,
             repository_stars: Arc::new(PostgresRepositoryStarStore::new(pool.clone())),
             groups,
             group_membership,
@@ -462,6 +473,7 @@ impl AppState {
             milestones,
             labels,
             branch_reader: merge_request_reader.clone(),
+            protected_branches,
             diff_reader: merge_request_reader.clone(),
             merge_executor: Arc::new(GitMergeExecutor::new(storage_root.clone())),
             suggestion_executor: Arc::new(GitApplySuggestionExecutor::new(storage_root.clone())),

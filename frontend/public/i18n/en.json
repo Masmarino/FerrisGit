@@ -1303,6 +1303,7 @@
   "repositories": {
     "sections": {
       "general": "General",
+      "branches": "Protected branches",
       "pipeline": "Pipeline",
       "variables": "CI/CD variables",
       "webhooks": "Webhooks",
@@ -1620,7 +1621,30 @@
     "noDescription": "No description",
     "languages": "Languages",
     "tabsLabel": "Repositories shown",
-    "noLanguage": "No language detected"
+    "noLanguage": "No language detected",
+    "protectedBranches": {
+      "add": "Protect a branch",
+      "addHelp": "Nobody pushes to a protected branch, Maintainers included: its changes arrive through a merge request.",
+      "pattern": "Branch or pattern",
+      "patternHint": "For example main, or release/*: * stands for any run of characters.",
+      "patternProblem": "A branch name, without refs/heads/ or spaces; * stands for any run of characters.",
+      "submit": "Protect",
+      "title": "Protected branches",
+      "listHelp": "A push that would update, force or delete one of these branches is refused. Only a Maintainer can create one that does not exist yet.",
+      "loading": "Loading protected branches…",
+      "loadFailed": "The protected branches could not be loaded.",
+      "emptyTitle": "No protected branch",
+      "emptyMessage": "Any Contributor can push to any branch. Protect the main branch so that its changes go through a merge request.",
+      "unprotect": "Unprotect",
+      "unprotectNamed": "Unprotect {{ pattern }}",
+      "deleteTitle": "Unprotect the branch",
+      "deleteMessage": "Contributors will be able to push directly to \"{{ pattern }}\" again, and to delete it.",
+      "added": "Branch protected.",
+      "addFailed": "Could not protect the branch.",
+      "alreadyProtected": "This pattern is already protected.",
+      "deleted": "The branch is no longer protected.",
+      "deleteFailed": "Could not remove the protection."
+    }
   },
   "pipelines": {
     "jobStatus": {

@@ -1303,6 +1303,7 @@
   "repositories": {
     "sections": {
       "general": "Información",
+      "branches": "Ramas protegidas",
       "pipeline": "Pipeline",
       "variables": "Variables de CI/CD",
       "webhooks": "Webhooks",
@@ -1620,7 +1621,30 @@
     "noDescription": "Sin descripción",
     "languages": "Lenguajes",
     "tabsLabel": "Repositorios mostrados",
-    "noLanguage": "Ningún lenguaje detectado"
+    "noLanguage": "Ningún lenguaje detectado",
+    "protectedBranches": {
+      "add": "Proteger una rama",
+      "addHelp": "Nadie hace push a una rama protegida, Responsables incluidos: sus cambios llegan mediante una solicitud de fusión.",
+      "pattern": "Rama o patrón",
+      "patternHint": "Por ejemplo main, o release/*: * sustituye cualquier secuencia de caracteres.",
+      "patternProblem": "Un nombre de rama, sin refs/heads/ ni espacios; * sustituye cualquier secuencia de caracteres.",
+      "submit": "Proteger",
+      "title": "Ramas protegidas",
+      "listHelp": "Se rechaza un push que actualice, fuerce o elimine una de estas ramas. Solo un Responsable puede crear una que aún no exista.",
+      "loading": "Cargando las ramas protegidas…",
+      "loadFailed": "No se han podido cargar las ramas protegidas.",
+      "emptyTitle": "Ninguna rama protegida",
+      "emptyMessage": "Cualquier Colaborador puede hacer push a cualquier rama. Protege la rama principal para que sus cambios pasen por una solicitud de fusión.",
+      "unprotect": "Dejar de proteger",
+      "unprotectNamed": "Dejar de proteger {{ pattern }}",
+      "deleteTitle": "Dejar de proteger la rama",
+      "deleteMessage": "Los Colaboradores podrán volver a hacer push directamente a «{{ pattern }}» y eliminarla.",
+      "added": "Rama protegida.",
+      "addFailed": "No se ha podido proteger la rama.",
+      "alreadyProtected": "Este patrón ya está protegido.",
+      "deleted": "La rama ya no está protegida.",
+      "deleteFailed": "No se ha podido quitar la protección."
+    }
   },
   "pipelines": {
     "jobStatus": {

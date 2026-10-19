@@ -19,7 +19,8 @@ FerrisGit a trois rôles, du moins au plus puissant : **Lecteur**, **Contributeu
 | **Fusionner** une demande de fusion | non | non | oui |
 | Supprimer une page du wiki | non | non | oui |
 | Créer, modifier et supprimer des releases, y compris leurs fichiers joints ; supprimer un tag ; voir les brouillons | non | non | oui |
-| Réglages du dépôt : pipeline, approbations requises, variables CI/CD | non | non | oui |
+| Réglages du dépôt : pipeline, approbations requises, variables CI/CD, branches protégées | non | non | oui |
+| Créer une branche protégée qui n'existe pas encore | non | non | oui |
 | Webhooks | non | non | oui |
 | Gérer les collaborateurs | non | non | oui |
 | Supprimer le dépôt | non | non | oui |
@@ -30,7 +31,7 @@ Quelques précisions :
 - Un Lecteur lit les tickets et leurs commentaires, mais ne peut ni ouvrir un ticket ni commenter : l'interface et l'API demandent toutes deux le rôle Contributeur. Sur un dépôt public, c'est aussi le cas des utilisateurs connectés qui n'ont pas de rôle.
 - Une personne ne peut être assignée à un ticket que si elle est au moins Contributeur sur le dépôt, directement ou par un groupe.
 - L'interface n'affiche que les boutons que le serveur accepterait : par exemple, **Fusionner** n'apparaît que pour les propriétaires et les Mainteneurs.
-- FerrisGit n'a pas de branches protégées. Un Contributeur peut pousser sur n'importe quelle branche, y compris la branche principale. Pour imposer une relecture, réglez **Approbations requises avant fusion** et ne donnez le rôle Mainteneur qu'aux personnes qui fusionnent. Cela encadre les fusions faites dans FerrisGit, pas les pushs directs.
+- Un Contributeur peut pousser sur n'importe quelle branche qui n'est pas protégée. Pour imposer une relecture sur la branche principale, protégez-la (voir [Branches protégées](/docs/utilisation/cloner-et-pousser#branches-protégées)) : plus personne n'y pousse directement, Mainteneurs compris, et ses changements passent par une demande de fusion. Réglez aussi **Approbations requises avant fusion** et ne donnez le rôle Mainteneur qu'aux personnes qui fusionnent.
 
 ## Le propriétaire d'un dépôt personnel
 

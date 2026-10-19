@@ -23,6 +23,7 @@ pub mod milestones;
 pub mod notifications;
 pub mod pipeline_definitions;
 pub mod pipelines;
+pub mod protected_branches;
 pub mod public;
 pub mod releases;
 pub mod repositories;
@@ -89,6 +90,7 @@ pub fn api_router(state: AppState) -> Router<AppState> {
         .merge(runner_jobs::router())
         .merge(pipeline_definitions::router())
         .merge(pipelines::router())
+        .merge(protected_branches::router())
         .merge(releases::router())
         .merge(merge_requests::router())
         .merge(metrics::router())

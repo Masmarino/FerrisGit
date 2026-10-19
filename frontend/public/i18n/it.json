@@ -1303,6 +1303,7 @@
   "repositories": {
     "sections": {
       "general": "Informazioni",
+      "branches": "Branch protetti",
       "pipeline": "Pipeline",
       "variables": "Variabili CI/CD",
       "webhooks": "Webhook",
@@ -1620,7 +1621,30 @@
     "noDescription": "Nessuna descrizione",
     "languages": "Linguaggi",
     "tabsLabel": "Repository mostrati",
-    "noLanguage": "Nessun linguaggio rilevato"
+    "noLanguage": "Nessun linguaggio rilevato",
+    "protectedBranches": {
+      "add": "Proteggi un branch",
+      "addHelp": "Nessuno fa push su un branch protetto, Manutentori compresi: le sue modifiche arrivano tramite una richiesta di merge.",
+      "pattern": "Branch o pattern",
+      "patternHint": "Per esempio main, o release/*: * sostituisce qualsiasi sequenza di caratteri.",
+      "patternProblem": "Un nome di branch, senza refs/heads/ né spazi; * sostituisce qualsiasi sequenza di caratteri.",
+      "submit": "Proteggi",
+      "title": "Branch protetti",
+      "listHelp": "Un push che aggiornerebbe, forzerebbe o eliminerebbe uno di questi branch viene rifiutato. Solo un Manutentore può crearne uno che non esiste ancora.",
+      "loading": "Caricamento dei branch protetti…",
+      "loadFailed": "Impossibile caricare i branch protetti.",
+      "emptyTitle": "Nessun branch protetto",
+      "emptyMessage": "Qualsiasi Collaboratore può fare push su qualsiasi branch. Proteggi il branch principale perché le sue modifiche passino da una richiesta di merge.",
+      "unprotect": "Rimuovi protezione",
+      "unprotectNamed": "Rimuovi la protezione di {{ pattern }}",
+      "deleteTitle": "Rimuovi la protezione del branch",
+      "deleteMessage": "I Collaboratori potranno di nuovo fare push direttamente su «{{ pattern }}» ed eliminarlo.",
+      "added": "Branch protetto.",
+      "addFailed": "Impossibile proteggere il branch.",
+      "alreadyProtected": "Questo pattern è già protetto.",
+      "deleted": "Il branch non è più protetto.",
+      "deleteFailed": "Impossibile rimuovere la protezione."
+    }
   },
   "pipelines": {
     "jobStatus": {

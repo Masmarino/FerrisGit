@@ -1,0 +1,23 @@
+@use '../../shared/layout/settings-section';
+
+:host {
+  @include settings-section.section;
+}
+
+.repository-protected-branches__form {
+  @include settings-section.form;
+}
+
+.repository-protected-branches__actions {
+  @include settings-section.form-actions;
+}
+
+.repository-protected-branches__rows {
+  @include settings-section.rows;
+}
+
+.repository-protected-branches__pattern.repository-protected-branches__pattern {
+  @include settings-section.row-title-text;
+  @include settings-section.mono;
+  font-weight: 600;
+}

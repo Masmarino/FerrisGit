@@ -8,6 +8,13 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ### Added
 
+- Protected branches: under *Réglages > Branches protégées*, Maintainers protect branches by name or with a `*` pattern
+  (`release/*`). Nobody pushes to a protected branch, its owner included: an update, a force push or a deletion is
+  refused over Git HTTP, and `git push` prints why (`branch 'main' is protected: push to another branch and open a merge
+  request`). Changes arrive through a merge request, whose merge still moves the branch; a Maintainer may create a
+  protected branch that does not exist yet, so `main` can be protected before the first push. A push touching a
+  protected branch is refused as a whole, and a suggestion cannot be applied to a protected source branch. The rules are
+  served at `/api/repositories/{id}/protected-branches`.
 - A visual pipeline editor: from a repository's pipeline list, or the quick search, "Éditer la pipeline" opens the
   stages as columns and the jobs as cards to drag between them, or the YAML itself, the two views describing the same
   file. Contributors and above are offered it. The server's own parser reads, writes and checks it

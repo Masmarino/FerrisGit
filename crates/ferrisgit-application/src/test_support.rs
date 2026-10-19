@@ -47,6 +47,9 @@ use ferrisgit_domain::password_reset::{PasswordReset, PasswordResetPort};
 use ferrisgit_domain::pipeline::{NewPipeline, Pipeline, PipelineStatus, PipelineStorePort};
 use ferrisgit_domain::pipeline_events::{JobEvent, PipelineEvent, PipelineEventPublisherPort};
 use ferrisgit_domain::pipeline_file_reader::PipelineFileReaderPort;
+use ferrisgit_domain::protected_branch::{
+    NewProtectedBranch, ProtectedBranch, ProtectedBranchStorePort,
+};
 use ferrisgit_domain::public_pages::{
     PublicPagesSettings, PublicPagesSettingsPort, PublicPagesSettingsUpdate,
 };
@@ -4163,6 +4166,49 @@ impl BackupCodePort for FakeBackupCodes {
 
     async fn delete_all(&self, user_id: Uuid) -> Result<(), DomainError> {
         self.by_user.lock().unwrap().remove(&user_id);
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct FakeProtectedBranches {
+    rules: Mutex<Vec<ProtectedBranch>>,
+}
+
+#[async_trait]
+impl ProtectedBranchStorePort for FakeProtectedBranches {
+    async fn list_for_repository(
+        &self,
+        repository_id: Uuid,
+    ) -> Result<Vec<ProtectedBranch>, DomainError> {
+        Ok(filter_in(&self.rules, |r| r.repository_id == repository_id))
+    }
+
+    async fn create(&self, new: NewProtectedBranch) -> Result<ProtectedBranch, DomainError> {
+        let mut rules = self.rules.lock().unwrap();
+        if rules
+            .iter()
+            .any(|r| r.repository_id == new.repository_id && r.pattern == new.pattern)
+        {
+            return Err(DomainError::Conflict("already protected".to_string()));
+        }
+        let rule = ProtectedBranch {
+            id: Uuid::new_v4(),
+            repository_id: new.repository_id,
+            pattern: new.pattern,
+            created_at: Utc::now(),
+        };
+        rules.push(rule.clone());
+        Ok(rule)
+    }
+
+    async fn delete(&self, repository_id: Uuid, id: Uuid) -> Result<(), DomainError> {
+        let mut rules = self.rules.lock().unwrap();
+        let before = rules.len();
+        rules.retain(|r| !(r.id == id && r.repository_id == repository_id));
+        if rules.len() == before {
+            return Err(DomainError::NotFound("protected branch".to_string()));
+        }
         Ok(())
     }
 }

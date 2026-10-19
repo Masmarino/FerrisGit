@@ -61,6 +61,7 @@ pub mod move_issue_status;
 pub mod passkeys;
 pub mod pipeline_definition_builder;
 pub mod pipeline_definition_proposal;
+pub mod protected_branches;
 pub mod public_pages;
 pub mod purge_expired_job_logs;
 pub mod record_metrics_snapshot;

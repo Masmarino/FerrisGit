@@ -13,6 +13,9 @@
   <!-- Only the open section renders, and it loads its own data. -->
   <div class="repository-settings__section">
     @switch (activeSection()) {
+      @case ('branches') {
+        <fg-repository-protected-branches [repositoryId]="repositoryId()" />
+      }
       @case ('pipeline') {
         <fg-repository-pipeline-settings [repositoryId]="repositoryId()" />
       }
