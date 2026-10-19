@@ -1,7 +1,9 @@
 use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
-use ferrisgit_domain::pipeline::{NewPipeline, Pipeline, PipelineStatus, PipelineStorePort};
+use ferrisgit_domain::pipeline::{
+    MergeRequestPipeline, NewPipeline, Pipeline, PipelineStatus, PipelineStorePort,
+};
 use ferrisgit_domain::settings::ExecutionEngine;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -28,6 +30,8 @@ struct Row {
     created_at: chrono::DateTime<chrono::Utc>,
     finished_at: Option<chrono::DateTime<chrono::Utc>>,
     error: Option<String>,
+    merge_request_id: Option<Uuid>,
+    source_sha: Option<String>,
 }
 
 impl TryFrom<Row> for Pipeline {
@@ -44,6 +48,12 @@ impl TryFrom<Row> for Pipeline {
             created_at: row.created_at,
             finished_at: row.finished_at,
             error: row.error,
+            merge_request: row.merge_request_id.zip(row.source_sha).map(
+                |(merge_request_id, source_sha)| MergeRequestPipeline {
+                    merge_request_id,
+                    source_sha,
+                },
+            ),
         })
     }
 }
@@ -52,12 +62,14 @@ impl TryFrom<Row> for Pipeline {
 impl PipelineStorePort for PostgresPipelineStore {
     async fn create(&self, new_pipeline: NewPipeline) -> Result<Pipeline, DomainError> {
         let row: Row = sqlx::query_as(
-            "INSERT INTO pipelines (repository_id, commit_sha, execution_engine, triggered_by) VALUES ($1, $2, $3, $4) RETURNING *",
+            "INSERT INTO pipelines (repository_id, commit_sha, execution_engine, triggered_by, merge_request_id, source_sha) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *",
         )
         .bind(new_pipeline.repository_id)
         .bind(new_pipeline.commit_sha)
         .bind(new_pipeline.execution_engine.as_str())
         .bind(new_pipeline.triggered_by)
+        .bind(new_pipeline.merge_request.as_ref().map(|mr| mr.merge_request_id))
+        .bind(new_pipeline.merge_request.map(|mr| mr.source_sha))
         .fetch_one(&self.pool)
         .await
         .map_err(infra)?;
@@ -70,13 +82,15 @@ impl PipelineStorePort for PostgresPipelineStore {
         error: &str,
     ) -> Result<Pipeline, DomainError> {
         let row: Row = sqlx::query_as(
-            "INSERT INTO pipelines (repository_id, commit_sha, execution_engine, triggered_by, status, finished_at, error) VALUES ($1, $2, $3, $4, 'failed', now(), $5) RETURNING *",
+            "INSERT INTO pipelines (repository_id, commit_sha, execution_engine, triggered_by, status, finished_at, error, merge_request_id, source_sha) VALUES ($1, $2, $3, $4, 'failed', now(), $5, $6, $7) RETURNING *",
         )
         .bind(new_pipeline.repository_id)
         .bind(new_pipeline.commit_sha)
         .bind(new_pipeline.execution_engine.as_str())
         .bind(new_pipeline.triggered_by)
         .bind(error)
+        .bind(new_pipeline.merge_request.as_ref().map(|mr| mr.merge_request_id))
+        .bind(new_pipeline.merge_request.map(|mr| mr.source_sha))
         .fetch_one(&self.pool)
         .await
         .map_err(infra)?;
@@ -141,6 +155,35 @@ impl PipelineStorePort for PostgresPipelineStore {
         .map(|count| count.unwrap_or(0))
         .map_err(infra)
     }
+
+    async fn list_for_merge_request(
+        &self,
+        merge_request_id: Uuid,
+    ) -> Result<Vec<Pipeline>, DomainError> {
+        let rows: Vec<Row> = sqlx::query_as(
+            "SELECT * FROM pipelines WHERE merge_request_id = $1 ORDER BY created_at DESC, id",
+        )
+        .bind(merge_request_id)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(infra)?;
+        rows.into_iter().map(Pipeline::try_from).collect()
+    }
+
+    async fn latest_for_merge_requests(
+        &self,
+        merge_request_ids: &[Uuid],
+    ) -> Result<Vec<Pipeline>, DomainError> {
+        let rows: Vec<Row> = sqlx::query_as(
+            "SELECT DISTINCT ON (merge_request_id) * FROM pipelines WHERE merge_request_id = ANY($1) \
+             ORDER BY merge_request_id, created_at DESC, id",
+        )
+        .bind(merge_request_ids)
+        .fetch_all(&self.pool)
+        .await
+        .map_err(infra)?;
+        rows.into_iter().map(Pipeline::try_from).collect()
+    }
 }
 
 #[cfg(test)]
@@ -163,6 +206,7 @@ mod tests {
                 commit_sha: "abc123".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -182,6 +226,7 @@ mod tests {
                 commit_sha: "abc123".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -205,6 +250,7 @@ mod tests {
                 commit_sha: "abc123".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -248,6 +294,7 @@ mod tests {
                 commit_sha: "a".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -257,6 +304,7 @@ mod tests {
                 commit_sha: "b".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -276,6 +324,7 @@ mod tests {
                 commit_sha: "abc".to_string(),
                 execution_engine: ExecutionEngine::Kubernetes,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -311,6 +360,7 @@ mod tests {
                 commit_sha: "abc".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: pusher_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -330,6 +380,7 @@ mod tests {
                 commit_sha: "old".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -343,6 +394,7 @@ mod tests {
                 commit_sha: "new".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -365,6 +417,7 @@ mod tests {
                     commit_sha: "abc".to_string(),
                     execution_engine: ExecutionEngine::DockerRunners,
                     triggered_by: owner_id,
+                    merge_request: None,
                 },
                 "invalid YAML: boom",
             )
@@ -390,6 +443,7 @@ mod tests {
                 commit_sha: "abc".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -406,6 +460,7 @@ mod tests {
                 commit_sha: "abc".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap();

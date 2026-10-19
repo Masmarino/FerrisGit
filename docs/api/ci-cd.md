@@ -26,10 +26,14 @@ Réponse 200 :
     "finishedAt": "2026-03-01T10:03:12Z",
     "triggeredBy": { "id": "0b6c…", "username": "alice" },
     "commitMessage": "Corrige le menu",
-    "error": null
+    "error": null,
+    "mergeRequestId": null,
+    "sourceSha": null
   }
 ]
 ```
+
+`mergeRequestId` et `sourceSha` ne sont renseignés que pour une [pipeline de demande de fusion](/docs/ci-cd/premiers-pas#pipelines-des-demandes-de-fusion) : `commitSha` est alors le commit de fusion de la branche source dans la branche cible, et `sourceSha` le commit de la branche source dont il est issu.
 
 `finishedAt` est `null` tant que la pipeline n'est pas terminée. `triggeredBy` est `null` si le compte a été supprimé. `commitMessage` n'est résolu que pour les 50 pipelines les plus récentes ; pour les autres, il vaut `null`.
 

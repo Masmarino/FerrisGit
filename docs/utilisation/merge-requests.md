@@ -87,6 +87,12 @@ Le bouton **Fusionner** (page de la demande, ou menu de la ligne dans la liste) 
 
 Après la fusion, la demande passe à **Fusionnée** et si l'intégration continue est activée sur le dépôt, une pipeline démarre sur le nouveau commit (voir [Premiers pas CI/CD](/docs/ci-cd/premiers-pas)).
 
+Si le dépôt exige une pipeline réussie, la fusion attend que la pipeline de la demande, celle du dernier commit de la branche source, ait réussi ; la raison d'un refus s'affiche. Voir [Pipelines des demandes de fusion](/docs/ci-cd/premiers-pas#pipelines-des-demandes-de-fusion).
+
+### Pipeline de la demande
+
+Tant qu'elle est ouverte, la demande a sa pipeline, lancée sur la branche source fusionnée dans la cible, à la création puis à chaque nouveau commit de la branche source. Son état apparaît dans la liste des demandes et dans le panneau **Pipeline**, avec un lien vers la page de la pipeline.
+
 ### Conflits
 
 Si Git ne peut pas fusionner automatiquement, rien n'est écrit et la page affiche : « Impossible de fusionner automatiquement — mettez à jour la branche et réessayez. » FerrisGit ne résout pas les conflits dans l'interface. Fusionnez ou rebasez la cible dans votre branche en local, résolvez, poussez, puis relancez la fusion.
@@ -105,6 +111,7 @@ La vue d'ensemble liste dans l'ordre chronologique les commentaires, les fils et
 - des étiquettes ajoutées ou retirées, un jalon défini, changé ou retiré ;
 - un renommage de la demande ;
 - de nouveaux commits poussés sur la branche source (avec le commit atteint) ;
+- chaque pipeline de la demande, à son démarrage, avec son état actuel ;
 - la fusion (avec le commit de fusion) et la fermeture.
 
 Les fils résolus ou rouverts apparaissent dans le fil lui-même, avec la personne qui l'a résolu.

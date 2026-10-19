@@ -103,6 +103,7 @@ describe('MergeRequestsService', () => {
         labels: [],
         author: { id: 'u1', username: 'alice' },
         commentCount: 7,
+        pipeline: null,
       },
       {
         id: 'mr-2',
@@ -118,6 +119,7 @@ describe('MergeRequestsService', () => {
         labels: [],
         author: null,
         commentCount: 0,
+        pipeline: null,
       },
     ];
 

@@ -21,6 +21,7 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
             pipeline_file_path: ".ferrisgit-ci.yml".to_string(),
             ci_enabled: true,
             required_approvals: 0,
+            pipeline_must_succeed: false,
         })
     }
     async fn update(

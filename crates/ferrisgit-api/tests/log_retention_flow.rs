@@ -100,6 +100,7 @@ impl Harness {
                 commit_sha: "abc123".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: admin_id,
+                merge_request: None,
             })
             .await
             .unwrap();

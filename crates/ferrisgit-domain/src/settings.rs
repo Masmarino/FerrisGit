@@ -68,6 +68,8 @@ pub struct RepositorySettings {
     pub pipeline_file_path: String,
     pub ci_enabled: bool,
     pub required_approvals: i32,
+    /// A merge waits for the latest merge request pipeline, the one of the current source commit, to succeed.
+    pub pipeline_must_succeed: bool,
 }
 
 #[derive(Debug, Default)]
@@ -75,6 +77,7 @@ pub struct RepositorySettingsUpdate {
     pub pipeline_file_path: Option<String>,
     pub ci_enabled: Option<bool>,
     pub required_approvals: Option<i32>,
+    pub pipeline_must_succeed: Option<bool>,
 }
 
 #[derive(Debug, Clone, Serialize)]

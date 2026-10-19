@@ -35,6 +35,7 @@ export function mergeRequestFixture(fields: Pick<MergeRequestSummary, 'title' | 
     labels: [],
     author: ALICE,
     commentCount: 0,
+    pipeline: null,
     ...fields,
   };
 }

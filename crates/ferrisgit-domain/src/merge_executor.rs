@@ -8,6 +8,14 @@ pub enum MergeOutcome {
     Conflicting,
 }
 
+/// The merge of a merge request's source branch into its target, written as a commit that no branch points to.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MergeRef {
+    pub commit_sha: String,
+    pub source_sha: String,
+    pub target_sha: String,
+}
+
 /// Merges `source_branch` into `target_branch`, clean merges only. On success the target ref points to a new two-parent
 /// commit, on `Conflicting` nothing was written.
 #[async_trait]
@@ -19,6 +27,20 @@ pub trait MergeExecutorPort: Send + Sync {
         target_branch: &str,
         message: &str,
     ) -> Result<MergeOutcome, DomainError>;
+
+    /// Writes what merging `source_branch` into `target_branch` would give, as a two-parent commit under `ref_name`
+    /// (outside `refs/heads/`), leaving both branches alone. `None` when they conflict. Defaults to `unimplemented!`
+    /// so test doubles need no stub.
+    async fn write_merge_ref(
+        &self,
+        _repository_disk_path: &str,
+        _source_branch: &str,
+        _target_branch: &str,
+        _ref_name: &str,
+        _message: &str,
+    ) -> Result<Option<MergeRef>, DomainError> {
+        unimplemented!("write_merge_ref")
+    }
 }
 
 #[cfg(test)]

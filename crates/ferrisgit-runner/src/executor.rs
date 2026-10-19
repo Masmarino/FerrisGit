@@ -124,6 +124,18 @@ pub async fn run_job(
     status
 }
 
+/// Whether the repository in `workdir` holds `commit_sha`, asked quietly so a miss leaves nothing in the job log.
+async fn has_commit(workdir: &Path, commit_sha: &str) -> bool {
+    Command::new("git")
+        .args(["cat-file", "-e", &format!("{commit_sha}^{{commit}}")])
+        .current_dir(workdir)
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await
+        .is_ok_and(|status| status.success())
+}
+
 async fn run_in_workdir(
     client: &RunnerClient,
     job: &ClaimedJob,
@@ -139,11 +151,25 @@ async fn run_in_workdir(
         &job.repository_name,
     );
     let clone = ["clone".to_string(), clone_url, ".".to_string()];
-    let checkout = ["checkout".to_string(), job.commit_sha.clone()];
-    for git_args in [clone.as_slice(), checkout.as_slice()] {
-        if !run_streamed(client, job.id, "git", git_args, workdir, &secrets).await {
+    if !run_streamed(client, job.id, "git", &clone, workdir, &secrets).await {
+        return JobResultStatus::Failed;
+    }
+    // A merge request pipeline runs on the merge of two branches, a commit no branch points to: the clone doesn't
+    // have it, so it is fetched by its id.
+    if !has_commit(workdir, &job.commit_sha).await {
+        let fetch = [
+            "fetch".to_string(),
+            "-q".to_string(),
+            "origin".to_string(),
+            job.commit_sha.clone(),
+        ];
+        if !run_streamed(client, job.id, "git", &fetch, workdir, &secrets).await {
             return JobResultStatus::Failed;
         }
+    }
+    let checkout = ["checkout".to_string(), job.commit_sha.clone()];
+    if !run_streamed(client, job.id, "git", &checkout, workdir, &secrets).await {
+        return JobResultStatus::Failed;
     }
 
     // Has to happen before the bind mount, `.git/config` holds the runner token.

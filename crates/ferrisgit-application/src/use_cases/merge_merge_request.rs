@@ -21,6 +21,7 @@ use uuid::Uuid;
 use crate::job_execution_resolver::JobExecutionResolver;
 use crate::use_cases::create_pipeline::CreatePipelineUseCase;
 use crate::use_cases::event_context::EventContext;
+use crate::use_cases::merge_request_pipeline::pipeline_requirement_problem;
 use crate::use_cases::source_branch_tip::source_branch_tip;
 
 #[derive(Debug)]
@@ -127,6 +128,18 @@ impl MergeMergeRequestUseCase {
         if settings.required_approvals > 0 {
             self.require_approvals(&mr, &repo.disk_path, settings.required_approvals as usize)
                 .await?;
+        }
+        if settings.pipeline_must_succeed {
+            let tip_sha = source_branch_tip(
+                self.branch_reader.as_ref(),
+                &repo.disk_path,
+                &mr.source_branch,
+            )
+            .await?;
+            let pipelines = self.pipelines.list_for_merge_request(mr.id).await?;
+            if let Some(problem) = pipeline_requirement_problem(&pipelines, &tip_sha) {
+                return Err(DomainError::Validation(problem));
+            }
         }
 
         let message = format!(
@@ -267,6 +280,7 @@ mod tests {
     use ferrisgit_domain::job::Job;
     use ferrisgit_domain::job_execution::JobExecutionPort;
     use ferrisgit_domain::merge_request::{MergeRequestReview, ReviewDecision};
+    use ferrisgit_domain::pipeline::{MergeRequestPipeline, Pipeline, PipelineStatus};
     use ferrisgit_domain::repository::Repository;
     use ferrisgit_domain::settings::RepositorySettings;
     use ferrisgit_domain::user::User;
@@ -358,6 +372,9 @@ mod tests {
         /// `None` means the repository has no branch at all.
         source_tip: Option<&'static str>,
         required_approvals: i32,
+        pipeline_must_succeed: bool,
+        /// Merge request pipelines already run.
+        pipelines: Vec<Pipeline>,
         /// Accounts besides the repository owner.
         accounts: Vec<Uuid>,
         owner_has_an_account: bool,
@@ -373,6 +390,8 @@ mod tests {
                 reviews: vec![],
                 source_tip: None,
                 required_approvals: 0,
+                pipeline_must_succeed: false,
+                pipelines: vec![],
                 accounts: vec![],
                 owner_has_an_account: false,
             }
@@ -401,7 +420,7 @@ mod tests {
                     ..fixtures::user("florian")
                 })
                 .collect();
-            let pipelines = Arc::new(FakePipelines::empty());
+            let pipelines = Arc::new(FakePipelines::new(self.pipelines));
             let notifications = Arc::new(FakeNotifications::empty());
             let webhooks = Arc::new(FakeWebhooks::default());
             let docker: Arc<dyn JobExecutionPort> = Arc::new(NoopExecutor);
@@ -415,6 +434,7 @@ mod tests {
                     pipeline_file_path: ".ferrisgit-ci.yml".to_string(),
                     ci_enabled: false,
                     required_approvals: self.required_approvals,
+                    pipeline_must_succeed: self.pipeline_must_succeed,
                 })),
                 Arc::new(FakeSystemSettings::default()),
                 pipelines.clone(),
@@ -712,5 +732,67 @@ mod tests {
             &dispatched[0].1,
             WebhookEvent::MergeRequestMerged { .. }
         ));
+    }
+
+    fn merge_request_pipeline(
+        mr: &MergeRequest,
+        source_sha: &str,
+        status: PipelineStatus,
+    ) -> Pipeline {
+        Pipeline {
+            merge_request: Some(MergeRequestPipeline {
+                merge_request_id: mr.id,
+                source_sha: source_sha.to_string(),
+            }),
+            ..fixtures::pipeline(Uuid::new_v4(), status)
+        }
+    }
+
+    #[tokio::test]
+    async fn with_pipelines_required_only_a_successful_pipeline_of_the_current_source_commit_lets_the_merge_through()
+     {
+        let mr = merge_request(MergeRequestStatus::Open);
+        for (pipelines, merges) in [
+            (vec![], false),
+            (
+                vec![merge_request_pipeline(&mr, "tip1", PipelineStatus::Running)],
+                false,
+            ),
+            (
+                vec![merge_request_pipeline(&mr, "tip1", PipelineStatus::Failed)],
+                false,
+            ),
+            (
+                vec![merge_request_pipeline(&mr, "old", PipelineStatus::Success)],
+                false,
+            ),
+            (
+                vec![merge_request_pipeline(&mr, "tip1", PipelineStatus::Success)],
+                true,
+            ),
+        ] {
+            let h = Scenario {
+                source_tip: Some("tip1"),
+                pipeline_must_succeed: true,
+                pipelines,
+                ..Scenario::new(mr.clone())
+            }
+            .build();
+
+            let result = h.merge_as_author().await;
+
+            if merges {
+                assert!(
+                    matches!(result, Ok(MergeMergeRequestResult::Merged(_))),
+                    "{result:?}"
+                );
+            } else {
+                assert!(
+                    matches!(&result, Err(DomainError::Validation(m)) if m.contains("pipeline")),
+                    "{result:?}"
+                );
+                assert_eq!(h.executor_calls(), 0);
+            }
+        }
     }
 }

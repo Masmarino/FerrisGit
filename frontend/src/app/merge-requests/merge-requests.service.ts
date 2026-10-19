@@ -2,6 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { Label } from '../labels/labels.service';
 import { UserRef } from '../shared/user-ref';
+import { PipelineSummary } from '../pipelines/pipelines.service';
 
 export type { UserRef } from '../shared/user-ref';
 
@@ -25,6 +26,18 @@ export interface MergeRequestSummary {
   labels: Label[];
   author: UserRef | null;
   commentCount: number;
+  /** The latest merge request pipeline, `null` before the first one. */
+  pipeline: MergeRequestPipeline | null;
+}
+
+/** A pipeline run on the source branch merged into the target one: `commitSha` is that merge, `sourceSha` the source tip. */
+export interface MergeRequestPipeline {
+  id: string;
+  status: PipelineSummary['status'];
+  commitSha: string;
+  sourceSha: string;
+  createdAt: string;
+  finishedAt: string | null;
 }
 
 export interface SplitDiffRow {
@@ -121,7 +134,12 @@ export interface TimelineEvent {
   payload: Record<string, unknown>;
 }
 
-export type TimelineItem = TimelineComment | TimelineThread | TimelineEvent;
+export interface TimelinePipeline extends MergeRequestPipeline {
+  type: 'pipeline';
+  triggeredBy: UserRef | null;
+}
+
+export type TimelineItem = TimelineComment | TimelineThread | TimelineEvent | TimelinePipeline;
 
 export interface TimelineResponse {
   author: UserRef | null;

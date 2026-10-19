@@ -3,7 +3,9 @@ use std::sync::Arc;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::job::{JobStatus, JobStorePort, NewJob};
 use ferrisgit_domain::notification::NotificationStorePort;
-use ferrisgit_domain::pipeline::{NewPipeline, Pipeline, PipelineStatus, PipelineStorePort};
+use ferrisgit_domain::pipeline::{
+    MergeRequestPipeline, NewPipeline, Pipeline, PipelineStatus, PipelineStorePort,
+};
 use ferrisgit_domain::pipeline_definition::parse_pipeline_definition;
 use ferrisgit_domain::pipeline_events::{JobEvent, PipelineEvent, PipelineEventPublisherPort};
 use ferrisgit_domain::pipeline_file_reader::PipelineFileReaderPort;
@@ -69,6 +71,44 @@ impl CreatePipelineUseCase {
         commit_sha: &str,
         triggered_by: Uuid,
     ) -> Result<Option<Pipeline>, DomainError> {
+        self.run(
+            repository_id,
+            repository_disk_path,
+            commit_sha,
+            triggered_by,
+            None,
+        )
+        .await
+    }
+
+    /// Same as `execute`, for a merge request: `merge_commit_sha` is the source branch merged into the target one, and
+    /// its pipeline file is the one that runs.
+    pub async fn execute_for_merge_request(
+        &self,
+        repository_id: Uuid,
+        repository_disk_path: &str,
+        merge_commit_sha: &str,
+        triggered_by: Uuid,
+        merge_request: MergeRequestPipeline,
+    ) -> Result<Option<Pipeline>, DomainError> {
+        self.run(
+            repository_id,
+            repository_disk_path,
+            merge_commit_sha,
+            triggered_by,
+            Some(merge_request),
+        )
+        .await
+    }
+
+    async fn run(
+        &self,
+        repository_id: Uuid,
+        repository_disk_path: &str,
+        commit_sha: &str,
+        triggered_by: Uuid,
+        merge_request: Option<MergeRequestPipeline>,
+    ) -> Result<Option<Pipeline>, DomainError> {
         let settings = self
             .repository_settings
             .get_or_create_default(repository_id)
@@ -94,6 +134,7 @@ impl CreatePipelineUseCase {
             commit_sha: commit_sha.to_string(),
             execution_engine: engine,
             triggered_by,
+            merge_request,
         };
 
         let definition = match String::from_utf8(yaml_bytes) {
@@ -276,6 +317,7 @@ mod tests {
                 pipeline_file_path: ".ferrisgit-ci.yml".to_string(),
                 ci_enabled: config.ci_enabled,
                 required_approvals: 0,
+                pipeline_must_succeed: false,
             })),
             Arc::new(FakeSystemSettings::new(SystemSettings {
                 execution_engine: config.engine,

@@ -52,8 +52,8 @@ const MILESTONES: Milestone[] = [
 ];
 
 const fakeRepositorySettingsService = {
-  get: () => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 1 }),
-  update: () => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 1 }),
+  get: () => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 1, pipelineMustSucceed: false }),
+  update: () => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 1, pipelineMustSucceed: false }),
   listCiVariables: () =>
     of([
       { id: 'v1', key: 'DATABASE_URL', masked: true },

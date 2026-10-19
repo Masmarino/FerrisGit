@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "INSERT INTO repository_settings (repository_id) VALUES ($1) ON CONFLICT (repository_id) DO UPDATE SET repository_id = $1 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals",
+  "query": "INSERT INTO repository_settings (repository_id) VALUES ($1) ON CONFLICT (repository_id) DO UPDATE SET repository_id = $1 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals, pipeline_must_succeed",
   "describe": {
     "columns": [
       {
@@ -46,6 +46,17 @@
             "name": "required_approvals"
           }
         }
+      },
+      {
+        "ordinal": 4,
+        "name": "pipeline_must_succeed",
+        "type_info": "Bool",
+        "origin": {
+          "Table": {
+            "table": "repository_settings",
+            "name": "pipeline_must_succeed"
+          }
+        }
       }
     ],
     "parameters": {
@@ -57,8 +68,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "d938e819ad6d4d9f571904829392c089804365ca0bdaffc7d246ff3f40b368de"
+  "hash": "18d1901b2224fc5faaa4e94e46b82c233ad73cfec4a55d5366ea883343e5ab34"
 }

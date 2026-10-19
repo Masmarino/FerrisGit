@@ -277,6 +277,7 @@ mod tests {
                 commit_sha: "abc".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: owner_id,
+                merge_request: None,
             })
             .await
             .unwrap()

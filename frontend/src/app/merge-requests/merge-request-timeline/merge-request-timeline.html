@@ -25,7 +25,7 @@
           </li>
         }
         @for (item of visibleItems(); track item.id) {
-          <li class="mr-timeline__item" [class.mr-timeline__item--card]="item.type !== 'event'" [class.mr-timeline__item--note]="item.type === 'event'">
+          <li class="mr-timeline__item" [class.mr-timeline__item--card]="item.type === 'comment' || item.type === 'thread'" [class.mr-timeline__item--note]="item.type === 'event' || item.type === 'pipeline'">
             @if (item.type === 'comment') {
               <fg-mr-comment-card [author]="item.author" [createdAt]="item.createdAt" [body]="item.body" />
             } @else if (item.type === 'thread') {
@@ -36,6 +36,8 @@
                 (resolveToggled)="resolveToggled.emit($event)"
                 (applySuggestionClicked)="applySuggestionClicked.emit($event)"
               />
+            } @else if (item.type === 'pipeline') {
+              <fg-mr-pipeline-note [pipeline]="item" />
             } @else {
               <fg-mr-system-note [event]="item" />
             }

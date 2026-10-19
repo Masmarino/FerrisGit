@@ -8,7 +8,7 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectSettingsLayout, fakeToast, inSettingsColumn, rendered } from '../../shared/layout/settings-story-helpers';
 
-const ENABLED_SETTINGS: RepositorySettings = { pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 2 };
+const ENABLED_SETTINGS: RepositorySettings = { pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 2, pipelineMustSucceed: false };
 
 function fakeRepositorySettingsService(overrides: Record<string, unknown> = {}) {
   let current = { ...ENABLED_SETTINGS };
@@ -53,7 +53,7 @@ type Story = StoryObj<RepositoryPipelineSettings>;
 export const Enabled: Story = {};
 
 export const Disabled: Story = {
-  decorators: [withService({ get: () => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 0 }) })],
+  decorators: [withService({ get: () => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 0, pipelineMustSucceed: false }) })],
 };
 
 export const SavedAndInvalid: Story = {

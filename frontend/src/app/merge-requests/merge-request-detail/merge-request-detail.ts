@@ -1,9 +1,13 @@
 import { Component, computed, inject, input, OnInit, signal, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { HttpErrorResponse } from '@angular/common/http';
+import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
 import { Comment, FileDiff, MergeRequestSummary, MergeRequestsService, ReviewSummary, TimelineResponse } from '../merge-requests.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { injectRepositoryPermissions } from '../../repositories/repository-role';
+import { RepositoryContextService } from '../../repositories/repository-context.service';
+import { pipelineLink } from '../../pipelines/pipeline-helpers';
 import { FileDiffView } from '../file-diff-view/file-diff-view';
 import { MergeRequestTimeline } from '../merge-request-timeline/merge-request-timeline';
 import { MrApprovalsPanel } from '../mr-approvals-panel/mr-approvals-panel';
@@ -105,6 +109,7 @@ const OVERVIEW_TAB = 0;
     Panel,
     StatusBadge,
     UserChip,
+    RouterLink,
   ],
   templateUrl: './merge-request-detail.html',
   styleUrl: './merge-request-detail.scss',
@@ -119,6 +124,7 @@ export class MergeRequestDetail implements OnInit {
   private labelsService = inject(LabelsService);
   private milestonesService = inject(MilestonesService);
   private toast = inject(GbtToastService);
+  private repositoryContext = inject(RepositoryContextService);
 
   private timelineView = viewChild(MergeRequestTimeline);
 
@@ -147,6 +153,13 @@ export class MergeRequestDetail implements OnInit {
   protected commentCountLabel = computed(() => {
     const count = this.comments().length;
     return count === 0 ? null : tn('common.comments', count);
+  });
+
+  /** The page of the latest merge request pipeline, once the repository's path is known. */
+  protected pipelineLink = computed(() => {
+    const pipeline = this.mergeRequest()?.pipeline;
+    const path = this.repositoryContext.current()?.path;
+    return pipeline && path ? pipelineLink(path, pipeline.id) : null;
   });
 
   protected activeTab = signal(OVERVIEW_TAB);
@@ -190,7 +203,7 @@ export class MergeRequestDetail implements OnInit {
         people.push(item.author);
       } else if (item.type === 'thread') {
         people.push(item.root.author, ...item.replies.map((reply) => reply.author));
-      } else if (item.kind === 'review_submitted') {
+      } else if (item.type === 'event' && item.kind === 'review_submitted') {
         people.push(item.actor);
       }
     }
@@ -353,7 +366,11 @@ export class MergeRequestDetail implements OnInit {
         this.reloadTimeline();
         this.toast.show(t('mergeRequests.mergedToast'));
       },
-      error: () => this.toast.show(t('mergeRequests.mergeError'), 'error'),
+      // A refused merge says which condition is missing (approvals, a pipeline): show it rather than a generic error.
+      error: (error: HttpErrorResponse) => {
+        const reason = error.status === 400 && typeof error.error?.error === 'string' ? error.error.error : null;
+        this.toast.show(reason ? t('mergeRequests.mergeRefused', { reason }) : t('mergeRequests.mergeError'), 'error');
+      },
     });
   }
 

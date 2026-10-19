@@ -1298,7 +1298,14 @@
     "replacement": "Contenido de reemplazo",
     "resolvedShow": "Resuelto — mostrar",
     "outdatedMasculine": "Obsoleto",
-    "resolvedMasculine": "Resuelto"
+    "resolvedMasculine": "Resuelto",
+    "pipeline": {
+      "title": "Pipeline",
+      "onCommit": "en el commit",
+      "open": "Ver la pipeline",
+      "started": "lanzó la pipeline de la fusión, en el commit"
+    },
+    "mergeRefused": "Fusión rechazada: {{ reason }}"
   },
   "repositories": {
     "sections": {
@@ -1572,7 +1579,10 @@
       "ciHelp": "Lanza una pipeline en cada push. Cada ajuste se guarda en cuanto lo modifica.",
       "ciEnabled": "CI activada para este repositorio",
       "mergeHelp": "Las condiciones que deben cumplirse antes de poder fusionar una solicitud de fusión.",
-      "zeroApprovals": "0 para fusionar sin aprobación."
+      "zeroApprovals": "0 para fusionar sin aprobación.",
+      "mustSucceed": "Exigir una pipeline correcta antes de fusionar",
+      "mustSucceedHint": "Cada solicitud de fusión lanza una pipeline sobre su rama de origen fusionada en la rama de destino. Si se activa, la fusión espera a que la del último commit de la rama de origen haya terminado correctamente.",
+      "mustSucceedFailed": "No se ha podido cambiar el requisito de pipeline."
     },
     "search": "Nombre o ruta",
     "listFailed": "No se ha podido cargar esta lista.",
@@ -2331,6 +2341,7 @@
       "forRepositoryHint": "Los jobs que piden sus proyectos y que la pipeline todavía no tiene, con sus versiones y sus scripts.",
       "notKubernetes": "No con Kubernetes",
       "secretsToCreate": "Secretos por crear:"
-    }
+    },
+    "mergeRequest": "Solicitud de fusión"
   }
 }

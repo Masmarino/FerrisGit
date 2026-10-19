@@ -6,6 +6,7 @@ use uuid::Uuid;
 use ferrisgit_domain::diff::{DiffLineKind, DiffSide, FileDiff, resolve_anchor_content};
 use ferrisgit_domain::merge_request_comment::MergeRequestComment;
 use ferrisgit_domain::merge_request_event::{MergeRequestEvent, MergeRequestEventKind};
+use ferrisgit_domain::pipeline::Pipeline;
 
 /// Diff lines shown above a thread: the anchor line and the two before it.
 const EXCERPT_LINES: usize = 3;
@@ -30,6 +31,8 @@ pub enum TimelineItem {
     Comment(MergeRequestComment),
     Thread(TimelineThread),
     Event(MergeRequestEvent),
+    /// A merge request pipeline, at the moment it started, with its current status.
+    Pipeline(Pipeline),
 }
 
 impl TimelineItem {
@@ -38,6 +41,7 @@ impl TimelineItem {
             TimelineItem::Comment(comment) => comment.created_at,
             TimelineItem::Thread(thread) => thread.root.created_at,
             TimelineItem::Event(event) => event.created_at,
+            TimelineItem::Pipeline(pipeline) => pipeline.created_at,
         }
     }
 
@@ -46,6 +50,7 @@ impl TimelineItem {
             TimelineItem::Comment(comment) => comment.id,
             TimelineItem::Thread(thread) => thread.root.id,
             TimelineItem::Event(event) => event.id,
+            TimelineItem::Pipeline(pipeline) => pipeline.id,
         }
     }
 }
@@ -216,6 +221,13 @@ pub fn assemble_timeline(
             })
             .map(TimelineItem::Event),
     );
+    items.sort_by_key(|item| (item.created_at(), item.id()));
+    items
+}
+
+/// Slots the merge request's pipelines into an assembled timeline, in chronological order.
+pub fn with_pipelines(mut items: Vec<TimelineItem>, pipelines: Vec<Pipeline>) -> Vec<TimelineItem> {
+    items.extend(pipelines.into_iter().map(TimelineItem::Pipeline));
     items.sort_by_key(|item| (item.created_at(), item.id()));
     items
 }
@@ -639,5 +651,37 @@ mod tests {
     fn excerpt_for_is_empty_for_an_unknown_path_or_line() {
         assert!(excerpt_for(&sample_diffs(), "missing.rs", 2, DiffSide::New).is_empty());
         assert!(excerpt_for(&sample_diffs(), "a.rs", 99, DiffSide::New).is_empty());
+    }
+
+    #[test]
+    fn pipelines_take_their_place_in_the_timeline_by_start_time() {
+        let early = comment(Uuid::new_v4(), at(0), None, None, None, None, false);
+        let late = comment(Uuid::new_v4(), at(20), None, None, None, None, false);
+        let pipeline = Pipeline {
+            id: Uuid::new_v4(),
+            repository_id: Uuid::new_v4(),
+            commit_sha: "merge".to_string(),
+            execution_engine: ferrisgit_domain::settings::ExecutionEngine::DockerRunners,
+            status: ferrisgit_domain::pipeline::PipelineStatus::Running,
+            triggered_by: Uuid::new_v4(),
+            created_at: at(10),
+            finished_at: None,
+            error: None,
+            merge_request: None,
+        };
+        let items = with_pipelines(
+            assemble_timeline(vec![late, early], vec![], None),
+            vec![pipeline.clone()],
+        );
+
+        let kinds: Vec<&str> = items
+            .iter()
+            .map(|item| match item {
+                TimelineItem::Pipeline(_) => "pipeline",
+                _ => "other",
+            })
+            .collect();
+        assert_eq!(kinds, vec!["other", "pipeline", "other"]);
+        assert_eq!(items[1].id(), pipeline.id);
     }
 }

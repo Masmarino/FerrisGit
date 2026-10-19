@@ -42,6 +42,18 @@ impl PipelineStorePort for FakePipelines {
     ) -> Result<i64, DomainError> {
         unimplemented!()
     }
+    async fn list_for_merge_request(
+        &self,
+        _merge_request_id: uuid::Uuid,
+    ) -> Result<Vec<Pipeline>, DomainError> {
+        unimplemented!()
+    }
+    async fn latest_for_merge_requests(
+        &self,
+        _merge_request_ids: &[uuid::Uuid],
+    ) -> Result<Vec<Pipeline>, DomainError> {
+        unimplemented!()
+    }
 }
 
 #[derive(Default)]

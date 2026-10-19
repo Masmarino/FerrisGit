@@ -190,6 +190,7 @@ struct RepositorySettingsResponse {
     pipeline_file_path: String,
     ci_enabled: bool,
     required_approvals: i32,
+    pipeline_must_succeed: bool,
 }
 
 impl From<RepositorySettings> for RepositorySettingsResponse {
@@ -198,6 +199,7 @@ impl From<RepositorySettings> for RepositorySettingsResponse {
             pipeline_file_path: s.pipeline_file_path,
             ci_enabled: s.ci_enabled,
             required_approvals: s.required_approvals,
+            pipeline_must_succeed: s.pipeline_must_succeed,
         }
     }
 }
@@ -211,6 +213,8 @@ struct RepositorySettingsUpdateRequest {
     ci_enabled: Option<bool>,
     #[serde(default)]
     required_approvals: Option<i32>,
+    #[serde(default)]
+    pipeline_must_succeed: Option<bool>,
 }
 
 async fn get_repository_settings(
@@ -246,6 +250,7 @@ async fn update_repository_settings(
         pipeline_file_path: req.pipeline_file_path,
         ci_enabled: req.ci_enabled,
         required_approvals: req.required_approvals,
+        pipeline_must_succeed: req.pipeline_must_succeed,
     };
     Ok(Json(
         state

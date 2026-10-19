@@ -1298,7 +1298,14 @@
     "replacement": "Ersetzender Inhalt",
     "resolvedShow": "Erledigt — anzeigen",
     "outdatedMasculine": "Veraltet",
-    "resolvedMasculine": "Erledigt"
+    "resolvedMasculine": "Erledigt",
+    "pipeline": {
+      "title": "Pipeline",
+      "onCommit": "auf Commit",
+      "open": "Pipeline ansehen",
+      "started": "hat die Merge-Pipeline gestartet, auf Commit"
+    },
+    "mergeRefused": "Merge abgelehnt: {{ reason }}"
   },
   "repositories": {
     "sections": {
@@ -1572,7 +1579,10 @@
       "ciHelp": "Startet bei jedem Push eine Pipeline. Jede Einstellung wird gespeichert, sobald Sie sie ändern.",
       "ciEnabled": "CI für dieses Repository aktiviert",
       "mergeHelp": "Die Bedingungen, die erfüllt sein müssen, bevor ein Merge-Request zusammengeführt werden kann.",
-      "zeroApprovals": "0, um ohne Genehmigung zusammenzuführen."
+      "zeroApprovals": "0, um ohne Genehmigung zusammenzuführen.",
+      "mustSucceed": "Erfolgreiche Pipeline vor dem Merge verlangen",
+      "mustSucceedHint": "Jeder Merge-Request startet eine Pipeline auf seinem Quell-Branch, zusammengeführt mit dem Ziel-Branch. Wenn aktiviert, wartet der Merge, bis die des letzten Commits des Quell-Branches erfolgreich war.",
+      "mustSucceedFailed": "Die Pipeline-Anforderung konnte nicht geändert werden."
     },
     "search": "Name oder Pfad",
     "listFailed": "Diese Liste konnte nicht geladen werden.",
@@ -2331,6 +2341,7 @@
       "forRepositoryHint": "Die Jobs, die seine Projekte brauchen und die die Pipeline noch nicht hat, mit ihren Versionen und Skripten.",
       "notKubernetes": "Nicht mit Kubernetes",
       "secretsToCreate": "Anzulegende Secrets:"
-    }
+    },
+    "mergeRequest": "Merge-Request"
   }
 }

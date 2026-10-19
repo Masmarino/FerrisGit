@@ -26,7 +26,7 @@ import { Label, LabelsService } from '../../labels/labels.service';
 import { Milestone, MilestonesService } from '../../milestones/milestones.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { injectRepositoryPermissions } from '../../repositories/repository-role';
-import { StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
+import { StatusBadge, StatusPresentation, statusPresentation } from '../../shared/layout/status-badge/status-badge';
 import { openWhenAsked } from '../../shared/open-when-asked';
 import { activeLocale, t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
@@ -66,7 +66,8 @@ interface MergeRequestRow {
 @Component({
   selector: 'fg-merge-request-list',
   standalone: true,
-  imports: [TranslocoPipe, 
+  imports: [TranslocoPipe,
+    StatusBadge,
     FormsModule,
     RouterLink,
     GbtDateTimePipe,

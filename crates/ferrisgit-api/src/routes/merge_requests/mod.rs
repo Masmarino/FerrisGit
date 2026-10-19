@@ -3,18 +3,23 @@ use axum::http::StatusCode;
 use axum::routing::{get, post};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
+use ferrisgit_application::use_cases::cancel_pipeline::CancelPipelineUseCase;
 use ferrisgit_application::use_cases::close_merge_request::CloseMergeRequestUseCase;
 use ferrisgit_application::use_cases::create_merge_request::CreateMergeRequestUseCase;
+use ferrisgit_application::use_cases::create_pipeline::CreatePipelineUseCase;
 use ferrisgit_application::use_cases::merge_merge_request::{
     MergeMergeRequestResult, MergeMergeRequestUseCase,
 };
+use ferrisgit_application::use_cases::merge_request_pipeline::RunMergeRequestPipelineUseCase;
 use ferrisgit_application::use_cases::set_merge_request_labels::SetMergeRequestLabelsUseCase;
 use ferrisgit_application::use_cases::update_merge_request::UpdateMergeRequestUseCase;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::merge_request::MergeRequest;
+use ferrisgit_domain::pipeline::Pipeline;
 use ferrisgit_domain::repository::Repository;
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::auth_middleware::AuthUser;
@@ -28,6 +33,45 @@ mod comments;
 mod diff;
 mod reviews;
 mod timeline;
+
+/// Starts the pipeline of an open merge request for its current source commit, cancelling the ones it supersedes.
+/// Failures are logged and swallowed: the change that triggered it (a push, a new merge request) already happened.
+pub(crate) async fn run_merge_request_pipeline(
+    state: &AppState,
+    mr: &MergeRequest,
+    repo: &Repository,
+    triggered_by: Uuid,
+) {
+    let create_pipeline = CreatePipelineUseCase::new(
+        state.repository_settings.clone(),
+        state.system_settings.clone(),
+        state.pipelines.clone(),
+        state.jobs.clone(),
+        state.pipeline_file_reader.clone(),
+        state.pipeline_events.clone(),
+        state.job_execution.clone(),
+        state.repositories.clone(),
+        state.users.clone(),
+        state.notifications.clone(),
+        state.webhooks.clone(),
+    );
+    let cancel_pipeline = CancelPipelineUseCase::new(
+        state.pipelines.clone(),
+        state.jobs.clone(),
+        state.job_execution.clone(),
+        state.pipeline_events.clone(),
+    );
+    let use_case = RunMergeRequestPipelineUseCase::new(
+        state.merge_executor.clone(),
+        state.branch_reader.clone(),
+        state.pipelines.clone(),
+        create_pipeline,
+        cancel_pipeline,
+    );
+    if let Err(err) = use_case.execute(mr, repo, triggered_by).await {
+        tracing::error!(error = %err, merge_request_id = %mr.id, "failed to start a merge request pipeline");
+    }
+}
 
 async fn find_accessible_merge_request(
     state: &AppState,
@@ -68,6 +112,33 @@ struct MergeRequestResponse {
     labels: Vec<LabelResponse>,
     author: Option<UserRef>,
     comment_count: i64,
+    /// The latest merge request pipeline, `None` before the first one.
+    pipeline: Option<MergeRequestPipelineResponse>,
+}
+
+#[derive(Serialize, Clone)]
+#[serde(rename_all = "camelCase")]
+pub(crate) struct MergeRequestPipelineResponse {
+    id: Uuid,
+    status: String,
+    commit_sha: String,
+    source_sha: String,
+    created_at: DateTime<Utc>,
+    finished_at: Option<DateTime<Utc>>,
+}
+
+impl MergeRequestPipelineResponse {
+    pub(crate) fn from_pipeline(pipeline: Pipeline) -> Option<Self> {
+        let run = pipeline.merge_request?;
+        Some(Self {
+            id: pipeline.id,
+            status: pipeline.status.as_str().to_string(),
+            commit_sha: pipeline.commit_sha,
+            source_sha: run.source_sha,
+            created_at: pipeline.created_at,
+            finished_at: pipeline.finished_at,
+        })
+    }
 }
 
 impl From<MergeRequest> for MergeRequestResponse {
@@ -86,6 +157,7 @@ impl From<MergeRequest> for MergeRequestResponse {
             labels: Vec::new(),
             author: None,
             comment_count: 0,
+            pipeline: None,
         }
     }
 }
@@ -100,6 +172,19 @@ impl MergeRequestResponse {
         let ids: Vec<Uuid> = merge_requests.iter().map(|mr| mr.id).collect();
         let labels_by_mr = state.labels.list_for_merge_requests(&ids).await?;
         let comment_counts = state.merge_request_comments.comment_counts(&ids).await?;
+        let mut pipelines: HashMap<Uuid, MergeRequestPipelineResponse> = state
+            .pipelines
+            .latest_for_merge_requests(&ids)
+            .await?
+            .into_iter()
+            .filter_map(|pipeline| {
+                let merge_request_id = pipeline.merge_request.as_ref()?.merge_request_id;
+                Some((
+                    merge_request_id,
+                    MergeRequestPipelineResponse::from_pipeline(pipeline)?,
+                ))
+            })
+            .collect();
         let authors =
             load_user_refs(state, merge_requests.iter().filter_map(|mr| mr.author_id)).await;
         Ok(merge_requests
@@ -112,10 +197,12 @@ impl MergeRequestResponse {
                     .collect();
                 let author = mr.author_id.and_then(|id| authors.get(&id).cloned());
                 let comment_count = comment_counts.get(&mr.id).copied().unwrap_or(0);
+                let pipeline = pipelines.remove(&mr.id);
                 MergeRequestResponse {
                     labels,
                     author,
                     comment_count,
+                    pipeline,
                     ..mr.into()
                 }
             })
@@ -351,6 +438,7 @@ async fn create(
             .await
             .ok();
     }
+    run_merge_request_pipeline(&state, &mr, &repo, user_id).await;
     Ok(Json(MergeRequestResponse::build(&state, mr).await?))
 }
 
