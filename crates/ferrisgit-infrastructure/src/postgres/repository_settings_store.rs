@@ -1,6 +1,7 @@
 use crate::error::infra;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
+use ferrisgit_domain::merge_executor::MergeMethod;
 use ferrisgit_domain::secret_encryption::SecretEncryptorPort;
 use ferrisgit_domain::settings::{
     CiVariable, NewCiVariable, RepositorySettings, RepositorySettingsStorePort,
@@ -22,6 +23,30 @@ impl PostgresRepositorySettingsStore {
     }
 }
 
+struct SettingsRow {
+    repository_id: Uuid,
+    pipeline_file_path: String,
+    ci_enabled: bool,
+    required_approvals: i32,
+    pipeline_must_succeed: bool,
+    default_merge_method: String,
+}
+
+impl TryFrom<SettingsRow> for RepositorySettings {
+    type Error = DomainError;
+
+    fn try_from(row: SettingsRow) -> Result<Self, DomainError> {
+        Ok(RepositorySettings {
+            repository_id: row.repository_id,
+            pipeline_file_path: row.pipeline_file_path,
+            ci_enabled: row.ci_enabled,
+            required_approvals: row.required_approvals,
+            pipeline_must_succeed: row.pipeline_must_succeed,
+            default_merge_method: MergeMethod::parse(&row.default_merge_method)?,
+        })
+    }
+}
+
 #[async_trait]
 impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
     async fn get_or_create_default(
@@ -29,13 +54,14 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
         repository_id: Uuid,
     ) -> Result<RepositorySettings, DomainError> {
         sqlx::query_as!(
-            RepositorySettings,
-            "INSERT INTO repository_settings (repository_id) VALUES ($1) ON CONFLICT (repository_id) DO UPDATE SET repository_id = $1 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals, pipeline_must_succeed",
+            SettingsRow,
+            "INSERT INTO repository_settings (repository_id) VALUES ($1) ON CONFLICT (repository_id) DO UPDATE SET repository_id = $1 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals, pipeline_must_succeed, default_merge_method",
             repository_id
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(infra)
+        .map_err(infra)?
+        .try_into()
     }
 
     async fn update(
@@ -45,17 +71,19 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
     ) -> Result<RepositorySettings, DomainError> {
         self.get_or_create_default(repository_id).await?;
         sqlx::query_as!(
-            RepositorySettings,
-            "UPDATE repository_settings SET pipeline_file_path = COALESCE($1, pipeline_file_path), ci_enabled = COALESCE($2, ci_enabled), required_approvals = COALESCE($3, required_approvals), pipeline_must_succeed = COALESCE($4, pipeline_must_succeed) WHERE repository_id = $5 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals, pipeline_must_succeed",
+            SettingsRow,
+            "UPDATE repository_settings SET pipeline_file_path = COALESCE($1, pipeline_file_path), ci_enabled = COALESCE($2, ci_enabled), required_approvals = COALESCE($3, required_approvals), pipeline_must_succeed = COALESCE($4, pipeline_must_succeed), default_merge_method = COALESCE($5, default_merge_method) WHERE repository_id = $6 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals, pipeline_must_succeed, default_merge_method",
             update.pipeline_file_path,
             update.ci_enabled,
             update.required_approvals,
             update.pipeline_must_succeed,
+            update.default_merge_method.map(|method| method.as_str()),
             repository_id,
         )
         .fetch_one(&self.pool)
         .await
-        .map_err(infra)
+        .map_err(infra)?
+        .try_into()
     }
 
     async fn list_ci_variables(&self, repository_id: Uuid) -> Result<Vec<CiVariable>, DomainError> {
@@ -171,6 +199,32 @@ mod tests {
             .await
             .unwrap();
         assert_eq!(updated.required_approvals, 2);
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn the_default_merge_method_starts_as_a_merge_commit_and_can_be_changed(pool: PgPool) {
+        let repository_id = seed_repository(&pool).await;
+        let store = PostgresRepositorySettingsStore::new(pool, Arc::new(FakeEncryptor));
+
+        let defaults = store.get_or_create_default(repository_id).await.unwrap();
+        assert_eq!(defaults.default_merge_method, MergeMethod::Merge);
+
+        let updated = store
+            .update(
+                repository_id,
+                RepositorySettingsUpdate {
+                    default_merge_method: Some(MergeMethod::Squash),
+                    ..Default::default()
+                },
+            )
+            .await
+            .unwrap();
+        assert_eq!(updated.default_merge_method, MergeMethod::Squash);
+        let kept = store
+            .update(repository_id, RepositorySettingsUpdate::default())
+            .await
+            .unwrap();
+        assert_eq!(kept.default_merge_method, MergeMethod::Squash);
     }
 
     #[sqlx::test(migrations = "../../migrations")]

@@ -4,6 +4,7 @@ use axum::routing::{delete, get};
 use axum::{Json, Router};
 use ferrisgit_application::use_cases::update_system_settings::UpdateSystemSettingsUseCase;
 use ferrisgit_domain::error::DomainError;
+use ferrisgit_domain::merge_executor::MergeMethod;
 use ferrisgit_domain::public_pages::{PublicPagesSettings, PublicPagesSettingsUpdate};
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use ferrisgit_domain::settings::{
@@ -191,6 +192,7 @@ struct RepositorySettingsResponse {
     ci_enabled: bool,
     required_approvals: i32,
     pipeline_must_succeed: bool,
+    default_merge_method: &'static str,
 }
 
 impl From<RepositorySettings> for RepositorySettingsResponse {
@@ -200,6 +202,7 @@ impl From<RepositorySettings> for RepositorySettingsResponse {
             ci_enabled: s.ci_enabled,
             required_approvals: s.required_approvals,
             pipeline_must_succeed: s.pipeline_must_succeed,
+            default_merge_method: s.default_merge_method.as_str(),
         }
     }
 }
@@ -215,6 +218,7 @@ struct RepositorySettingsUpdateRequest {
     required_approvals: Option<i32>,
     #[serde(default)]
     pipeline_must_succeed: Option<bool>,
+    default_merge_method: Option<String>,
 }
 
 async fn get_repository_settings(
@@ -251,6 +255,10 @@ async fn update_repository_settings(
         ci_enabled: req.ci_enabled,
         required_approvals: req.required_approvals,
         pipeline_must_succeed: req.pipeline_must_succeed,
+        default_merge_method: req
+            .default_merge_method
+            .map(|method| MergeMethod::parse(&method))
+            .transpose()?,
     };
     Ok(Json(
         state

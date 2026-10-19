@@ -19,7 +19,7 @@ FerrisGit a trois rôles, du moins au plus puissant : **Lecteur**, **Contributeu
 | **Fusionner** une demande de fusion | non | non | oui |
 | Supprimer une page du wiki | non | non | oui |
 | Créer, modifier et supprimer des releases, y compris leurs fichiers joints ; supprimer un tag ; voir les brouillons | non | non | oui |
-| Réglages du dépôt : pipeline, approbations requises, variables CI/CD, branches protégées | non | non | oui |
+| Réglages du dépôt : pipeline, approbations requises, méthode de fusion par défaut, variables CI/CD, branches protégées | non | non | oui |
 | Créer une branche protégée qui n'existe pas encore | non | non | oui |
 | Webhooks | non | non | oui |
 | Gérer les collaborateurs | non | non | oui |

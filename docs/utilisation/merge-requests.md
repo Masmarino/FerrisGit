@@ -83,7 +83,15 @@ Avec 0, aucune revue ne bloque, y compris une demande de changements. Le bouton 
 
 ## Fusionner
 
-Le bouton **Fusionner** (page de la demande, ou menu de la ligne dans la liste) n'existe que pour les demandes ouvertes, et seulement pour les propriétaires et les Mainteneurs. FerrisGit n'a qu'une seule stratégie : un **commit de fusion** à deux parents, intitulé « Merge branch 'source' into cible », signé « FerrisGit ». Il n'y a pas d'option de squash, de rebase ni d'avance rapide. La branche source n'est pas supprimée.
+Le bouton **Fusionner** (page de la demande, ou menu de la ligne dans la liste) n'existe que pour les demandes ouvertes, et seulement pour les propriétaires et les Mainteneurs. Sur la page de la demande, une liste à côté du bouton choisit la méthode ; le menu de la liste utilise la méthode par défaut du dépôt.
+
+| Méthode | Ce qui arrive sur la branche cible |
+|---|---|
+| **Commit de fusion** | Un commit à deux parents, intitulé « Merge branch 'source' into cible », signé « FerrisGit ». Les commits de la branche source gardent leur identifiant. |
+| **Squash** | Un seul commit, sur la cible, qui contient tout le changement. Son message est le titre de la demande, suivi de sa description si elle en a une ; il est attribué à l'auteur de la demande (FerrisGit en est le committer). |
+| **Rebase** | Chaque commit de la branche source est rejoué, dans l'ordre, sur la cible, qui reste linéaire, sans commit de fusion. Chaque commit garde son auteur, sa date et son message ; FerrisGit en est le committer, donc les identifiants changent. Si la cible n'a pas avancé, c'est une avance rapide : les commits gardent leur identifiant. Une branche source qui contient elle-même des commits de fusion ne peut pas être rebasée : choisissez une autre méthode. |
+
+La méthode proposée en premier est celle du dépôt, réglée par un Mainteneur dans **Réglages > Pipeline**, carte **Demandes de fusion** (**Commit de fusion** par défaut). Quelle que soit la méthode, la branche source n'est ni modifiée ni supprimée, et la chronologie indique une fusion par squash ou par rebase.
 
 Après la fusion, la demande passe à **Fusionnée** et si l'intégration continue est activée sur le dépôt, une pipeline démarre sur le nouveau commit (voir [Premiers pas CI/CD](/docs/ci-cd/premiers-pas)).
 
@@ -95,7 +103,7 @@ Tant qu'elle est ouverte, la demande a sa pipeline, lancée sur la branche sourc
 
 ### Conflits
 
-Si Git ne peut pas fusionner automatiquement, rien n'est écrit et la page affiche : « Impossible de fusionner automatiquement — mettez à jour la branche et réessayez. » FerrisGit ne résout pas les conflits dans l'interface. Fusionnez ou rebasez la cible dans votre branche en local, résolvez, poussez, puis relancez la fusion.
+Si Git ne peut pas fusionner automatiquement (ou, pour un rebase, rejouer l'un des commits), rien n'est écrit et la page affiche : « Impossible de fusionner automatiquement — mettez à jour la branche et réessayez. » FerrisGit ne résout pas les conflits dans l'interface. Fusionnez ou rebasez la cible dans votre branche en local, résolvez, poussez, puis relancez la fusion.
 
 Si la branche cible a avancé pendant la fusion, celle-ci est refusée avec un message vous invitant à réessayer.
 

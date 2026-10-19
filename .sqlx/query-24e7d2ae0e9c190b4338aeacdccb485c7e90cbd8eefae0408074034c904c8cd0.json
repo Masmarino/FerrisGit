@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "UPDATE repository_settings SET pipeline_file_path = COALESCE($1, pipeline_file_path), ci_enabled = COALESCE($2, ci_enabled), required_approvals = COALESCE($3, required_approvals), pipeline_must_succeed = COALESCE($4, pipeline_must_succeed) WHERE repository_id = $5 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals, pipeline_must_succeed",
+  "query": "INSERT INTO repository_settings (repository_id) VALUES ($1) ON CONFLICT (repository_id) DO UPDATE SET repository_id = $1 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals, pipeline_must_succeed, default_merge_method",
   "describe": {
     "columns": [
       {
@@ -57,14 +57,21 @@
             "name": "pipeline_must_succeed"
           }
         }
+      },
+      {
+        "ordinal": 5,
+        "name": "default_merge_method",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "repository_settings",
+            "name": "default_merge_method"
+          }
+        }
       }
     ],
     "parameters": {
       "Left": [
-        "Text",
-        "Bool",
-        "Int4",
-        "Bool",
         "Uuid"
       ]
     },
@@ -73,8 +80,9 @@
       false,
       false,
       false,
+      false,
       false
     ]
   },
-  "hash": "e729132aa72ece9f7e57e377898bbb56cfa1510ecaddea30ee7d37e1b030dca3"
+  "hash": "24e7d2ae0e9c190b4338aeacdccb485c7e90cbd8eefae0408074034c904c8cd0"
 }

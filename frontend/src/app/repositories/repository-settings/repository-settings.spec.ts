@@ -44,8 +44,8 @@ describe('RepositorySettings', () => {
   async function setup(url = SETTINGS_URL) {
     // Each of the 8 sections renders when selected, so every HTTP-backed service needs a stub.
     const repositorySettingsStub = {
-      get: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0, pipelineMustSucceed: false })),
-      update: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0, pipelineMustSucceed: false })),
+      get: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0, pipelineMustSucceed: false, defaultMergeMethod: 'merge' })),
+      update: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0, pipelineMustSucceed: false, defaultMergeMethod: 'merge' })),
       listProtectedBranches: vi.fn(() => of([])),
       protectBranch: vi.fn(() => of({ id: 'p1', pattern: 'main', createdAt: '2026-01-01T00:00:00Z' })),
       unprotectBranch: vi.fn(() => of(undefined)),

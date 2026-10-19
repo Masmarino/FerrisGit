@@ -28,6 +28,7 @@
       <div header-actions class="mr-detail__actions">
         <gbt-button variant="secondary" iconName="git-pull-request-closed" [text]="'common.close' | transloco" (clicked)="close()" />
         @if (canMerge()) {
+          <gbt-select class="mr-detail__method" [label]="'mergeRequests.method.label' | transloco" hideLabel size="sm" [options]="mergeMethodOptions" [ngModel]="mergeMethod()" (ngModelChange)="mergeMethod.set($event)" />
           <gbt-button variant="primary" iconName="git-merge" [text]="'mergeRequests.merge' | transloco" [disabled]="!!reviewSummary()?.blocked" (clicked)="merge()" />
         }
       </div>

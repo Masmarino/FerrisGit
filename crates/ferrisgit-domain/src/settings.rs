@@ -3,6 +3,7 @@ use serde::Serialize;
 use uuid::Uuid;
 
 use crate::error::DomainError;
+use crate::merge_executor::MergeMethod;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "kebab-case")]
@@ -70,6 +71,8 @@ pub struct RepositorySettings {
     pub required_approvals: i32,
     /// A merge waits for the latest merge request pipeline, the one of the current source commit, to succeed.
     pub pipeline_must_succeed: bool,
+    /// The merge method offered first, and used when a merge doesn't name one.
+    pub default_merge_method: MergeMethod,
 }
 
 #[derive(Debug, Default)]
@@ -78,6 +81,7 @@ pub struct RepositorySettingsUpdate {
     pub ci_enabled: Option<bool>,
     pub required_approvals: Option<i32>,
     pub pipeline_must_succeed: Option<bool>,
+    pub default_merge_method: Option<MergeMethod>,
 }
 
 #[derive(Debug, Clone, Serialize)]

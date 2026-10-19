@@ -24,6 +24,17 @@ function shaSegments(sha: unknown): EventSegment[] {
   return typeof sha === 'string' && sha ? [{ kind: 'sha', sha: shortSha(sha) }] : [];
 }
 
+/** A squash or a rebase is said; a plain merge commit, the default and the only kind before, is not. */
+function methodSegments(method: unknown): EventSegment[] {
+  if (method === 'squash') {
+    return [text(t('mergeRequests.events.bySquash'))];
+  }
+  if (method === 'rebase') {
+    return [text(t('mergeRequests.events.byRebase'))];
+  }
+  return [];
+}
+
 export function eventSegments(event: TimelineEvent): EventSegment[] {
   const payload = event.payload;
   const hasActor = event.actor !== null;
@@ -62,7 +73,7 @@ export function eventSegments(event: TimelineEvent): EventSegment[] {
     case 'commits_pushed':
       return [text(t('mergeRequests.events.pushed')), ...shaSegments(payload['toSha'])];
     case 'merged':
-      return [text(hasActor ? t('mergeRequests.events.merged') : t('mergeRequests.events.mergedNoActor')), ...shaSegments(payload['mergeCommitSha'])];
+      return [text(hasActor ? t('mergeRequests.events.merged') : t('mergeRequests.events.mergedNoActor')), ...methodSegments(payload['method']), ...shaSegments(payload['mergeCommitSha'])];
     case 'closed':
       return [text(hasActor ? t('mergeRequests.events.closed') : t('mergeRequests.events.closedNoActor'))];
     default:
