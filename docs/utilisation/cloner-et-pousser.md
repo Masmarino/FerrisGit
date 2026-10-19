@@ -14,6 +14,8 @@ L'adresse est le chemin du dépôt suivi de `.git`, sur l'adresse de l'instance 
 
 Le bouton **Cloner** de l'en-tête du dépôt amène à l'adresse prête à copier. La liste des dépôts propose aussi **Copier l'URL de clonage**.
 
+Après un [renommage ou un transfert](/docs/utilisation/depots-et-groupes#renommer-ou-transférer-un-dépôt), l'ancienne adresse reste utilisable pour cloner, récupérer et pousser, tant qu'aucun autre dépôt ne la prend.
+
 ## S'authentifier avec un jeton
 
 Git utilise l'authentification HTTP Basic : le **nom d'utilisateur** est le vôtre, le **mot de passe** est un **jeton Git**, c'est-à-dire un jeton d'accès personnel. Votre mot de passe de compte ne fonctionne pas pour Git.

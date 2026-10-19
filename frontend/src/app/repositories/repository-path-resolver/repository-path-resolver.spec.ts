@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { provideHttpClient } from '@angular/common/http';
 import { provideHttpClientTesting, HttpTestingController } from '@angular/common/http/testing';
-import { provideRouter, ActivatedRoute, UrlSegment } from '@angular/router';
+import { provideRouter, ActivatedRoute, Router, UrlSegment } from '@angular/router';
 import { By } from '@angular/platform-browser';
 import { BehaviorSubject, Subject } from 'rxjs';
 import { RepositoryPathResolver } from './repository-path-resolver';
@@ -55,6 +55,31 @@ describe('RepositoryPathResolver', () => {
     expect(view.kind).toBe('pipelines');
     expect((view as { repositoryId: string }).repositoryId).toBe('repo-1');
     expect((view as { path: string[] }).path).toEqual(['admin', 'my-repo']);
+  });
+
+  it('moves an old path of a renamed or transferred repository to its current one, keeping the sub-page', () => {
+    const { fixture, http, url$ } = setup();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate').mockResolvedValue(true);
+    fixture.detectChanges();
+
+    url$.next(urlSegments(['repositories', 'admin', 'old-name', '-', 'issues']));
+    http.expectOne('/api/resolve/admin/old-name').flush({ type: 'groupRepository', repositoryId: 'repo-1', chain: [{ id: 'g1', name: 'acme' }], path: ['acme', 'new-name'] });
+
+    expect(navigate).toHaveBeenCalledWith(['/repositories', 'acme', 'new-name', '-', 'issues'], { replaceUrl: true, queryParamsHandling: 'preserve', preserveFragment: true });
+    expect(fixture.componentInstance['view']().kind).toBe('loading');
+  });
+
+  it('stays on a path that is already the current one', () => {
+    const { fixture, http, url$ } = setup();
+    const navigate = vi.spyOn(TestBed.inject(Router), 'navigate');
+    fixture.detectChanges();
+
+    url$.next(urlSegments(['repositories', 'admin', 'my-repo']));
+    http.expectOne('/api/resolve/admin/my-repo').flush({ type: 'personalRepository', repositoryId: 'repo-1', path: ['admin', 'my-repo'] });
+    http.expectOne('/api/repositories/by-id/repo-1').flush({ role: 'reader' });
+
+    expect(navigate).not.toHaveBeenCalled();
+    expect(fixture.componentInstance['view']().kind).toBe('repository');
   });
 
   it('resolves a pipeline URL to the summary view (no job)', () => {

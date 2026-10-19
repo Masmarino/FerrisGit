@@ -1520,11 +1520,26 @@
       "descriptionFailed": "Die Beschreibung kann nicht aktualisiert werden.",
       "visibilityFailed": "Die Sichtbarkeit des Repositorys kann nicht geändert werden.",
       "failed": "Die Informationen des Repositorys konnten nicht geladen werden.",
-      "help": "Was Besucher über das Repository lesen und wer es sehen kann. Jede Einstellung wird gespeichert, sobald Sie sie ändern. Name und Eigentümer lassen sich nicht ändern: Sie sind Teil der Klon-URL.",
+      "help": "Was Besucher über das Repository lesen und wer es sehen kann. Jede Einstellung wird gespeichert, sobald Sie sie ändern.",
       "loading": "Informationen des Repositorys werden geladen…",
       "descriptionPlaceholder": "Wofür ist dieses Repository da?",
       "descriptionHint": "Wird unter dem Namen des Repositorys und in Listen angezeigt.",
-      "visibilityLabel": "Sichtbarkeit des Repositorys"
+      "visibilityLabel": "Sichtbarkeit des Repositorys",
+      "move": {
+        "title": "Name und Ort",
+        "help": "Umbenennen oder Übertragen ändert die Adresse des Repositorys. Die alte funktioniert weiter, für Git und die Oberfläche, solange kein anderes Repository sie übernimmt.",
+        "namespace": "Namensraum",
+        "namespaceHint": "Ihr Benutzername oder der Pfad einer Gruppe, deren Maintainer Sie sind (acme/backend).",
+        "nameProblem": "Nur Buchstaben, Ziffern, - und _.",
+        "submit": "Umbenennen oder übertragen",
+        "confirmTitle": "Adresse des Repositorys ändern",
+        "confirmMessage": "„{{ from }}“ wird zu „{{ to }}“. Alte Links und Klon-URLs leiten auf die neue Adresse weiter; aktualisieren Sie trotzdem Ihre Git-Remotes.",
+        "moving": "Wird verschoben…",
+        "done": "Das Repository hat eine neue Adresse.",
+        "taken": "Dort gibt es bereits ein Repository mit diesem Namen.",
+        "notAllowed": "Ein Repository kann nur in Ihren eigenen Namensraum oder in eine Gruppe übertragen werden, deren Maintainer Sie sind.",
+        "failed": "Das Repository konnte nicht umbenannt oder übertragen werden."
+      }
     },
     "tree": {
       "toggle": "{{ name }}: {{ action }}"

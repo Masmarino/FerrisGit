@@ -68,6 +68,7 @@ pub mod purge_expired_job_logs;
 pub mod record_metrics_snapshot;
 pub mod register_runner;
 pub mod register_user;
+pub mod relocate_repository;
 pub mod remove_collaborator;
 pub mod remove_group_member;
 pub mod report_job_result;

@@ -1520,11 +1520,26 @@
       "descriptionFailed": "No se ha podido actualizar la descripción.",
       "visibilityFailed": "No se ha podido cambiar la visibilidad del repositorio.",
       "failed": "No se ha podido cargar la información del repositorio.",
-      "help": "Lo que los visitantes leen sobre el repositorio y quién puede verlo. Cada ajuste se guarda en cuanto lo modifica. El nombre y el propietario no se pueden modificar: forman parte de la URL de clonación.",
+      "help": "Lo que los visitantes leen sobre el repositorio y quién puede verlo. Cada ajuste se guarda en cuanto lo modifica.",
       "loading": "Cargando la información del repositorio…",
       "descriptionPlaceholder": "¿Para qué sirve este repositorio?",
       "descriptionHint": "Se muestra bajo el nombre del repositorio y en las listas.",
-      "visibilityLabel": "Visibilidad del repositorio"
+      "visibilityLabel": "Visibilidad del repositorio",
+      "move": {
+        "title": "Nombre y ubicación",
+        "help": "Renombrar o transferir el repositorio cambia su dirección. La anterior sigue funcionando, para Git y para la interfaz, mientras ningún otro repositorio la ocupe.",
+        "namespace": "Espacio",
+        "namespaceHint": "Tu nombre de usuario, o la ruta de un grupo del que eres Responsable (acme/backend).",
+        "nameProblem": "Solo letras, cifras, - y _.",
+        "submit": "Renombrar o transferir",
+        "confirmTitle": "Cambiar la dirección del repositorio",
+        "confirmMessage": "«{{ from }}» pasará a ser «{{ to }}». Los enlaces y las URL de clonación anteriores redirigirán a la nueva dirección; actualiza de todos modos tus remotos de Git.",
+        "moving": "Moviendo…",
+        "done": "El repositorio tiene una nueva dirección.",
+        "taken": "Ya existe un repositorio con este nombre en esa ubicación.",
+        "notAllowed": "Solo puedes transferir un repositorio a tu propio espacio o a un grupo del que eres Responsable.",
+        "failed": "No se ha podido renombrar ni transferir el repositorio."
+      }
     },
     "tree": {
       "toggle": "{{ action }} {{ name }}"

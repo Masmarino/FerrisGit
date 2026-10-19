@@ -3,8 +3,9 @@ use crate::error::{conflict_on_duplicate, infra};
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::repository::{
-    NewRepository, Repository, RepositoryStorePort, RepositoryVisibility,
+    NewRepository, Repository, RepositoryRelocation, RepositoryStorePort, RepositoryVisibility,
 };
+use ferrisgit_domain::wiki::wiki_disk_path_for;
 use sqlx::PgPool;
 use uuid::Uuid;
 
@@ -100,6 +101,125 @@ impl RepositoryStorePort for PostgresRepositoryStore {
             .await
             .map_err(infra)?;
         row.map(Repository::try_from).transpose()
+    }
+
+    // Runtime queries from here to `relocate`, so they need no .sqlx entry.
+    async fn find_redirect_by_owner_and_name(
+        &self,
+        owner_id: Uuid,
+        name: &str,
+    ) -> Result<Option<Repository>, DomainError> {
+        let row = sqlx::query_as::<_, RepositoryRow>(
+            "SELECT r.id, r.owner_id, r.name, r.group_id, r.description, r.disk_path, r.visibility, r.created_at \
+             FROM repository_redirects d JOIN repositories r ON r.id = d.repository_id \
+             WHERE d.owner_id = $1 AND d.name = $2",
+        )
+        .bind(owner_id)
+        .bind(name)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(infra)?;
+        row.map(Repository::try_from).transpose()
+    }
+
+    async fn find_redirect_by_group_and_name(
+        &self,
+        group_id: Uuid,
+        name: &str,
+    ) -> Result<Option<Repository>, DomainError> {
+        let row = sqlx::query_as::<_, RepositoryRow>(
+            "SELECT r.id, r.owner_id, r.name, r.group_id, r.description, r.disk_path, r.visibility, r.created_at \
+             FROM repository_redirects d JOIN repositories r ON r.id = d.repository_id \
+             WHERE d.group_id = $1 AND d.name = $2",
+        )
+        .bind(group_id)
+        .bind(name)
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(infra)?;
+        row.map(Repository::try_from).transpose()
+    }
+
+    async fn relocate(
+        &self,
+        id: Uuid,
+        relocation: RepositoryRelocation,
+    ) -> Result<Repository, DomainError> {
+        let mut tx = self.pool.begin().await.map_err(infra)?;
+        let old = sqlx::query_as::<_, RepositoryRow>(
+            "SELECT id, owner_id, name, group_id, description, disk_path, visibility, created_at \
+             FROM repositories WHERE id = $1 FOR UPDATE",
+        )
+        .bind(id)
+        .fetch_optional(&mut *tx)
+        .await
+        .map_err(infra)?
+        .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
+
+        let moved = sqlx::query_as::<_, RepositoryRow>(
+            "UPDATE repositories SET name = $2, owner_id = $3, group_id = $4, disk_path = $5 WHERE id = $1 \
+             RETURNING id, owner_id, name, group_id, description, disk_path, visibility, created_at",
+        )
+        .bind(id)
+        .bind(&relocation.name)
+        .bind(relocation.owner_id)
+        .bind(relocation.group_id)
+        .bind(&relocation.disk_path)
+        .fetch_one(&mut *tx)
+        .await
+        .map_err(conflict_on_duplicate(|| {
+            format!(
+                "a repository named '{}' already exists there",
+                relocation.name
+            )
+        }))?;
+
+        sqlx::query("UPDATE wikis SET disk_path = $2 WHERE repository_id = $1")
+            .bind(id)
+            .bind(wiki_disk_path_for(&relocation.disk_path))
+            .execute(&mut *tx)
+            .await
+            .map_err(infra)?;
+
+        // The new path is the repository's own now: a redirect left there by an earlier move is spent.
+        sqlx::query(
+            "DELETE FROM repository_redirects WHERE name = $1 \
+             AND ((group_id IS NULL AND $3::uuid IS NULL AND owner_id = $2) OR group_id = $3)",
+        )
+        .bind(&relocation.name)
+        .bind(relocation.owner_id)
+        .bind(relocation.group_id)
+        .execute(&mut *tx)
+        .await
+        .map_err(infra)?;
+
+        let old_path_moved = old.name != relocation.name
+            || old.group_id != relocation.group_id
+            || (old.group_id.is_none() && old.owner_id != relocation.owner_id);
+        if old_path_moved {
+            let leave_redirect = match old.group_id {
+                Some(_) => {
+                    "INSERT INTO repository_redirects (repository_id, group_id, name) VALUES ($1, $2, $3) \
+                     ON CONFLICT (group_id, name) WHERE group_id IS NOT NULL \
+                     DO UPDATE SET repository_id = EXCLUDED.repository_id, created_at = now()"
+                }
+                None => {
+                    "INSERT INTO repository_redirects (repository_id, owner_id, name) VALUES ($1, $2, $3) \
+                     ON CONFLICT (owner_id, name) WHERE owner_id IS NOT NULL \
+                     DO UPDATE SET repository_id = EXCLUDED.repository_id, created_at = now()"
+                }
+            };
+            sqlx::query(leave_redirect)
+                .bind(id)
+                .bind(old.group_id.unwrap_or(old.owner_id))
+                .bind(&old.name)
+                .execute(&mut *tx)
+                .await
+                .map_err(infra)?;
+        }
+
+        tx.commit().await.map_err(infra)?;
+        Repository::try_from(moved)
     }
 
     async fn delete(&self, id: Uuid) -> Result<(), DomainError> {
@@ -921,5 +1041,146 @@ mod tests {
             .await;
 
         assert!(matches!(result, Err(DomainError::NotFound(_))));
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn a_renamed_repository_is_found_again_through_its_old_name_until_that_name_is_taken(
+        pool: PgPool,
+    ) {
+        let owner_id = crate::postgres::test_support::seed_user(&pool, "florian").await;
+        let store = PostgresRepositoryStore::new(pool.clone());
+        let repo = store
+            .create(
+                NewRepository {
+                    owner_id,
+                    name: "hello".to_string(),
+                    group_id: None,
+                    description: String::new(),
+                    visibility: RepositoryVisibility::Private,
+                },
+                format!("{owner_id}/hello.git"),
+            )
+            .await
+            .unwrap();
+        sqlx::query("INSERT INTO wikis (repository_id, disk_path) VALUES ($1, $2)")
+            .bind(repo.id)
+            .bind(format!("{owner_id}/hello.wiki.git"))
+            .execute(&pool)
+            .await
+            .unwrap();
+
+        let renamed = store
+            .relocate(
+                repo.id,
+                RepositoryRelocation {
+                    name: "world".to_string(),
+                    owner_id,
+                    group_id: None,
+                    disk_path: format!("{owner_id}/world.git"),
+                },
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(renamed.name, "world");
+        assert_eq!(renamed.disk_path, format!("{owner_id}/world.git"));
+        let wiki_path: String =
+            sqlx::query_scalar("SELECT disk_path FROM wikis WHERE repository_id = $1")
+                .bind(repo.id)
+                .fetch_one(&pool)
+                .await
+                .unwrap();
+        assert_eq!(wiki_path, format!("{owner_id}/world.wiki.git"));
+        assert!(
+            store
+                .find_by_owner_and_name(owner_id, "hello")
+                .await
+                .unwrap()
+                .is_none()
+        );
+        let redirected = store
+            .find_redirect_by_owner_and_name(owner_id, "hello")
+            .await
+            .unwrap()
+            .expect("the old name redirects");
+        assert_eq!(redirected.id, repo.id);
+
+        // Renamed back: the redirect at "hello" is spent, and "world" now redirects.
+        store
+            .relocate(
+                repo.id,
+                RepositoryRelocation {
+                    name: "hello".to_string(),
+                    owner_id,
+                    group_id: None,
+                    disk_path: format!("{owner_id}/hello.git"),
+                },
+            )
+            .await
+            .unwrap();
+        assert!(
+            store
+                .find_redirect_by_owner_and_name(owner_id, "hello")
+                .await
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(
+            store
+                .find_redirect_by_owner_and_name(owner_id, "world")
+                .await
+                .unwrap()
+                .map(|r| r.id),
+            Some(repo.id)
+        );
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn moving_onto_a_taken_path_is_a_conflict_and_changes_nothing(pool: PgPool) {
+        let owner_id = crate::postgres::test_support::seed_user(&pool, "florian").await;
+        let store = PostgresRepositoryStore::new(pool.clone());
+        let new = |name: &str| NewRepository {
+            owner_id,
+            name: name.to_string(),
+            group_id: None,
+            description: String::new(),
+            visibility: RepositoryVisibility::Private,
+        };
+        let hello = store
+            .create(new("hello"), format!("{owner_id}/hello.git"))
+            .await
+            .unwrap();
+        store
+            .create(new("world"), format!("{owner_id}/world.git"))
+            .await
+            .unwrap();
+
+        let result = store
+            .relocate(
+                hello.id,
+                RepositoryRelocation {
+                    name: "world".to_string(),
+                    owner_id,
+                    group_id: None,
+                    disk_path: format!("{owner_id}/world.git"),
+                },
+            )
+            .await;
+
+        assert!(
+            matches!(result, Err(DomainError::Conflict(_))),
+            "{result:?}"
+        );
+        assert_eq!(
+            store.find_by_id(hello.id).await.unwrap().unwrap().name,
+            "hello"
+        );
+        assert!(
+            store
+                .find_redirect_by_owner_and_name(owner_id, "hello")
+                .await
+                .unwrap()
+                .is_none()
+        );
     }
 }

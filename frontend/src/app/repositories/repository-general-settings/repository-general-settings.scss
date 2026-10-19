@@ -41,3 +41,17 @@
   flex-direction: column;
   gap: 0.625rem;
 }
+
+.repository-general-settings__move-fields {
+  @include settings-section.field-row(minmax(0, 3fr) minmax(0, 2fr));
+}
+
+.repository-general-settings__move-actions {
+  @include settings-section.form-actions;
+}
+
+@container settings-card (max-width: 519px) {
+  .repository-general-settings__move-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

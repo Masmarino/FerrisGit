@@ -28,6 +28,12 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
   its default method under *Réglages > Pipeline* (`defaultMergeMethod`), used when a merge names none
   (`POST /api/merge-requests/{id}/merge` takes an optional `{ "method": … }`). The source branch is never rewritten, and
   the timeline says when a merge was a squash or a rebase.
+- Renaming and transferring a repository: under *Réglages > Informations > Nom et emplacement*, a Maintainer changes a
+  repository's name, or moves it to their own namespace or to a group they maintain (`PATCH
+  /api/repositories/by-id/{id}` with `name` and/or `namespace`). The repository and its wiki move on disk, and the old
+  path is kept as a redirect: Git clones, fetches and pushes through it, the API and `/api/resolve` answer with the
+  repository as it is now (`path` gives its current address), and the interface, public pages included, moves to the
+  new address. A redirect ends once another repository takes that path.
 - A visual pipeline editor: from a repository's pipeline list, or the quick search, "Éditer la pipeline" opens the
   stages as columns and the jobs as cards to drag between them, or the YAML itself, the two views describing the same
   file. Contributors and above are offered it. The server's own parser reads, writes and checks it

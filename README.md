@@ -35,7 +35,9 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 - Git over HTTP (smart protocol): clone, fetch and push, authenticated with your username and a personal access token
   (public repositories can be cloned anonymously while the public pages are on).
 - Repositories owned by a user or nested inside hierarchical **groups**, public or private (the description and the
-  visibility can be changed afterwards; any signed-in user can create a top-level group).
+  visibility can be changed afterwards; any signed-in user can create a top-level group). A repository can be
+  **renamed or transferred** to its Maintainer's own namespace or to a group they maintain; its old path keeps working
+  as a redirect, for Git and for the web interface, until another repository takes it.
 - Per-repository and per-group roles: **Reader**, **Contributor** and **Maintainer**.
 - **Protected branches**: Maintainers name branches (or `*` patterns such as `release/*`) that nobody pushes to; a push
   that would move, force-push or delete one is refused over Git HTTP with the reason, and changes arrive through a merge

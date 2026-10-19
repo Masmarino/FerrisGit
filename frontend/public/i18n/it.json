@@ -1520,11 +1520,26 @@
       "descriptionFailed": "Impossibile aggiornare la descrizione.",
       "visibilityFailed": "Impossibile cambiare la visibilità del repository.",
       "failed": "Non è stato possibile caricare le informazioni del repository.",
-      "help": "Ciò che i visitatori leggono sul repository e chi può vederlo. Ogni impostazione viene salvata appena la modifichi. Il nome e il proprietario non si modificano: fanno parte dell'URL di clonazione.",
+      "help": "Ciò che i visitatori leggono sul repository e chi può vederlo. Ogni impostazione viene salvata appena la modifichi.",
       "loading": "Caricamento delle informazioni del repository…",
       "descriptionPlaceholder": "A cosa serve questo repository?",
       "descriptionHint": "Mostrata sotto il nome del repository e negli elenchi.",
-      "visibilityLabel": "Visibilità del repository"
+      "visibilityLabel": "Visibilità del repository",
+      "move": {
+        "title": "Nome e posizione",
+        "help": "Rinominare o trasferire il repository ne cambia l'indirizzo. Quello vecchio continua a funzionare, per Git e per l'interfaccia, finché nessun altro repository lo riprende.",
+        "namespace": "Spazio",
+        "namespaceHint": "Il tuo nome utente, o il percorso di un gruppo di cui sei Manutentore (acme/backend).",
+        "nameProblem": "Solo lettere, cifre, - e _.",
+        "submit": "Rinomina o trasferisci",
+        "confirmTitle": "Cambia l'indirizzo del repository",
+        "confirmMessage": "«{{ from }}» diventerà «{{ to }}». I vecchi link e URL di clonazione rimanderanno al nuovo indirizzo; aggiorna comunque i tuoi remote Git.",
+        "moving": "Spostamento…",
+        "done": "Il repository ha un nuovo indirizzo.",
+        "taken": "Esiste già un repository con questo nome in quella posizione.",
+        "notAllowed": "Puoi trasferire un repository solo nel tuo spazio o in un gruppo di cui sei Manutentore.",
+        "failed": "Impossibile rinominare o trasferire il repository."
+      }
     },
     "tree": {
       "toggle": "{{ action }} {{ name }}"

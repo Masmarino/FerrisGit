@@ -71,7 +71,7 @@ Réponse 200 : un tableau de dépôts (sans `starCount`, `isStarred` ni `sizeByt
 
 ### `GET /api/repositories/{owner}/{name}`
 
-Renvoie un dépôt **personnel** par le nom de son propriétaire et le sien. Pour un dépôt de groupe, passez par `GET /api/resolve/{*path}` puis `GET /api/repositories/by-id/{id}`.
+Renvoie un dépôt **personnel** par le nom de son propriétaire et le sien. Pour un dépôt de groupe, passez par `GET /api/resolve/{*path}` puis `GET /api/repositories/by-id/{id}`. Une ancienne adresse d'un dépôt renommé ou transféré renvoie le dépôt tel qu'il est maintenant (`path` donne sa nouvelle adresse).
 
 Rôle minimal : Lecteur. Réponse 200 : le dépôt, avec `starCount`, `isStarred` et `sizeBytes`. Erreur : 404 `repository`.
 
@@ -81,7 +81,7 @@ Renvoie un dépôt par son identifiant, personnel ou de groupe. Rôle minimal : 
 
 ### `PATCH /api/repositories/by-id/{id}`
 
-Modifie la description et la visibilité d'un dépôt. Seuls les champs présents changent ; un corps `{}` ne change rien et renvoie le dépôt tel qu'il est.
+Modifie la description et la visibilité d'un dépôt, le renomme ou le transfère. Seuls les champs présents changent ; un corps `{}` ne change rien et renvoie le dépôt tel qu'il est.
 
 Rôle minimal : Mainteneur (le propriétaire d'un dépôt personnel en a tous les droits). Un Contributeur, un Lecteur ou un utilisateur sans accès reçoit 404.
 
@@ -91,12 +91,16 @@ Corps :
 |---|---|---|---|
 | `description` | texte | non | Nouvelle description. Une chaîne vide efface la description. |
 | `visibility` | texte | non | `private` ou `public`. |
+| `name` | texte | non | Nouveau nom : lettres, chiffres, `-` et `_`. |
+| `namespace` | texte | non | Où transférer le dépôt : votre nom d'utilisateur, ou le chemin d'un groupe dont vous êtes Mainteneur (`acme/backend`). |
 
-Réponse 200 : le dépôt, avec `starCount`, `isStarred` et `sizeBytes`.
+Réponse 200 : le dépôt, avec `starCount`, `isStarred` et `sizeBytes`. Après un renommage ou un transfert, `path` est la nouvelle adresse.
+
+Un renommage ou un transfert déplace le dépôt et son wiki, et laisse l'ancienne adresse en **redirection** : `GET /api/resolve/{*path}`, `GET /api/repositories/{owner}/{name}`, l'API publique et Git (clonage, récupération et push) la suivent jusqu'au dépôt, tant qu'aucun autre dépôt ne prend cette adresse. Transféré dans un groupe, le dépôt garde son créateur comme `owner` ; transféré dans votre espace, vous en devenez le propriétaire.
 
 Le changement de visibilité est immédiat. Un dépôt rendu privé disparaît du catalogue public et de l'API publique (`/api/public/…`), et le clonage anonyme cesse de fonctionner ; rendu public, il apparaît dans le catalogue (si les pages publiques sont activées).
 
-Erreurs : 400 `unknown visibility: …` (rien n'est modifié), 404 `repository`.
+Erreurs : 400 `unknown visibility: …` (rien n'est modifié), 400 `repository name must be non-empty and alphanumeric/-/_ only`, 400 `a repository can only be transferred to your own namespace or to a group you maintain`, 404 `repository`, 409 `a repository named '…' already exists there`.
 
 ```bash
 curl -s -X PATCH "$BASE/api/repositories/by-id/$REPO_ID" -H "Authorization: Bearer $JWT" \
@@ -318,18 +322,18 @@ Transforme un chemin (`alice/blog`, `acme/backend/api`, `acme/backend`) en ident
 Réponse 200, selon le type de la cible :
 
 ```json
-{ "type": "personalRepository", "repositoryId": "3c1f…" }
+{ "type": "personalRepository", "repositoryId": "3c1f…", "path": ["alice", "blog"] }
 ```
 
 ```json
-{ "type": "groupRepository", "repositoryId": "3c1f…", "chain": [ { "id": "7d2a…", "name": "acme" }, { "id": "81b0…", "name": "backend" } ] }
+{ "type": "groupRepository", "repositoryId": "3c1f…", "chain": [ { "id": "7d2a…", "name": "acme" }, { "id": "81b0…", "name": "backend" } ], "path": ["acme", "backend", "api"] }
 ```
 
 ```json
 { "type": "group", "groupId": "81b0…", "chain": [ { "id": "7d2a…", "name": "acme" }, { "id": "81b0…", "name": "backend" } ], "role": "maintainer" }
 ```
 
-`chain` liste les groupes depuis la racine. Pour un groupe, `role` est votre rôle effectif, héritage compris.
+`chain` liste les groupes depuis la racine. Pour un groupe, `role` est votre rôle effectif, héritage compris. Pour un dépôt, `path` est son adresse actuelle : elle diffère du chemin demandé quand celui-ci est l'ancienne adresse d'un dépôt renommé ou transféré, et `chain` décrit alors son groupe actuel.
 
 Erreur : 404 `path` pour un chemin vide, inconnu, ou que vous n'avez pas le droit de voir (la réponse est la même).
 
