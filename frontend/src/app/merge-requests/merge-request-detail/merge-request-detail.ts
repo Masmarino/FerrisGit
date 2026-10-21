@@ -1,9 +1,10 @@
-import { Component, computed, inject, input, OnInit, signal, viewChild } from '@angular/core';
+import { Component, computed, effect, inject, input, OnInit, signal, untracked, viewChild } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
 import { RouterLink } from '@angular/router';
 import { Observable } from 'rxjs';
-import { Comment, FileDiff, MergeRequestSummary, MergeRequestsService, ReviewSummary, TimelineResponse } from '../merge-requests.service';
+import { Comment, FileDiff, MergeMethod, MergeRequestSummary, MergeRequestsService, ReviewSummary, TimelineResponse } from '../merge-requests.service';
+import { RepositorySettingsService } from '../../repositories/repository-settings.service';
 import { PageTitleService } from '../../shell/page-title.service';
 import { injectRepositoryPermissions } from '../../repositories/repository-role';
 import { RepositoryContextService } from '../../repositories/repository-context.service';
@@ -125,6 +126,7 @@ export class MergeRequestDetail implements OnInit {
   private milestonesService = inject(MilestonesService);
   private toast = inject(GbtToastService);
   private repositoryContext = inject(RepositoryContextService);
+  private repositorySettings = inject(RepositorySettingsService);
 
   private timelineView = viewChild(MergeRequestTimeline);
 
@@ -138,6 +140,13 @@ export class MergeRequestDetail implements OnInit {
   protected canWrite = this.permissions.canWrite;
   /** The server only lets the owner and Maintainers merge, so a Contributor gets no button. */
   protected canMerge = this.permissions.canMaintain;
+  /** Starts on the repository's default method once its settings load (only Maintainers, who merge, can read them). */
+  protected mergeMethod = signal<MergeMethod>('merge');
+  protected readonly mergeMethodOptions: SelectOption<MergeMethod>[] = [
+    { value: 'merge', label: t('mergeRequests.method.merge') },
+    { value: 'squash', label: t('mergeRequests.method.squash') },
+    { value: 'rebase', label: t('mergeRequests.method.rebase') },
+  ];
   protected labels = signal<Label[]>([]);
   protected milestones = signal<Milestone[]>([]);
 
@@ -220,6 +229,23 @@ export class MergeRequestDetail implements OnInit {
   });
 
   protected readonly skeletonLines = ['92%', '78%', '64%'];
+
+  constructor() {
+    let defaultLoaded = false;
+    effect(() => {
+      if (!this.canMerge() || defaultLoaded) {
+        return;
+      }
+      defaultLoaded = true;
+      untracked(() =>
+        this.repositorySettings.get(this.repositoryId()).subscribe({
+          next: (settings) => this.mergeMethod.set(settings.defaultMergeMethod),
+          // The merge still works without it, with 'merge' preselected.
+          error: () => {},
+        }),
+      );
+    });
+  }
 
   ngOnInit(): void {
     this.mergeRequests.detail(this.mergeRequestId()).subscribe({
@@ -356,7 +382,7 @@ export class MergeRequestDetail implements OnInit {
 
   protected merge(): void {
     this.mergeConflict.set(false);
-    this.mergeRequests.merge(this.mergeRequestId()).subscribe({
+    this.mergeRequests.merge(this.mergeRequestId(), this.mergeMethod()).subscribe({
       next: (result) => {
         if (result.outcome === 'conflicting') {
           this.mergeConflict.set(true);
@@ -366,7 +392,7 @@ export class MergeRequestDetail implements OnInit {
         this.reloadTimeline();
         this.toast.show(t('mergeRequests.mergedToast'));
       },
-      // A refused merge says which condition is missing (approvals, a pipeline): show it rather than a generic error.
+      // A refused merge says why (approvals, a pipeline, a branch that can't be rebased): show it rather than a generic error.
       error: (error: HttpErrorResponse) => {
         const reason = error.status === 400 && typeof error.error?.error === 'string' ? error.error.error : null;
         this.toast.show(reason ? t('mergeRequests.mergeRefused', { reason }) : t('mergeRequests.mergeError'), 'error');

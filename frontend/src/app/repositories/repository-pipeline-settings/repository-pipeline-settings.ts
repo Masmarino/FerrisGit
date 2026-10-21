@@ -8,19 +8,21 @@ import { Card, CardHeader } from '@masmarino/gabarit/card';
 import { GbtInput } from '@masmarino/gabarit/input';
 import { SaveStatus } from '@masmarino/gabarit/save-status';
 import { Skeleton } from '@masmarino/gabarit/skeleton';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
 import { Switch } from '@masmarino/gabarit/switch';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { RepositorySettings as RepositorySettingsModel, RepositorySettingsService } from '../repository-settings.service';
+import { MergeMethod } from '../../merge-requests/merge-requests.service';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { t } from '../../shared/i18n/translator';
 
-type Field = 'ciEnabled' | 'pipelineFilePath' | 'requiredApprovals' | 'pipelineMustSucceed';
+type Field = 'ciEnabled' | 'pipelineFilePath' | 'requiredApprovals' | 'pipelineMustSucceed' | 'defaultMergeMethod';
 type SaveState = 'saving' | 'saved' | 'error';
 
 @Component({
   selector: 'fg-repository-pipeline-settings',
   standalone: true,
-  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, Alert, Button, GbtInput, SaveStatus, Skeleton, Switch, Card, CardHeader],
+  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, Alert, Button, GbtInput, SaveStatus, Skeleton, Select, Switch, Card, CardHeader],
   templateUrl: './repository-pipeline-settings.html',
   styleUrl: './repository-pipeline-settings.scss',
 })
@@ -43,6 +45,11 @@ export class RepositoryPipelineSettings implements OnInit {
   protected saveStates = signal<Partial<Record<Field, SaveState>>>({});
   protected pathError = signal<string | null>(null);
   protected approvalsError = signal<string | null>(null);
+  protected readonly mergeMethodOptions: SelectOption<MergeMethod>[] = [
+    { value: 'merge', label: t('mergeRequests.method.merge') },
+    { value: 'squash', label: t('mergeRequests.method.squash') },
+    { value: 'rebase', label: t('mergeRequests.method.rebase') },
+  ];
 
   ngOnInit(): void {
     this.refresh();
@@ -115,6 +122,13 @@ export class RepositoryPipelineSettings implements OnInit {
       return;
     }
     this.save('requiredApprovals', this.repositorySettings.update(this.repositoryId(), { requiredApprovals: parsed }), t('repositories.pipeline.approvalsFailed'));
+  }
+
+  updateDefaultMergeMethod(method: MergeMethod): void {
+    if (!this.settings() || method === this.settings()?.defaultMergeMethod) {
+      return;
+    }
+    this.save('defaultMergeMethod', this.repositorySettings.update(this.repositoryId(), { defaultMergeMethod: method }), t('repositories.pipeline.mergeMethodFailed'));
   }
 
   private save(field: Field, request: Observable<RepositorySettingsModel>, errorMessage: string, onError?: () => void): void {

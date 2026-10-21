@@ -41,7 +41,8 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
   that would move, force-push or delete one is refused over Git HTTP with the reason, and changes arrive through a merge
   request.
 - **Merge requests** with threaded inline comments, code suggestions that can be applied from the interface,
-  approvals and change requests, conflict detection, and a timeline of everything that happened.
+  approvals and change requests, conflict detection, and a timeline of everything that happened. They land as a merge
+  commit, squashed into one commit, or rebased onto the target, with a default method per repository.
 - **Issues** with labels, milestones, assignees and a kanban board.
 - **Wikis** stored as a Git repository of their own, **releases** with attached assets, and repository stars.
 - **Webhooks** for merge request, collaborator, pipeline and issue events, with secrets encrypted at rest.

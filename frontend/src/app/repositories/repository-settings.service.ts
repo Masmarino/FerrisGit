@@ -1,6 +1,7 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { MemberRole } from './repositories.service';
+import { MergeMethod } from '../merge-requests/merge-requests.service';
 
 export interface RepositorySettings {
   pipelineFilePath: string;
@@ -8,6 +9,8 @@ export interface RepositorySettings {
   requiredApprovals: number;
   /** A merge waits for the latest merge request pipeline, the one of the current source commit, to succeed. */
   pipelineMustSucceed: boolean;
+  /** The merge method offered first, and used when a merge names none. */
+  defaultMergeMethod: MergeMethod;
 }
 
 export interface ProtectedBranchRule {

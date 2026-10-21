@@ -1179,7 +1179,9 @@
       "mergedNoActor": "Zusammengeführt",
       "closed": "hat diesen Merge-Request geschlossen",
       "closedNoActor": "Geschlossen",
-      "other": "hat eine Aktion ausgeführt"
+      "other": "hat eine Aktion ausgeführt",
+      "bySquash": "per Squash",
+      "byRebase": "per Rebase"
     },
     "review": {
       "changesRequested": "Es wurden Änderungen angefordert.",
@@ -1304,6 +1306,12 @@
       "onCommit": "auf Commit",
       "open": "Pipeline ansehen",
       "started": "hat die Merge-Pipeline gestartet, auf Commit"
+    },
+    "method": {
+      "label": "Merge-Methode",
+      "merge": "Merge-Commit",
+      "squash": "Squash",
+      "rebase": "Rebase"
     },
     "mergeRefused": "Merge abgelehnt: {{ reason }}"
   },
@@ -1582,7 +1590,10 @@
       "zeroApprovals": "0, um ohne Genehmigung zusammenzuführen.",
       "mustSucceed": "Erfolgreiche Pipeline vor dem Merge verlangen",
       "mustSucceedHint": "Jeder Merge-Request startet eine Pipeline auf seinem Quell-Branch, zusammengeführt mit dem Ziel-Branch. Wenn aktiviert, wartet der Merge, bis die des letzten Commits des Quell-Branches erfolgreich war.",
-      "mustSucceedFailed": "Die Pipeline-Anforderung konnte nicht geändert werden."
+      "mustSucceedFailed": "Die Pipeline-Anforderung konnte nicht geändert werden.",
+      "mergeMethod": "Standard-Merge-Methode",
+      "mergeMethodHint": "Wird bei jedem Merge-Request zuerst angeboten. Merge-Commit: Die Commits behalten ihre IDs. Squash: ein einziger Commit im Namen des Autors des Requests. Rebase: Jeder Commit wird auf dem Ziel-Branch neu angewendet, ohne Merge-Commit.",
+      "mergeMethodFailed": "Die Merge-Methode konnte nicht geändert werden."
     },
     "search": "Name oder Pfad",
     "listFailed": "Diese Liste konnte nicht geladen werden.",

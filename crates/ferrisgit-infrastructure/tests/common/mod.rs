@@ -22,6 +22,7 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
             ci_enabled: true,
             required_approvals: 0,
             pipeline_must_succeed: false,
+            default_merge_method: Default::default(),
         })
     }
     async fn update(

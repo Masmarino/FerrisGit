@@ -148,7 +148,7 @@ mod tests {
     use crate::use_cases::fixtures::{merge_request, pipeline, repository, system_settings};
     use async_trait::async_trait;
     use ferrisgit_domain::branch::BranchInfo;
-    use ferrisgit_domain::merge_executor::{MergeOutcome, MergeRef};
+    use ferrisgit_domain::merge_executor::{MergeOutcome, MergeRef, MergeRequestMerge};
     use ferrisgit_domain::settings::RepositorySettings;
     use std::sync::Mutex;
 
@@ -165,9 +165,7 @@ mod tests {
         async fn merge(
             &self,
             _repository_disk_path: &str,
-            _source_branch: &str,
-            _target_branch: &str,
-            _message: &str,
+            _merge: &MergeRequestMerge,
         ) -> Result<MergeOutcome, DomainError> {
             unimplemented!()
         }
@@ -223,6 +221,7 @@ mod tests {
                 ci_enabled: true,
                 required_approvals: 0,
                 pipeline_must_succeed: false,
+                default_merge_method: Default::default(),
             })),
             Arc::new(FakeSystemSettings::new(system_settings())),
             pipelines.clone(),

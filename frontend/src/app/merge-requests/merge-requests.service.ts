@@ -146,6 +146,9 @@ export interface TimelineResponse {
   items: TimelineItem[];
 }
 
+/** How a merge request lands: a merge commit, one squashed commit, or its commits rebased onto the target. */
+export type MergeMethod = 'merge' | 'squash' | 'rebase';
+
 export type MergeAttemptResult = (MergeRequestSummary & { outcome: 'merged' }) | { outcome: 'conflicting' };
 
 export interface CreateMergeRequestPayload {
@@ -222,8 +225,9 @@ export class MergeRequestsService {
     return this.http.post<Review>(`/api/merge-requests/${id}/reviews`, { decision });
   }
 
-  merge(id: string) {
-    return this.http.post<MergeAttemptResult>(`/api/merge-requests/${id}/merge`, {});
+  /** Without a method, the server applies the repository's default one. */
+  merge(id: string, method?: MergeMethod) {
+    return this.http.post<MergeAttemptResult>(`/api/merge-requests/${id}/merge`, method ? { method } : {});
   }
 
   close(id: string) {

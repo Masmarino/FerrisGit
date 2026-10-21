@@ -3,7 +3,9 @@ use std::sync::Arc;
 use ferrisgit_domain::branch::BranchReaderPort;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::job::JobStorePort;
-use ferrisgit_domain::merge_executor::{MergeExecutorPort, MergeOutcome};
+use ferrisgit_domain::merge_executor::{
+    CommitAuthor, MergeExecutorPort, MergeMethod, MergeOutcome, MergeRequestMerge,
+};
 use ferrisgit_domain::merge_request::{
     MergeRequest, MergeRequestReviewPort, MergeRequestStatus, MergeRequestStorePort, ReviewDecision,
 };
@@ -26,7 +28,8 @@ use crate::use_cases::source_branch_tip::source_branch_tip;
 
 #[derive(Debug)]
 pub enum MergeMergeRequestResult {
-    Merged(Box<MergeRequest>),
+    /// The merge request as merged, and the method it was merged with.
+    Merged(Box<MergeRequest>, MergeMethod),
     Conflicting,
 }
 
@@ -34,8 +37,14 @@ impl PartialEq for MergeMergeRequestResult {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (MergeMergeRequestResult::Conflicting, MergeMergeRequestResult::Conflicting) => true,
-            (MergeMergeRequestResult::Merged(a), MergeMergeRequestResult::Merged(b)) => {
-                a.id == b.id && a.status == b.status && a.merge_commit_sha == b.merge_commit_sha
+            (
+                MergeMergeRequestResult::Merged(a, a_method),
+                MergeMergeRequestResult::Merged(b, b_method),
+            ) => {
+                a.id == b.id
+                    && a.status == b.status
+                    && a.merge_commit_sha == b.merge_commit_sha
+                    && a_method == b_method
             }
             _ => false,
         }
@@ -98,12 +107,13 @@ impl MergeMergeRequestUseCase {
         }
     }
 
-    /// Clean merges only. The pipeline on the new tip is started here, since the merge commit never goes through the
-    /// push path that normally triggers one.
+    /// Clean merges only, with `method` or else the repository's default one. The pipeline on the new tip is started
+    /// here, since the merge never goes through the push path that normally triggers one.
     pub async fn execute(
         &self,
         merge_request_id: Uuid,
         user_id: Uuid,
+        method: Option<MergeMethod>,
     ) -> Result<MergeMergeRequestResult, DomainError> {
         let mr = self
             .merge_requests
@@ -142,17 +152,28 @@ impl MergeMergeRequestUseCase {
             }
         }
 
-        let message = format!(
-            "Merge branch '{}' into {}",
-            mr.source_branch, mr.target_branch
-        );
+        let method = method.unwrap_or(settings.default_merge_method);
+        let (message, squash_author) = match method {
+            MergeMethod::Squash => (squash_message(&mr), self.squash_author(&mr).await?),
+            MergeMethod::Merge | MergeMethod::Rebase => (
+                format!(
+                    "Merge branch '{}' into {}",
+                    mr.source_branch, mr.target_branch
+                ),
+                None,
+            ),
+        };
         let outcome = self
             .merge_executor
             .merge(
                 &repo.disk_path,
-                &mr.source_branch,
-                &mr.target_branch,
-                &message,
+                &MergeRequestMerge {
+                    source_branch: mr.source_branch.clone(),
+                    target_branch: mr.target_branch.clone(),
+                    method,
+                    message,
+                    squash_author,
+                },
             )
             .await?;
 
@@ -222,9 +243,24 @@ impl MergeMergeRequestUseCase {
                     }
                 }
 
-                Ok(MergeMergeRequestResult::Merged(Box::new(merged)))
+                Ok(MergeMergeRequestResult::Merged(Box::new(merged), method))
             }
         }
+    }
+
+    /// The author of the merge request, whose change the squash commit is. `None` once their account is gone.
+    async fn squash_author(&self, mr: &MergeRequest) -> Result<Option<CommitAuthor>, DomainError> {
+        let Some(author_id) = mr.author_id else {
+            return Ok(None);
+        };
+        Ok(self
+            .users
+            .find_by_id(author_id)
+            .await?
+            .map(|user| CommitAuthor {
+                name: user.username,
+                email: user.email,
+            }))
     }
 
     /// Only reviews of the current tip count, a push after a review makes it stale.
@@ -262,6 +298,16 @@ impl MergeMergeRequestUseCase {
             )));
         }
         Ok(())
+    }
+}
+
+/// A squash commit says what the merge request did: its title, then its description when it has one.
+fn squash_message(mr: &MergeRequest) -> String {
+    let description = mr.description.trim();
+    if description.is_empty() {
+        mr.title.clone()
+    } else {
+        format!("{}\n\n{description}", mr.title)
     }
 }
 
@@ -323,6 +369,7 @@ mod tests {
     struct FakeMergeExecutor {
         outcome: MergeOutcome,
         calls: Mutex<Vec<(String, String, String)>>,
+        requests: Mutex<Vec<MergeRequestMerge>>,
     }
 
     impl FakeMergeExecutor {
@@ -330,6 +377,7 @@ mod tests {
             Self {
                 outcome,
                 calls: Mutex::new(vec![]),
+                requests: Mutex::new(vec![]),
             }
         }
     }
@@ -339,15 +387,14 @@ mod tests {
         async fn merge(
             &self,
             repository_disk_path: &str,
-            source_branch: &str,
-            target_branch: &str,
-            _message: &str,
+            merge: &MergeRequestMerge,
         ) -> Result<MergeOutcome, DomainError> {
             self.calls.lock().unwrap().push((
                 repository_disk_path.to_string(),
-                source_branch.to_string(),
-                target_branch.to_string(),
+                merge.source_branch.clone(),
+                merge.target_branch.clone(),
             ));
+            self.requests.lock().unwrap().push(merge.clone());
             Ok(self.outcome.clone())
         }
     }
@@ -375,6 +422,7 @@ mod tests {
         pipeline_must_succeed: bool,
         /// Merge request pipelines already run.
         pipelines: Vec<Pipeline>,
+        default_merge_method: MergeMethod,
         /// Accounts besides the repository owner.
         accounts: Vec<Uuid>,
         owner_has_an_account: bool,
@@ -392,6 +440,7 @@ mod tests {
                 required_approvals: 0,
                 pipeline_must_succeed: false,
                 pipelines: vec![],
+                default_merge_method: MergeMethod::Merge,
                 accounts: vec![],
                 owner_has_an_account: false,
             }
@@ -435,6 +484,7 @@ mod tests {
                     ci_enabled: false,
                     required_approvals: self.required_approvals,
                     pipeline_must_succeed: self.pipeline_must_succeed,
+                    default_merge_method: self.default_merge_method,
                 })),
                 Arc::new(FakeSystemSettings::default()),
                 pipelines.clone(),
@@ -474,7 +524,7 @@ mod tests {
     impl Harness {
         async fn merge_as_author(&self) -> Result<MergeMergeRequestResult, DomainError> {
             self.use_case
-                .execute(self.mr.id, self.mr.author_id.unwrap())
+                .execute(self.mr.id, self.mr.author_id.unwrap(), None)
                 .await
         }
 
@@ -489,7 +539,7 @@ mod tests {
 
         let result = h.merge_as_author().await.unwrap();
 
-        let MergeMergeRequestResult::Merged(merged) = result else {
+        let MergeMergeRequestResult::Merged(merged, _) = result else {
             panic!("expected a clean merge")
         };
         assert_eq!(merged.status, MergeRequestStatus::Merged);
@@ -544,7 +594,10 @@ mod tests {
     async fn merging_a_non_existent_request_is_a_not_found_error() {
         let h = Scenario::new(merge_request(MergeRequestStatus::Open)).build();
 
-        let result = h.use_case.execute(Uuid::new_v4(), Uuid::new_v4()).await;
+        let result = h
+            .use_case
+            .execute(Uuid::new_v4(), Uuid::new_v4(), None)
+            .await;
 
         assert!(matches!(result, Err(DomainError::NotFound(_))));
     }
@@ -584,7 +637,7 @@ mod tests {
 
         let result = h.merge_as_author().await.unwrap();
 
-        assert!(matches!(result, MergeMergeRequestResult::Merged(_)));
+        assert!(matches!(result, MergeMergeRequestResult::Merged(..)));
         assert_eq!(h.executor_calls(), 1);
     }
 
@@ -647,7 +700,7 @@ mod tests {
         let result = h.merge_as_author().await.unwrap();
 
         assert!(
-            matches!(result, MergeMergeRequestResult::Merged(_)),
+            matches!(result, MergeMergeRequestResult::Merged(..)),
             "a stale (old sha) change request must not block, got a different result"
         );
     }
@@ -670,7 +723,7 @@ mod tests {
         let result = h.merge_as_author().await.unwrap();
 
         assert!(
-            matches!(result, MergeMergeRequestResult::Merged(_)),
+            matches!(result, MergeMergeRequestResult::Merged(..)),
             "self-approval must count toward the threshold"
         );
     }
@@ -688,9 +741,9 @@ mod tests {
         }
         .build();
 
-        let result = h.use_case.execute(h.mr.id, merger_id).await.unwrap();
+        let result = h.use_case.execute(h.mr.id, merger_id, None).await.unwrap();
 
-        assert!(matches!(result, MergeMergeRequestResult::Merged(_)));
+        assert!(matches!(result, MergeMergeRequestResult::Merged(..)));
         let created = h.notifications.snapshot();
         assert_eq!(created.len(), 1);
         assert_eq!(created[0].recipient_id, h.mr.author_id.unwrap());
@@ -716,7 +769,7 @@ mod tests {
 
         let result = h.merge_as_author().await.unwrap();
 
-        assert!(matches!(result, MergeMergeRequestResult::Merged(_)));
+        assert!(matches!(result, MergeMergeRequestResult::Merged(..)));
         assert!(
             h.notifications.snapshot().is_empty(),
             "merging your own MR must not notify yourself"
@@ -783,7 +836,7 @@ mod tests {
 
             if merges {
                 assert!(
-                    matches!(result, Ok(MergeMergeRequestResult::Merged(_))),
+                    matches!(result, Ok(MergeMergeRequestResult::Merged(..))),
                     "{result:?}"
                 );
             } else {
@@ -794,5 +847,63 @@ mod tests {
                 assert_eq!(h.executor_calls(), 0);
             }
         }
+    }
+
+    #[tokio::test]
+    async fn the_repository_default_method_applies_unless_the_merge_names_another() {
+        let mr = merge_request(MergeRequestStatus::Open);
+        for (requested, expected) in [
+            (None, MergeMethod::Rebase),
+            (Some(MergeMethod::Merge), MergeMethod::Merge),
+            (Some(MergeMethod::Squash), MergeMethod::Squash),
+        ] {
+            let h = Scenario {
+                default_merge_method: MergeMethod::Rebase,
+                ..Scenario::new(mr.clone())
+            }
+            .build();
+
+            h.use_case
+                .execute(h.mr.id, h.mr.author_id.unwrap(), requested)
+                .await
+                .unwrap();
+
+            assert_eq!(h.executor.requests.lock().unwrap()[0].method, expected);
+        }
+    }
+
+    #[tokio::test]
+    async fn a_squash_commit_is_titled_after_the_merge_request_and_attributed_to_its_author() {
+        let mr = MergeRequest {
+            description: "Adds the feature.\n".to_string(),
+            ..merge_request(MergeRequestStatus::Open)
+        };
+        let author_id = mr.author_id.unwrap();
+        let h = Scenario {
+            accounts: vec![author_id],
+            ..Scenario::new(mr)
+        }
+        .build();
+
+        h.use_case
+            .execute(h.mr.id, author_id, Some(MergeMethod::Squash))
+            .await
+            .unwrap();
+
+        let request = h.executor.requests.lock().unwrap()[0].clone();
+        assert_eq!(request.message, "Add feature\n\nAdds the feature.");
+        assert_eq!(
+            request.squash_author,
+            Some(CommitAuthor {
+                name: "florian".to_string(),
+                email: "florian@example.com".to_string(),
+            })
+        );
+    }
+
+    #[test]
+    fn a_squash_message_without_description_is_the_title_alone() {
+        let mr = merge_request(MergeRequestStatus::Open);
+        assert_eq!(squash_message(&mr), "Add feature");
     }
 }

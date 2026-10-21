@@ -5,6 +5,7 @@ use serde_json::json;
 use uuid::Uuid;
 
 use ferrisgit_domain::label::Label;
+use ferrisgit_domain::merge_executor::MergeMethod;
 use ferrisgit_domain::merge_request::{MergeRequest, ReviewDecision};
 use ferrisgit_domain::merge_request_event::{
     MergeRequestEventKind, MergeRequestEventPort, NewMergeRequestEvent,
@@ -100,12 +101,18 @@ impl MergeRequestActivity {
         }
     }
 
-    pub async fn merged(&self, mr_id: Uuid, actor: Uuid, merge_commit_sha: Option<&str>) {
+    pub async fn merged(
+        &self,
+        mr_id: Uuid,
+        actor: Uuid,
+        merge_commit_sha: Option<&str>,
+        method: MergeMethod,
+    ) {
         self.record(
             mr_id,
             Some(actor),
             MergeRequestEventKind::Merged,
-            json!({ "mergeCommitSha": merge_commit_sha }),
+            json!({ "mergeCommitSha": merge_commit_sha, "method": method.as_str() }),
         )
         .await;
     }
@@ -377,13 +384,26 @@ mod tests {
     async fn merged_records_the_merge_commit_sha_and_tolerates_none() {
         let (fake, activity) = setup();
         activity
-            .merged(Uuid::new_v4(), Uuid::new_v4(), Some("abc123"))
+            .merged(
+                Uuid::new_v4(),
+                Uuid::new_v4(),
+                Some("abc123"),
+                MergeMethod::Squash,
+            )
             .await;
-        activity.merged(Uuid::new_v4(), Uuid::new_v4(), None).await;
+        activity
+            .merged(Uuid::new_v4(), Uuid::new_v4(), None, MergeMethod::Merge)
+            .await;
         let events = fake.snapshot();
         assert_eq!(events[0].kind, MergeRequestEventKind::Merged);
-        assert_eq!(events[0].payload, json!({"mergeCommitSha": "abc123"}));
-        assert_eq!(events[1].payload, json!({"mergeCommitSha": null}));
+        assert_eq!(
+            events[0].payload,
+            json!({"mergeCommitSha": "abc123", "method": "squash"})
+        );
+        assert_eq!(
+            events[1].payload,
+            json!({"mergeCommitSha": null, "method": "merge"})
+        );
     }
 
     #[tokio::test]
@@ -442,7 +462,9 @@ mod tests {
                 Some((None, Some("v".to_string()))),
             )
             .await;
-        activity.merged(mr, actor, Some("sha")).await;
+        activity
+            .merged(mr, actor, Some("sha"), MergeMethod::Merge)
+            .await;
         activity.closed(mr, actor).await;
         activity
             .thread_resolved(mr, actor, Uuid::new_v4(), true)

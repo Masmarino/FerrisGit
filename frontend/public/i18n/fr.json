@@ -1179,7 +1179,9 @@
       "mergedNoActor": "Fusionnée",
       "closed": "a fermé cette demande de fusion",
       "closedNoActor": "Fermée",
-      "other": "a effectué une action"
+      "other": "a effectué une action",
+      "bySquash": "par squash",
+      "byRebase": "par rebase"
     },
     "review": {
       "changesRequested": "Des changements ont été demandés.",
@@ -1304,6 +1306,12 @@
       "onCommit": "sur le commit",
       "open": "Voir la pipeline",
       "started": "a lancé la pipeline de la fusion, sur le commit"
+    },
+    "method": {
+      "label": "Méthode de fusion",
+      "merge": "Commit de fusion",
+      "squash": "Squash",
+      "rebase": "Rebase"
     },
     "mergeRefused": "Fusion refusée : {{ reason }}"
   },
@@ -1582,7 +1590,10 @@
       "zeroApprovals": "0 pour fusionner sans approbation.",
       "mustSucceed": "Exiger une pipeline réussie avant la fusion",
       "mustSucceedHint": "Chaque demande de fusion lance une pipeline sur sa branche source fusionnée dans la branche cible. Activé, la fusion attend que celle du dernier commit de la branche source ait réussi.",
-      "mustSucceedFailed": "Impossible de modifier l'exigence de pipeline."
+      "mustSucceedFailed": "Impossible de modifier l'exigence de pipeline.",
+      "mergeMethod": "Méthode de fusion par défaut",
+      "mergeMethodHint": "Proposée en premier sur chaque demande de fusion. Commit de fusion : les commits gardent leur identifiant. Squash : un seul commit, au nom de l'auteur de la demande. Rebase : chaque commit est rejoué sur la branche cible, sans commit de fusion.",
+      "mergeMethodFailed": "Impossible de modifier la méthode de fusion."
     },
     "search": "Nom ou chemin",
     "listFailed": "Cette liste n'a pas pu être chargée.",

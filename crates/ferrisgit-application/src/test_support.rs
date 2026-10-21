@@ -3088,6 +3088,9 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
         if let Some(pipeline_must_succeed) = update.pipeline_must_succeed {
             settings.pipeline_must_succeed = pipeline_must_succeed;
         }
+        if let Some(default_merge_method) = update.default_merge_method {
+            settings.default_merge_method = default_merge_method;
+        }
         Ok(RepositorySettings {
             repository_id,
             ..settings.clone()

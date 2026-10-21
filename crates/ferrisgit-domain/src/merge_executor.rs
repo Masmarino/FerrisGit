@@ -1,6 +1,59 @@
 use async_trait::async_trait;
+use serde::Serialize;
 
 use crate::error::DomainError;
+
+/// How a merge request lands on its target branch.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize)]
+#[serde(rename_all = "lowercase")]
+pub enum MergeMethod {
+    /// A two-parent merge commit; the source commits keep their ids.
+    #[default]
+    Merge,
+    /// The whole change as one new commit on top of the target.
+    Squash,
+    /// Each source commit replayed on top of the target, one by one, so the target history stays linear.
+    Rebase,
+}
+
+impl MergeMethod {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            MergeMethod::Merge => "merge",
+            MergeMethod::Squash => "squash",
+            MergeMethod::Rebase => "rebase",
+        }
+    }
+
+    pub fn parse(value: &str) -> Result<Self, DomainError> {
+        match value {
+            "merge" => Ok(MergeMethod::Merge),
+            "squash" => Ok(MergeMethod::Squash),
+            "rebase" => Ok(MergeMethod::Rebase),
+            other => Err(DomainError::Validation(format!(
+                "unknown merge method: {other}"
+            ))),
+        }
+    }
+}
+
+/// Who a squash commit is attributed to: the author of the merge request.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct CommitAuthor {
+    pub name: String,
+    pub email: String,
+}
+
+/// What to merge and how. `message` is the merge commit's, or the squash commit's; a rebase keeps each commit's own.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MergeRequestMerge {
+    pub source_branch: String,
+    pub target_branch: String,
+    pub method: MergeMethod,
+    pub message: String,
+    /// The author of a squash commit; `None` gives it the server's identity.
+    pub squash_author: Option<CommitAuthor>,
+}
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum MergeOutcome {
@@ -16,16 +69,15 @@ pub struct MergeRef {
     pub target_sha: String,
 }
 
-/// Merges `source_branch` into `target_branch`, clean merges only. On success the target ref points to a new two-parent
-/// commit, on `Conflicting` nothing was written.
+/// Lands the source branch on the target branch with the requested method, clean merges only. On success the target
+/// ref points to the new tip (the merge commit, the squash commit or the last rebased commit), on `Conflicting` nothing
+/// was written. The source branch is never moved. A rebase of a branch that holds merge commits is a `Validation` error.
 #[async_trait]
 pub trait MergeExecutorPort: Send + Sync {
     async fn merge(
         &self,
         repository_disk_path: &str,
-        source_branch: &str,
-        target_branch: &str,
-        message: &str,
+        merge: &MergeRequestMerge,
     ) -> Result<MergeOutcome, DomainError>;
 
     /// Writes what merging `source_branch` into `target_branch` would give, as a two-parent commit under `ref_name`
@@ -57,9 +109,7 @@ mod tests {
         async fn merge(
             &self,
             _repository_disk_path: &str,
-            _source_branch: &str,
-            _target_branch: &str,
-            _message: &str,
+            _merge: &MergeRequestMerge,
         ) -> Result<MergeOutcome, DomainError> {
             Ok(self.outcome.clone())
         }
@@ -73,7 +123,16 @@ mod tests {
             },
         });
         let outcome = executor
-            .merge("path", "feature", "main", "Merge feature into main")
+            .merge(
+                "path",
+                &MergeRequestMerge {
+                    source_branch: "feature".to_string(),
+                    target_branch: "main".to_string(),
+                    method: MergeMethod::Merge,
+                    message: "Merge feature into main".to_string(),
+                    squash_author: None,
+                },
+            )
             .await
             .unwrap();
         assert_eq!(
@@ -82,5 +141,17 @@ mod tests {
                 commit_sha: "abc".to_string()
             }
         );
+    }
+
+    #[test]
+    fn a_merge_method_round_trips_through_its_string_form() {
+        for method in [MergeMethod::Merge, MergeMethod::Squash, MergeMethod::Rebase] {
+            assert_eq!(MergeMethod::parse(method.as_str()).unwrap(), method);
+        }
+        assert_eq!(MergeMethod::default(), MergeMethod::Merge);
+        assert!(matches!(
+            MergeMethod::parse("fast-forward"),
+            Err(DomainError::Validation(_))
+        ));
     }
 }

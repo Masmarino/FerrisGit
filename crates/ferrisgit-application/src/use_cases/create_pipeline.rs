@@ -318,6 +318,7 @@ mod tests {
                 ci_enabled: config.ci_enabled,
                 required_approvals: 0,
                 pipeline_must_succeed: false,
+                default_merge_method: Default::default(),
             })),
             Arc::new(FakeSystemSettings::new(SystemSettings {
                 execution_engine: config.engine,

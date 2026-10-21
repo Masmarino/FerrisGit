@@ -58,6 +58,12 @@ describe('describeEvent', () => {
     expect(describeEvent(event('merged', { mergeCommitSha: 'abcdef1234567' }, null))).toBe('Fusionnée (abcdef1)');
   });
 
+  it('says when a merge was a squash or a rebase, and not when it was a merge commit', () => {
+    expect(describeEvent(event('merged', { mergeCommitSha: 'abcdef1234567', method: 'squash' }))).toBe('a fusionné cette demande de fusion par squash (abcdef1)');
+    expect(describeEvent(event('merged', { mergeCommitSha: 'abcdef1234567', method: 'rebase' }, null))).toBe('Fusionnée par rebase (abcdef1)');
+    expect(describeEvent(event('merged', { mergeCommitSha: 'abcdef1234567', method: 'merge' }))).toBe('a fusionné cette demande de fusion (abcdef1)');
+  });
+
   it('omits the sha when a merge has none', () => {
     expect(describeEvent(event('merged', { mergeCommitSha: null }))).toBe('a fusionné cette demande de fusion');
     expect(describeEvent(event('merged', {}))).toBe('a fusionné cette demande de fusion');

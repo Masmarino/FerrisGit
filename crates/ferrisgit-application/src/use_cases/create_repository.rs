@@ -124,6 +124,7 @@ mod tests {
             ci_enabled: true,
             required_approvals: 0,
             pipeline_must_succeed: false,
+            default_merge_method: Default::default(),
         }));
         let use_case = CreateRepositoryUseCase::new(repositories.clone(), settings.clone());
         Fixture {
@@ -222,6 +223,7 @@ mod tests {
                     required_approvals: Some(2),
                     pipeline_file_path: Some("custom.yml".to_string()),
                     pipeline_must_succeed: None,
+                    default_merge_method: None,
                 },
                 |_| Ok(()),
             )

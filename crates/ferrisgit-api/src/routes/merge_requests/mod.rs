@@ -14,6 +14,7 @@ use ferrisgit_application::use_cases::merge_request_pipeline::RunMergeRequestPip
 use ferrisgit_application::use_cases::set_merge_request_labels::SetMergeRequestLabelsUseCase;
 use ferrisgit_application::use_cases::update_merge_request::UpdateMergeRequestUseCase;
 use ferrisgit_domain::error::DomainError;
+use ferrisgit_domain::merge_executor::MergeMethod;
 use ferrisgit_domain::merge_request::MergeRequest;
 use ferrisgit_domain::pipeline::Pipeline;
 use ferrisgit_domain::repository::Repository;
@@ -442,11 +443,23 @@ async fn create(
     Ok(Json(MergeRequestResponse::build(&state, mr).await?))
 }
 
+/// The body of a merge is optional: without one, or without `method`, the repository's default method applies.
+#[derive(Deserialize, Default)]
+struct MergeRequestBody {
+    #[serde(default)]
+    method: Option<String>,
+}
+
 async fn merge(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
     Path(merge_request_id): Path<Uuid>,
+    body: Option<Json<MergeRequestBody>>,
 ) -> Result<Json<MergeAttemptResponse>, ApiError> {
+    let method = body
+        .and_then(|Json(body)| body.method)
+        .map(|method| MergeMethod::parse(&method))
+        .transpose()?;
     find_accessible_merge_request(
         &state,
         user_id,
@@ -471,11 +484,11 @@ async fn merge(
         state.notifications.clone(),
         state.webhooks.clone(),
     );
-    match use_case.execute(merge_request_id, user_id).await? {
-        MergeMergeRequestResult::Merged(mr) => {
+    match use_case.execute(merge_request_id, user_id, method).await? {
+        MergeMergeRequestResult::Merged(mr, method) => {
             state
                 .merge_request_activity
-                .merged(mr.id, user_id, mr.merge_commit_sha.as_deref())
+                .merged(mr.id, user_id, mr.merge_commit_sha.as_deref(), method)
                 .await;
             Ok(Json(MergeAttemptResponse::Merged {
                 merge_request: MergeRequestResponse::build(&state, *mr).await?,

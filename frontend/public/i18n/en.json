@@ -1179,7 +1179,9 @@
       "mergedNoActor": "Merged",
       "closed": "closed this merge request",
       "closedNoActor": "Closed",
-      "other": "did something"
+      "other": "did something",
+      "bySquash": "by squash",
+      "byRebase": "by rebase"
     },
     "review": {
       "changesRequested": "Changes were requested.",
@@ -1304,6 +1306,12 @@
       "onCommit": "on commit",
       "open": "View the pipeline",
       "started": "started the merge pipeline, on commit"
+    },
+    "method": {
+      "label": "Merge method",
+      "merge": "Merge commit",
+      "squash": "Squash",
+      "rebase": "Rebase"
     },
     "mergeRefused": "Merge refused: {{ reason }}"
   },
@@ -1582,7 +1590,10 @@
       "zeroApprovals": "0 to merge without approval.",
       "mustSucceed": "Require a successful pipeline before merging",
       "mustSucceedHint": "Each merge request runs a pipeline on its source branch merged into the target branch. When on, the merge waits until the one of the source branch's latest commit has succeeded.",
-      "mustSucceedFailed": "Could not change the pipeline requirement."
+      "mustSucceedFailed": "Could not change the pipeline requirement.",
+      "mergeMethod": "Default merge method",
+      "mergeMethodHint": "Offered first on every merge request. Merge commit: the commits keep their ids. Squash: a single commit, credited to the merge request's author. Rebase: each commit is replayed on the target branch, without a merge commit.",
+      "mergeMethodFailed": "Could not change the merge method."
     },
     "search": "Name or path",
     "listFailed": "This list could not be loaded.",

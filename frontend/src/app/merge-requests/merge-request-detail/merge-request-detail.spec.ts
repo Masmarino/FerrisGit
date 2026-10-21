@@ -239,6 +239,42 @@ describe('MergeRequestDetail', () => {
       expect(approvalsPanel(fixture).canWrite()).toBe(true);
     });
 
+    it('merges with the method picked, which starts on the repository default', () => {
+      const { fixture, httpMock } = loaded();
+      httpMock
+        .expectOne('/api/repositories/repo-1/settings')
+        .flush({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0, defaultMergeMethod: 'rebase' });
+      fixture.detectChanges();
+      expect(fixture.componentInstance['mergeMethod']()).toBe('rebase');
+
+      headerButton(fixture, 'Fusionner')!.click();
+      const rebase = httpMock.expectOne((r) => r.method === 'POST' && r.url === '/api/merge-requests/mr-1/merge');
+      expect(rebase.request.body).toEqual({ method: 'rebase' });
+      rebase.flush({ outcome: 'conflicting' });
+
+      fixture.componentInstance['mergeMethod'].set('squash');
+      headerButton(fixture, 'Fusionner')!.click();
+      const squash = httpMock.expectOne((r) => r.method === 'POST' && r.url === '/api/merge-requests/mr-1/merge');
+      expect(squash.request.body).toEqual({ method: 'squash' });
+    });
+
+    it('says why the server refused a merge', () => {
+      const { fixture, httpMock } = loaded();
+
+      headerButton(fixture, 'Fusionner')!.click();
+      httpMock
+        .expectOne((r) => r.method === 'POST' && r.url === '/api/merge-requests/mr-1/merge')
+        .flush({ error: 'the source branch contains merge commits and cannot be rebased' }, { status: 400, statusText: 'Bad Request' });
+
+      expect(toasts()).toContainEqual(['error', 'Fusion refusée : the source branch contains merge commits and cannot be rebased']);
+    });
+
+    it('does not ask a contributor, who cannot merge, for the repository settings', () => {
+      const { httpMock } = loaded('contributor');
+
+      httpMock.expectNone('/api/repositories/repo-1/settings');
+    });
+
     it('keeps the blocked Merge button disabled while approvals are missing', () => {
       const { fixture } = loaded('owner', { reviews: { reviews: [], liveApprovalCount: 0, requiredApprovals: 1, blocked: true } });
 

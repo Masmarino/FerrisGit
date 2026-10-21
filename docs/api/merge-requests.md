@@ -136,7 +136,9 @@ Ferme la demande sans la fusionner. Rôle minimal : Contributeur. Réponse 204. 
 
 Fusionne la demande. Rôle minimal : Mainteneur.
 
-FerrisGit ne fait que des fusions sans conflit, avec le message `Merge branch '<source>' into <cible>`. Après une fusion réussie, une pipeline démarre sur le nouveau sommet de la branche cible, et l'auteur est notifié.
+Corps facultatif : `{ "method": "squash" }`. `method` vaut `merge` (un commit de fusion, avec le message `Merge branch '<source>' into <cible>`), `squash` (un seul commit sur la cible, dont le message est le titre de la demande suivi de sa description, attribué à l'auteur de la demande) ou `rebase` (chaque commit de la source rejoué sur la cible, sans commit de fusion). Sans corps, ou sans `method`, c'est la méthode par défaut du dépôt (`defaultMergeMethod`) qui s'applique. Voir [Fusionner](/docs/utilisation/merge-requests#fusionner).
+
+FerrisGit ne fait que des fusions sans conflit et ne modifie jamais la branche source. Après une fusion réussie, une pipeline démarre sur le nouveau sommet de la branche cible, et l'auteur est notifié. `mergeCommitSha` est ce nouveau sommet : le commit de fusion, le commit de squash ou le dernier commit rebasé.
 
 Si le dépôt exige des approbations (`requiredApprovals` supérieur à 0), la fusion est refusée tant qu'il n'y a pas assez d'approbations à jour (données sur le sommet actuel de la branche source) ou tant qu'une relecture à jour demande des changements.
 
@@ -150,7 +152,7 @@ Réponse 200, avec un champ `outcome` :
 
 En cas de succès, la réponse reprend tous les champs de la demande, avec `outcome: "merged"`. En cas de conflit, la demande reste ouverte et la réponse est simplement `{ "outcome": "conflicting" }` (code 200).
 
-Erreurs : 400 `merge request is not open`, 400 `changes requested by <utilisateur>`, 400 `<n>/<requis> approvals`, 400 `no merge request pipeline has run on the latest commit of the source branch: one must succeed before the merge`, 400 `the merge request pipeline has not finished yet: it must succeed before the merge`, 400 `the merge request pipeline is failed: it must succeed before the merge` (ou `canceled`), 400 `source branch no longer exists`, 404 `merge request`.
+Erreurs : 400 `unknown merge method: …`, 400 `the source branch contains merge commits and cannot be rebased: use a merge commit or a squash instead`, 400 `merge request is not open`, 400 `changes requested by <utilisateur>`, 400 `<n>/<requis> approvals`, 400 `no merge request pipeline has run on the latest commit of the source branch: one must succeed before the merge`, 400 `the merge request pipeline has not finished yet: it must succeed before the merge`, 400 `the merge request pipeline is failed: it must succeed before the merge` (ou `canceled`), 400 `source branch no longer exists`, 404 `merge request`.
 
 ## Diff et fil d'activité
 
@@ -189,7 +191,7 @@ Réponse 200 : `{ "author": { "id", "username" } | null, "items": [ … ] }`. Ch
 | `event` | Un événement : `id`, `createdAt`, `actor`, `kind`, `payload` (objet libre selon le type). |
 | `pipeline` | Une pipeline de la demande, au moment où elle a démarré, avec son état actuel : `id`, `createdAt`, `triggeredBy`, et les champs `status`, `commitSha`, `sourceSha` et `finishedAt` de `pipeline` dans une demande. |
 
-Les valeurs de `kind` des événements sont `review_submitted`, `labels_changed`, `milestone_changed`, `title_changed`, `commits_pushed`, `merged`, `closed`, `thread_resolved` et `thread_reopened`. Si le diff ne peut pas être calculé (branche source supprimée, par exemple), la réponse reste valide, sans extraits.
+L'événement `merged` porte `mergeCommitSha` et `method` (`merge`, `squash` ou `rebase`). Les valeurs de `kind` des événements sont `review_submitted`, `labels_changed`, `milestone_changed`, `title_changed`, `commits_pushed`, `merged`, `closed`, `thread_resolved` et `thread_reopened`. Si le diff ne peut pas être calculé (branche source supprimée, par exemple), la réponse reste valide, sans extraits.
 
 ## Commentaires
 

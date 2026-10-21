@@ -22,6 +22,12 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
   request list, in a *Pipeline* panel of the merge request page and in its timeline, and the pipeline list marks these
   runs. *Réglages > Pipeline* can require the latest one to succeed before a merge (`pipelineMustSucceed`), and a
   refused merge now says why. Docker runners must be upgraded to fetch the merge commit.
+- Squash and rebase merges: next to *Fusionner*, a merge request can land as a merge commit, as one squashed commit
+  (titled after the merge request and credited to its author) or rebased onto the target (each commit replayed, keeping
+  its author, date and message, with no merge commit; a branch holding merge commits is refused). Each repository picks
+  its default method under *Réglages > Pipeline* (`defaultMergeMethod`), used when a merge names none
+  (`POST /api/merge-requests/{id}/merge` takes an optional `{ "method": … }`). The source branch is never rewritten, and
+  the timeline says when a merge was a squash or a rebase.
 - A visual pipeline editor: from a repository's pipeline list, or the quick search, "Éditer la pipeline" opens the
   stages as columns and the jobs as cards to drag between them, or the YAML itself, the two views describing the same
   file. Contributors and above are offered it. The server's own parser reads, writes and checks it

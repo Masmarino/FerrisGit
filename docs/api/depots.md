@@ -226,7 +226,7 @@ Renvoie les paramètres de CI et de fusion. Rôle minimal : Mainteneur.
 Réponse 200 :
 
 ```json
-{ "pipelineFilePath": ".ferrisgit-ci.yml", "ciEnabled": true, "requiredApprovals": 0, "pipelineMustSucceed": false }
+{ "pipelineFilePath": ".ferrisgit-ci.yml", "ciEnabled": true, "requiredApprovals": 0, "pipelineMustSucceed": false, "defaultMergeMethod": "merge" }
 ```
 
 ### `PUT /api/repositories/{repository_id}/settings`
@@ -241,8 +241,9 @@ Corps :
 | `ciEnabled` | booléen | Active ou coupe la CI. |
 | `requiredApprovals` | entier | Approbations nécessaires avant fusion. Pas de valeur négative. |
 | `pipelineMustSucceed` | booléen | La fusion attend que la dernière pipeline de la demande, celle du commit actuel de la branche source, ait réussi. |
+| `defaultMergeMethod` | texte | Méthode de fusion proposée en premier, et appliquée quand une fusion n'en nomme pas : `merge`, `squash` ou `rebase`. |
 
-Réponse 200 : les paramètres, comme `GET`. Erreur : 400 `required_approvals must not be negative`.
+Réponse 200 : les paramètres, comme `GET`. Erreurs : 400 `required_approvals must not be negative`, 400 `unknown merge method: …`.
 
 ## Branches protégées
 

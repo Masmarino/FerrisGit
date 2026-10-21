@@ -67,6 +67,13 @@
             <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().pipelineMustSucceed }" />
           </div>
         </div>
+        <div class="repository-pipeline-settings__field repository-pipeline-settings__merge-method" data-field="defaultMergeMethod">
+          <gbt-select [label]="'repositories.pipeline.mergeMethod' | transloco" [options]="mergeMethodOptions" [ngModel]="s.defaultMergeMethod" (ngModelChange)="updateDefaultMergeMethod($event)" />
+          <div class="repository-pipeline-settings__field-footer">
+            <p class="repository-pipeline-settings__hint">{{ 'repositories.pipeline.mergeMethodHint' | transloco }}</p>
+            <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().defaultMergeMethod }" />
+          </div>
+        </div>
       </gbt-card>
     }
   }
