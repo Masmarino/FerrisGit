@@ -116,6 +116,7 @@ fn row_limit(limit: i64) -> usize {
 pub struct FakeUsers {
     users: Mutex<Vec<User>>,
     token_epochs: Mutex<HashMap<Uuid, i32>>,
+    languages: Mutex<HashMap<Uuid, String>>,
     fail_next_password_update: Mutex<bool>,
     /// An admin with a pending invitation or reset doesn't count, they can't sign in.
     invitations: Option<Arc<FakeInvitations>>,
@@ -128,6 +129,7 @@ impl FakeUsers {
         Self {
             users: Mutex::new(users),
             token_epochs: Mutex::new(HashMap::new()),
+            languages: Mutex::new(HashMap::new()),
             fail_next_password_update: Mutex::new(false),
             invitations: None,
             password_resets: None,
@@ -228,6 +230,25 @@ impl UserRepositoryPort for FakeUsers {
 
     async fn count(&self) -> Result<i64, DomainError> {
         Ok(self.users.lock().unwrap().len() as i64)
+    }
+
+    async fn language(&self, user_id: Uuid) -> Result<Option<String>, DomainError> {
+        if find_in(&self.users, |u| u.id == user_id).is_none() {
+            return Err(DomainError::NotFound("user".to_string()));
+        }
+        Ok(self.languages.lock().unwrap().get(&user_id).cloned())
+    }
+
+    async fn set_language(&self, user_id: Uuid, language: Option<&str>) -> Result<(), DomainError> {
+        if find_in(&self.users, |u| u.id == user_id).is_none() {
+            return Err(DomainError::NotFound("user".to_string()));
+        }
+        let mut languages = self.languages.lock().unwrap();
+        match language {
+            Some(language) => languages.insert(user_id, language.to_string()),
+            None => languages.remove(&user_id),
+        };
+        Ok(())
     }
 
     async fn update_email(&self, user_id: Uuid, email: String) -> Result<User, DomainError> {

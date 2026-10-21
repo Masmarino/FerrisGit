@@ -335,6 +335,30 @@ impl UserRepositoryPort for PostgresUserRepository {
         }
         Ok(())
     }
+
+    async fn language(&self, user_id: Uuid) -> Result<Option<String>, DomainError> {
+        let row = sqlx::query!("SELECT language FROM users WHERE id = $1", user_id)
+            .fetch_optional(&self.pool)
+            .await
+            .map_err(infra)?
+            .ok_or_else(|| DomainError::NotFound("user".to_string()))?;
+        Ok(row.language)
+    }
+
+    async fn set_language(&self, user_id: Uuid, language: Option<&str>) -> Result<(), DomainError> {
+        let result = sqlx::query!(
+            "UPDATE users SET language = $1 WHERE id = $2",
+            language,
+            user_id
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(infra)?;
+        if result.rows_affected() == 0 {
+            return Err(DomainError::NotFound("user".to_string()));
+        }
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -576,6 +600,31 @@ mod tests {
             repo.bump_token_epoch(Uuid::new_v4()).await,
             Err(DomainError::NotFound(_))
         ));
+    }
+
+    #[sqlx::test(migrations = "../../migrations")]
+    async fn the_language_starts_unset_and_can_be_chosen_then_cleared(pool: PgPool) {
+        let repo = PostgresUserRepository::new(pool);
+        let created = create_user(&repo, "florian", false).await;
+        assert_eq!(repo.language(created.id).await.unwrap(), None);
+
+        repo.set_language(created.id, Some("en")).await.unwrap();
+        assert_eq!(
+            repo.language(created.id).await.unwrap().as_deref(),
+            Some("en")
+        );
+
+        repo.set_language(created.id, None).await.unwrap();
+        assert_eq!(repo.language(created.id).await.unwrap(), None);
+
+        // The column only takes a language the interface is translated into.
+        assert!(repo.set_language(created.id, Some("pt")).await.is_err());
+        for result in [
+            repo.set_language(Uuid::new_v4(), Some("en")).await,
+            repo.language(Uuid::new_v4()).await.map(|_| ()),
+        ] {
+            assert!(matches!(result, Err(DomainError::NotFound(_))));
+        }
     }
 
     async fn create_user(repo: &PostgresUserRepository, username: &str, is_admin: bool) -> User {

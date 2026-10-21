@@ -76,7 +76,9 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
   concurrent job ceiling, job log retention), plus a dashboard with usage metrics and a health page.
 - Personal access tokens for Git over HTTPS.
 
-The web interface is in French.
+The web interface is in French, English, Spanish, Italian and German. It opens in the browser's language, and can be
+switched on the fly: from the public pages and the sign-in page, where the choice stays in the browser, and from the
+account's profile, where it is saved on the account and follows it from one device to the next.
 
 ## Architecture
 
@@ -651,7 +653,8 @@ The interface text lives in `frontend/public/i18n/`, one file per language (Fren
 Spanish, Italian and German), loaded with [Transloco](https://jsverse.gitbook.io/transloco):
 a template reads it with `'key' | transloco` (or `'key' | translocoCount: n` for a plural), code with `t()` and `tn()`
 from `shared/i18n/translator`. A new language is a new file beside it plus an entry in `LANGUAGE_LOCALES`
-(`shared/i18n/languages.ts`). The unit tests fail on a key the code uses but the file lacks, on a key nothing uses, and
+(`shared/i18n/languages.ts`) and `LANGUAGE_NAMES`, and, so that an account can save it, in `USER_LANGUAGES`
+(`crates/ferrisgit-domain/src/user.rs`) and in the check on `users.language`, through a migration. The unit tests fail on a key the code uses but the file lacks, on a key nothing uses, and
 on a language whose keys or parameters differ from French. The sign-in and account forms built from Gabarit take their
 text from `auth/auth-labels.<language>.ts` instead.
 

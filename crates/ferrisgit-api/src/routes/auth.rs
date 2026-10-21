@@ -2,7 +2,7 @@ use axum::extract::{ConnectInfo, DefaultBodyLimit, FromRequestParts, State};
 use axum::http::header::HeaderName;
 use axum::http::request::Parts;
 use axum::http::{HeaderMap, StatusCode};
-use axum::routing::{get, post};
+use axum::routing::{get, post, put};
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use ferrisgit_application::email_templates;
@@ -11,10 +11,12 @@ use ferrisgit_application::use_cases::change_password::ChangePasswordUseCase;
 use ferrisgit_application::use_cases::invitations::{ActivateAccountUseCase, InvitedUser};
 use ferrisgit_application::use_cases::login::LoginUseCase;
 use ferrisgit_application::use_cases::register_user::RegisterUserUseCase;
+use ferrisgit_application::use_cases::set_user_language::SetUserLanguageUseCase;
 use ferrisgit_application::use_cases::update_email::UpdateEmailUseCase;
 use ferrisgit_domain::audit::SecurityEvent;
 use ferrisgit_domain::email::is_valid_mailbox;
 use ferrisgit_domain::error::DomainError;
+use ferrisgit_domain::user::User;
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::net::SocketAddr;
@@ -105,11 +107,32 @@ struct MeResponse {
     email: String,
     is_admin: bool,
     created_at: DateTime<Utc>,
+    /// `null` while the interface follows the browser.
+    language: Option<String>,
+}
+
+impl MeResponse {
+    async fn of(state: &AppState, user: User) -> Result<Self, ApiError> {
+        let language = state.users.language(user.id).await?;
+        Ok(MeResponse {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            is_admin: user.is_admin,
+            created_at: user.created_at,
+            language,
+        })
+    }
 }
 
 #[derive(Deserialize)]
 struct UpdateEmailRequest {
     email: String,
+}
+
+#[derive(Deserialize)]
+struct UpdateLanguageRequest {
+    language: Option<String>,
 }
 
 #[derive(Deserialize)]
@@ -347,13 +370,7 @@ async fn me(
     State(state): State<AppState>,
 ) -> Result<Json<MeResponse>, ApiError> {
     let user = require_user(&state, user_id).await?;
-    Ok(Json(MeResponse {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        is_admin: user.is_admin,
-        created_at: user.created_at,
-    }))
+    Ok(Json(MeResponse::of(&state, user).await?))
 }
 
 async fn update_email(
@@ -363,13 +380,20 @@ async fn update_email(
 ) -> Result<Json<MeResponse>, ApiError> {
     let use_case = UpdateEmailUseCase::new(state.users.clone());
     let user = use_case.execute(user_id, req.email).await?;
-    Ok(Json(MeResponse {
-        id: user.id,
-        username: user.username,
-        email: user.email,
-        is_admin: user.is_admin,
-        created_at: user.created_at,
-    }))
+    Ok(Json(MeResponse::of(&state, user).await?))
+}
+
+/// Saves the interface language on the account, or clears it with `null` to follow the browser again.
+async fn update_language(
+    AuthUser(user_id): AuthUser,
+    State(state): State<AppState>,
+    Json(req): Json<UpdateLanguageRequest>,
+) -> Result<Json<MeResponse>, ApiError> {
+    SetUserLanguageUseCase::new(state.users.clone())
+        .execute(user_id, req.language.as_deref())
+        .await?;
+    let user = require_user(&state, user_id).await?;
+    Ok(Json(MeResponse::of(&state, user).await?))
 }
 
 async fn change_password(
@@ -427,6 +451,7 @@ pub fn router() -> Router<AppState> {
         Router::new()
             .route("/auth/login", post(login))
             .route("/auth/me", get(me).patch(update_email))
+            .route("/auth/me/language", put(update_language))
             .route("/auth/me/password", post(change_password))
             .route("/auth/logout-all", post(logout_all)),
     )

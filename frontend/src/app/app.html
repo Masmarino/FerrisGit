@@ -1,1 +1,4 @@
-<router-outlet />
+<!-- Rebuilt on a change of language, so that every view takes the new locale (see LocaleScope). -->
+@for (language of [language()]; track language) {
+  <fg-locale-scope><router-outlet /></fg-locale-scope>
+}

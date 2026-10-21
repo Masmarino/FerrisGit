@@ -82,6 +82,7 @@ pub mod set_collaborator_role;
 pub mod set_group_member_role;
 pub mod set_issue_labels;
 pub mod set_merge_request_labels;
+pub mod set_user_language;
 pub mod smtp_settings;
 pub mod submit_merge_request_review;
 pub mod sweep_pending_accounts;

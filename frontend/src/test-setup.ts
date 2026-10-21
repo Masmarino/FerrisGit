@@ -68,6 +68,11 @@ TestBed.resetTestingModule = () => {
   return testBed;
 };
 
+// A spec may translate while it is collected (a describe body computing its fixtures), before any beforeEach: register
+// the French lookup now too, so that it doesn't depend on which spec ran first in the worker.
+registerTranslator(lookup);
+setActiveLanguage('fr');
+
 beforeEach(() => {
   // Specs without a TestBed still get French text; those with one use the real service.
   registerTranslator(lookup);

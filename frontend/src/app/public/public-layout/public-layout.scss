@@ -13,8 +13,8 @@
 
 .public-layout__header {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  grid-template-areas: 'home search account';
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  grid-template-areas: 'home search account language';
   align-items: center;
   gap: 0.75rem 1.5rem;
   min-height: var(--gbt-shell-bar, 4rem);
@@ -25,9 +25,10 @@
 
   @container public-layout (max-width: 599px) {
     grid-template-columns: minmax(0, 1fr) auto;
+    // The language goes beside the search: the first row has no room left once the links are there.
     grid-template-areas:
       'home account'
-      'search search';
+      'search language';
     padding: 0.5rem 1rem 0.75rem;
   }
 }
@@ -55,6 +56,11 @@
   width: 100%;
   max-width: 28rem;
   margin: 0;
+}
+
+.public-layout__language {
+  grid-area: language;
+  justify-self: end;
 }
 
 .public-layout__end {

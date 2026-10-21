@@ -10,6 +10,7 @@ import { GbtToastService } from '@masmarino/gabarit/toaster';
 import { AccountPage } from './account-page';
 import { AuthService } from '../../auth/auth.service';
 import { Me, MeService } from '../../shell/me.service';
+import { Language } from '../../shared/i18n/languages';
 import { PageTitleService } from '../../shell/page-title.service';
 import { ApiTokenSummary, TokensService } from '../../api-tokens/api-tokens.service';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
@@ -21,7 +22,7 @@ import { PasskeySettings } from '../passkey-settings/passkey-settings';
 @Component({ template: '' })
 class LoginStub {}
 
-const ME: Me = { id: 'u1', username: 'alice', email: 'alice@example.com', isAdmin: false, createdAt: '2026-01-01T00:00:00Z' };
+const ME: Me = { id: 'u1', username: 'alice', email: 'alice@example.com', isAdmin: false, createdAt: '2026-01-01T00:00:00Z', language: null };
 
 const text = (el: Element | null | undefined) => el?.textContent?.replace(/\s+/g, ' ').trim();
 
@@ -33,10 +34,15 @@ describe('AccountPage', () => {
       email: signal(ME.email),
       isAdmin: signal(ME.isAdmin),
       createdAt: signal(ME.createdAt),
+      language: signal<Language | null>(ME.language as Language | null),
       load: vi.fn(),
       updateEmail: vi.fn((email: string) => {
         meStub.email.set(email);
         return of<Me>({ ...ME, email });
+      }),
+      updateLanguage: vi.fn((language: Language | null): Observable<Me> => {
+        meStub.language.set(language);
+        return of<Me>({ ...ME, language });
       }),
       changePassword: vi.fn((): Observable<{ token?: string } | null> => of(null)),
     };
@@ -364,6 +370,60 @@ describe('AccountPage', () => {
       await settle();
       expect(meStub.updateEmail).toHaveBeenCalledTimes(2);
       expect(text(state())).toBe('Enregistré');
+    });
+
+    describe('language', () => {
+      const pickLanguage = async (el: () => HTMLElement, settle: () => Promise<void>, label: string) => {
+        el().querySelector<HTMLButtonElement>('.account-page__language .gbt-select__trigger')!.click();
+        await settle();
+        Array.from(document.querySelectorAll<HTMLElement>('.gbt-select__option'))
+          .find((option) => option.textContent?.trim().startsWith(label))!
+          .click();
+        await settle();
+      };
+      const shown = (el: () => HTMLElement) => text(el().querySelector('.account-page__language .gbt-select__trigger'));
+
+      it('follows the browser until the account chooses, then names the chosen language', async () => {
+        vi.spyOn(navigator, 'languages', 'get').mockReturnValue(['de-DE']);
+        const { el, settle, meStub } = await setup();
+
+        expect(text(el().querySelector('.account-page__language label'))).toBe("Langue de l'interface");
+        expect(shown(el)).toBe('Langue du navigateur (Deutsch)');
+
+        meStub.language.set('it');
+        await settle();
+        expect(shown(el)).toBe('Italiano');
+        vi.restoreAllMocks();
+      });
+
+      it('saves the language picked on the account, or clears it to follow the browser', async () => {
+        const { el, settle, meStub } = await setup();
+
+        await pickLanguage(el, settle, 'English');
+        expect(meStub.updateLanguage).toHaveBeenCalledWith('en');
+        expect(text(el().querySelector('.account-page__language [role="status"]'))).toBe('Enregistré');
+
+        await pickLanguage(el, settle, 'English');
+        expect(meStub.updateLanguage).toHaveBeenCalledTimes(1);
+
+        await pickLanguage(el, settle, 'Langue du navigateur');
+        expect(meStub.updateLanguage).toHaveBeenLastCalledWith(null);
+      });
+
+      it('shows the saved language again when the save fails, and toasts the error', async () => {
+        const { el, settle, meStub, toastStub } = await setup();
+        const refused = new Subject<Me>();
+        meStub.updateLanguage.mockReturnValue(refused);
+
+        await pickLanguage(el, settle, 'Español');
+        expect(text(el().querySelector('.account-page__language [role="status"]'))).toBe('Enregistrement…');
+        refused.error({ status: 500 });
+        await settle();
+
+        expect(shown(el)).toMatch(/^Langue du navigateur/);
+        expect(el().querySelector('.account-page__language [role="status"]')?.getAttribute('data-state')).toBe('error');
+        expect(toastStub.show).toHaveBeenCalledWith("Impossible d'enregistrer la langue.", 'error');
+      });
     });
 
     it('logs out and goes to the login page from "Déconnexion"', async () => {

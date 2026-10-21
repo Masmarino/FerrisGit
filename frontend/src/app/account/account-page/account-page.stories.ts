@@ -9,6 +9,7 @@ import { switchMap } from 'rxjs/operators';
 import { AccountPage } from './account-page';
 import { AuthService } from '../../auth/auth.service';
 import { Me, MeService } from '../../shell/me.service';
+import { Language } from '../../shared/i18n/languages';
 import { PageTitleService } from '../../shell/page-title.service';
 import { type Passkey } from '@masmarino/gabarit/auth';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
@@ -26,7 +27,7 @@ class Blank {}
 const withRouter = applicationConfig({ providers: [provideRouter([{ path: '**', component: Blank }]), provideLocationMocks()] });
 const startAt = (url: string) => applicationConfig({ providers: [provideAppInitializer(() => inject(Router).navigateByUrl(url))] });
 
-const ME: Me = { id: 'u1', username: 'florian.simon', email: 'florian@exemple.fr', isAdmin: false, createdAt: '2025-03-12T09:00:00Z' };
+const ME: Me = { id: 'u1', username: 'florian.simon', email: 'florian@exemple.fr', isAdmin: false, createdAt: '2025-03-12T09:00:00Z', language: null };
 
 // AuthService needs HttpClient and is created eagerly with the page, so use a no-op fake.
 const fakeAuthService: Pick<AuthService, 'logout' | 'setToken' | 'authConfig'> = {
@@ -38,18 +39,25 @@ const fakeAuthService: Pick<AuthService, 'logout' | 'setToken' | 'authConfig'> =
 /** Arrives later, like a real HTTP error. */
 const failLater = <T>(status: number): Observable<T> => timer(400).pipe(switchMap(() => throwError(() => ({ status }))));
 
-function fakeMeService(me: Me, overrides: Partial<Pick<MeService, 'updateEmail' | 'changePassword'>> = {}) {
+function fakeMeService(me: Me, overrides: Partial<Pick<MeService, 'updateEmail' | 'updateLanguage' | 'changePassword'>> = {}) {
   const email = signal(me.email);
+  const language = signal(me.language as Language | null);
   return {
     id: signal(me.id),
     username: signal(me.username),
     email,
     isAdmin: signal(me.isAdmin),
     createdAt: signal(me.createdAt),
+    language,
     load: () => {},
     updateEmail: (value: string) => {
       email.set(value);
       return of({ ...me, email: value });
+    },
+    // The story stays in French: the switch itself is the app's, not this page's.
+    updateLanguage: (value: Language | null) => {
+      language.set(value);
+      return of({ ...me, language: value });
     },
     changePassword: () => of(undefined),
     ...overrides,
@@ -72,7 +80,7 @@ function fakeTokensService(list: ApiTokenSummary[]): Pick<TokensService, 'list' 
 
 const PASSKEY: Passkey = { id: 'p1', name: 'MacBook Touch ID', createdAt: '2025-03-12T09:30:00Z', lastUsedAt: hoursAgo(3) };
 
-const withMe = (me: Me, overrides: Partial<Pick<MeService, 'updateEmail' | 'changePassword'>> = {}) =>
+const withMe = (me: Me, overrides: Partial<Pick<MeService, 'updateEmail' | 'updateLanguage' | 'changePassword'>> = {}) =>
   moduleMetadata({ providers: [{ provide: MeService, useFactory: () => fakeMeService(me, overrides) }] });
 const withTokens = (list: ApiTokenSummary[]) => moduleMetadata({ providers: [{ provide: TokensService, useValue: fakeTokensService(list) }] });
 
@@ -168,6 +176,14 @@ export const ProfileOfAnAdministrator: Story = {
   play: async ({ canvasElement }) => {
     await expectAccountPage(canvasElement, 'Profil');
     await expect(canvasElement.querySelector('.account-page__role')?.textContent?.trim()).toBe('Super-administrateur');
+  },
+};
+
+export const LanguageChosen: Story = {
+  decorators: [startAt('/'), withMe({ ...ME, language: 'it' })],
+  play: async ({ canvasElement }) => {
+    await expectAccountPage(canvasElement, 'Profil');
+    await expect(canvasElement.querySelector('.account-page__language .gbt-select__trigger')?.textContent?.trim()).toBe('Italiano');
   },
 };
 

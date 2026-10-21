@@ -1,4 +1,5 @@
 import { Component, inject, provideAppInitializer, signal } from '@angular/core';
+import { provideHttpClient } from '@angular/common/http';
 import { provideLocationMocks } from '@angular/common/testing';
 import { provideRouter, Router } from '@angular/router';
 import type { Meta, StoryObj } from '@storybook/angular-vite';
@@ -22,7 +23,8 @@ import { atPhoneWidth, inDarkTheme, withFerrisgitIcons } from '../../shared/layo
 class SamplePage {}
 
 const withRouter = applicationConfig({
-  providers: [provideRouter([{ path: '**', component: SamplePage }]), provideLocationMocks(), provideAppInitializer(() => inject(Router).navigateByUrl('/repositories/alice/hello'))],
+  // The language select reaches the account through HttpClient when someone is signed in.
+  providers: [provideHttpClient(), provideRouter([{ path: '**', component: SamplePage }]), provideLocationMocks(), provideAppInitializer(() => inject(Router).navigateByUrl('/repositories/alice/hello'))],
 });
 
 const signedIn = (value: boolean) =>
