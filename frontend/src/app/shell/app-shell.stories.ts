@@ -47,8 +47,8 @@ interface ShellOptions {
   unreadCount?: number;
 }
 
-const ADMIN: Me = { id: 'u1', username: 'camille', email: 'camille@ferrisgit.example', isAdmin: true, createdAt: '2025-03-12T09:00:00Z' };
-const USER: Me = { id: 'u2', username: 'julien', email: 'julien@ferrisgit.example', isAdmin: false, createdAt: '2025-03-12T09:00:00Z' };
+const ADMIN: Me = { id: 'u1', username: 'camille', email: 'camille@ferrisgit.example', isAdmin: true, createdAt: '2025-03-12T09:00:00Z', language: null };
+const USER: Me = { id: 'u2', username: 'julien', email: 'julien@ferrisgit.example', isAdmin: false, createdAt: '2025-03-12T09:00:00Z', language: null };
 
 const REPOSITORY: RepositoryContext = {
   repositoryId: 'repo-1',

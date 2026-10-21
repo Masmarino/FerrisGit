@@ -287,14 +287,22 @@ Renvoie le compte connecté.
 Réponse 200 :
 
 ```json
-{ "id": "0b6c…", "username": "alice", "email": "alice@example.com", "isAdmin": false, "createdAt": "2026-03-01T10:00:00Z" }
+{ "id": "0b6c…", "username": "alice", "email": "alice@example.com", "isAdmin": false, "createdAt": "2026-03-01T10:00:00Z", "language": "fr" }
 ```
+
+`language` est la langue de l'interface choisie par le compte (`fr`, `en`, `es`, `it` ou `de`), ou `null` tant qu'il n'en a pas choisi : l'interface suit alors la langue du navigateur.
 
 ### `PATCH /api/auth/me`
 
 Change l'adresse e-mail du compte connecté.
 
 Corps : `{ "email": "nouvelle@example.com" }`. Réponse 200 : le compte, comme `GET /api/auth/me`. Erreur : 400 `email must be a valid address` (vide, ou sans `@`).
+
+### `PUT /api/auth/me/language`
+
+Enregistre la langue de l'interface sur le compte connecté, qui la retrouve sur chaque appareil où il se connecte.
+
+Corps : `{ "language": "en" }`, ou `{ "language": null }` pour suivre de nouveau la langue du navigateur. Réponse 200 : le compte, comme `GET /api/auth/me`. Erreur : 400 `unknown language: …` pour une langue dans laquelle l'interface n'est pas traduite.
 
 ### `POST /api/auth/me/password`
 

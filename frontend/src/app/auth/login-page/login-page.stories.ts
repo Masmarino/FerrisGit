@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
+import { provideHttpClient } from '@angular/common/http';
 import { provideRouter, withDisabledInitialNavigation } from '@angular/router';
 import { HttpErrorResponse } from '@angular/common/http';
 import { NEVER, Observable, of, throwError } from 'rxjs';
@@ -12,7 +13,8 @@ import { provideFerrisgitIcons } from '../../shared/register-icons';
 import { REQUEST_OPTIONS, dismissedPrompt, fakeAssertion, stubPasskeyBrowser } from '../../shared/webauthn-testing';
 
 // Environment providers only work in `applicationConfig`, not `moduleMetadata`.
-const withApp = applicationConfig({ providers: [provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
+// HttpClient for the language select, which saves the choice on the account of a signed-in reader.
+const withApp = applicationConfig({ providers: [provideHttpClient(), provideRouter([], withDisabledInitialNavigation()), provideFerrisgitIcons()] });
 
 function withLogin(login$: Observable<LoginResponse>, more: Partial<AuthService> = {}) {
   return moduleMetadata({ providers: [{ provide: AuthService, useValue: { login: () => login$, authConfig: () => of({ registrationEnabled: false, passkeysAvailable: false }), ...more } satisfies Partial<AuthService> }] });

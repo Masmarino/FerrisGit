@@ -130,6 +130,14 @@
               </div>
             </div>
 
+            <div class="account-page__field account-page__language" data-field="language">
+              <gbt-select [label]="'account.language' | transloco" [options]="languageOptions" [ngModel]="languageShown()" (ngModelChange)="updateLanguage($event)" />
+              <div class="account-page__field-footer">
+                <p class="account-page__hint">{{ 'account.languageHint' | transloco }}</p>
+                <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: languageState() }" />
+              </div>
+            </div>
+
             <div class="account-page__session">
               <p class="account-page__session-text">{{ 'account.sessionHere' | transloco }}</p>
               <gbt-button variant="secondary" iconName="log-out" [text]="'nav.logout' | transloco" (clicked)="logout()" />

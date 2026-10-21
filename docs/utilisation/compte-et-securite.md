@@ -6,6 +6,14 @@ Votre compte se gère depuis **Mon compte** : ouvrez le menu qui porte votre nom
 
 Le nom d'utilisateur est affiché mais ne peut pas être modifié. L'adresse e-mail se change dans le champ **Email** et s'enregistre quand vous quittez le champ. C'est à cette adresse que FerrisGit envoie ses messages (notification de changement de mot de passe, d'activation d'un second facteur, de réinitialisation).
 
+### Langue de l'interface
+
+L'interface existe en français, en anglais, en espagnol, en italien et en allemand. Tant que vous n'avez rien choisi, elle s'affiche dans la langue de votre navigateur, ou en français si elle n'y est pas traduite.
+
+Le champ **Langue de l'interface** change la langue tout de suite, textes, dates et nombres compris, et l'enregistre sur votre compte : vous la retrouvez sur chaque appareil où vous vous connectez. **Langue du navigateur** revient à la langue du navigateur. Le changement réaffiche la page : terminez d'abord une saisie en cours.
+
+Sans être connecté, le menu de langue des pages publiques et de la page de connexion garde le choix dans ce navigateur seulement.
+
 Le bouton **Déconnexion** ferme la session de ce navigateur.
 
 ## Se connecter

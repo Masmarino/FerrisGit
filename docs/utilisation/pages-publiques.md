@@ -20,6 +20,8 @@ Le bouton **Se connecter** de l'en-tête ramène le visiteur sur la page qu'il c
 
 Les visiteurs peuvent aussi **cloner** un dépôt public avec Git, sans identifiants, y compris son wiki (`.wiki.git`). Ce droit suit le réglage « Pages publiques » : une fois les pages publiques coupées, le clonage anonyme est refusé comme pour un dépôt privé. Les utilisateurs connectés, eux, clonent toujours avec leur nom et un jeton. Voir [Cloner et pousser](/docs/utilisation/cloner-et-pousser).
 
+Le menu de langue, en haut à droite, affiche l'interface en français, en anglais, en espagnol, en italien ou en allemand. Le choix reste dans le navigateur ; une personne connectée l'enregistre aussi sur son compte (voir [Langue de l'interface](/docs/utilisation/compte-et-securite#langue-de-linterface)).
+
 ## Ce qui n'est pas exposé
 
 - Les tickets, les demandes de fusion, les pipelines, les wikis (dans l'interface web) et les réglages du dépôt.

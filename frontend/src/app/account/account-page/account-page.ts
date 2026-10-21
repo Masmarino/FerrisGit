@@ -15,6 +15,7 @@ import { NavTab, NavTabs } from '@masmarino/gabarit/nav-tabs';
 import { PageHeader } from '@masmarino/gabarit/page-header';
 import { PageLayout } from '@masmarino/gabarit/page-layout';
 import { SaveStatus } from '@masmarino/gabarit/save-status';
+import { Select, SelectOption } from '@masmarino/gabarit/select';
 import { GbtDateTimePipe } from '@masmarino/gabarit/format';
 import { Skeleton } from '@masmarino/gabarit/skeleton';
 import { GbtToastService } from '@masmarino/gabarit/toaster';
@@ -25,6 +26,7 @@ import { MfaSettings } from '../mfa-settings/mfa-settings';
 import { PasskeySettings } from '../passkey-settings/passkey-settings';
 import { SessionSettings } from '../session-settings/session-settings';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
+import { LANGUAGE_NAMES, Language, SUPPORTED_LANGUAGES, detectBrowserLanguage } from '../../shared/i18n/languages';
 import { activeLocale, t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
@@ -44,11 +46,15 @@ const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+$/;
 
 type SaveState = 'saving' | 'saved' | 'error';
 
+/** The language choice that keeps none on the account: the interface follows the browser. */
+const BROWSER_LANGUAGE = 'browser';
+type LanguageChoice = Language | typeof BROWSER_LANGUAGE;
+
 /** The section lives in the URL (`?section=<key>`, none for the profile) so it can be deep-linked; an unknown key shows the profile. */
 @Component({
   selector: 'fg-account-page',
   standalone: true,
-  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, Avatar, Badge, Button, GbtInput, Icon, SaveStatus, Skeleton, ApiTokensList, MfaSettings, PasskeySettings, SessionSettings, PageHeader, PageLayout, Card, NavTab, NavTabs, RouterLink, GbtDateTimePipe],
+  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, Avatar, Badge, Button, GbtInput, Icon, SaveStatus, Select, Skeleton, ApiTokensList, MfaSettings, PasskeySettings, SessionSettings, PageHeader, PageLayout, Card, NavTab, NavTabs, RouterLink, GbtDateTimePipe],
   templateUrl: './account-page.html',
   styleUrl: './account-page.scss',
 })
@@ -80,6 +86,14 @@ export class AccountPage implements OnInit {
   protected avatarName = computed(() => this.me.username().replace(/[._-]+/g, ' '));
   protected emailState = signal<SaveState | null>(null);
   protected emailError = signal<string | null>(null);
+
+  /** The browser's language first, named in brackets, then each language under its own name. */
+  protected readonly languageOptions: SelectOption<LanguageChoice>[] = [
+    { value: BROWSER_LANGUAGE, label: t('account.languageBrowser', { language: LANGUAGE_NAMES[detectBrowserLanguage()] }) },
+    ...SUPPORTED_LANGUAGES.map((language) => ({ value: language, label: LANGUAGE_NAMES[language] })),
+  ];
+  protected languageShown = linkedSignal<LanguageChoice>(() => this.me.language() ?? BROWSER_LANGUAGE);
+  protected languageState = signal<SaveState | null>(null);
 
   protected currentPassword = signal('');
   protected newPassword = signal('');
@@ -124,6 +138,23 @@ export class AccountPage implements OnInit {
         this.emailShown.set(previous);
         this.emailState.set('error');
         this.toast.show(t('account.emailUpdateFailed'), 'error');
+      },
+    });
+  }
+
+  /** Saved on the account first: the interface then switches, and this page is drawn again in the new language. */
+  protected updateLanguage(choice: LanguageChoice): void {
+    if (choice === (this.me.language() ?? BROWSER_LANGUAGE)) {
+      return;
+    }
+    this.languageShown.set(choice);
+    this.languageState.set('saving');
+    this.me.updateLanguage(choice === BROWSER_LANGUAGE ? null : choice).subscribe({
+      next: () => this.languageState.set('saved'),
+      error: () => {
+        this.languageShown.set(this.me.language() ?? BROWSER_LANGUAGE);
+        this.languageState.set('error');
+        this.toast.show(t('account.languageUpdateFailed'), 'error');
       },
     });
   }

@@ -8,11 +8,12 @@ import { safeReturnUrl } from '../login-link';
 import { GitField } from '@masmarino/gabarit/git-field';
 import { provideFerrisgitAuth } from '../auth-kit';
 import { TranslocoPipe } from '@jsverse/transloco';
+import { LanguageSelect } from '../../shared/i18n/language-select/language-select';
 
 @Component({
   selector: 'fg-login-page',
   standalone: true,
-  imports: [TranslocoPipe, AuthLogin, AuthLogo, AuthFooterLink, Button, RouterLink, GitField],
+  imports: [TranslocoPipe, AuthLogin, AuthLogo, AuthFooterLink, Button, RouterLink, GitField, LanguageSelect],
   providers: [provideFerrisgitAuth()],
   host: { class: 'fg-auth-page' },
   template: `
@@ -21,17 +22,24 @@ import { TranslocoPipe } from '@jsverse/transloco';
       <picture auth-logo fgAuthLogo></picture>
       <a gbtButton variant="link" gbtAuthFooterLink routerLink="/register">{{ 'auth.createAccount' | transloco }}</a>
     </gbt-auth-login>
+    <fg-language-select class="login-page__language" />
     <footer class="login-page__footer">
       <a gbtButton variant="link" size="small" iconName="book-open" routerLink="/docs">{{ 'nav.docs' | transloco }}</a>
     </footer>
   `,
   // The logo artwork has a transparent top margin; the offset pulls it back to the panel's padding. The docs link sits
-  // in the panel's bottom padding, so it never covers the form however tall it grows.
+  // in the panel's bottom padding, so it never covers the form however tall it grows. The language sits in the top
+  // corner, out of the panel's way, as on the public pages.
   styles: `
     :host {
       --gbt-auth-panel-logo-offset: -0.5rem;
       position: relative;
       display: block;
+    }
+    .login-page__language {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
     }
     .login-page__footer {
       position: absolute;

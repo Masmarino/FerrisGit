@@ -1,6 +1,6 @@
 mod common;
 
-use common::http::{get, get_json, post_empty};
+use common::http::{get, get_json, post_empty, put};
 
 use common::http::login;
 use sqlx::PgPool;
@@ -33,6 +33,65 @@ async fn me_reports_when_the_account_was_created(pool: PgPool) {
         chrono::DateTime::parse_from_rfc3339(created_at).is_ok(),
         "expected an RFC 3339 date, got: {created_at}"
     );
+}
+
+#[sqlx::test]
+async fn the_account_keeps_the_language_it_chose_until_it_follows_the_browser_again(pool: PgPool) {
+    let addr = common::spawn_app(pool).await.addr;
+    let client = reqwest::Client::new();
+    let jwt = login(&client, addr, "admin", "adminpassword123").await;
+
+    let me: serde_json::Value = get_json(&client, addr, &jwt, "/auth/me").await;
+    assert_eq!(me["language"], serde_json::Value::Null, "no choice yet");
+
+    let res = put(
+        &client,
+        addr,
+        &jwt,
+        "/auth/me/language",
+        &serde_json::json!({ "language": "it" }),
+    )
+    .await;
+    assert_eq!(res.status(), 200);
+    let saved: serde_json::Value = res.json().await.unwrap();
+    assert_eq!(saved["language"], "it");
+    assert_eq!(saved["username"], "admin");
+    let me: serde_json::Value = get_json(&client, addr, &jwt, "/auth/me").await;
+    assert_eq!(me["language"], "it");
+
+    for unknown in ["pt", "fr-FR", ""] {
+        let res = put(
+            &client,
+            addr,
+            &jwt,
+            "/auth/me/language",
+            &serde_json::json!({ "language": unknown }),
+        )
+        .await;
+        assert_eq!(res.status(), 400, "{unknown:?}");
+    }
+    let me: serde_json::Value = get_json(&client, addr, &jwt, "/auth/me").await;
+    assert_eq!(me["language"], "it", "a refused language changes nothing");
+
+    let res = put(
+        &client,
+        addr,
+        &jwt,
+        "/auth/me/language",
+        &serde_json::json!({ "language": null }),
+    )
+    .await;
+    assert_eq!(res.status(), 200);
+    let me: serde_json::Value = get_json(&client, addr, &jwt, "/auth/me").await;
+    assert_eq!(me["language"], serde_json::Value::Null);
+
+    let anonymous = client
+        .put(format!("http://{addr}/api/auth/me/language"))
+        .json(&serde_json::json!({ "language": "en" }))
+        .send()
+        .await
+        .unwrap();
+    assert_eq!(anonymous.status(), 401);
 }
 
 #[sqlx::test]

@@ -89,6 +89,38 @@ pub trait UserRepositoryPort: Send + Sync {
     async fn bump_token_epoch(&self, _user_id: Uuid) -> Result<(), DomainError> {
         Ok(())
     }
+    /// The interface language the account chose, one of [`USER_LANGUAGES`]. `None` while it follows the browser, and by
+    /// default for stores that don't keep it.
+    async fn language(&self, _user_id: Uuid) -> Result<Option<String>, DomainError> {
+        Ok(None)
+    }
+    /// Sets the account's interface language, or clears it with `None` so the interface follows the browser again.
+    /// `NotFound` for an unknown user. Unsupported by default.
+    async fn set_language(
+        &self,
+        _user_id: Uuid,
+        _language: Option<&str>,
+    ) -> Result<(), DomainError> {
+        Err(DomainError::Infrastructure(
+            "the interface language is not supported by this store".to_string(),
+        ))
+    }
+}
+
+/// The languages the interface is translated into, as the frontend's `LANGUAGE_LOCALES` lists them.
+pub const USER_LANGUAGES: [&str; 5] = ["fr", "en", "es", "it", "de"];
+
+/// `language` trimmed and lowercased if it is one of [`USER_LANGUAGES`], a `Validation` error otherwise.
+pub fn normalize_language(language: &str) -> Result<String, DomainError> {
+    let language = language.trim().to_ascii_lowercase();
+    if USER_LANGUAGES.contains(&language.as_str()) {
+        Ok(language)
+    } else {
+        Err(DomainError::Validation(format!(
+            "unknown language: {language} (expected one of {})",
+            USER_LANGUAGES.join(", ")
+        )))
+    }
 }
 
 pub trait PasswordHasherPort: Send + Sync {
@@ -135,5 +167,19 @@ mod tests {
         let json = serde_json::to_string(&user).unwrap();
         assert!(!json.contains("super-secret-hash"));
         assert!(!json.contains("password_hash"));
+    }
+
+    #[test]
+    fn a_language_is_one_the_interface_is_translated_into() {
+        assert_eq!(normalize_language(" EN ").unwrap(), "en");
+        for language in USER_LANGUAGES {
+            assert_eq!(normalize_language(language).unwrap(), language);
+        }
+        for unknown in ["", "pt", "fr-FR", "english"] {
+            assert!(
+                matches!(normalize_language(unknown), Err(DomainError::Validation(_))),
+                "{unknown:?}"
+            );
+        }
     }
 }

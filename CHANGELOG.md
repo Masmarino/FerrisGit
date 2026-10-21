@@ -8,6 +8,11 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ### Added
 
+- Choosing the interface language: it still opens in the browser's language, and now switches on the fly from a
+  language menu on the public pages and the sign-in page, kept in the browser for a visitor, and from *Mon compte >
+  Profil*, saved on the account so that every device it signs in on follows it (*Langue du navigateur* goes back to the
+  browser's). Dates, numbers and relative times switch along with the text. `GET /api/auth/me` returns `language`
+  (`null` while the account follows the browser) and `PUT /api/auth/me/language` saves it.
 - Required approvals and checks on protected branches: a protection rule can require a number of approvals (on top of
   the repository's setting, the higher one applying) and named checks that must have succeeded on the merge request's
   current source commit: `pipeline` for its pipeline, `pipeline/<job>` for one of its jobs, so later quality gates and
