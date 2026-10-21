@@ -203,3 +203,24 @@ gbt-card {
   gap: 0.625rem;
   padding: 1.25rem;
 }
+
+.mr-detail__condition-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.mr-detail__condition {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  color: var(--color-error-text);
+  overflow-wrap: anywhere;
+
+  &--met {
+    color: var(--color-success-text);
+  }
+}

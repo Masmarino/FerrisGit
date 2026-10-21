@@ -1,4 +1,4 @@
-<gbt-card variant="outlined" icon="plus" [heading]="'repositories.protectedBranches.add' | transloco" [description]="'repositories.protectedBranches.addHelp' | transloco">
+<gbt-card variant="outlined" [icon]="editing() ? 'pencil' : 'plus'" [heading]="(editing() ? 'repositories.protectedBranches.edit' : 'repositories.protectedBranches.add') | transloco" [description]="'repositories.protectedBranches.addHelp' | transloco">
   <form class="repository-protected-branches__form" (submit)="$event.preventDefault(); protect()">
     <gbt-input
       name="pattern"
@@ -6,13 +6,23 @@
       mono
       placeholder="main"
       autocomplete="off"
+      [disabled]="editing() !== null"
       [hint]="'repositories.protectedBranches.patternHint' | transloco"
       [errorMessage]="patternProblem()"
       [ngModel]="newPattern()"
       (ngModelChange)="newPattern.set($event)"
     />
+    <div class="repository-protected-branches__requirements">
+      <gbt-input name="approvals" type="number" min="0" [label]="'repositories.protectedBranches.approvals' | transloco" [hint]="'repositories.protectedBranches.approvalsHint' | transloco" [errorMessage]="approvalsProblem()" [ngModel]="newApprovals()" (ngModelChange)="newApprovals.set($event)" />
+      <gbt-input name="checks" mono placeholder="pipeline, pipeline/test" autocomplete="off" [label]="'repositories.protectedBranches.checks' | transloco" [hint]="'repositories.protectedBranches.checksHint' | transloco" [ngModel]="newChecks()" (ngModelChange)="newChecks.set($event)" />
+    </div>
     <div class="repository-protected-branches__actions">
-      <gbt-button type="submit" iconName="lock" [text]="'repositories.protectedBranches.submit' | transloco" [disabled]="!newPattern().trim() || patternProblem() !== null" />
+      @if (editing()) {
+        <gbt-button variant="secondary" [text]="'common.cancel' | transloco" (clicked)="resetForm()" />
+        <gbt-button type="submit" iconName="check" [text]="'repositories.protectedBranches.save' | transloco" [disabled]="approvalsProblem() !== null" />
+      } @else {
+        <gbt-button type="submit" iconName="lock" [text]="'repositories.protectedBranches.submit' | transloco" [disabled]="!newPattern().trim() || patternProblem() !== null || approvalsProblem() !== null" />
+      }
     </div>
   </form>
 </gbt-card>
@@ -38,6 +48,22 @@
               <gbt-list-row>
                 <gbt-icon row-leading name="lock" aria-hidden="true" />
                 <span class="repository-protected-branches__pattern" [title]="rule.pattern">{{ rule.pattern }}</span>
+                @if (rule.requiredApprovals > 0) {
+                  <gbt-badge row-trailing icon="check">{{ approvalsLabel(rule.requiredApprovals) }}</gbt-badge>
+                }
+                @for (check of rule.requiredChecks; track check) {
+                  <gbt-badge row-trailing mono icon="circle-check">{{ check }}</gbt-badge>
+                }
+                <gbt-button
+                  row-trailing
+                  variant="ghost"
+                  size="medium"
+                  [iconOnly]="true"
+                  iconName="pencil"
+                  [title]="'repositories.protectedBranches.edit' | transloco"
+                  [ariaLabel]="'repositories.protectedBranches.editNamed' | transloco: { pattern: rule.pattern }"
+                  (clicked)="edit(rule)"
+                />
                 <gbt-button
                   row-trailing
                   variant="ghost-danger"

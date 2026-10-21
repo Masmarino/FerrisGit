@@ -8,9 +8,9 @@ import { withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectRows, expectSettingsLayout, fakeToast, inSettingsColumn, rendered } from '../../shared/layout/settings-story-helpers';
 
 const RULES: ProtectedBranchRule[] = [
-  { id: 'p1', pattern: 'main', createdAt: '2026-01-01T00:00:00Z' },
-  { id: 'p2', pattern: 'release/*', createdAt: '2026-01-02T00:00:00Z' },
-  { id: 'p3', pattern: '*-stable', createdAt: '2026-01-03T00:00:00Z' },
+  { id: 'p1', pattern: 'main', requiredApprovals: 0, requiredChecks: [], createdAt: '2026-01-01T00:00:00Z' },
+  { id: 'p2', pattern: 'release/*', requiredApprovals: 0, requiredChecks: [], createdAt: '2026-01-02T00:00:00Z' },
+  { id: 'p3', pattern: '*-stable', requiredApprovals: 0, requiredChecks: [], createdAt: '2026-01-03T00:00:00Z' },
 ];
 
 function fakeRepositorySettingsService(overrides: Record<string, unknown> = {}) {

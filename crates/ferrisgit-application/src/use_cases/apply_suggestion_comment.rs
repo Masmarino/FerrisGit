@@ -317,7 +317,7 @@ mod tests {
     async fn a_suggestion_is_not_committed_to_a_protected_source_branch() {
         let s = open_setup();
         s.protected_branches
-            .protect(s.repository_id, "feat*")
+            .protect(s.repository_id, "feat*", 0, &[])
             .await
             .unwrap();
 

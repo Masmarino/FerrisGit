@@ -7,18 +7,94 @@ use crate::error::DomainError;
 use crate::repository_collaborator::CollaboratorRole;
 
 /// A rule protecting every branch whose name matches `pattern`: nobody pushes to such a branch, changes arrive through a
-/// merge request.
+/// merge request, which needs `required_approvals` approvals and every check of `required_checks` to have succeeded.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 pub struct ProtectedBranch {
     pub id: Uuid,
     pub repository_id: Uuid,
     pub pattern: String,
+    pub required_approvals: i32,
+    pub required_checks: Vec<String>,
     pub created_at: DateTime<Utc>,
 }
 
 pub struct NewProtectedBranch {
     pub repository_id: Uuid,
     pub pattern: String,
+    pub required_approvals: i32,
+    pub required_checks: Vec<String>,
+}
+
+/// What a merge into a protected branch needs. `None` keeps a field as it is.
+#[derive(Debug, Default)]
+pub struct ProtectedBranchUpdate {
+    pub required_approvals: Option<i32>,
+    pub required_checks: Option<Vec<String>>,
+}
+
+/// What every merge into `branch` needs, from all the rules covering it: the most approvals any of them asks for, and
+/// every check any of them names, once each, in the order the rules name them.
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub struct BranchRequirements {
+    pub required_approvals: i32,
+    pub required_checks: Vec<String>,
+}
+
+pub fn branch_requirements(protections: &[ProtectedBranch], branch: &str) -> BranchRequirements {
+    let mut requirements = BranchRequirements::default();
+    for rule in protections
+        .iter()
+        .filter(|rule| pattern_matches(&rule.pattern, branch))
+    {
+        requirements.required_approvals =
+            requirements.required_approvals.max(rule.required_approvals);
+        for check in &rule.required_checks {
+            if !requirements.required_checks.contains(check) {
+                requirements.required_checks.push(check.clone());
+            }
+        }
+    }
+    requirements
+}
+
+const MAX_CHECK_NAME_LENGTH: usize = 100;
+const MAX_REQUIRED_CHECKS: usize = 50;
+const MAX_REQUIRED_APPROVALS: i32 = 100;
+
+/// Checks the number of approvals a rule asks for.
+pub fn check_required_approvals(required: i32) -> Result<i32, DomainError> {
+    if !(0..=MAX_REQUIRED_APPROVALS).contains(&required) {
+        return Err(DomainError::Validation(
+            "required approvals must be between 0 and 100".to_string(),
+        ));
+    }
+    Ok(required)
+}
+
+/// Trims check names, drops the empty ones and the repeats, and refuses a name that can't be one: a check is named like
+/// `pipeline` or `pipeline/unit-tests`, printable characters without spaces at its ends.
+pub fn normalize_check_names(names: &[String]) -> Result<Vec<String>, DomainError> {
+    let mut normalized: Vec<String> = Vec::new();
+    for name in names
+        .iter()
+        .map(|name| name.trim())
+        .filter(|name| !name.is_empty())
+    {
+        if name.chars().count() > MAX_CHECK_NAME_LENGTH || name.chars().any(char::is_control) {
+            return Err(DomainError::Validation(format!(
+                "invalid check name: {name}"
+            )));
+        }
+        if !normalized.iter().any(|known| known == name) {
+            normalized.push(name.to_string());
+        }
+    }
+    if normalized.len() > MAX_REQUIRED_CHECKS {
+        return Err(DomainError::Validation(
+            "a rule names at most 50 checks".to_string(),
+        ));
+    }
+    Ok(normalized)
 }
 
 const MAX_PATTERN_LENGTH: usize = 255;
@@ -165,6 +241,13 @@ pub trait ProtectedBranchStorePort: Send + Sync {
     /// `Conflict` if the repository already protects that pattern.
     async fn create(&self, new: NewProtectedBranch) -> Result<ProtectedBranch, DomainError>;
     /// `NotFound` unless the rule belongs to that repository.
+    async fn update(
+        &self,
+        repository_id: Uuid,
+        id: Uuid,
+        update: ProtectedBranchUpdate,
+    ) -> Result<ProtectedBranch, DomainError>;
+    /// `NotFound` unless the rule belongs to that repository.
     async fn delete(&self, repository_id: Uuid, id: Uuid) -> Result<(), DomainError>;
 }
 
@@ -181,6 +264,8 @@ mod tests {
             id: Uuid::new_v4(),
             repository_id: Uuid::new_v4(),
             pattern: pattern.to_string(),
+            required_approvals: 0,
+            required_checks: vec![],
             created_at: Utc::now(),
         }
     }
@@ -319,5 +404,63 @@ mod tests {
         assert!(update(&zero, A, "refs/heads/x").is_creation());
         assert!(update(A, &zero, "refs/heads/x").is_deletion());
         assert!(!update(A, B, "refs/heads/x").is_creation());
+    }
+
+    #[test]
+    fn the_rules_covering_a_branch_add_up_to_the_strictest_requirements() {
+        let rules = [
+            ProtectedBranch {
+                required_approvals: 1,
+                required_checks: vec!["pipeline".to_string()],
+                ..protection("main")
+            },
+            ProtectedBranch {
+                required_approvals: 2,
+                required_checks: vec!["pipeline/lint".to_string(), "pipeline".to_string()],
+                ..protection("*")
+            },
+            ProtectedBranch {
+                required_approvals: 5,
+                ..protection("release/*")
+            },
+        ];
+
+        assert_eq!(
+            branch_requirements(&rules, "main"),
+            BranchRequirements {
+                required_approvals: 2,
+                required_checks: vec!["pipeline".to_string(), "pipeline/lint".to_string()],
+            }
+        );
+        assert_eq!(
+            branch_requirements(&rules, "release/1").required_approvals,
+            5
+        );
+        assert_eq!(
+            branch_requirements(&[], "main"),
+            BranchRequirements::default()
+        );
+    }
+
+    #[test]
+    fn check_names_are_trimmed_deduplicated_and_checked() {
+        let names = |list: &[&str]| list.iter().map(|n| n.to_string()).collect::<Vec<_>>();
+        assert_eq!(
+            normalize_check_names(&names(&[
+                " pipeline ",
+                "",
+                "pipeline/unit tests",
+                "pipeline"
+            ]))
+            .unwrap(),
+            vec!["pipeline", "pipeline/unit tests"]
+        );
+        assert!(normalize_check_names(&names(&["a\nb"])).is_err());
+        assert!(normalize_check_names(&names(&[&"x".repeat(101)])).is_err());
+        let many: Vec<String> = (0..51).map(|i| format!("check-{i}")).collect();
+        assert!(normalize_check_names(&many).is_err());
+        assert!(check_required_approvals(-1).is_err());
+        assert!(check_required_approvals(101).is_err());
+        assert_eq!(check_required_approvals(3).unwrap(), 3);
     }
 }

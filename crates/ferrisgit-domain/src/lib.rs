@@ -15,6 +15,7 @@ pub mod issue_comment;
 pub mod job;
 pub mod job_execution;
 pub mod label;
+pub mod merge_conditions;
 pub mod merge_executor;
 pub mod merge_request;
 pub mod merge_request_comment;

@@ -95,7 +95,18 @@ La méthode proposée en premier est celle du dépôt, réglée par un Mainteneu
 
 Après la fusion, la demande passe à **Fusionnée** et si l'intégration continue est activée sur le dépôt, une pipeline démarre sur le nouveau commit (voir [Premiers pas CI/CD](/docs/ci-cd/premiers-pas)).
 
-Si le dépôt exige une pipeline réussie, la fusion attend que la pipeline de la demande, celle du dernier commit de la branche source, ait réussi ; la raison d'un refus s'affiche. Voir [Pipelines des demandes de fusion](/docs/ci-cd/premiers-pas#pipelines-des-demandes-de-fusion).
+Si le dépôt exige une pipeline réussie, la fusion attend que la pipeline de la demande, celle du dernier commit de la branche source, ait réussi ; la raison d'un refus s'affiche. Voir [Pipelines des demandes de fusion](/docs/ci-cd/premiers-pas#pipelines-des-demandes-de-fusion) et [Conditions de fusion](#conditions-de-fusion).
+
+### Conditions de fusion
+
+Le panneau **Conditions de fusion** de la page de la demande liste ce que la fusion exige, chaque condition remplie ou manquante, et le bouton **Fusionner** reste grisé tant qu'il en manque une. Le serveur applique les mêmes règles et, s'il refuse une fusion, dit lesquelles manquent. Les conditions viennent de deux endroits :
+
+- les réglages du dépôt : **Approbations requises avant fusion** et **Exiger une pipeline réussie avant la fusion** ;
+- les [branches protégées](/docs/utilisation/cloner-et-pousser#branches-protégées) qui couvrent la branche cible. Dans **Réglages > Branches protégées**, chaque règle peut exiger des **approbations requises** (s'ajoutant au réglage du dépôt : la plus grande valeur s'applique, et plusieurs règles qui couvrent la même branche se cumulent de la même façon) et des **vérifications requises**.
+
+Une vérification est désignée par son nom. Aujourd'hui, la pipeline de la demande fournit `pipeline` (l'état de toute la pipeline) et `pipeline/<job>` pour chacun de ses jobs, par exemple `pipeline/test`. Seules comptent la pipeline et les relectures du commit actuel de la branche source : un nouveau push les remet à zéro. Une vérification qui n'a pas tourné, ou dont le nom ne correspond à rien, bloque la fusion.
+
+Quand des approbations sont exigées, une relecture à jour qui demande des changements bloque aussi la fusion.
 
 ### Pipeline de la demande
 

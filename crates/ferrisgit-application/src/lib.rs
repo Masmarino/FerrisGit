@@ -5,6 +5,7 @@ pub mod job_execution_resolver;
 pub mod mailer;
 pub mod merge_request_activity;
 pub mod merge_request_timeline;
+pub mod mergeability;
 pub mod mfa_crypto;
 pub mod passkey_ceremonies;
 pub mod scope_check;

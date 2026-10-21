@@ -1313,7 +1313,18 @@
       "squash": "Squash",
       "rebase": "Rebase"
     },
-    "mergeRefused": "Merge abgelehnt: {{ reason }}"
+    "mergeRefused": "Merge abgelehnt: {{ reason }}",
+    "conditions": {
+      "title": "Merge-Bedingungen",
+      "approvals": "{{ given }}/{{ required }} Freigaben",
+      "noChangesRequested": "Keine Änderungen angefordert",
+      "changesRequestedBy": "Änderungen angefordert von {{ users }}",
+      "check": "{{ name }}: {{ status }}",
+      "notRun": "auf dem letzten Commit nicht gelaufen",
+      "skipped": "Übersprungen",
+      "met": "Erfüllt:",
+      "missing": "Fehlt:"
+    }
   },
   "repositories": {
     "sections": {
@@ -1679,7 +1690,19 @@
       "addFailed": "Der Branch konnte nicht geschützt werden.",
       "alreadyProtected": "Dieses Muster ist bereits geschützt.",
       "deleted": "Der Branch ist nicht mehr geschützt.",
-      "deleteFailed": "Der Schutz konnte nicht aufgehoben werden."
+      "deleteFailed": "Der Schutz konnte nicht aufgehoben werden.",
+      "edit": "Regel bearbeiten",
+      "editNamed": "Regel {{ pattern }} bearbeiten",
+      "save": "Speichern",
+      "approvals": "Erforderliche Freigaben",
+      "approvalsHint": "Zusätzlich zu denen des Repositorys: Der höhere Wert gilt.",
+      "approvalsProblem": "Eine Zahl zwischen 0 und 100.",
+      "checks": "Erforderliche Prüfungen",
+      "checksHint": "Kommagetrennt: pipeline für die Pipeline des Merge-Requests, pipeline/<job> für einen ihrer Jobs.",
+      "approvalsCount_one": "{{ count }} Freigabe",
+      "approvalsCount_other": "{{ count }} Freigaben",
+      "updated": "Regel gespeichert.",
+      "updateFailed": "Die Regel konnte nicht gespeichert werden."
     }
   },
   "pipelines": {

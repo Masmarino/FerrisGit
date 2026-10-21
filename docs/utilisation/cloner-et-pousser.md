@@ -81,6 +81,8 @@ Un Mainteneur protège des branches dans **Réglages > Branches protégées**, e
 
 La fusion d'une demande de fusion fait toujours avancer la branche cible. En revanche, une suggestion ne peut pas être appliquée si la branche source de la demande est protégée.
 
+Une règle peut aussi exiger, pour toute fusion vers ses branches, un nombre d'**approbations** et des **vérifications** réussies (la pipeline de la demande, ou l'un de ses jobs) : voir [Conditions de fusion](/docs/utilisation/merge-requests#conditions-de-fusion).
+
 Un push refusé l'est en entier : si une seule des branches envoyées est protégée, aucune n'est mise à jour. Git affiche la raison :
 
 ```text

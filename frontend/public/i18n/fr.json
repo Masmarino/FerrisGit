@@ -1313,7 +1313,18 @@
       "squash": "Squash",
       "rebase": "Rebase"
     },
-    "mergeRefused": "Fusion refusée : {{ reason }}"
+    "mergeRefused": "Fusion refusée : {{ reason }}",
+    "conditions": {
+      "title": "Conditions de fusion",
+      "approvals": "{{ given }}/{{ required }} approbations",
+      "noChangesRequested": "Aucun changement demandé",
+      "changesRequestedBy": "Changements demandés par {{ users }}",
+      "check": "{{ name }} : {{ status }}",
+      "notRun": "pas lancée sur le dernier commit",
+      "skipped": "Ignorée",
+      "met": "Remplie :",
+      "missing": "Manquante :"
+    }
   },
   "repositories": {
     "sections": {
@@ -1679,7 +1690,19 @@
       "addFailed": "Impossible de protéger la branche.",
       "alreadyProtected": "Ce motif est déjà protégé.",
       "deleted": "La branche n'est plus protégée.",
-      "deleteFailed": "Impossible de retirer la protection."
+      "deleteFailed": "Impossible de retirer la protection.",
+      "edit": "Modifier la règle",
+      "editNamed": "Modifier la règle {{ pattern }}",
+      "save": "Enregistrer",
+      "approvals": "Approbations requises",
+      "approvalsHint": "En plus de celles du dépôt : la plus grande valeur s'applique.",
+      "approvalsProblem": "Un nombre entre 0 et 100.",
+      "checks": "Vérifications requises",
+      "checksHint": "Séparées par des virgules : pipeline pour la pipeline de la demande, pipeline/<job> pour l'un de ses jobs.",
+      "approvalsCount_one": "{{ count }} approbation",
+      "approvalsCount_other": "{{ count }} approbations",
+      "updated": "Règle enregistrée.",
+      "updateFailed": "Impossible d'enregistrer la règle."
     }
   },
   "pipelines": {

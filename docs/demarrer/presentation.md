@@ -36,7 +36,6 @@ La double authentification est obligatoire pour tous les comptes, sans exception
 ## Limites à connaître
 
 - Git est servi **en HTTP uniquement** : il n'y a pas d'accès SSH. L'authentification se fait par un jeton Git.
-- Une branche protégée refuse tout push direct, mais ses règles se limitent à cela : les approbations et vérifications exigées par branche ne sont pas encore disponibles.
 - Ne sont pas encore disponibles : l'analyse de qualité de code, les audits de sécurité intégrés aux demandes de fusion et le lien avec ArtiFerris. Ils figurent sur la [feuille de route](/docs/demarrer/feuille-de-route), pas dans le produit.
 
 ## Par où commencer

@@ -1313,7 +1313,18 @@
       "squash": "Squash",
       "rebase": "Rebase"
     },
-    "mergeRefused": "Merge refused: {{ reason }}"
+    "mergeRefused": "Merge refused: {{ reason }}",
+    "conditions": {
+      "title": "Merge conditions",
+      "approvals": "{{ given }}/{{ required }} approvals",
+      "noChangesRequested": "No changes requested",
+      "changesRequestedBy": "Changes requested by {{ users }}",
+      "check": "{{ name }}: {{ status }}",
+      "notRun": "not run on the latest commit",
+      "skipped": "Skipped",
+      "met": "Met:",
+      "missing": "Missing:"
+    }
   },
   "repositories": {
     "sections": {
@@ -1679,7 +1690,19 @@
       "addFailed": "Could not protect the branch.",
       "alreadyProtected": "This pattern is already protected.",
       "deleted": "The branch is no longer protected.",
-      "deleteFailed": "Could not remove the protection."
+      "deleteFailed": "Could not remove the protection.",
+      "edit": "Edit the rule",
+      "editNamed": "Edit the rule {{ pattern }}",
+      "save": "Save",
+      "approvals": "Required approvals",
+      "approvalsHint": "On top of the repository's own: the higher value applies.",
+      "approvalsProblem": "A number between 0 and 100.",
+      "checks": "Required checks",
+      "checksHint": "Comma-separated: pipeline for the merge request pipeline, pipeline/<job> for one of its jobs.",
+      "approvalsCount_one": "{{ count }} approval",
+      "approvalsCount_other": "{{ count }} approvals",
+      "updated": "Rule saved.",
+      "updateFailed": "Could not save the rule."
     }
   },
   "pipelines": {

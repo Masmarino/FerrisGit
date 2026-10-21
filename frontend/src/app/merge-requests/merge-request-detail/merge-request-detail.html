@@ -29,7 +29,7 @@
         <gbt-button variant="secondary" iconName="git-pull-request-closed" [text]="'common.close' | transloco" (clicked)="close()" />
         @if (canMerge()) {
           <gbt-select class="mr-detail__method" [label]="'mergeRequests.method.label' | transloco" hideLabel size="sm" [options]="mergeMethodOptions" [ngModel]="mergeMethod()" (ngModelChange)="mergeMethod.set($event)" />
-          <gbt-button variant="primary" iconName="git-merge" [text]="'mergeRequests.merge' | transloco" [disabled]="!!reviewSummary()?.blocked" (clicked)="merge()" />
+          <gbt-button variant="primary" iconName="git-merge" [text]="'mergeRequests.merge' | transloco" [disabled]="mergeBlocked()" (clicked)="merge()" />
         }
       </div>
     }
@@ -113,6 +113,19 @@
               (approve)="submitReview('approved')"
               (requestChanges)="submitReview('changes_requested')"
             />
+          </gbt-panel>
+        }
+
+        @if (mr.status === 'open' && conditionRows().length > 0) {
+          <gbt-panel class="mr-detail__conditions" [heading]="'mergeRequests.conditions.title' | transloco" [headingLevel]="2">
+            <ul class="mr-detail__condition-list">
+              @for (condition of conditionRows(); track $index) {
+                <li class="mr-detail__condition" [class.mr-detail__condition--met]="condition.met">
+                  <gbt-icon [name]="condition.met ? 'circle-check' : 'circle-x'" aria-hidden="true" />
+                  <span class="sr-only">{{ (condition.met ? 'mergeRequests.conditions.met' : 'mergeRequests.conditions.missing') | transloco }}</span>&ngsp;<span>{{ condition.text }}</span>
+                </li>
+              }
+            </ul>
           </gbt-panel>
         }
 

@@ -132,6 +132,27 @@ Erreurs : 404 `label`, 400 `label … is not usable on this repository` (une ét
 
 Ferme la demande sans la fusionner. Rôle minimal : Contributeur. Réponse 204. L'auteur est notifié et le webhook `merge_request_closed` part. Erreur : 400 `merge request is not open`.
 
+### `GET /api/merge-requests/{id}/mergeability`
+
+Ce que la fusion exige, condition par condition : la fusion refuse exactement ce que cette route signale. Rôle minimal : Lecteur.
+
+Réponse 200 :
+
+```json
+{
+  "mergeable": false,
+  "conditions": [
+    { "kind": "noChangesRequested", "met": true, "requestedBy": [], "message": null },
+    { "kind": "approvals", "met": false, "required": 2, "given": 1, "message": "1/2 approvals" },
+    { "kind": "check", "met": false, "name": "pipeline/test", "status": "running", "message": "check 'pipeline/test' has not finished" }
+  ]
+}
+```
+
+- `approvals` et `noChangesRequested` n'apparaissent que si des approbations sont exigées : par le dépôt (`requiredApprovals`) ou par une [branche protégée](/docs/api/depots#branches-protégées) qui couvre la branche cible (la plus grande valeur s'applique). Seules les relectures du commit actuel de la branche source comptent.
+- Chaque vérification exigée par une branche protégée donne un `check`, ainsi que `pipeline` quand le dépôt exige une pipeline réussie (`pipelineMustSucceed`). `status` est l'état de la vérification sur le commit actuel de la branche source (`pending`, `running`, `success`, `failed`, `canceled`, `skipped`), `null` si elle n'y a pas tourné. Seul `success` remplit la condition.
+- `message` dit ce qui manque, `null` pour une condition remplie. Une demande qui n'est plus ouverte renvoie `{ "mergeable": true, "conditions": [] }`.
+
 ### `POST /api/merge-requests/{id}/merge`
 
 Fusionne la demande. Rôle minimal : Mainteneur.
@@ -144,6 +165,8 @@ Si le dépôt exige des approbations (`requiredApprovals` supérieur à 0), la f
 
 Si le dépôt exige une pipeline réussie (`pipelineMustSucceed`), la fusion est refusée tant que la dernière pipeline de la demande, celle du commit actuel de la branche source, n'a pas réussi.
 
+Une branche cible protégée peut exiger davantage d'approbations et des vérifications nommées. La fusion est refusée tant qu'une des conditions de `GET /api/merge-requests/{id}/mergeability` manque, et l'erreur les énumère toutes, séparées par `; ` (par exemple `1/2 approvals; check 'pipeline/test' has not finished`).
+
 Réponse 200, avec un champ `outcome` :
 
 ```json
@@ -152,7 +175,7 @@ Réponse 200, avec un champ `outcome` :
 
 En cas de succès, la réponse reprend tous les champs de la demande, avec `outcome: "merged"`. En cas de conflit, la demande reste ouverte et la réponse est simplement `{ "outcome": "conflicting" }` (code 200).
 
-Erreurs : 400 `unknown merge method: …`, 400 `the source branch contains merge commits and cannot be rebased: use a merge commit or a squash instead`, 400 `merge request is not open`, 400 `changes requested by <utilisateur>`, 400 `<n>/<requis> approvals`, 400 `no merge request pipeline has run on the latest commit of the source branch: one must succeed before the merge`, 400 `the merge request pipeline has not finished yet: it must succeed before the merge`, 400 `the merge request pipeline is failed: it must succeed before the merge` (ou `canceled`), 400 `source branch no longer exists`, 404 `merge request`.
+Erreurs : 400 `unknown merge method: …`, 400 `the source branch contains merge commits and cannot be rebased: use a merge commit or a squash instead`, 400 `merge request is not open`, 400 `changes requested by <utilisateur>`, 400 `<n>/<requis> approvals`, 400 `check '<nom>' has not run on the latest commit of the source branch`, 400 `check '<nom>' has not finished`, 400 `check '<nom>' is failed` (ou `canceled`, `skipped`), 400 `source branch no longer exists`, 404 `merge request`.
 
 ## Diff et fil d'activité
 

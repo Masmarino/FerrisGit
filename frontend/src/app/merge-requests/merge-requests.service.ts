@@ -149,6 +149,17 @@ export interface TimelineResponse {
 /** How a merge request lands: a merge commit, one squashed commit, or its commits rebased onto the target. */
 export type MergeMethod = 'merge' | 'squash' | 'rebase';
 
+/** One thing a merge needs, `met` or not. `message` (the server's words) says what is missing, `null` when met. */
+export type MergeCondition =
+  | { kind: 'approvals'; met: boolean; required: number; given: number; message: string | null }
+  | { kind: 'noChangesRequested'; met: boolean; requestedBy: string[]; message: string | null }
+  | { kind: 'check'; met: boolean; name: string; status: PipelineSummary['status'] | 'skipped' | null; message: string | null };
+
+export interface Mergeability {
+  mergeable: boolean;
+  conditions: MergeCondition[];
+}
+
 export type MergeAttemptResult = (MergeRequestSummary & { outcome: 'merged' }) | { outcome: 'conflicting' };
 
 export interface CreateMergeRequestPayload {
@@ -223,6 +234,10 @@ export class MergeRequestsService {
 
   submitReview(id: string, decision: 'approved' | 'changes_requested') {
     return this.http.post<Review>(`/api/merge-requests/${id}/reviews`, { decision });
+  }
+
+  mergeability(id: string) {
+    return this.http.get<Mergeability>(`/api/merge-requests/${id}/mergeability`);
   }
 
   /** Without a method, the server applies the repository's default one. */

@@ -16,6 +16,10 @@ export interface RepositorySettings {
 export interface ProtectedBranchRule {
   id: string;
   pattern: string;
+  /** Approvals a merge into these branches needs, on top of the repository's own setting. */
+  requiredApprovals: number;
+  /** Checks that must have succeeded on the source commit: `pipeline`, `pipeline/<job>`. */
+  requiredChecks: string[];
   createdAt: string;
 }
 
@@ -80,8 +84,12 @@ export class RepositorySettingsService {
     return this.http.get<ProtectedBranchRule[]>(`/api/repositories/${repositoryId}/protected-branches`);
   }
 
-  protectBranch(repositoryId: string, pattern: string) {
-    return this.http.post<ProtectedBranchRule>(`/api/repositories/${repositoryId}/protected-branches`, { pattern });
+  protectBranch(repositoryId: string, pattern: string, requiredApprovals = 0, requiredChecks: string[] = []) {
+    return this.http.post<ProtectedBranchRule>(`/api/repositories/${repositoryId}/protected-branches`, { pattern, requiredApprovals, requiredChecks });
+  }
+
+  updateProtectedBranch(repositoryId: string, id: string, update: { requiredApprovals?: number; requiredChecks?: string[] }) {
+    return this.http.put<ProtectedBranchRule>(`/api/repositories/${repositoryId}/protected-branches/${id}`, update);
   }
 
   unprotectBranch(repositoryId: string, id: string) {

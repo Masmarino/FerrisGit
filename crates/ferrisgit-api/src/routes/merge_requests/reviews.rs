@@ -95,6 +95,14 @@ async fn list_reviews(
         .repository_settings
         .get_or_create_default(repo.id)
         .await?;
+    // The protection of the target branch can ask for more approvals than the repository does.
+    let required_approvals = settings.required_approvals.max(
+        state
+            .protected_branches
+            .requirements(repo.id, &mr.target_branch)
+            .await?
+            .required_approvals,
+    );
     let branches = state.branch_reader.list_branches(&repo.disk_path).await?;
     let tip_sha = branches
         .into_iter()
@@ -126,12 +134,12 @@ async fn list_reviews(
     let blocked_by_changes = review_responses
         .iter()
         .any(|r| !r.stale && r.decision == "changes_requested");
-    let blocked = settings.required_approvals > 0
-        && (blocked_by_changes || live_approval_count < settings.required_approvals);
+    let blocked =
+        required_approvals > 0 && (blocked_by_changes || live_approval_count < required_approvals);
 
     Ok(Json(ReviewSummaryResponse {
         reviews: review_responses,
-        required_approvals: settings.required_approvals,
+        required_approvals,
         live_approval_count,
         blocked,
     }))
