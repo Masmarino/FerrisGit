@@ -1,7 +1,7 @@
 import { BuilderState } from './pipeline-builder-model';
 import { DetectedProject, RepositoryProfile } from './pipeline-definitions.service';
 import { tileById } from './pipeline-catalog';
-import { missingJobs, predictPipeline } from './pipeline-prediction';
+import { Prediction, missingJobs, predictPipeline } from './pipeline-prediction';
 
 const profile = (projects: DetectedProject[], extra: Partial<RepositoryProfile> = {}): RepositoryProfile => ({ projects, dockerfiles: [], helmCharts: [], ...extra });
 
@@ -57,7 +57,11 @@ describe('pipeline prediction', () => {
   });
 
   describe('for this repository', () => {
-    const prediction = predictPipeline(FERRISGIT)!;
+    // Worked out once the translator is registered, not while the tests are collected.
+    let prediction: Prediction;
+    beforeEach(() => {
+      prediction = predictPipeline(FERRISGIT)!;
+    });
     const job = (name: string) => prediction.state.jobs.find((candidate) => candidate.name === name)!;
 
     it('names it by what it holds', () => {
@@ -162,7 +166,10 @@ describe('pipeline prediction', () => {
   });
 
   describe('what a pipeline still lacks', () => {
-    const prediction = predictPipeline(FERRISGIT)!;
+    let prediction: Prediction;
+    beforeEach(() => {
+      prediction = predictPipeline(FERRISGIT)!;
+    });
 
     it('is every predicted job for an empty pipeline', () => {
       expect(missingJobs(prediction, { stages: ['build'], jobs: [] })).toHaveLength(8);

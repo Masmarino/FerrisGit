@@ -51,6 +51,12 @@ function lookup(key: string, params: Record<string, unknown> = {}): string {
   return value.replace(/\{\{\s*(\w+)\s*\}\}/g, (_, name: string) => String(params[name] ?? ''));
 }
 
+// Registered as this file loads, before each spec file collects its tests: code called in a describe body, such as
+// the catalog an `it.each` table is built from, gets French text too, and never a translator a previous spec file's
+// TestBed left behind.
+registerTranslator(lookup);
+setActiveLanguage('fr');
+
 // Every spec gets Transloco with the French file. A spec can still provide its own.
 const i18nProviders: (Provider | EnvironmentProviders)[] = [
   provideTransloco({ config: { availableLangs: ['fr'], defaultLang: 'fr', prodMode: false }, loader: InlineTranslocoLoader }),
