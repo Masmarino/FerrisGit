@@ -59,6 +59,34 @@
         </div>
       </gbt-card>
 
+      <gbt-card variant="outlined" icon="folder" [heading]="'repositories.general.move.title' | transloco" [description]="'repositories.general.move.help' | transloco">
+        <form class="repository-general-settings__form" (submit)="$event.preventDefault(); askMove()">
+          <div class="repository-general-settings__move-fields">
+            <gbt-input name="namespace" mono [label]="'repositories.general.move.namespace' | transloco" [hint]="'repositories.general.move.namespaceHint' | transloco" autocomplete="off" [ngModel]="newNamespace()" (ngModelChange)="newNamespace.set($event)" />
+            <gbt-input name="name" mono [label]="'common.name' | transloco" autocomplete="off" [errorMessage]="nameProblem()" [ngModel]="newName()" (ngModelChange)="newName.set($event)" />
+          </div>
+          <div class="repository-general-settings__move-actions">
+            <gbt-button type="submit" variant="secondary" iconName="folder" [text]="'repositories.general.move.submit' | transloco" [disabled]="!moveChanged() || nameProblem() !== null" />
+          </div>
+        </form>
+      </gbt-card>
+
+      @if (confirmingMove()) {
+        <gbt-confirm-danger-modal
+          [isOpen]="true"
+          [heading]="'repositories.general.move.confirmTitle' | transloco"
+          [message]="'repositories.general.move.confirmMessage' | transloco: { from: repo.path.join('/'), to: movePreview() }"
+          [confirmLabel]="'repositories.general.move.submit' | transloco"
+          tone="warning"
+          [cancelLabel]="'common.cancel' | transloco"
+          [closeLabel]="'common.close' | transloco"
+          [busyLabel]="'repositories.general.move.moving' | transloco"
+          [busy]="moving()"
+          (confirmed)="confirmMove()"
+          (closed)="confirmingMove.set(false)"
+        />
+      }
+
       @if (pendingVisibility()) {
         <gbt-confirm-danger-modal
           [isOpen]="true"

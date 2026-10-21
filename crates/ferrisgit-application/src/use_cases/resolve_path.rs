@@ -45,12 +45,19 @@ impl ResolvePathUseCase {
             if segments.len() != 2 {
                 return Err(not_found());
             }
-            let repo = self
+            if let Some(repo) = self
                 .repositories
                 .find_by_owner_and_name(user.id, repo_name)
                 .await?
+            {
+                return Ok(ResolvedPath::PersonalRepository(repo));
+            }
+            let moved = self
+                .repositories
+                .find_redirect_by_owner_and_name(user.id, repo_name)
+                .await?
                 .ok_or_else(not_found)?;
-            return Ok(ResolvedPath::PersonalRepository(repo));
+            return self.where_it_lives_now(moved).await;
         }
 
         let mut chain: Vec<Group> = Vec::new();
@@ -69,18 +76,38 @@ impl ResolvePathUseCase {
                 }
                 None if remaining.len() == 1 => {
                     let group_id = chain.last().ok_or_else(not_found)?.id;
-                    let repo = self
+                    if let Some(repo) = self
                         .repositories
                         .find_by_group_and_name(group_id, name)
                         .await?
+                    {
+                        return Ok(ResolvedPath::GroupRepository {
+                            chain,
+                            repository: repo,
+                        });
+                    }
+                    let moved = self
+                        .repositories
+                        .find_redirect_by_group_and_name(group_id, name)
+                        .await?
                         .ok_or_else(not_found)?;
-                    return Ok(ResolvedPath::GroupRepository {
-                        chain,
-                        repository: repo,
-                    });
+                    return self.where_it_lives_now(moved).await;
                 }
                 None => return Err(not_found()),
             }
+        }
+    }
+}
+
+impl ResolvePathUseCase {
+    /// A repository reached through the redirect of an old path, resolved at its current place.
+    async fn where_it_lives_now(&self, repo: Repository) -> Result<ResolvedPath, DomainError> {
+        match repo.group_id {
+            None => Ok(ResolvedPath::PersonalRepository(repo)),
+            Some(group_id) => Ok(ResolvedPath::GroupRepository {
+                chain: self.groups.ancestor_chain(group_id).await?,
+                repository: repo,
+            }),
         }
     }
 }

@@ -132,6 +132,39 @@ impl GitBackend {
         Ok(())
     }
 
+    /// Moves the bare repository at `from` to `to`, its wiki along when it has one, both relative to the storage root.
+    /// Refuses to overwrite anything already at `to`.
+    pub fn move_repo(&self, from: &str, to: &str) -> std::io::Result<()> {
+        let move_dir = |from: &std::path::Path, to: &std::path::Path| -> std::io::Result<()> {
+            if to.exists() {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::AlreadyExists,
+                    format!("{} already exists", to.display()),
+                ));
+            }
+            if let Some(parent) = to.parent() {
+                std::fs::create_dir_all(parent)?;
+            }
+            std::fs::rename(from, to)
+        };
+        let (from_path, to_path) = (self.storage_root.join(from), self.storage_root.join(to));
+        move_dir(&from_path, &to_path)?;
+        let from_wiki = self
+            .storage_root
+            .join(ferrisgit_domain::wiki::wiki_disk_path_for(from));
+        if from_wiki.exists() {
+            let to_wiki = self
+                .storage_root
+                .join(ferrisgit_domain::wiki::wiki_disk_path_for(to));
+            if let Err(err) = move_dir(&from_wiki, &to_wiki) {
+                // Put the repository back, so it isn't split from its wiki.
+                std::fs::rename(&to_path, &from_path)?;
+                return Err(err);
+            }
+        }
+        Ok(())
+    }
+
     /// A missing path is fine: this is best-effort cleanup after the database row is gone.
     pub fn remove_bare_repo(&self, disk_path: &str) -> std::io::Result<()> {
         let full_path = self.storage_root.join(disk_path);

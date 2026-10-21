@@ -1520,11 +1520,26 @@
       "descriptionFailed": "Unable to update the description.",
       "visibilityFailed": "Unable to change the repository's visibility.",
       "failed": "The repository's information could not be loaded.",
-      "help": "What visitors read about the repository and who can see it. Each setting is saved as soon as you change it. The name and the owner cannot be changed: they are part of the clone URL.",
+      "help": "What visitors read about the repository and who can see it. Each setting is saved as soon as you change it.",
       "loading": "Loading the repository's information…",
       "descriptionPlaceholder": "What is this repository for?",
       "descriptionHint": "Shown under the repository's name and in lists.",
-      "visibilityLabel": "Repository visibility"
+      "visibilityLabel": "Repository visibility",
+      "move": {
+        "title": "Name and location",
+        "help": "Renaming or transferring the repository changes its address. The old one keeps working, for Git and the interface, as long as no other repository takes it.",
+        "namespace": "Namespace",
+        "namespaceHint": "Your username, or the path of a group you maintain (acme/backend).",
+        "nameProblem": "Letters, digits, - and _ only.",
+        "submit": "Rename or transfer",
+        "confirmTitle": "Change the repository's address",
+        "confirmMessage": "\"{{ from }}\" will become \"{{ to }}\". Old links and clone URLs will redirect to the new address; update your Git remotes anyway.",
+        "moving": "Moving…",
+        "done": "The repository has a new address.",
+        "taken": "A repository with this name already exists there.",
+        "notAllowed": "A repository can only be transferred to your own namespace or to a group you maintain.",
+        "failed": "Could not rename or transfer the repository."
+      }
     },
     "tree": {
       "toggle": "{{ action }} {{ name }}"

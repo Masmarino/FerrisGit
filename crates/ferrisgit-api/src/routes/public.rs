@@ -183,16 +183,15 @@ async fn resolve(
     Path(path): Path<String>,
 ) -> Result<Json<ResolveResponse>, ApiError> {
     let not_found = || ApiError(DomainError::NotFound("path".to_string()));
-    let (repository_id, chain) = match resolve_path(&state, &path).await? {
-        ResolvedPath::PersonalRepository(repo) => (repo.id, None),
-        ResolvedPath::GroupRepository { chain, repository } => (repository.id, Some(chain)),
+    let (repository, chain) = match resolve_path(&state, &path).await? {
+        ResolvedPath::PersonalRepository(repo) => (repo, None),
+        ResolvedPath::GroupRepository { chain, repository } => (repository, Some(chain)),
         ResolvedPath::Group { .. } => return Err(not_found()),
     };
-    match require_public_repository(&state, repository_id).await {
-        Ok(_) => Ok(Json(ResolveResponse::repository(
-            repository_id,
-            chain.as_deref(),
-        ))),
+    match require_public_repository(&state, repository.id).await {
+        Ok(_) => Ok(Json(
+            ResolveResponse::repository(&state, &repository, chain.as_deref()).await?,
+        )),
         Err(ApiError(DomainError::NotFound(_))) => Err(not_found()),
         Err(other) => Err(other),
     }

@@ -72,10 +72,11 @@ export interface CommitInfo {
   committedAt: string;
 }
 
+/** `path` is where a repository lives now; it differs from the one asked for when that was an old, redirected path. */
 export type ResolvedPath =
-  | { type: 'personalRepository'; repositoryId: string }
+  | { type: 'personalRepository'; repositoryId: string; path?: string[] }
   | { type: 'group'; groupId: string; chain: { id: string; name: string }[]; role: MemberRole | null }
-  | { type: 'groupRepository'; repositoryId: string; chain: { id: string; name: string }[] };
+  | { type: 'groupRepository'; repositoryId: string; chain: { id: string; name: string }[]; path?: string[] };
 
 @Injectable({ providedIn: 'root' })
 export class RepositoriesService {
@@ -95,7 +96,8 @@ export class RepositoriesService {
   }
 
   /** Only the fields present change. Name and owner are fixed because they are in the clone URL. */
-  update(repositoryId: string, update: { description?: string; visibility?: RepositoryVisibility }) {
+  /** A new `name` or `namespace` (a username or a group path) moves the repository; its old path redirects. */
+  update(repositoryId: string, update: { description?: string; visibility?: RepositoryVisibility; name?: string; namespace?: string }) {
     return this.http.patch<Repository>(`/api/repositories/by-id/${repositoryId}`, update);
   }
 

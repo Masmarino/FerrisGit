@@ -1520,11 +1520,26 @@
       "descriptionFailed": "Impossible de mettre à jour la description.",
       "visibilityFailed": "Impossible de changer la visibilité du dépôt.",
       "failed": "Les informations du dépôt n'ont pas pu être chargées.",
-      "help": "Ce que les visiteurs lisent sur le dépôt et qui peut le voir. Chaque réglage est enregistré dès que vous le modifiez. Le nom et le propriétaire ne se modifient pas : ils font partie de l'URL de clonage.",
+      "help": "Ce que les visiteurs lisent sur le dépôt et qui peut le voir. Chaque réglage est enregistré dès que vous le modifiez.",
       "loading": "Chargement des informations du dépôt…",
       "descriptionPlaceholder": "À quoi sert ce dépôt ?",
       "descriptionHint": "Affichée sous le nom du dépôt et dans les listes.",
-      "visibilityLabel": "Visibilité du dépôt"
+      "visibilityLabel": "Visibilité du dépôt",
+      "move": {
+        "title": "Nom et emplacement",
+        "help": "Renommer ou transférer le dépôt change son adresse. L'ancienne continue de fonctionner, pour Git comme pour l'interface, tant qu'aucun autre dépôt ne la reprend.",
+        "namespace": "Espace",
+        "namespaceHint": "Votre nom d'utilisateur, ou le chemin d'un groupe dont vous êtes Mainteneur (acme/backend).",
+        "nameProblem": "Lettres, chiffres, - et _ uniquement.",
+        "submit": "Renommer ou transférer",
+        "confirmTitle": "Changer l'adresse du dépôt",
+        "confirmMessage": "« {{ from }} » deviendra « {{ to }} ». Les anciens liens et URL de clonage redirigeront vers la nouvelle adresse ; mettez quand même à jour vos remotes Git.",
+        "moving": "Déplacement…",
+        "done": "Le dépôt a changé d'adresse.",
+        "taken": "Un dépôt porte déjà ce nom à cet endroit.",
+        "notAllowed": "Vous ne pouvez transférer un dépôt que vers votre propre espace ou un groupe dont vous êtes Mainteneur.",
+        "failed": "Impossible de renommer ou de transférer le dépôt."
+      }
     },
     "tree": {
       "toggle": "{{ action }} {{ name }}"

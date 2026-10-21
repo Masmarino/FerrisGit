@@ -23,6 +23,7 @@ FerrisGit a trois rôles, du moins au plus puissant : **Lecteur**, **Contributeu
 | Créer une branche protégée qui n'existe pas encore | non | non | oui |
 | Webhooks | non | non | oui |
 | Gérer les collaborateurs | non | non | oui |
+| Renommer le dépôt, le transférer vers son espace ou un groupe qu'on maintient | non | non | oui |
 | Supprimer le dépôt | non | non | oui |
 
 Quelques précisions :

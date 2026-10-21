@@ -4,6 +4,7 @@ use axum::{Json, Router};
 use ferrisgit_application::use_cases::resolve_path::{ResolvePathUseCase, ResolvedPath};
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::group::Group;
+use ferrisgit_domain::repository::Repository;
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use serde::Serialize;
 use uuid::Uuid;
@@ -33,8 +34,13 @@ fn chain_response(chain: &[Group]) -> Vec<GroupChainEntry> {
 #[derive(Serialize)]
 #[serde(tag = "type", rename_all = "camelCase")]
 pub(crate) enum ResolveResponse {
+    /// `path` is where the repository lives now: it differs from the one asked for when that was an old path, kept as a
+    /// redirect after a rename or a transfer, and the interface then moves to it.
     #[serde(rename_all = "camelCase")]
-    PersonalRepository { repository_id: Uuid },
+    PersonalRepository {
+        repository_id: Uuid,
+        path: Vec<String>,
+    },
     #[serde(rename_all = "camelCase")]
     Group {
         group_id: Uuid,
@@ -45,19 +51,39 @@ pub(crate) enum ResolveResponse {
     GroupRepository {
         repository_id: Uuid,
         chain: Vec<GroupChainEntry>,
+        path: Vec<String>,
     },
 }
 
 impl ResolveResponse {
     /// `chain` is `None` for a personal repository.
-    pub(crate) fn repository(repository_id: Uuid, chain: Option<&[Group]>) -> Self {
-        match chain {
-            None => Self::PersonalRepository { repository_id },
-            Some(chain) => Self::GroupRepository {
-                repository_id,
-                chain: chain_response(chain),
-            },
-        }
+    pub(crate) async fn repository(
+        state: &AppState,
+        repo: &Repository,
+        chain: Option<&[Group]>,
+    ) -> Result<Self, DomainError> {
+        Ok(match chain {
+            None => {
+                let owner = state
+                    .users
+                    .find_by_id(repo.owner_id)
+                    .await?
+                    .ok_or_else(|| DomainError::NotFound("path".to_string()))?;
+                Self::PersonalRepository {
+                    repository_id: repo.id,
+                    path: vec![owner.username, repo.name.clone()],
+                }
+            }
+            Some(chain) => {
+                let mut path: Vec<String> = chain.iter().map(|g| g.name.clone()).collect();
+                path.push(repo.name.clone());
+                Self::GroupRepository {
+                    repository_id: repo.id,
+                    chain: chain_response(chain),
+                    path,
+                }
+            }
+        })
     }
 }
 
@@ -100,7 +126,7 @@ async fn resolve(
             require_role_by_id(&state, user_id, repo.id, CollaboratorRole::Reader)
                 .await
                 .map_err(unreadable_path_is_missing)?;
-            ResolveResponse::repository(repo.id, None)
+            ResolveResponse::repository(&state, &repo, None).await?
         }
         ResolvedPath::Group { chain } => {
             let group_id = chain
@@ -123,7 +149,7 @@ async fn resolve(
             require_role_by_id(&state, user_id, repository.id, CollaboratorRole::Reader)
                 .await
                 .map_err(unreadable_path_is_missing)?;
-            ResolveResponse::repository(repository.id, Some(&chain))
+            ResolveResponse::repository(&state, &repository, Some(&chain)).await?
         }
     }))
 }

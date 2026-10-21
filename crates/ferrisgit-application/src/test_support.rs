@@ -59,7 +59,8 @@ use ferrisgit_domain::release::{
 };
 use ferrisgit_domain::release_asset_storage::ReleaseAssetStoragePort;
 use ferrisgit_domain::repository::{
-    NewRepository, Repository, RepositoryStorePort, RepositoryVisibility,
+    NewRepository, Repository, RepositoryNamespace, RepositoryRelocation, RepositoryStorePort,
+    RepositoryVisibility,
 };
 use ferrisgit_domain::repository_collaborator::{
     CollaboratorRole, RepositoryCollaborator, RepositoryCollaboratorStorePort,
@@ -387,6 +388,8 @@ impl UserRepositoryPort for FakeUsers {
 pub struct FakeRepositories {
     repos: Mutex<Vec<Repository>>,
     deleted: Mutex<Vec<Uuid>>,
+    /// Old paths left by `relocate`: (namespace, name, repository id).
+    redirects: Mutex<Vec<(RepositoryNamespace, String, Uuid)>>,
 }
 
 impl FakeRepositories {
@@ -394,7 +397,19 @@ impl FakeRepositories {
         Self {
             repos: Mutex::new(repos),
             deleted: Mutex::new(vec![]),
+            redirects: Mutex::new(vec![]),
         }
+    }
+
+    fn find_redirect(&self, namespace: RepositoryNamespace, name: &str) -> Option<Repository> {
+        let id = self
+            .redirects
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|(ns, n, _)| *ns == namespace && n == name)
+            .map(|(_, _, id)| *id)?;
+        self.get(id)
     }
 
     pub fn empty() -> Self {
@@ -433,6 +448,60 @@ impl FakeRepositories {
 
 #[async_trait]
 impl RepositoryStorePort for FakeRepositories {
+    async fn find_redirect_by_owner_and_name(
+        &self,
+        owner_id: Uuid,
+        name: &str,
+    ) -> Result<Option<Repository>, DomainError> {
+        Ok(self.find_redirect(RepositoryNamespace::User(owner_id), name))
+    }
+
+    async fn find_redirect_by_group_and_name(
+        &self,
+        group_id: Uuid,
+        name: &str,
+    ) -> Result<Option<Repository>, DomainError> {
+        Ok(self.find_redirect(RepositoryNamespace::Group(group_id), name))
+    }
+
+    async fn relocate(
+        &self,
+        id: Uuid,
+        relocation: RepositoryRelocation,
+    ) -> Result<Repository, DomainError> {
+        let mut repos = self.repos.lock().unwrap();
+        let taken = repos.iter().any(|r| {
+            r.id != id
+                && r.name == relocation.name
+                && r.group_id == relocation.group_id
+                && (relocation.group_id.is_some() || r.owner_id == relocation.owner_id)
+        });
+        if taken {
+            return Err(DomainError::Conflict(format!(
+                "a repository named '{}' already exists there",
+                relocation.name
+            )));
+        }
+        let repo = repos
+            .iter_mut()
+            .find(|r| r.id == id)
+            .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
+        let old = (repo.namespace(), repo.name.clone());
+        repo.name = relocation.name;
+        repo.owner_id = relocation.owner_id;
+        repo.group_id = relocation.group_id;
+        repo.disk_path = relocation.disk_path;
+        let moved = repo.clone();
+        let mut redirects = self.redirects.lock().unwrap();
+        redirects.retain(|(ns, n, _)| {
+            !(*ns == moved.namespace() && *n == moved.name) && !(*ns == old.0 && *n == old.1)
+        });
+        if old != (moved.namespace(), moved.name.clone()) {
+            redirects.push((old.0, old.1, id));
+        }
+        Ok(moved)
+    }
+
     /// Same uniqueness scope as `PostgresRepositoryStore::create`: name per owner among personal repos, per group among a
     /// group's.
     async fn create(

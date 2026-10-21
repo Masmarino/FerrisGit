@@ -7,8 +7,9 @@ use axum::{Json, Router};
 use chrono::{DateTime, Utc};
 use ferrisgit_application::use_cases::create_repository::CreateRepositoryUseCase;
 use ferrisgit_application::use_cases::delete_repository::DeleteRepositoryUseCase;
+use ferrisgit_application::use_cases::relocate_repository::RelocateRepositoryUseCase;
 use ferrisgit_domain::error::DomainError;
-use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
+use ferrisgit_domain::repository::{Repository, RepositoryNamespace, RepositoryVisibility};
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use ferrisgit_domain::settings::RepositorySettingsUpdate;
 use ferrisgit_infrastructure::git_backend::GitBackend;
@@ -48,8 +49,8 @@ struct CreateRepositoryRequest {
     group_path: Option<String>,
 }
 
-/// Both fields are optional and only the ones sent change. Name and owner can't be edited, they're part of the
-/// clone URL.
+/// Every field is optional and only the ones sent change. A new `name` or `namespace` (a username or a group path)
+/// moves the repository, and its old path keeps working as a redirect.
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct UpdateRepositoryRequest {
@@ -57,6 +58,50 @@ struct UpdateRepositoryRequest {
     description: Option<String>,
     #[serde(default)]
     visibility: Option<String>,
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    namespace: Option<String>,
+}
+
+/// The namespace a repository can be transferred to by `caller_id`: their own (named by their username), or a group they
+/// maintain, the same rule as for creating a repository there.
+async fn destination_namespace(
+    state: &AppState,
+    caller_id: Uuid,
+    path: &str,
+) -> Result<RepositoryNamespace, DomainError> {
+    let segments: Vec<&str> = path.split('/').filter(|s| !s.is_empty()).collect();
+    let not_allowed = || {
+        DomainError::Validation(
+            "a repository can only be transferred to your own namespace or to a group you maintain"
+                .to_string(),
+        )
+    };
+    let first = segments.first().ok_or_else(not_allowed)?;
+    if segments.len() == 1
+        && let Some(user) = state.users.find_by_username(first).await?
+    {
+        return if user.id == caller_id {
+            Ok(RepositoryNamespace::User(user.id))
+        } else {
+            Err(not_allowed())
+        };
+    }
+    let mut parent_id: Option<Uuid> = None;
+    for segment in &segments {
+        let group = state
+            .groups
+            .find_child_by_name(parent_id, segment)
+            .await?
+            .ok_or_else(not_allowed)?;
+        parent_id = Some(group.id);
+    }
+    let group_id = parent_id.ok_or_else(not_allowed)?;
+    require_group_chain_role(state, caller_id, group_id, CollaboratorRole::Maintainer)
+        .await
+        .map_err(|_| not_allowed())?;
+    Ok(RepositoryNamespace::Group(group_id))
 }
 
 #[derive(Deserialize)]
@@ -305,32 +350,14 @@ async fn list(
     Ok(Json(responses))
 }
 
+/// An old path, kept as a redirect after a rename or a transfer, answers with the repository as it is now.
 async fn get_one(
     AuthUser(user_id): AuthUser,
     State(state): State<AppState>,
     Path((owner, name)): Path<(String, String)>,
 ) -> Result<Json<RepositoryResponse>, ApiError> {
     let repo = require_role(&state, user_id, &owner, &name, CollaboratorRole::Reader).await?;
-    let role = if repo.owner_id == user_id {
-        "owner".to_string()
-    } else {
-        role_label_or_reader(
-            state
-                .repository_collaborators
-                .get_role(repo.id, user_id)
-                .await?,
-        )
-    };
-    let path = vec![owner.clone(), repo.name.clone()];
-
-    let star_count = state.repository_stars.count_for_repository(repo.id).await?;
-    let is_starred = state.repository_stars.is_starred(repo.id, user_id).await?;
-    let size_bytes = directory_size(&state, &repo).await;
-
-    Ok(Json(
-        RepositoryResponse::new(&repo, owner, Some(role), path)
-            .with_stats(star_count, is_starred, size_bytes),
-    ))
+    Ok(Json(repository_summary(&state, repo, Some(user_id)).await?))
 }
 
 async fn get_by_id(
@@ -439,7 +466,8 @@ async fn unstar_by_id(
     }))
 }
 
-/// Same guard as the other repository settings. Making a repository private drops it from the public catalog and
+/// Same guard as the other repository settings. Renaming or transferring needs the Maintainer role on the repository,
+/// and on the destination group. Making a repository private drops it from the public catalog and
 /// anonymous pages immediately, they read the stored visibility on every request.
 async fn update_by_id(
     AuthUser(user_id): AuthUser,
@@ -447,12 +475,24 @@ async fn update_by_id(
     Path(id): Path<Uuid>,
     Json(req): Json<UpdateRepositoryRequest>,
 ) -> Result<Json<RepositoryResponse>, ApiError> {
-    let repo = require_role_by_id(&state, user_id, id, CollaboratorRole::Maintainer).await?;
+    let mut repo = require_role_by_id(&state, user_id, id, CollaboratorRole::Maintainer).await?;
     let visibility = req
         .visibility
         .as_deref()
         .map(RepositoryVisibility::parse)
         .transpose()?;
+    if req.name.is_some() || req.namespace.is_some() {
+        let namespace = match req.namespace.as_deref() {
+            Some(path) => Some(destination_namespace(&state, user_id, path).await?),
+            None => None,
+        };
+        let git_backend = state.git_backend.clone();
+        repo = RelocateRepositoryUseCase::new(state.repositories.clone())
+            .execute(repo, req.name, namespace, |from, to| {
+                run_blocking(|| git_backend.move_repo(from, to))
+            })
+            .await?;
+    }
     if req.description.is_none() && visibility.is_none() {
         return Ok(Json(repository_summary(&state, repo, Some(user_id)).await?));
     }

@@ -44,6 +44,19 @@ Rendre un dépôt **public** l'ajoute au catalogue public : toute personne peut 
 
 Les mêmes modifications sont possibles par l'API (`PATCH /api/repositories/by-id/{id}`, voir [l'API des dépôts et groupes](/docs/api/depots)).
 
+## Renommer ou transférer un dépôt
+
+Dans **Réglages**, onglet **Informations**, la carte **Nom et emplacement** change l'adresse du dépôt. Elle est réservée aux Mainteneurs (et au propriétaire d'un dépôt personnel) :
+
+- **Nom** : le nouveau nom, en lettres, chiffres, `-` et `_`.
+- **Espace** : où le dépôt est rangé. Votre nom d'utilisateur pour le ranger dans votre espace personnel, ou le chemin d'un groupe dont vous êtes Mainteneur (`acme/backend`) pour l'y transférer. On ne transfère pas un dépôt dans l'espace personnel de quelqu'un d'autre.
+
+Après confirmation, le dépôt change d'adresse avec tout ce qu'il contient : son wiki, ses tickets, ses demandes de fusion, ses pipelines, ses releases, ses collaborateurs, ses webhooks et ses étoiles. Transféré dans un groupe, il donne aux membres du groupe les droits que leur rôle leur accorde ; ramené dans votre espace, vous en devenez le propriétaire.
+
+L'**ancienne adresse continue de fonctionner** : un lien vers l'ancienne page mène à la nouvelle, et Git clone, récupère et pousse à l'ancienne URL de clonage comme à la nouvelle. Les adresses affichées (bouton **Cloner**, **Copier l'URL de clonage**) sont les nouvelles. Une ancienne adresse cesse de rediriger dès qu'un autre dépôt la prend, par exemple un nouveau dépôt créé avec l'ancien nom : mettez donc à jour vos remotes Git (`git remote set-url origin <nouvelle adresse>`).
+
+Si un dépôt porte déjà le nom choisi à cet endroit, rien n'est déplacé.
+
 ## Visibilité : privé ou public
 
 | | Privé | Public |

@@ -19,11 +19,19 @@ pub async fn require_role(
         .find_by_username(owner)
         .await?
         .ok_or_else(not_found)?;
-    let repo = state
+    let repo = match state
         .repositories
         .find_by_owner_and_name(owner_user.id, name)
         .await?
-        .ok_or_else(not_found)?;
+    {
+        Some(repo) => repo,
+        // A renamed or transferred repository answers at its old path too.
+        None => state
+            .repositories
+            .find_redirect_by_owner_and_name(owner_user.id, name)
+            .await?
+            .ok_or_else(not_found)?,
+    };
     require_role_by_id(state, caller_id, repo.id, min_role).await
 }
 

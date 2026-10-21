@@ -2,7 +2,8 @@ use std::sync::Arc;
 
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::repository::{
-    NewRepository, Repository, RepositoryStorePort, RepositoryVisibility,
+    NewRepository, Repository, RepositoryNamespace, RepositoryStorePort, RepositoryVisibility,
+    repository_disk_path,
 };
 use ferrisgit_domain::settings::{RepositorySettingsStorePort, RepositorySettingsUpdate};
 use uuid::Uuid;
@@ -71,10 +72,11 @@ impl CreateRepositoryUseCase {
             }
         }
 
-        let disk_path = match group_id {
-            None => format!("{owner_id}/{name}.git"),
-            Some(gid) => format!("groups/{gid}/{name}.git"),
+        let namespace = match group_id {
+            None => RepositoryNamespace::User(owner_id),
+            Some(gid) => RepositoryNamespace::Group(gid),
         };
+        let disk_path = repository_disk_path(namespace, &name);
         init_disk_repo(&disk_path).map_err(|e| DomainError::Infrastructure(e.to_string()))?;
 
         let repo = self

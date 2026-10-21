@@ -1,7 +1,7 @@
 import { ChangeDetectionStrategy, Component, computed, DestroyRef, inject, OnDestroy, OnInit, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
-import { ActivatedRoute, RouterLink, UrlSegment } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink, UrlSegment } from '@angular/router';
 import { BehaviorSubject, catchError, combineLatest, map, of, switchMap } from 'rxjs';
 import { Alert } from '@masmarino/gabarit/alert';
 import { Breadcrumb } from '@masmarino/gabarit/breadcrumb';
@@ -105,6 +105,7 @@ export class PublicRepositoryPage implements OnInit, OnDestroy {
   private repositories = inject(RepositoriesService);
   private context = inject(RepositoryContextService);
   private destroyRef = inject(DestroyRef);
+  private router = inject(Router);
   protected pageTitle = inject(PageTitleService);
 
   protected readonly rootPath: string[] = [];
@@ -135,7 +136,16 @@ export class PublicRepositoryPage implements OnInit, OnDestroy {
           this.view.set({ kind: 'loading' });
           this.pageTitle.set('');
           return this.repositories.resolve(pathSegments).pipe(
-            map((resolved) => toView(resolved, subPage, pathSegments)),
+            map((resolved) => {
+              // An old path of a renamed or transferred repository: carry on at its current one.
+              const current = resolved.type === 'group' ? undefined : resolved.path;
+              if (current && current.join('/') !== pathSegments.join('/')) {
+                const rest = subPage.length > 0 ? ['-', ...subPage] : [];
+                void this.router.navigate(['/repositories', ...current, ...rest], { replaceUrl: true, queryParamsHandling: 'preserve', preserveFragment: true });
+                return { kind: 'loading' } as const;
+              }
+              return toView(resolved, subPage, pathSegments);
+            }),
             catchError((error: unknown) => of(failedView(error))),
           );
         }),

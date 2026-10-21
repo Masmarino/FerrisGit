@@ -1,7 +1,7 @@
 import { Component, DestroyRef, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { catchError, map, of, switchMap } from 'rxjs';
-import { ActivatedRoute, UrlSegment } from '@angular/router';
+import { ActivatedRoute, Router, UrlSegment } from '@angular/router';
 import { MemberRole, ResolvedPath, RepositoriesService } from '../repositories.service';
 import { RepositoryAncestor, RepositoryContextService } from '../repository-context.service';
 import { RepositoryDetail } from '../repository-detail/repository-detail';
@@ -88,6 +88,7 @@ export class RepositoryPathResolver implements OnInit, OnDestroy {
   private repositories = inject(RepositoriesService);
   private destroyRef = inject(DestroyRef);
   private context = inject(RepositoryContextService);
+  private router = inject(Router);
 
   protected view = signal<View>({ kind: 'loading' });
 
@@ -121,7 +122,16 @@ export class RepositoryPathResolver implements OnInit, OnDestroy {
           }
           this.view.set({ kind: 'loading' });
           return this.repositories.resolve(pathSegments).pipe(
-            map((resolved) => this.toView(resolved, subPageSegments, pathSegments)),
+            map((resolved) => {
+              // An old path of a renamed or transferred repository: carry on at its current one, as a redirect would.
+              const current = resolved.type === 'group' ? undefined : resolved.path;
+              if (current && current.join('/') !== pathSegments.join('/')) {
+                const subPage = subPageSegments.length > 0 ? ['-', ...subPageSegments] : [];
+                void this.router.navigate(['/repositories', ...current, ...subPage], { replaceUrl: true, queryParamsHandling: 'preserve', preserveFragment: true });
+                return { kind: 'loading' } as View;
+              }
+              return this.toView(resolved, subPageSegments, pathSegments);
+            }),
             catchError(() => {
               // Nothing to resolve, so the previous repository's sidebar no longer applies.
               this.context.leave();
