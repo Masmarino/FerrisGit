@@ -1303,6 +1303,7 @@
   "repositories": {
     "sections": {
       "general": "Informations",
+      "branches": "Branches protégées",
       "pipeline": "Pipeline",
       "variables": "Variables CI/CD",
       "webhooks": "Webhooks",
@@ -1620,7 +1621,30 @@
     "noDescription": "Aucune description",
     "languages": "Langages",
     "tabsLabel": "Dépôts affichés",
-    "noLanguage": "Aucun langage détecté"
+    "noLanguage": "Aucun langage détecté",
+    "protectedBranches": {
+      "add": "Protéger une branche",
+      "addHelp": "Plus personne ne pousse sur une branche protégée, Mainteneurs compris : ses changements arrivent par une demande de fusion.",
+      "pattern": "Branche ou motif",
+      "patternHint": "Par exemple main, ou release/* : * remplace n'importe quelle suite de caractères.",
+      "patternProblem": "Un nom de branche, sans refs/heads/ ni espace ; * remplace n'importe quelle suite de caractères.",
+      "submit": "Protéger",
+      "title": "Branches protégées",
+      "listHelp": "Un push qui mettrait à jour, forcerait ou supprimerait l'une de ces branches est refusé. Seul un Mainteneur peut en créer une qui n'existe pas encore.",
+      "loading": "Chargement des branches protégées…",
+      "loadFailed": "Les branches protégées n'ont pas pu être chargées.",
+      "emptyTitle": "Aucune branche protégée",
+      "emptyMessage": "Tout Contributeur peut pousser sur n'importe quelle branche. Protégez la branche principale pour que ses changements passent par une demande de fusion.",
+      "unprotect": "Ne plus protéger",
+      "unprotectNamed": "Ne plus protéger {{ pattern }}",
+      "deleteTitle": "Ne plus protéger la branche",
+      "deleteMessage": "Les Contributeurs pourront de nouveau pousser directement sur « {{ pattern }} », et la supprimer.",
+      "added": "Branche protégée.",
+      "addFailed": "Impossible de protéger la branche.",
+      "alreadyProtected": "Ce motif est déjà protégé.",
+      "deleted": "La branche n'est plus protégée.",
+      "deleteFailed": "Impossible de retirer la protection."
+    }
   },
   "pipelines": {
     "jobStatus": {

@@ -12,6 +12,7 @@ import { LabelsService } from '../../labels/labels.service';
 import { MilestonesService } from '../../milestones/milestones.service';
 import { RepositoriesService } from '../repositories.service';
 import { RepositoryGeneralSettings } from '../repository-general-settings/repository-general-settings';
+import { RepositoryProtectedBranches } from '../repository-protected-branches/repository-protected-branches';
 import { RepositoryPipelineSettings } from '../repository-pipeline-settings/repository-pipeline-settings';
 import { RepositoryCiVariables } from '../repository-ci-variables/repository-ci-variables';
 import { RepositoryWebhooks } from '../repository-webhooks/repository-webhooks';
@@ -30,6 +31,7 @@ const SETTINGS_URL = '/repositories/florian/ferrisgit/-/settings';
 
 const PANELS: [string, Type<unknown>][] = [
   ['general', RepositoryGeneralSettings],
+  ['branches', RepositoryProtectedBranches],
   ['pipeline', RepositoryPipelineSettings],
   ['variables', RepositoryCiVariables],
   ['webhooks', RepositoryWebhooks],
@@ -40,10 +42,13 @@ const PANELS: [string, Type<unknown>][] = [
 
 describe('RepositorySettings', () => {
   async function setup(url = SETTINGS_URL) {
-    // Each of the 7 sections renders when selected, so every HTTP-backed service needs a stub.
+    // Each of the 8 sections renders when selected, so every HTTP-backed service needs a stub.
     const repositorySettingsStub = {
       get: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 })),
       update: vi.fn(() => of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 })),
+      listProtectedBranches: vi.fn(() => of([])),
+      protectBranch: vi.fn(() => of({ id: 'p1', pattern: 'main', createdAt: '2026-01-01T00:00:00Z' })),
+      unprotectBranch: vi.fn(() => of(undefined)),
       listCiVariables: vi.fn(() => of([])),
       setCiVariable: vi.fn(() => of({ id: 'v1', key: 'KEY', masked: true })),
       deleteCiVariable: vi.fn(() => of(undefined)),
@@ -123,12 +128,13 @@ describe('RepositorySettings', () => {
     expect(el().querySelectorAll('nav')).toHaveLength(1);
   });
 
-  it('lists the seven sections, in order, as links to ?section=<key> (the default one on the bare path)', async () => {
+  it('lists the eight sections, in order, as links to ?section=<key> (the default one on the bare path)', async () => {
     const { el } = await setup();
 
     const links = Array.from(el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a'));
     expect(links.map((a) => a.querySelector('.gbt-nav-tab__label')?.textContent)).toEqual([
       'Informations',
+      'Branches protégées',
       'Pipeline',
       'Variables CI/CD',
       'Webhooks',
@@ -138,6 +144,7 @@ describe('RepositorySettings', () => {
     ]);
     expect(links.map((a) => a.getAttribute('href'))).toEqual([
       SETTINGS_URL,
+      `${SETTINGS_URL}?section=branches`,
       `${SETTINGS_URL}?section=pipeline`,
       `${SETTINGS_URL}?section=variables`,
       `${SETTINGS_URL}?section=webhooks`,
@@ -206,14 +213,14 @@ describe('RepositorySettings', () => {
     const { el } = await setup();
 
     const links = Array.from(el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a'));
-    expect(links).toHaveLength(7);
+    expect(links).toHaveLength(8);
     expect(links.every((a) => a.getAttribute('data-orientation') === 'vertical')).toBe(true);
   });
 
   it('moves to a section when its nav link is clicked', async () => {
     const { harness, rendered, el } = await setup();
 
-    el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a')[3].click();
+    el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a')[4].click();
     await harness.fixture.whenStable();
     harness.fixture.detectChanges();
 

@@ -10,6 +10,7 @@ use ferrisgit_domain::repository::RepositoryStorePort;
 use ferrisgit_domain::user::UserRepositoryPort;
 use uuid::Uuid;
 
+use super::protected_branches::ProtectedBranches;
 use super::source_branch_tip::source_branch_tip;
 
 pub struct ApplySuggestionCommentUseCase {
@@ -20,6 +21,7 @@ pub struct ApplySuggestionCommentUseCase {
     diff_reader: Arc<dyn DiffReaderPort>,
     branch_reader: Arc<dyn BranchReaderPort>,
     suggestion_executor: Arc<dyn ApplySuggestionExecutorPort>,
+    protected_branches: Arc<ProtectedBranches>,
 }
 
 impl ApplySuggestionCommentUseCase {
@@ -32,6 +34,7 @@ impl ApplySuggestionCommentUseCase {
         diff_reader: Arc<dyn DiffReaderPort>,
         branch_reader: Arc<dyn BranchReaderPort>,
         suggestion_executor: Arc<dyn ApplySuggestionExecutorPort>,
+        protected_branches: Arc<ProtectedBranches>,
     ) -> Self {
         Self {
             merge_requests,
@@ -41,6 +44,7 @@ impl ApplySuggestionCommentUseCase {
             diff_reader,
             branch_reader,
             suggestion_executor,
+            protected_branches,
         }
     }
 
@@ -105,6 +109,19 @@ impl ApplySuggestionCommentUseCase {
             .await?
             .ok_or_else(|| DomainError::NotFound("repository".to_string()))?;
 
+        // Applying a suggestion commits to the source branch, which a protected branch only takes through a merge
+        // request of its own.
+        if self
+            .protected_branches
+            .is_protected(repo.id, &mr.source_branch)
+            .await?
+        {
+            return Err(DomainError::Validation(format!(
+                "branch '{}' is protected: a suggestion cannot be committed to it",
+                mr.source_branch
+            )));
+        }
+
         let applier = self
             .users
             .find_by_id(applier_id)
@@ -161,7 +178,8 @@ impl ApplySuggestionCommentUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{
-        FakeBranchReader, FakeDiffReader, FakeMergeRequests, FakeRepositories, FakeUsers,
+        FakeBranchReader, FakeCollaborators, FakeDiffReader, FakeGroups, FakeMergeRequests,
+        FakeProtectedBranches, FakeRepositories, FakeUsers,
     };
     use crate::use_cases::fixtures::{
         added_line, merge_request, merge_request_comment, readme_diff, repository, user,
@@ -201,6 +219,8 @@ mod tests {
     struct Setup {
         use_case: ApplySuggestionCommentUseCase,
         store: Arc<FakeMergeRequests>,
+        protected_branches: Arc<ProtectedBranches>,
+        repository_id: Uuid,
         mr_id: Uuid,
         applier_id: Uuid,
     }
@@ -215,6 +235,14 @@ mod tests {
         let applier = user("florian");
         let applier_id = applier.id;
         let store = Arc::new(FakeMergeRequests::new(vec![mr]));
+        let groups = Arc::new(FakeGroups::empty());
+        let protected_branches = Arc::new(ProtectedBranches::new(
+            Arc::new(FakeProtectedBranches::default()),
+            Arc::new(FakeCollaborators::empty()),
+            groups.clone(),
+            groups,
+        ));
+        let repository_id = repo.id;
         let use_case = ApplySuggestionCommentUseCase::new(
             store.clone(),
             store.clone(),
@@ -229,10 +257,13 @@ mod tests {
             Arc::new(FakeSuggestionExecutor {
                 result: executor_result,
             }),
+            protected_branches.clone(),
         );
         Setup {
             use_case,
             store,
+            protected_branches,
+            repository_id,
             mr_id,
             applier_id,
         }
@@ -280,6 +311,22 @@ mod tests {
 
         assert_eq!(result.applied_commit_sha.as_deref(), Some("newsha"));
         assert!(result.applied_at.is_some());
+    }
+
+    #[tokio::test]
+    async fn a_suggestion_is_not_committed_to_a_protected_source_branch() {
+        let s = open_setup();
+        s.protected_branches
+            .protect(s.repository_id, "feat*")
+            .await
+            .unwrap();
+
+        let result = s.apply(suggestion_comment(s.mr_id)).await;
+
+        assert!(
+            matches!(&result, Err(DomainError::Validation(m)) if m.contains("protected")),
+            "{result:?}"
+        );
     }
 
     #[tokio::test]

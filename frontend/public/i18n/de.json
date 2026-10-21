@@ -1303,6 +1303,7 @@
   "repositories": {
     "sections": {
       "general": "Allgemein",
+      "branches": "Geschützte Branches",
       "pipeline": "Pipeline",
       "variables": "CI/CD-Variablen",
       "webhooks": "Webhooks",
@@ -1620,7 +1621,30 @@
     "noDescription": "Keine Beschreibung",
     "languages": "Sprachen",
     "tabsLabel": "Angezeigte Repositories",
-    "noLanguage": "Keine Sprache erkannt"
+    "noLanguage": "Keine Sprache erkannt",
+    "protectedBranches": {
+      "add": "Branch schützen",
+      "addHelp": "Niemand pusht auf einen geschützten Branch, auch keine Maintainer: Änderungen kommen über einen Merge-Request.",
+      "pattern": "Branch oder Muster",
+      "patternHint": "Zum Beispiel main oder release/*: * steht für eine beliebige Zeichenfolge.",
+      "patternProblem": "Ein Branch-Name, ohne refs/heads/ und ohne Leerzeichen; * steht für eine beliebige Zeichenfolge.",
+      "submit": "Schützen",
+      "title": "Geschützte Branches",
+      "listHelp": "Ein Push, der einen dieser Branches aktualisieren, erzwingen oder löschen würde, wird abgelehnt. Nur ein Maintainer kann einen noch nicht existierenden anlegen.",
+      "loading": "Geschützte Branches werden geladen…",
+      "loadFailed": "Die geschützten Branches konnten nicht geladen werden.",
+      "emptyTitle": "Kein geschützter Branch",
+      "emptyMessage": "Jeder Mitwirkende kann auf jeden Branch pushen. Schützen Sie den Hauptbranch, damit seine Änderungen über einen Merge-Request laufen.",
+      "unprotect": "Schutz aufheben",
+      "unprotectNamed": "Schutz von {{ pattern }} aufheben",
+      "deleteTitle": "Schutz des Branches aufheben",
+      "deleteMessage": "Mitwirkende können dann wieder direkt auf „{{ pattern }}“ pushen und ihn löschen.",
+      "added": "Branch geschützt.",
+      "addFailed": "Der Branch konnte nicht geschützt werden.",
+      "alreadyProtected": "Dieses Muster ist bereits geschützt.",
+      "deleted": "Der Branch ist nicht mehr geschützt.",
+      "deleteFailed": "Der Schutz konnte nicht aufgehoben werden."
+    }
   },
   "pipelines": {
     "jobStatus": {

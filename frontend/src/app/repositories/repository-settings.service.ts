@@ -8,6 +8,12 @@ export interface RepositorySettings {
   requiredApprovals: number;
 }
 
+export interface ProtectedBranchRule {
+  id: string;
+  pattern: string;
+  createdAt: string;
+}
+
 export interface CiVariableSummary {
   id: string;
   key: string;
@@ -63,6 +69,18 @@ export class RepositorySettingsService {
 
   update(repositoryId: string, update: Partial<RepositorySettings>) {
     return this.http.put<RepositorySettings>(`/api/repositories/${repositoryId}/settings`, update);
+  }
+
+  listProtectedBranches(repositoryId: string) {
+    return this.http.get<ProtectedBranchRule[]>(`/api/repositories/${repositoryId}/protected-branches`);
+  }
+
+  protectBranch(repositoryId: string, pattern: string) {
+    return this.http.post<ProtectedBranchRule>(`/api/repositories/${repositoryId}/protected-branches`, { pattern });
+  }
+
+  unprotectBranch(repositoryId: string, id: string) {
+    return this.http.delete<void>(`/api/repositories/${repositoryId}/protected-branches/${id}`);
   }
 
   listCiVariables(repositoryId: string) {

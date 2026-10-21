@@ -67,7 +67,28 @@ git push -u origin main
 
 > **Note** : lors du tout premier push, envoyez une seule branche (par exemple `main`). FerrisGit fait alors de cette branche la branche par défaut du dépôt. Si vous poussez plusieurs branches d'un coup, il ne peut pas deviner laquelle choisir : si aucune ne porte le nom de branche par défaut créé avec le dépôt, l'interface montre le dépôt comme vide. Poussez donc une seule branche au départ.
 
-Il n'y a pas de branche protégée : tout Contributeur peut pousser sur n'importe quelle branche.
+Tout Contributeur peut pousser sur n'importe quelle branche, sauf sur une [branche protégée](#branches-protégées).
+
+### Branches protégées
+
+Un Mainteneur protège des branches dans **Réglages > Branches protégées**, en donnant un nom (`main`) ou un motif où `*` remplace n'importe quelle suite de caractères, `/` compris (`release/*`, `*-stable`). Une branche protégée ne reçoit plus de push direct, quel que soit le rôle de la personne qui pousse, propriétaire compris :
+
+- pas de mise à jour ni de push forcé : poussez sur une autre branche et ouvrez une [demande de fusion](/docs/utilisation/merge-requests) ;
+- pas de suppression (`git push origin :main`) ;
+- la création d'une branche protégée qui n'existe pas encore est réservée aux Mainteneurs. Vous pouvez donc protéger `main` avant le premier push : le propriétaire pousse le premier commit, puis tout passe par des demandes de fusion.
+
+La fusion d'une demande de fusion fait toujours avancer la branche cible. En revanche, une suggestion ne peut pas être appliquée si la branche source de la demande est protégée.
+
+Un push refusé l'est en entier : si une seule des branches envoyées est protégée, aucune n'est mise à jour. Git affiche la raison :
+
+```text
+remote: FerrisGit: branch 'main' is protected: push to another branch and open a merge request
+To https://ferrisgit.example.com/alice/site-web.git
+ ! [remote rejected] main -> main (branch 'main' is protected: push to another branch and open a merge request)
+error: failed to push some refs to 'https://ferrisgit.example.com/alice/site-web.git'
+```
+
+Les tags ne sont pas concernés. Les push signés (`git push --signed`) sont refusés sur un dépôt qui protège au moins une branche.
 
 ### Ce qui se passe après un push
 

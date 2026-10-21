@@ -37,6 +37,9 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 - Repositories owned by a user or nested inside hierarchical **groups**, public or private (the description and the
   visibility can be changed afterwards; any signed-in user can create a top-level group).
 - Per-repository and per-group roles: **Reader**, **Contributor** and **Maintainer**.
+- **Protected branches**: Maintainers name branches (or `*` patterns such as `release/*`) that nobody pushes to; a push
+  that would move, force-push or delete one is refused over Git HTTP with the reason, and changes arrive through a merge
+  request.
 - **Merge requests** with threaded inline comments, code suggestions that can be applied from the interface,
   approvals and change requests, conflict detection, and a timeline of everything that happened.
 - **Issues** with labels, milestones, assignees and a kanban board.
@@ -203,7 +206,7 @@ an unpublished draft release) are listed. Make a repository private if that is a
 |---|---|
 | Reader | Browse and clone; read issues, merge requests and wikis. |
 | Contributor | Reader rights plus contributing: open issues and merge requests, comment on both, review, apply suggestions, set labels, be assigned an issue. |
-| Maintainer | Contributor rights plus merging, repository settings, CI variables, releases and tags, and managing collaborators. |
+| Maintainer | Contributor rights plus merging, repository settings (protected branches included), CI variables, releases and tags, managing collaborators, and creating a protected branch that does not exist yet. |
 
 Roles can be granted on a repository or on a group; a group role applies to everything below it in the hierarchy,
 and the effective role is the highest of them. On a public repository every signed-in user is a Reader. The interface

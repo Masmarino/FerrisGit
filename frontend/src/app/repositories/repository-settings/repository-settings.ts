@@ -4,6 +4,7 @@ import { ActivatedRoute, RouterLink } from '@angular/router';
 import { map } from 'rxjs';
 import { PageTitleService } from '../../shell/page-title.service';
 import { RepositoryGeneralSettings } from '../repository-general-settings/repository-general-settings';
+import { RepositoryProtectedBranches } from '../repository-protected-branches/repository-protected-branches';
 import { RepositoryPipelineSettings } from '../repository-pipeline-settings/repository-pipeline-settings';
 import { RepositoryCiVariables } from '../repository-ci-variables/repository-ci-variables';
 import { RepositoryWebhooks } from '../repository-webhooks/repository-webhooks';
@@ -16,7 +17,7 @@ import { PageLayout } from '@masmarino/gabarit/page-layout';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { t } from '../../shared/i18n/translator';
 
-export type SettingsSectionKey = 'general' | 'pipeline' | 'variables' | 'webhooks' | 'collaborators' | 'labels' | 'milestones';
+export type SettingsSectionKey = 'general' | 'branches' | 'pipeline' | 'variables' | 'webhooks' | 'collaborators' | 'labels' | 'milestones';
 
 const SECTIONS: { key: SettingsSectionKey; label: string; icon: string }[] = [
   {
@@ -25,6 +26,13 @@ const SECTIONS: { key: SettingsSectionKey; label: string; icon: string }[] = [
       return t('repositories.sections.general');
     },
     icon: 'info',
+  },
+  {
+    key: 'branches',
+    get label() {
+      return t('repositories.sections.branches');
+    },
+    icon: 'lock',
   },
   {
     key: 'pipeline',
@@ -82,6 +90,7 @@ const DEFAULT_SECTION: SettingsSectionKey = 'general';
     NavTabs,
     RouterLink,
     RepositoryGeneralSettings,
+    RepositoryProtectedBranches,
     RepositoryPipelineSettings,
     RepositoryCiVariables,
     RepositoryWebhooks,

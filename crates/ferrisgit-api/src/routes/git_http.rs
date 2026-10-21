@@ -8,6 +8,7 @@ use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::merge_request::MergeRequestStatus;
 use ferrisgit_domain::wiki::{NewWiki, wiki_disk_path_for};
 use ferrisgit_infrastructure::git_backend::SmartHttpRequest;
+use ferrisgit_infrastructure::git_receive_pack::{parse_commands, refusal_response};
 use uuid::Uuid;
 
 use crate::git_auth::parse_basic_auth;
@@ -93,6 +94,76 @@ async fn trigger_pipeline_creation(
         .await
     {
         tracing::error!(error = %err, repository_id = %repo.id, commit_sha, "failed to create pipeline after push");
+    }
+}
+
+/// The push RPC itself, as opposed to its `info/refs` advertisement.
+fn is_receive_pack_rpc(access: &GitAccess, rest: &str) -> bool {
+    matches!(access, GitAccess::Write) && rest == "git-receive-pack"
+}
+
+/// Checks a push against the repository's protected branches before `git http-backend` sees it, and answers in its
+/// place when the push is refused: every ref is reported `ng`, with the reason, so `git push` prints why. `None` lets
+/// the push through. A push whose commands can't be read is refused outright while the repository protects a branch,
+/// since there is no telling what it would move.
+async fn refuse_protected_branch_updates(
+    state: &AppState,
+    repo: &ferrisgit_domain::repository::Repository,
+    pusher_id: Option<Uuid>,
+    body: &[u8],
+) -> Option<Response> {
+    let forbidden = |message: String| Some((StatusCode::FORBIDDEN, message).into_response());
+    let commands = match parse_commands(body) {
+        Ok(commands) => commands,
+        Err(err) => {
+            return match state.protected_branches.list(repo.id).await {
+                Ok(rules) if rules.is_empty() => None,
+                Ok(_) => forbidden(format!(
+                    "this repository has protected branches and the push could not be checked: {err}"
+                )),
+                Err(err) => {
+                    tracing::error!(error = %err, repository_id = %repo.id, "failed to read the protected branches of a repository");
+                    Some(StatusCode::INTERNAL_SERVER_ERROR.into_response())
+                }
+            };
+        }
+    };
+    // Only a user token pushes: runner tokens are refused before this point.
+    let pusher_id = pusher_id?;
+    let refusals = match state
+        .protected_branches
+        .refused_updates(repo, pusher_id, &commands.updates)
+        .await
+    {
+        Ok(refusals) => refusals,
+        Err(err) => {
+            tracing::error!(error = %err, repository_id = %repo.id, "failed to check a push against the protected branches");
+            return Some(StatusCode::INTERNAL_SERVER_ERROR.into_response());
+        }
+    };
+    if refusals.is_empty() {
+        return None;
+    }
+    if !commands.wants_report_status() {
+        let reasons: Vec<&str> = refusals.iter().map(|r| r.reason.as_str()).collect();
+        return forbidden(reasons.join("\n"));
+    }
+    let response = Response::builder()
+        .status(StatusCode::OK)
+        .header(
+            axum::http::header::CONTENT_TYPE,
+            "application/x-git-receive-pack-result",
+        )
+        .header(axum::http::header::CACHE_CONTROL, "no-cache")
+        .body(axum::body::Body::from(refusal_response(
+            &commands, &refusals,
+        )));
+    match response {
+        Ok(response) => Some(response),
+        Err(err) => {
+            tracing::error!(error = %err, "failed to build a push refusal");
+            Some(StatusCode::INTERNAL_SERVER_ERROR.into_response())
+        }
     }
 }
 
@@ -321,6 +392,14 @@ pub async fn git_smart_http(state: AppState, req: axum::extract::Request) -> Res
     } else {
         repo.disk_path.clone()
     };
+
+    if !is_wiki
+        && is_receive_pack_rpc(&access, &rest)
+        && let Some(refusal) =
+            refuse_protected_branch_updates(&state, &repo, pusher_id, &body_bytes).await
+    {
+        return refusal;
+    }
 
     let content_type = parts
         .headers

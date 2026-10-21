@@ -24,9 +24,15 @@ impl GixRepositoryReader {
         };
         let source_id = branch_tip(source_branch)?;
         let target_id = branch_tip(target_branch)?;
+        // Branches with unrelated histories have no merge base to diff against.
         let merge_base_id = repo
             .merge_base(source_id, target_id)
-            .map_err(GitReadError::other)?;
+            .map_err(GitReadError::other)?
+            .ok_or_else(|| {
+                GitReadError::other(format!(
+                    "{source_branch} and {target_branch} have no common ancestor"
+                ))
+            })?;
 
         let base_tree = commit_tree(merge_base_id)?;
         let source_tree = commit_tree(source_id)?;

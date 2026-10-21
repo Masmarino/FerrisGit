@@ -201,6 +201,7 @@ async fn apply_suggestion(
         state.diff_reader.clone(),
         state.branch_reader.clone(),
         state.suggestion_executor.clone(),
+        state.protected_branches.clone(),
     );
     let comment = use_case
         .execute(merge_request_id, comment_id, user_id)

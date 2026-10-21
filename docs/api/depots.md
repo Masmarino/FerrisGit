@@ -243,6 +243,34 @@ Corps :
 
 Réponse 200 : les paramètres, comme `GET`. Erreur : 400 `required_approvals must not be negative`.
 
+## Branches protégées
+
+Une règle protège toutes les branches dont le nom correspond à son motif. Une branche protégée ne reçoit aucun push : ni mise à jour, ni push forcé, ni suppression. Ses changements arrivent par une demande de fusion. Seule exception : un Mainteneur peut créer une branche protégée qui n'existe pas encore. Voir [Branches protégées](/docs/utilisation/cloner-et-pousser#branches-protégées).
+
+### `GET /api/repositories/{repository_id}/protected-branches`
+
+Liste les règles, de la plus ancienne à la plus récente. Rôle minimal : Lecteur.
+
+Réponse 200 : `[ { "id": "5b1e…", "pattern": "main", "createdAt": "2026-03-01T10:00:00Z" } ]`.
+
+### `POST /api/repositories/{repository_id}/protected-branches`
+
+Protège un motif. Rôle minimal : Mainteneur.
+
+Corps : `{ "pattern": "release/*" }`. Le motif est un nom de branche, sans `refs/heads/`, où `*` remplace n'importe quelle suite de caractères, `/` compris. Les espaces autour sont retirés.
+
+Réponse 201 : la règle, comme dans la liste. Erreurs : 400 `invalid branch pattern: …` (vide, plus de 255 caractères, commence par `refs/`, `-` ou `/`, contient `..`, `//`, un espace ou l'un de `~ ^ : ? [ \`), 404 `repository`, 409 si le motif est déjà protégé.
+
+```bash
+curl -s -X POST "$BASE/api/repositories/$REPO_ID/protected-branches" \
+  -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' \
+  -d '{"pattern":"main"}'
+```
+
+### `DELETE /api/repositories/{repository_id}/protected-branches/{id}`
+
+Retire une règle. Rôle minimal : Mainteneur. Réponse 204. Erreurs : 404 `repository`, 404 `protected branch` (règle inconnue ou d'un autre dépôt).
+
 ## Collaborateurs
 
 Les collaborateurs sont des accès directs à un dépôt. Les rôles possibles sont `reader`, `contributor` et `maintainer`.
