@@ -56,6 +56,7 @@ pub mod login;
 pub mod mark_all_notifications_read;
 pub mod mark_notification_read;
 pub mod merge_merge_request;
+pub mod merge_request_pipeline;
 pub mod mfa;
 pub mod move_issue_status;
 pub mod passkeys;

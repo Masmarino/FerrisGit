@@ -15,6 +15,13 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
   protected branch that does not exist yet, so `main` can be protected before the first push. A push touching a
   protected branch is refused as a whole, and a suggestion cannot be applied to a protected source branch. The rules are
   served at `/api/repositories/{id}/protected-branches`.
+- Merge request pipelines: an open merge request runs a pipeline on its source branch merged into its target branch,
+  when it is opened and at each new commit of the source branch (push or applied suggestion). The merge commit is kept
+  under a hidden ref, `refs/merge-requests/<id>/merge`, that clients neither see nor push to and that runners fetch by
+  id. A new source commit cancels the run of the previous one if it is still going. The status shows in the merge
+  request list, in a *Pipeline* panel of the merge request page and in its timeline, and the pipeline list marks these
+  runs. *Réglages > Pipeline* can require the latest one to succeed before a merge (`pipelineMustSucceed`), and a
+  refused merge now says why. Docker runners must be upgraded to fetch the merge commit.
 - A visual pipeline editor: from a repository's pipeline list, or the quick search, "Éditer la pipeline" opens the
   stages as columns and the jobs as cards to drag between them, or the YAML itself, the two views describing the same
   file. Contributors and above are offered it. The server's own parser reads, writes and checks it

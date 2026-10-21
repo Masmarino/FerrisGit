@@ -202,6 +202,7 @@ mod tests {
             created_at: Utc::now(),
             finished_at: None,
             error: None,
+            merge_request: None,
         }
     }
 

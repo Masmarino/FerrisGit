@@ -53,6 +53,16 @@ pub struct Pipeline {
     pub finished_at: Option<DateTime<Utc>>,
     /// Why the pipeline file couldn't become jobs. Only set on a `Failed` pipeline with no jobs.
     pub error: Option<String>,
+    /// Set on a merge request pipeline, which runs on the source branch merged into the target one.
+    pub merge_request: Option<MergeRequestPipeline>,
+}
+
+/// What a merge request pipeline ran on: `commit_sha` is the merge of the two branches, a commit no branch points to,
+/// and `source_sha` the tip of the source branch it was made from.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct MergeRequestPipeline {
+    pub merge_request_id: Uuid,
+    pub source_sha: String,
 }
 
 pub struct NewPipeline {
@@ -60,6 +70,14 @@ pub struct NewPipeline {
     pub commit_sha: String,
     pub execution_engine: ExecutionEngine,
     pub triggered_by: Uuid,
+    pub merge_request: Option<MergeRequestPipeline>,
+}
+
+impl PipelineStatus {
+    /// Whether the pipeline can still change: `Pending` or `Running`.
+    pub fn is_active(&self) -> bool {
+        matches!(self, PipelineStatus::Pending | PipelineStatus::Running)
+    }
 }
 
 #[async_trait]
@@ -78,6 +96,16 @@ pub trait PipelineStorePort: Send + Sync {
     /// so the event is published once.
     async fn mark_running(&self, id: Uuid) -> Result<bool, DomainError>;
     async fn count_created_since(&self, since: DateTime<Utc>) -> Result<i64, DomainError>;
+    /// The pipelines of a merge request, newest first.
+    async fn list_for_merge_request(
+        &self,
+        merge_request_id: Uuid,
+    ) -> Result<Vec<Pipeline>, DomainError>;
+    /// The newest pipeline of each of the merge requests that have one.
+    async fn latest_for_merge_requests(
+        &self,
+        merge_request_ids: &[Uuid],
+    ) -> Result<Vec<Pipeline>, DomainError>;
 }
 
 #[cfg(test)]

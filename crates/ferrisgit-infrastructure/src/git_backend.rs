@@ -33,6 +33,19 @@ pub struct GitBackend {
     storage_root: PathBuf,
 }
 
+/// Where the merge commits of merge request pipelines are kept, one ref per merge request.
+pub const MERGE_REQUEST_REFS: &str = "refs/merge-requests";
+
+/// Git configuration for every smart-HTTP request, as `GIT_CONFIG_*` variables so that existing repositories need no
+/// change. The merge request refs are hidden: clients neither see them nor push to them (receive-pack refuses an update
+/// of a hidden ref), but a runner can still fetch the merge commit a pipeline runs on by its id, since it is the tip of
+/// one of them.
+const SMART_HTTP_CONFIG: [(&str, &str); 3] = [
+    ("uploadpack.hideRefs", MERGE_REQUEST_REFS),
+    ("uploadpack.allowTipSHA1InWant", "true"),
+    ("receive.hideRefs", MERGE_REQUEST_REFS),
+];
+
 impl GitBackend {
     pub fn new(storage_root: PathBuf) -> Self {
         Self { storage_root }
@@ -161,6 +174,18 @@ impl GitBackend {
             .env("REQUEST_METHOD", &req.method)
             .env("QUERY_STRING", &req.query_string)
             .env("CONTENT_TYPE", &req.content_type)
+            .env("GIT_CONFIG_COUNT", SMART_HTTP_CONFIG.len().to_string())
+            .envs(
+                SMART_HTTP_CONFIG
+                    .iter()
+                    .enumerate()
+                    .flat_map(|(i, (key, value))| {
+                        [
+                            (format!("GIT_CONFIG_KEY_{i}"), key.to_string()),
+                            (format!("GIT_CONFIG_VALUE_{i}"), value.to_string()),
+                        ]
+                    }),
+            )
             .current_dir(&full_path)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())

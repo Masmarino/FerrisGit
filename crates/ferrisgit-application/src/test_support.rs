@@ -2887,6 +2887,10 @@ impl FakePipelines {
     pub fn snapshot(&self) -> Vec<Pipeline> {
         self.pipelines.lock().unwrap().clone()
     }
+
+    pub fn insert(&self, pipeline: Pipeline) {
+        self.pipelines.lock().unwrap().push(pipeline);
+    }
 }
 
 impl Default for FakePipelines {
@@ -2908,6 +2912,7 @@ impl PipelineStorePort for FakePipelines {
             created_at: Utc::now(),
             finished_at: None,
             error: None,
+            merge_request: new_pipeline.merge_request,
         };
         self.pipelines.lock().unwrap().push(pipeline.clone());
         Ok(pipeline)
@@ -2972,6 +2977,34 @@ impl PipelineStorePort for FakePipelines {
             .iter()
             .filter(|p| p.created_at >= since)
             .count() as i64)
+    }
+
+    async fn list_for_merge_request(
+        &self,
+        merge_request_id: Uuid,
+    ) -> Result<Vec<Pipeline>, DomainError> {
+        // Newest first, the latest created winning a tie: the fake's clock can give two pipelines the same instant.
+        let mut pipelines: Vec<Pipeline> = filter_in(&self.pipelines, |p| {
+            p.merge_request
+                .as_ref()
+                .is_some_and(|mr| mr.merge_request_id == merge_request_id)
+        });
+        pipelines.reverse();
+        pipelines.sort_by_key(|p| Reverse(p.created_at));
+        Ok(pipelines)
+    }
+
+    async fn latest_for_merge_requests(
+        &self,
+        merge_request_ids: &[Uuid],
+    ) -> Result<Vec<Pipeline>, DomainError> {
+        let mut latest = Vec::new();
+        for id in merge_request_ids {
+            if let Some(pipeline) = self.list_for_merge_request(*id).await?.into_iter().next() {
+                latest.push(pipeline);
+            }
+        }
+        Ok(latest)
     }
 }
 
@@ -3051,6 +3084,9 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
         }
         if let Some(required_approvals) = update.required_approvals {
             settings.required_approvals = required_approvals;
+        }
+        if let Some(pipeline_must_succeed) = update.pipeline_must_succeed {
+            settings.pipeline_must_succeed = pipeline_must_succeed;
         }
         Ok(RepositorySettings {
             repository_id,

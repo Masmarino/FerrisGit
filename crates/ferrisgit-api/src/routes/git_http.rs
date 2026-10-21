@@ -218,6 +218,13 @@ async fn record_pushed_commits(
                     .merge_request_activity
                     .commits_pushed(merge_request.id, actor, &previous, tip)
                     .await;
+                crate::routes::merge_requests::run_merge_request_pipeline(
+                    state,
+                    merge_request,
+                    repo,
+                    actor,
+                )
+                .await;
                 if let Err(err) = state
                     .merge_request_events
                     .set_head_sha(merge_request.id, tip)

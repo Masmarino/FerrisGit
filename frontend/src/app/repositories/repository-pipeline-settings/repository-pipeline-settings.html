@@ -60,6 +60,13 @@
             <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().requiredApprovals }" />
           </div>
         </div>
+        <div class="repository-pipeline-settings__field repository-pipeline-settings__switch" data-field="pipelineMustSucceed">
+          <gbt-switch [label]="'repositories.pipeline.mustSucceed' | transloco" [ngModel]="pipelineMustSucceedShown()" (ngModelChange)="setPipelineMustSucceed($event)" />
+          <div class="repository-pipeline-settings__field-footer">
+            <p class="repository-pipeline-settings__hint repository-pipeline-settings__switch-hint">{{ 'repositories.pipeline.mustSucceedHint' | transloco }}</p>
+            <ng-container [ngTemplateOutlet]="saveState" [ngTemplateOutletContext]="{ $implicit: saveStates().pipelineMustSucceed }" />
+          </div>
+        </div>
       </gbt-card>
     }
   }

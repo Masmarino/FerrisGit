@@ -51,6 +51,7 @@ async fn canceling_a_pending_pipeline_cancels_it_and_its_jobs_over_http(pool: Pg
             commit_sha: "abc123".to_string(),
             execution_engine: ExecutionEngine::DockerRunners,
             triggered_by: admin_id,
+            merge_request: None,
         })
         .await
         .unwrap();
@@ -140,6 +141,7 @@ async fn canceling_an_already_terminal_pipeline_over_http_is_a_no_op(pool: PgPoo
                 commit_sha: "abc123".to_string(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: admin_id,
+                merge_request: None,
             })
             .await
             .unwrap();
@@ -250,6 +252,7 @@ async fn canceling_a_pipeline_requires_contributor_access_to_its_repository(pool
             commit_sha: "abc123".to_string(),
             execution_engine: ExecutionEngine::DockerRunners,
             triggered_by: admin_id,
+            merge_request: None,
         })
         .await
         .unwrap();

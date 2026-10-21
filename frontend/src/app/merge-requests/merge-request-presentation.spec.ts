@@ -16,6 +16,7 @@ function mergeRequest(fields: Partial<MergeRequestSummary>): MergeRequestSummary
     labels: [],
     author: null,
     commentCount: 0,
+    pipeline: null,
     ...fields,
   };
 }

@@ -6,6 +6,8 @@ export interface RepositorySettings {
   pipelineFilePath: string;
   ciEnabled: boolean;
   requiredApprovals: number;
+  /** A merge waits for the latest merge request pipeline, the one of the current source commit, to succeed. */
+  pipelineMustSucceed: boolean;
 }
 
 export interface ProtectedBranchRule {

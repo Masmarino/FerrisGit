@@ -186,7 +186,7 @@ async fn apply_suggestion(
     State(state): State<AppState>,
     Path((merge_request_id, comment_id)): Path<(Uuid, Uuid)>,
 ) -> Result<Json<CommentResponse>, ApiError> {
-    find_accessible_merge_request(
+    let (mr, repo) = find_accessible_merge_request(
         &state,
         user_id,
         merge_request_id,
@@ -206,6 +206,8 @@ async fn apply_suggestion(
     let comment = use_case
         .execute(merge_request_id, comment_id, user_id)
         .await?;
+    // The suggestion is a new commit on the source branch, like a push.
+    super::run_merge_request_pipeline(&state, &mr, &repo, user_id).await;
     let author = load_user_refs(&state, comment.author_id)
         .await
         .into_values()

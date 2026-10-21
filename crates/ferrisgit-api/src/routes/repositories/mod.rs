@@ -157,6 +157,7 @@ async fn create(
         pipeline_file_path: req.pipeline_file_path,
         ci_enabled: req.ci_enabled,
         required_approvals: req.required_approvals,
+        pipeline_must_succeed: None,
     };
 
     let (group_id, group_path_names): (Option<Uuid>, Option<Vec<String>>) = match &req.group_path {

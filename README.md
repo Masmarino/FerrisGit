@@ -57,6 +57,9 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 - Two execution engines: **Docker runners** (a small `ferrisgit-runner` binary polling the server) or
   **Kubernetes**, where each job runs as a Pod.
 - Per-repository CI variables, encrypted at rest (Docker runners only), and per-job caches (Kubernetes only).
+- **Merge request pipelines**: an open merge request runs a pipeline on its source branch merged into its target, shown
+  in the merge request list, page and timeline, superseded runs are canceled, and a repository can require it to
+  succeed before a merge.
 
 **Accounts and administration**
 
@@ -263,7 +266,12 @@ jobs:
 
 The repository's own [`.ferrisgit-ci.yml`](.ferrisgit-ci.yml) is a small smoke-test pipeline.
 
-A pipeline is created after every successful push, from the file at the root of the default branch. It is `pending`
+A pipeline is created after every successful push, from the file at the root of the default branch. An open merge
+request also gets one, at its creation and at each new commit of its source branch: it runs on the source branch merged
+into the target branch (a merge commit kept under the hidden ref `refs/merge-requests/<id>/merge`, which clients
+neither see nor push to), and cancels the run of the previous source commit if it is still going. With *Exiger une
+pipeline réussie avant la fusion* on (`pipelineMustSucceed`), a merge waits until the pipeline of the source branch's
+latest commit has succeeded. Runners from an earlier version cannot fetch that merge commit: upgrade them. It is `pending`
 until a first job starts, `running` while its jobs run, then `success`, `failed` or `canceled`. A job whose
 `needs` or earlier stages did not succeed never starts: it ends `skipped`, so a failure ends the pipeline instead of
 leaving it waiting, and the pipeline is `failed`. Both execution engines apply the same rule. A pipeline file that is

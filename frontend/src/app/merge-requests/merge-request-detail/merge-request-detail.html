@@ -115,6 +115,18 @@
           </gbt-panel>
         }
 
+        @if (mr.pipeline; as pipeline) {
+          <gbt-panel class="mr-detail__pipeline" [heading]="'mergeRequests.pipeline.title' | transloco" [headingLevel]="2">
+            <p class="mr-detail__pipeline-status">
+              <fg-status-badge kind="pipeline" [status]="pipeline.status" />&ngsp;
+              <span>{{ 'mergeRequests.pipeline.onCommit' | transloco }}</span>&ngsp;<gbt-badge mono [fullText]="pipeline.sourceSha">{{ pipeline.sourceSha.slice(0, 7) }}</gbt-badge>
+            </p>
+            @if (pipelineLink(); as link) {
+              <a [routerLink]="link">{{ 'mergeRequests.pipeline.open' | transloco }}</a>
+            }
+          </gbt-panel>
+        }
+
         <gbt-panel [heading]="'common.labels' | transloco" [headingLevel]="2">
           @if (canWrite()) {
             <gbt-select

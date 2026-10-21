@@ -51,6 +51,10 @@ struct PipelineResponse {
     commit_message: Option<String>,
     /// Why the pipeline file couldn't be used. Only set on a failed pipeline with no jobs.
     error: Option<String>,
+    /// Set on a merge request pipeline, whose `commitSha` is the merge of the source branch into the target one.
+    merge_request_id: Option<Uuid>,
+    /// The source branch commit a merge request pipeline was made from.
+    source_sha: Option<String>,
 }
 
 impl PipelineResponse {
@@ -106,6 +110,8 @@ impl PipelineResponse {
                     created_at: p.created_at,
                     finished_at: p.finished_at,
                     error: p.error,
+                    merge_request_id: p.merge_request.as_ref().map(|mr| mr.merge_request_id),
+                    source_sha: p.merge_request.map(|mr| mr.source_sha),
                 }
             })
             .collect()

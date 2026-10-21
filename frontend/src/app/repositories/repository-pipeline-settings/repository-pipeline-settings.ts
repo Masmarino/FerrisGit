@@ -14,7 +14,7 @@ import { RepositorySettings as RepositorySettingsModel, RepositorySettingsServic
 import { TranslocoPipe } from '@jsverse/transloco';
 import { t } from '../../shared/i18n/translator';
 
-type Field = 'ciEnabled' | 'pipelineFilePath' | 'requiredApprovals';
+type Field = 'ciEnabled' | 'pipelineFilePath' | 'requiredApprovals' | 'pipelineMustSucceed';
 type SaveState = 'saving' | 'saved' | 'error';
 
 @Component({
@@ -38,6 +38,7 @@ export class RepositoryPipelineSettings implements OnInit {
   protected settings = signal<RepositorySettingsModel | null>(null);
   /** Saved value, then the clicked one while saving, back to the previous if the save fails. */
   protected ciEnabledShown = linkedSignal(() => this.settings()?.ciEnabled ?? false);
+  protected pipelineMustSucceedShown = linkedSignal(() => this.settings()?.pipelineMustSucceed ?? false);
   protected loadState = signal<'loading' | 'loaded' | 'failed'>('loading');
   protected saveStates = signal<Partial<Record<Field, SaveState>>>({});
   protected pathError = signal<string | null>(null);
@@ -73,6 +74,19 @@ export class RepositoryPipelineSettings implements OnInit {
 
   togglePipelineEnabled(): void {
     this.setPipelineEnabled(!this.ciEnabledShown());
+  }
+
+  setPipelineMustSucceed(required: boolean): void {
+    if (!this.settings()) {
+      return;
+    }
+    this.pipelineMustSucceedShown.set(required);
+    this.save(
+      'pipelineMustSucceed',
+      this.repositorySettings.update(this.repositoryId(), { pipelineMustSucceed: required }),
+      t('repositories.pipeline.mustSucceedFailed'),
+      () => this.pipelineMustSucceedShown.set(!required),
+    );
   }
 
   /** Called on blur, not on every keystroke. */

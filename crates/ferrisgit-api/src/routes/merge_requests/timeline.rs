@@ -2,7 +2,9 @@ use axum::extract::{Path, State};
 use axum::routing::get;
 use axum::{Json, Router};
 use chrono::{DateTime, Utc};
-use ferrisgit_application::merge_request_timeline::{ExcerptLine, TimelineItem, assemble_timeline};
+use ferrisgit_application::merge_request_timeline::{
+    ExcerptLine, TimelineItem, assemble_timeline, with_pipelines,
+};
 use ferrisgit_domain::diff::DiffLineKind;
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use serde::Serialize;
@@ -76,6 +78,14 @@ enum TimelineItemResponse {
         kind: &'static str,
         payload: serde_json::Value,
     },
+    #[serde(rename_all = "camelCase")]
+    Pipeline {
+        id: Uuid,
+        created_at: DateTime<Utc>,
+        triggered_by: Option<UserRef>,
+        #[serde(flatten)]
+        pipeline: super::MergeRequestPipelineResponse,
+    },
 }
 
 #[derive(Serialize)]
@@ -103,7 +113,14 @@ async fn timeline(
         tracing::warn!(error = %err, merge_request_id = %merge_request_id, "could not compute the diff for the timeline; omitting excerpts");
         None
     });
-    let items = assemble_timeline(comments, events, diffs.as_deref());
+    let pipelines = state
+        .pipelines
+        .list_for_merge_request(merge_request_id)
+        .await?;
+    let items = with_pipelines(
+        assemble_timeline(comments, events, diffs.as_deref()),
+        pipelines,
+    );
 
     let mut user_ids: Vec<Uuid> = mr.author_id.into_iter().collect();
     for item in &items {
@@ -115,6 +132,7 @@ async fn timeline(
                 user_ids.extend(thread.resolved_by);
             }
             TimelineItem::Event(event) => user_ids.extend(event.actor_id),
+            TimelineItem::Pipeline(pipeline) => user_ids.push(pipeline.triggered_by),
         }
     }
     let users = load_user_refs(&state, user_ids).await;
@@ -122,42 +140,54 @@ async fn timeline(
 
     let items = items
         .into_iter()
-        .map(|item| match item {
-            TimelineItem::Comment(comment) => TimelineItemResponse::Comment {
-                id: comment.id,
-                created_at: comment.created_at,
-                author: comment.author_id.and_then(user_ref),
-                body: comment.body,
-            },
-            TimelineItem::Thread(thread) => {
-                let root_author = thread.root.author_id.and_then(user_ref);
-                let replies = thread.replies.into_iter().map(|reply| {
-                    let author = reply.author_id.and_then(user_ref);
-                    CommentResponse::from_comment(reply, false, author)
-                });
-                TimelineItemResponse::Thread {
-                    id: thread.root.id,
-                    created_at: thread.root.created_at,
-                    file_path: thread.root.file_path.clone(),
-                    line_number: thread.root.line_number,
-                    end_line: thread.root.end_line,
-                    side: thread.root.side.map(|side| side.as_str()),
-                    outdated: thread.outdated,
-                    resolved: thread.root.resolved,
-                    resolved_by: thread.resolved_by.and_then(user_ref),
-                    resolved_at: thread.resolved_at,
-                    excerpt: thread.excerpt.into_iter().map(Into::into).collect(),
-                    replies: replies.collect(),
-                    root: CommentResponse::from_comment(thread.root, thread.outdated, root_author),
+        .filter_map(|item| {
+            Some(match item {
+                TimelineItem::Comment(comment) => TimelineItemResponse::Comment {
+                    id: comment.id,
+                    created_at: comment.created_at,
+                    author: comment.author_id.and_then(user_ref),
+                    body: comment.body,
+                },
+                TimelineItem::Thread(thread) => {
+                    let root_author = thread.root.author_id.and_then(user_ref);
+                    let replies = thread.replies.into_iter().map(|reply| {
+                        let author = reply.author_id.and_then(user_ref);
+                        CommentResponse::from_comment(reply, false, author)
+                    });
+                    TimelineItemResponse::Thread {
+                        id: thread.root.id,
+                        created_at: thread.root.created_at,
+                        file_path: thread.root.file_path.clone(),
+                        line_number: thread.root.line_number,
+                        end_line: thread.root.end_line,
+                        side: thread.root.side.map(|side| side.as_str()),
+                        outdated: thread.outdated,
+                        resolved: thread.root.resolved,
+                        resolved_by: thread.resolved_by.and_then(user_ref),
+                        resolved_at: thread.resolved_at,
+                        excerpt: thread.excerpt.into_iter().map(Into::into).collect(),
+                        replies: replies.collect(),
+                        root: CommentResponse::from_comment(
+                            thread.root,
+                            thread.outdated,
+                            root_author,
+                        ),
+                    }
                 }
-            }
-            TimelineItem::Event(event) => TimelineItemResponse::Event {
-                id: event.id,
-                created_at: event.created_at,
-                actor: event.actor_id.and_then(user_ref),
-                kind: event.kind.as_str(),
-                payload: event.payload,
-            },
+                TimelineItem::Event(event) => TimelineItemResponse::Event {
+                    id: event.id,
+                    created_at: event.created_at,
+                    actor: event.actor_id.and_then(user_ref),
+                    kind: event.kind.as_str(),
+                    payload: event.payload,
+                },
+                TimelineItem::Pipeline(pipeline) => TimelineItemResponse::Pipeline {
+                    id: pipeline.id,
+                    created_at: pipeline.created_at,
+                    triggered_by: user_ref(pipeline.triggered_by),
+                    pipeline: super::MergeRequestPipelineResponse::from_pipeline(pipeline)?,
+                },
+            })
         })
         .collect();
 

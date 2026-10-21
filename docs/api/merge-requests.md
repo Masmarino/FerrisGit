@@ -22,11 +22,21 @@ La liste des branches d'un dépôt, utile pour créer une demande, est décrite 
   "closedAt": null,
   "labels": [ { "id": "…", "name": "bug", "color": "#d73a4a", "repositoryId": "…", "groupId": null, "createdAt": "…" } ],
   "author": { "id": "0b6c…", "username": "alice" },
-  "commentCount": 2
+  "commentCount": 2,
+  "pipeline": {
+    "id": "8f1a…",
+    "status": "running",
+    "commitSha": "5d2e…",
+    "sourceSha": "41b8e3a0…",
+    "createdAt": "2026-03-01T10:01:00Z",
+    "finishedAt": null
+  }
 }
 ```
 
 `status` vaut `open`, `merged` ou `closed`. `author` vaut `null` si le compte de l'auteur a été supprimé. `mergeCommitSha` est renseigné après la fusion.
+
+`pipeline` est la dernière [pipeline de la demande](/docs/ci-cd/premiers-pas#pipelines-des-demandes-de-fusion), `null` tant qu'aucune n'a tourné. Elle tourne sur la branche source fusionnée dans la branche cible : `commitSha` est ce commit de fusion, qu'aucune branche ne porte, et `sourceSha` le commit de la branche source à partir duquel il a été fait. `status` prend les valeurs d'une pipeline (`pending`, `running`, `success`, `failed`, `canceled`).
 
 ### Commentaire
 
@@ -130,6 +140,8 @@ FerrisGit ne fait que des fusions sans conflit, avec le message `Merge branch '<
 
 Si le dépôt exige des approbations (`requiredApprovals` supérieur à 0), la fusion est refusée tant qu'il n'y a pas assez d'approbations à jour (données sur le sommet actuel de la branche source) ou tant qu'une relecture à jour demande des changements.
 
+Si le dépôt exige une pipeline réussie (`pipelineMustSucceed`), la fusion est refusée tant que la dernière pipeline de la demande, celle du commit actuel de la branche source, n'a pas réussi.
+
 Réponse 200, avec un champ `outcome` :
 
 ```json
@@ -138,7 +150,7 @@ Réponse 200, avec un champ `outcome` :
 
 En cas de succès, la réponse reprend tous les champs de la demande, avec `outcome: "merged"`. En cas de conflit, la demande reste ouverte et la réponse est simplement `{ "outcome": "conflicting" }` (code 200).
 
-Erreurs : 400 `merge request is not open`, 400 `changes requested by <utilisateur>`, 400 `<n>/<requis> approvals`, 400 `source branch no longer exists`, 404 `merge request`.
+Erreurs : 400 `merge request is not open`, 400 `changes requested by <utilisateur>`, 400 `<n>/<requis> approvals`, 400 `no merge request pipeline has run on the latest commit of the source branch: one must succeed before the merge`, 400 `the merge request pipeline has not finished yet: it must succeed before the merge`, 400 `the merge request pipeline is failed: it must succeed before the merge` (ou `canceled`), 400 `source branch no longer exists`, 404 `merge request`.
 
 ## Diff et fil d'activité
 
@@ -175,6 +187,7 @@ Réponse 200 : `{ "author": { "id", "username" } | null, "items": [ … ] }`. Ch
 | `comment` | Un commentaire général : `id`, `createdAt`, `author`, `body`. |
 | `thread` | Un fil de discussion sur le code : `id`, `createdAt`, `filePath`, `lineNumber`, `endLine`, `side`, `outdated`, `resolved`, `resolvedBy`, `resolvedAt`, `excerpt` (les lignes de code concernées, avec `line`, `kind`, `content`), `root` (le commentaire racine) et `replies` (les réponses). |
 | `event` | Un événement : `id`, `createdAt`, `actor`, `kind`, `payload` (objet libre selon le type). |
+| `pipeline` | Une pipeline de la demande, au moment où elle a démarré, avec son état actuel : `id`, `createdAt`, `triggeredBy`, et les champs `status`, `commitSha`, `sourceSha` et `finishedAt` de `pipeline` dans une demande. |
 
 Les valeurs de `kind` des événements sont `review_submitted`, `labels_changed`, `milestone_changed`, `title_changed`, `commits_pushed`, `merged`, `closed`, `thread_resolved` et `thread_reopened`. Si le diff ne peut pas être calculé (branche source supprimée, par exemple), la réponse reste valide, sans extraits.
 

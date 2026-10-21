@@ -1298,7 +1298,14 @@
     "replacement": "Replacement content",
     "resolvedShow": "Resolved — show",
     "outdatedMasculine": "Outdated",
-    "resolvedMasculine": "Resolved"
+    "resolvedMasculine": "Resolved",
+    "pipeline": {
+      "title": "Pipeline",
+      "onCommit": "on commit",
+      "open": "View the pipeline",
+      "started": "started the merge pipeline, on commit"
+    },
+    "mergeRefused": "Merge refused: {{ reason }}"
   },
   "repositories": {
     "sections": {
@@ -1572,7 +1579,10 @@
       "ciHelp": "Starts a pipeline on every push. Each setting is saved as soon as you change it.",
       "ciEnabled": "CI enabled for this repository",
       "mergeHelp": "The conditions to meet before a merge request can be merged.",
-      "zeroApprovals": "0 to merge without approval."
+      "zeroApprovals": "0 to merge without approval.",
+      "mustSucceed": "Require a successful pipeline before merging",
+      "mustSucceedHint": "Each merge request runs a pipeline on its source branch merged into the target branch. When on, the merge waits until the one of the source branch's latest commit has succeeded.",
+      "mustSucceedFailed": "Could not change the pipeline requirement."
     },
     "search": "Name or path",
     "listFailed": "This list could not be loaded.",
@@ -2331,6 +2341,7 @@
       "forRepositoryHint": "The jobs its projects call for and that the pipeline does not have yet, with their versions and scripts.",
       "notKubernetes": "Not with Kubernetes",
       "secretsToCreate": "Secrets to create:"
-    }
+    },
+    "mergeRequest": "Merge request"
   }
 }

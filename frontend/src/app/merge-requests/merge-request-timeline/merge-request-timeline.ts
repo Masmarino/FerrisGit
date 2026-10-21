@@ -9,6 +9,7 @@ import { Textarea } from '@masmarino/gabarit/textarea';
 import { MergeRequestSummary, TimelineItem, UserRef } from '../merge-requests.service';
 import { MrCommentCard } from '../mr-comment-card/mr-comment-card';
 import { MrSystemNote } from '../mr-system-note/mr-system-note';
+import { MrPipelineNote } from '../mr-pipeline-note/mr-pipeline-note';
 import { MrThreadCard } from '../mr-thread-card/mr-thread-card';
 import { TranslocoPipe } from '@jsverse/transloco';
 import { t, tn } from '../../shared/i18n/translator';
@@ -18,7 +19,7 @@ type TimelineFilter = 'all' | 'discussions' | 'activity';
 @Component({
   selector: 'fg-merge-request-timeline',
   standalone: true,
-  imports: [TranslocoPipe, FormsModule, Badge, Button, Card, IconMarker, SegmentedControl, Textarea, MrCommentCard, MrSystemNote, MrThreadCard],
+  imports: [TranslocoPipe, FormsModule, Badge, Button, Card, IconMarker, SegmentedControl, Textarea, MrCommentCard, MrSystemNote, MrPipelineNote, MrThreadCard],
   templateUrl: './merge-request-timeline.html',
   styleUrl: './merge-request-timeline.scss',
 })
@@ -45,10 +46,10 @@ export class MergeRequestTimeline {
     const filter = this.filter();
     const items = this.items();
     if (filter === 'discussions') {
-      return items.filter((item) => item.type !== 'event');
+      return items.filter((item) => item.type === 'comment' || item.type === 'thread');
     }
     if (filter === 'activity') {
-      return items.filter((item) => item.type === 'event');
+      return items.filter((item) => item.type === 'event' || item.type === 'pipeline');
     }
     return items;
   });

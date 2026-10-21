@@ -76,6 +76,7 @@ fn pipeline(pipeline_id: Uuid) -> Pipeline {
         created_at: Utc::now(),
         finished_at: None,
         error: None,
+        merge_request: None,
     }
 }
 

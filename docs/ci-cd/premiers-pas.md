@@ -42,9 +42,10 @@ Le push s'authentifie comme d'habitude avec un jeton Git, voir [Cloner et pousse
 
 ## Quand une pipeline se déclenche
 
-FerrisGit crée une pipeline dans deux cas :
+FerrisGit crée une pipeline dans trois cas :
 
 - **Après chaque push réussi** vers le dépôt, quelle que soit la branche ou le tag poussé. FerrisGit ne regarde pas ce qui a été poussé : il prend le commit sur lequel pointe `HEAD` dans le dépôt (la branche par défaut du dépôt) et y lit le fichier de pipeline.
+- **Pour une demande de fusion ouverte**, à sa création puis à chaque nouveau commit de sa branche source : voir [Pipelines des demandes de fusion](#pipelines-des-demandes-de-fusion).
 - **Après la fusion d'une demande de fusion**, sur le nouveau commit de la branche cible. Voir [Demandes de fusion](/docs/utilisation/merge-requests).
 
 Aucune pipeline n'est créée, sans message, quand :
@@ -54,7 +55,24 @@ Aucune pipeline n'est créée, sans message, quand :
 
 Si le fichier existe mais qu'il est invalide, le push réussit et FerrisGit crée une pipeline **Échouée**, sans job, qui porte le message d'erreur : vous le lisez dans l'interface (voir [Dépannage](/docs/ci-cd/depannage#le-fichier-est-invalide)).
 
-> **Attention** : puisque c'est le commit de `HEAD` qui est lu, pousser une branche de travail ne teste pas cette branche : la pipeline créée porte sur la pointe de la branche par défaut. Pour tester du code, fusionnez-le (la pipeline de la fusion tourne sur le résultat) ou poussez-le sur la branche par défaut. Un push vers un wiki ne déclenche rien.
+> **Attention** : puisque c'est le commit de `HEAD` qui est lu, pousser une branche de travail ne teste pas cette branche : la pipeline créée porte sur la pointe de la branche par défaut. Pour tester une branche, ouvrez une demande de fusion : sa pipeline tourne sur la branche fusionnée dans la cible. Un push vers un wiki ne déclenche rien.
+
+## Pipelines des demandes de fusion
+
+Une demande de fusion ouverte a sa propre pipeline. Elle ne tourne pas sur la branche source seule, mais sur ce que donnerait la fusion : FerrisGit fusionne la branche source dans la branche cible, sans toucher ni à l'une ni à l'autre, et lance la pipeline sur ce commit de fusion, avec le fichier de pipeline qu'il contient.
+
+- Elle démarre à la création de la demande, puis à chaque nouveau commit sur la branche source (un push, ou une suggestion appliquée). Un commit qui a déjà sa pipeline n'en reçoit pas une deuxième.
+- Quand la branche source avance, la pipeline du commit précédent est **annulée** si elle tourne encore : elle ne dit plus rien de ce qui serait fusionné.
+- Si les deux branches sont en conflit, aucune pipeline ne démarre.
+- Une avance de la branche cible ne relance rien : la pipeline suivante partira du nouvel état de la cible.
+
+Son état s'affiche dans la liste des demandes, dans le panneau **Pipeline** de la page de la demande et dans sa chronologie, où chaque pipeline apparaît à son démarrage. Elle figure aussi dans la liste des pipelines du dépôt, marquée **Demande de fusion**.
+
+Dans **Réglages > Pipeline**, l'option **Exiger une pipeline réussie avant la fusion** bloque la fusion tant que la dernière pipeline de la demande, celle du dernier commit de la branche source, n'a pas réussi. Sans fichier de pipeline (ou avec la CI désactivée), aucune pipeline ne tourne et la fusion reste donc bloquée.
+
+Le commit de fusion est gardé sous la référence cachée `refs/merge-requests/<id>/merge` : un `git clone` ne la voit pas et personne ne peut y pousser, mais un runner la récupère par son identifiant (`git fetch origin <commit>`).
+
+> **Attention** : les runners Docker d'une version précédente ne savent pas récupérer ce commit : mettez-les à jour, sinon les jobs des pipelines de demande de fusion échouent dès le `git checkout`.
 
 ## Voir la pipeline dans l'interface
 

@@ -6,8 +6,8 @@ import { createSettingsSection } from '../settings-section-testing';
 describe('RepositoryPipelineSettings', () => {
   function setup() {
     const repositorySettingsStub = {
-      get: vi.fn(() => of<RepositorySettingsModel>({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 })),
-      update: vi.fn(() => of<RepositorySettingsModel>({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 1 })),
+      get: vi.fn(() => of<RepositorySettingsModel>({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0, pipelineMustSucceed: false })),
+      update: vi.fn(() => of<RepositorySettingsModel>({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 1, pipelineMustSucceed: false })),
     };
     return { ...createSettingsSection(RepositoryPipelineSettings, [{ provide: RepositorySettingsService, useValue: repositorySettingsStub }]), repositorySettingsStub };
   }
@@ -47,6 +47,22 @@ describe('RepositoryPipelineSettings', () => {
 
     expect(repositorySettingsStub.update).toHaveBeenCalledWith('repo-1', { ciEnabled: false });
     expect(component['settings']()?.ciEnabled).toBe(false);
+  });
+
+  it('saves the requirement of a successful merge request pipeline, and puts the switch back if the save fails', () => {
+    const { component, fixture, repositorySettingsStub, toastStub } = setup();
+    fixture.detectChanges();
+    repositorySettingsStub.update.mockReturnValueOnce(of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0, pipelineMustSucceed: true }));
+
+    component.setPipelineMustSucceed(true);
+
+    expect(repositorySettingsStub.update).toHaveBeenCalledWith('repo-1', { pipelineMustSucceed: true });
+    expect(component['settings']()?.pipelineMustSucceed).toBe(true);
+
+    repositorySettingsStub.update.mockReturnValueOnce(throwError(() => ({ status: 500 })));
+    component.setPipelineMustSucceed(false);
+    expect(component['pipelineMustSucceedShown']()).toBe(true);
+    expect(toastStub.show).toHaveBeenCalledWith("Impossible de modifier l'exigence de pipeline.", 'error');
   });
 
   it('does nothing when toggling CI enabled before settings have loaded', () => {
@@ -120,7 +136,7 @@ describe('RepositoryPipelineSettings', () => {
         expect(header?.querySelector('gbt-skeleton')).toBeTruthy();
       }
 
-      pending.next({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 });
+      pending.next({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0, pipelineMustSucceed: false });
       fixture.detectChanges();
       expect(el.querySelector('[aria-busy="true"]')).toBeNull();
       expect(el.querySelector('gbt-switch')).not.toBeNull();
@@ -147,7 +163,7 @@ describe('RepositoryPipelineSettings', () => {
       const el = fixture.nativeElement as HTMLElement;
       expect(text(el.querySelector('.repository-pipeline-settings__switch-hint'))).toContain('à chaque push');
 
-      repositorySettingsStub.update.mockReturnValue(of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 0 }));
+      repositorySettingsStub.update.mockReturnValue(of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 0, pipelineMustSucceed: false }));
       fixture.componentInstance.togglePipelineEnabled();
       fixture.detectChanges();
       expect(text(el.querySelector('.repository-pipeline-settings__switch-hint'))).toContain('Aucune pipeline');
@@ -160,7 +176,7 @@ describe('RepositoryPipelineSettings', () => {
       const state = (field: string) => el.querySelector(`[data-field="${field}"] [role="status"]`);
 
       expect(text(state('pipelineFilePath'))).toBe('');
-      repositorySettingsStub.update.mockReturnValue(of({ pipelineFilePath: '.gitlab-ci.yml', ciEnabled: true, requiredApprovals: 0 }));
+      repositorySettingsStub.update.mockReturnValue(of({ pipelineFilePath: '.gitlab-ci.yml', ciEnabled: true, requiredApprovals: 0, pipelineMustSucceed: false }));
       component.updatePipelineFilePath('.gitlab-ci.yml');
       fixture.detectChanges();
       expect(text(state('pipelineFilePath'))).toBe('Enregistré');
@@ -219,7 +235,7 @@ describe('RepositoryPipelineSettings', () => {
         expect(switchInput(el).checked).toBe(true);
         expect(text(el.querySelector('.repository-pipeline-settings__switch-hint'))).toContain('à chaque push');
 
-        repositorySettingsStub.update.mockReturnValue(of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 0 }));
+        repositorySettingsStub.update.mockReturnValue(of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: false, requiredApprovals: 0, pipelineMustSucceed: false }));
         switchInput(el).click();
         await settle(fixture);
         expect(repositorySettingsStub.update).toHaveBeenCalledTimes(2);
@@ -264,7 +280,7 @@ describe('RepositoryPipelineSettings', () => {
       expect(el.querySelectorAll('[role="alert"], [aria-live]')).toHaveLength(0);
       expect(el.querySelector('gbt-switch')).toBeNull();
 
-      repositorySettingsStub.get.mockReturnValue(of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0 }));
+      repositorySettingsStub.get.mockReturnValue(of({ pipelineFilePath: '.ferrisgit-ci.yml', ciEnabled: true, requiredApprovals: 0, pipelineMustSucceed: false }));
       button(el, 'Réessayer')!.click();
       fixture.detectChanges();
 

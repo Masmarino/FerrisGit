@@ -13,6 +13,10 @@ export interface PipelineSummary {
   commitMessage: string | null;
   /** The parser's message when the pipeline file was invalid. Such a pipeline fails from the start and has no job. */
   error: string | null;
+  /** Set on a merge request pipeline, whose `commitSha` is the merge of the source branch into the target one. */
+  mergeRequestId?: string | null;
+  /** The source branch commit a merge request pipeline was made from. */
+  sourceSha?: string | null;
 }
 
 export interface JobSummary {

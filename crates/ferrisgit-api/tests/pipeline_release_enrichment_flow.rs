@@ -186,6 +186,7 @@ async fn a_pipeline_whose_commit_cannot_be_resolved_has_a_null_commit_message_an
             commit_sha: "0123456789abcdef0123456789abcdef01234567".to_string(),
             execution_engine: ExecutionEngine::DockerRunners,
             triggered_by: other_user,
+            merge_request: None,
         })
         .await
         .unwrap();
@@ -197,6 +198,7 @@ async fn a_pipeline_whose_commit_cannot_be_resolved_has_a_null_commit_message_an
             commit_sha: "abc123".to_string(),
             execution_engine: ExecutionEngine::DockerRunners,
             triggered_by: other_user,
+            merge_request: None,
         })
         .await
         .unwrap();
@@ -234,6 +236,7 @@ async fn the_list_resolves_commit_messages_for_the_50_newest_pipelines_only(pool
                 commit_sha: sha.clone(),
                 execution_engine: ExecutionEngine::DockerRunners,
                 triggered_by: f.admin_id,
+                merge_request: None,
             })
             .await
             .unwrap();

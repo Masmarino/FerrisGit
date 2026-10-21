@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use crate::git_cli;
 use async_trait::async_trait;
 use ferrisgit_domain::error::DomainError;
-use ferrisgit_domain::merge_executor::{MergeExecutorPort, MergeOutcome};
+use ferrisgit_domain::merge_executor::{MergeExecutorPort, MergeOutcome, MergeRef};
 
 pub struct GitMergeExecutor {
     storage_root: PathBuf,
@@ -37,6 +37,78 @@ async fn run_git_with_env(
     Ok((output.success, output.stdout_trimmed(), output.stderr))
 }
 
+/// The tip of `refs/heads/{branch}`.
+async fn branch_tip(repo_path: &Path, branch: &str, role: &str) -> Result<String, DomainError> {
+    let (ok, tip, stderr) =
+        run_git(repo_path, &["rev-parse", &format!("refs/heads/{branch}")]).await?;
+    if !ok {
+        return Err(DomainError::Infrastructure(format!(
+            "failed to resolve {role} branch {branch}: {stderr}"
+        )));
+    }
+    Ok(tip)
+}
+
+/// The two-parent merge commit of `source_tip` into `target_tip`, written to the object store only. `None` when the
+/// two conflict.
+async fn merge_commit(
+    repo_path: &Path,
+    target_tip: &str,
+    source_tip: &str,
+    message: &str,
+) -> Result<Option<String>, DomainError> {
+    let output = git_cli::run(
+        repo_path,
+        &["merge-tree", "--write-tree", target_tip, source_tip],
+        &[],
+        None,
+    )
+    .await?;
+
+    let tree_oid = match output.code {
+        Some(0) => String::from_utf8_lossy(&output.stdout)
+            .lines()
+            .next()
+            .unwrap_or_default()
+            .trim()
+            .to_string(),
+        Some(1) => return Ok(None),
+        _ => {
+            return Err(DomainError::Infrastructure(format!(
+                "git merge-tree failed: {}",
+                output.stderr
+            )));
+        }
+    };
+    if tree_oid.is_empty() {
+        return Err(DomainError::Infrastructure(
+            "git merge-tree produced no tree oid".to_string(),
+        ));
+    }
+
+    let (ok, commit_sha, stderr) = run_git_with_env(
+        repo_path,
+        &[
+            "commit-tree",
+            &tree_oid,
+            "-p",
+            target_tip,
+            "-p",
+            source_tip,
+            "-m",
+            message,
+        ],
+        &MERGE_IDENTITY,
+    )
+    .await?;
+    if !ok {
+        return Err(DomainError::Infrastructure(format!(
+            "git commit-tree failed: {stderr}"
+        )));
+    }
+    Ok(Some(commit_sha))
+}
+
 #[async_trait]
 impl MergeExecutorPort for GitMergeExecutor {
     async fn merge(
@@ -49,69 +121,13 @@ impl MergeExecutorPort for GitMergeExecutor {
         let repo_path = self.storage_root.join(repository_disk_path);
 
         let target_ref = format!("refs/heads/{target_branch}");
-        let source_ref = format!("refs/heads/{source_branch}");
-        let (ok, target_tip, stderr) = run_git(&repo_path, &["rev-parse", &target_ref]).await?;
-        if !ok {
-            return Err(DomainError::Infrastructure(format!(
-                "failed to resolve target branch {target_branch}: {stderr}"
-            )));
-        }
-        let (ok, source_tip, stderr) = run_git(&repo_path, &["rev-parse", &source_ref]).await?;
-        if !ok {
-            return Err(DomainError::Infrastructure(format!(
-                "failed to resolve source branch {source_branch}: {stderr}"
-            )));
-        }
+        let target_tip = branch_tip(&repo_path, target_branch, "target").await?;
+        let source_tip = branch_tip(&repo_path, source_branch, "source").await?;
 
-        let output = git_cli::run(
-            &repo_path,
-            &["merge-tree", "--write-tree", &target_tip, &source_tip],
-            &[],
-            None,
-        )
-        .await?;
-
-        let tree_oid = match output.code {
-            Some(0) => String::from_utf8_lossy(&output.stdout)
-                .lines()
-                .next()
-                .unwrap_or_default()
-                .trim()
-                .to_string(),
-            Some(1) => return Ok(MergeOutcome::Conflicting),
-            _ => {
-                return Err(DomainError::Infrastructure(format!(
-                    "git merge-tree failed: {}",
-                    output.stderr
-                )));
-            }
+        let Some(commit_sha) = merge_commit(&repo_path, &target_tip, &source_tip, message).await?
+        else {
+            return Ok(MergeOutcome::Conflicting);
         };
-        if tree_oid.is_empty() {
-            return Err(DomainError::Infrastructure(
-                "git merge-tree produced no tree oid".to_string(),
-            ));
-        }
-
-        let (ok, commit_sha, stderr) = run_git_with_env(
-            &repo_path,
-            &[
-                "commit-tree",
-                &tree_oid,
-                "-p",
-                &target_tip,
-                "-p",
-                &source_tip,
-                "-m",
-                message,
-            ],
-            &MERGE_IDENTITY,
-        )
-        .await?;
-        if !ok {
-            return Err(DomainError::Infrastructure(format!(
-                "git commit-tree failed: {stderr}"
-            )));
-        }
 
         let (ok, _, stderr) = run_git(
             &repo_path,
@@ -125,6 +141,39 @@ impl MergeExecutorPort for GitMergeExecutor {
         }
 
         Ok(MergeOutcome::Merged { commit_sha })
+    }
+
+    async fn write_merge_ref(
+        &self,
+        repository_disk_path: &str,
+        source_branch: &str,
+        target_branch: &str,
+        ref_name: &str,
+        message: &str,
+    ) -> Result<Option<MergeRef>, DomainError> {
+        if ref_name.starts_with("refs/heads/") || !ref_name.starts_with("refs/") {
+            return Err(DomainError::Validation(format!(
+                "{ref_name} is not a ref outside the branches"
+            )));
+        }
+        let repo_path = self.storage_root.join(repository_disk_path);
+        let target_sha = branch_tip(&repo_path, target_branch, "target").await?;
+        let source_sha = branch_tip(&repo_path, source_branch, "source").await?;
+        let Some(commit_sha) = merge_commit(&repo_path, &target_sha, &source_sha, message).await?
+        else {
+            return Ok(None);
+        };
+        let (ok, _, stderr) = run_git(&repo_path, &["update-ref", ref_name, &commit_sha]).await?;
+        if !ok {
+            return Err(DomainError::Infrastructure(format!(
+                "failed to write {ref_name}: {stderr}"
+            )));
+        }
+        Ok(Some(MergeRef {
+            commit_sha,
+            source_sha,
+            target_sha,
+        }))
     }
 }
 
@@ -273,5 +322,53 @@ mod tests {
             current_tip,
             "the ref must be unchanged after the rejected write"
         );
+    }
+
+    #[tokio::test]
+    async fn a_merge_ref_holds_the_merge_of_the_two_branches_and_moves_neither() {
+        let tmp = tempfile::tempdir().unwrap();
+        let bare = init_bare_repo_with_diverging_branches(tmp.path());
+        let main_before = rev_parse(&bare, "refs/heads/main");
+        let feature_before = rev_parse(&bare, "refs/heads/feature");
+        let executor = GitMergeExecutor::new(tmp.path().to_path_buf());
+
+        let merge_ref = executor
+            .write_merge_ref(
+                "bare.git",
+                "feature",
+                "main",
+                "refs/merge-requests/1/merge",
+                "Merge feature into main",
+            )
+            .await
+            .unwrap()
+            .expect("the branches merge cleanly");
+
+        assert_eq!(merge_ref.target_sha, main_before);
+        assert_eq!(merge_ref.source_sha, feature_before);
+        assert_eq!(rev_parse(&bare, "refs/heads/main"), main_before);
+        assert_eq!(rev_parse(&bare, "refs/heads/feature"), feature_before);
+        assert_eq!(
+            rev_parse(&bare, "refs/merge-requests/1/merge"),
+            merge_ref.commit_sha
+        );
+        let parents = git_stdout(&bare, &["log", "--pretty=%P", "-1", &merge_ref.commit_sha]);
+        assert_eq!(parents, format!("{main_before} {feature_before}"));
+    }
+
+    #[tokio::test]
+    async fn a_merge_ref_is_never_written_over_a_branch() {
+        let tmp = tempfile::tempdir().unwrap();
+        init_bare_repo_with_diverging_branches(tmp.path());
+        let executor = GitMergeExecutor::new(tmp.path().to_path_buf());
+
+        for ref_name in ["refs/heads/main", "main"] {
+            assert!(matches!(
+                executor
+                    .write_merge_ref("bare.git", "feature", "main", ref_name, "m")
+                    .await,
+                Err(DomainError::Validation(_))
+            ));
+        }
     }
 }

@@ -123,6 +123,7 @@ mod tests {
             pipeline_file_path: ".ferrisgit-ci.yml".to_string(),
             ci_enabled: true,
             required_approvals: 0,
+            pipeline_must_succeed: false,
         }));
         let use_case = CreateRepositoryUseCase::new(repositories.clone(), settings.clone());
         Fixture {
@@ -220,6 +221,7 @@ mod tests {
                     ci_enabled: Some(false),
                     required_approvals: Some(2),
                     pipeline_file_path: Some("custom.yml".to_string()),
+                    pipeline_must_succeed: None,
                 },
                 |_| Ok(()),
             )

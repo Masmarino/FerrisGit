@@ -30,7 +30,7 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
     ) -> Result<RepositorySettings, DomainError> {
         sqlx::query_as!(
             RepositorySettings,
-            "INSERT INTO repository_settings (repository_id) VALUES ($1) ON CONFLICT (repository_id) DO UPDATE SET repository_id = $1 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals",
+            "INSERT INTO repository_settings (repository_id) VALUES ($1) ON CONFLICT (repository_id) DO UPDATE SET repository_id = $1 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals, pipeline_must_succeed",
             repository_id
         )
         .fetch_one(&self.pool)
@@ -46,10 +46,11 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
         self.get_or_create_default(repository_id).await?;
         sqlx::query_as!(
             RepositorySettings,
-            "UPDATE repository_settings SET pipeline_file_path = COALESCE($1, pipeline_file_path), ci_enabled = COALESCE($2, ci_enabled), required_approvals = COALESCE($3, required_approvals) WHERE repository_id = $4 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals",
+            "UPDATE repository_settings SET pipeline_file_path = COALESCE($1, pipeline_file_path), ci_enabled = COALESCE($2, ci_enabled), required_approvals = COALESCE($3, required_approvals), pipeline_must_succeed = COALESCE($4, pipeline_must_succeed) WHERE repository_id = $5 RETURNING repository_id, pipeline_file_path, ci_enabled, required_approvals, pipeline_must_succeed",
             update.pipeline_file_path,
             update.ci_enabled,
             update.required_approvals,
+            update.pipeline_must_succeed,
             repository_id,
         )
         .fetch_one(&self.pool)
