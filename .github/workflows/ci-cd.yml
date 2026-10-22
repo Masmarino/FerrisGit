@@ -147,6 +147,15 @@ jobs:
           fi
           grep -q 'are both set' "$RUNNER_TEMP/both.err"
 
+          # External database: no bundled PostgreSQL, DATABASE_URL from the given Secret, and none at all must fail.
+          render --set postgres.enabled=false --set externalDatabase.existingSecret=ferrisgit-db-app > "$RUNNER_TEMP/external.yaml"
+          grep -q 'name: ferrisgit-db-app' "$RUNNER_TEMP/external.yaml"
+          grep -qE 'component: postgres|POSTGRES_PASSWORD' "$RUNNER_TEMP/external.yaml" && { echo "::error::bundled PostgreSQL with postgres.enabled=false"; exit 1; }
+          if render --set postgres.enabled=false > /dev/null 2> "$RUNNER_TEMP/nodb.err"; then
+            echo "::error::the chart rendered without any database"; exit 1
+          fi
+          grep -q 'no external database is configured' "$RUNNER_TEMP/nodb.err"
+
           # The remaining switches still render.
           render --set ingress.tlsOptions= --set ingress.middlewares= > /dev/null
           render --set kubernetesExecutor.enabled=false > /dev/null

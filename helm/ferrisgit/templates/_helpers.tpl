@@ -54,3 +54,17 @@ https://{{ required "ingress.host or ferrisgit.publicUrl must be set" .Values.in
 {{- define "ferrisgit.jobsNamespace" -}}
 {{ .Values.kubernetesExecutor.namespace | default .Release.Namespace }}
 {{- end -}}
+
+{{/* Exactly one database: the bundled PostgreSQL or externalDatabase. */}}
+{{- define "ferrisgit.validateDatabase" -}}
+{{- $ext := .Values.externalDatabase | default dict -}}
+{{- if .Values.postgres.enabled -}}
+{{- if or $ext.existingSecret $ext.url -}}
+{{- fail "externalDatabase is set but postgres.enabled is true: set postgres.enabled=false to use the external database" -}}
+{{- end -}}
+{{- else if and $ext.existingSecret $ext.url -}}
+{{- fail "externalDatabase.existingSecret and externalDatabase.url are both set: pick one" -}}
+{{- else if not (or $ext.existingSecret $ext.url) -}}
+{{- fail "postgres.enabled is false but no external database is configured: set externalDatabase.existingSecret (a Secret holding the connection string, e.g. CloudNativePG's <cluster>-app, key uri) or externalDatabase.url" -}}
+{{- end -}}
+{{- end -}}
