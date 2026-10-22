@@ -77,7 +77,8 @@ ingress:
   annotations: {}
 
 networkPolicy:
-  # Only the FerrisGit pod may connect to PostgreSQL, not the CI job pods. Needs a CNI that enforces NetworkPolicy.
+  # Only the FerrisGit pod may connect to PostgreSQL, not the CI job pods. Needs a CNI that enforces NetworkPolicy. An
+  # external database gets no policy from the chart: restrict who reaches it on its side.
   enabled: true
   # Who may reach the FerrisGit pod, as NetworkPolicy peers. Empty means anyone. An ingress controller in another
   # namespace has to be listed here, for example:
@@ -117,6 +118,8 @@ kubernetesExecutor:
   detectStorageClass: true
 
 postgres:
+  # The bundled PostgreSQL. false: none is deployed and the server uses externalDatabase.
+  enabled: true
   image: postgres:18-alpine3.24@sha256:d3e1620b530c944afa6e887d22eb899824da68e19c52024bf98f5220c88a65b2
   user: ferrisgit
   database: ferrisgit
@@ -144,11 +147,21 @@ postgres:
     limits:
       memory: 1Gi
 
+# Only with postgres.enabled=false, and exactly one of existingSecret or url.
+externalDatabase:
+  # An existing Secret in the release namespace whose key holds the connection string, for example CloudNativePG's
+  # <cluster>-app Secret and its uri key.
+  existingSecret: ""
+  existingSecretKey: uri
+  # Or the connection string itself (postgres://user:password@host:5432/db), stored in <release>-secrets.
+  url: ""
+
 # Left empty, Helm generates each of these on first install (templates/secret.yaml) and finds them again on upgrade with
 # lookup. Under helm template, --dry-run, Argo CD or Flux, lookup returns nothing and every render would invent new values
 # (a database password nobody knows, an encryption key that makes stored CI variables unreadable), so set all four
-# yourself. An explicit value wins over the stored one, except postgresPassword: PostgreSQL only reads it when it
-# initialises an empty volume. The Secret has helm.sh/resource-policy: keep.
+# yourself (postgresPassword only with the bundled database). An explicit value wins over the stored one, except
+# postgresPassword: PostgreSQL only reads it when it initialises an empty volume. The Secret has
+# helm.sh/resource-policy: keep.
 secrets:
   postgresPassword: ""
   # At least 32 characters.

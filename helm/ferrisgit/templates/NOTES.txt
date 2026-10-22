@@ -33,6 +33,7 @@ The ingress expects these Traefik resources to exist already (a missing one make
 {{- end }}
 {{- end }}
 {{- end }}
+{{- if .Values.postgres.enabled }}
 
 The database password, JWT_SECRET and SETTINGS_ENCRYPTION_KEY live in the {{ include "ferrisgit.secretName" . }} Secret,
 which `helm uninstall` leaves in place{{ if .Values.persistence.keepOnUninstall }}, like the two volumes ({{ .Release.Name }}-storage and {{ .Release.Name }}-postgres-data; delete them by hand to wipe the data){{ else }}. persistence.keepOnUninstall is false, so `helm uninstall` deletes the volumes and everything on them{{ end }}.
@@ -40,6 +41,18 @@ Never delete the Secret while the database volume exists: SETTINGS_ENCRYPTION_KE
 variable, webhook secret, SMTP password and TOTP secret readable, and it cannot be rotated. If you render this chart with
 `helm template`, Argo CD or Flux instead of `helm upgrade`, `lookup` cannot see that Secret: pass secrets.postgresPassword,
 secrets.jwtSecret, secrets.settingsEncryptionKey and secrets.bootstrapAdminPassword yourself, or every render invents new ones.
+{{- else }}
+
+External database: DATABASE_URL comes from {{ if .Values.externalDatabase.existingSecret }}the key {{ .Values.externalDatabase.existingSecretKey | default "uri" }} of the Secret {{ .Values.externalDatabase.existingSecret }}{{ else }}externalDatabase.url, stored in the {{ include "ferrisgit.secretName" . }} Secret{{ end }}.
+No PostgreSQL is deployed and no NetworkPolicy protects the database: restrict who reaches it on its side.
+
+JWT_SECRET and SETTINGS_ENCRYPTION_KEY live in the {{ include "ferrisgit.secretName" . }} Secret, which `helm uninstall` leaves
+in place{{ if .Values.persistence.keepOnUninstall }}, like the volume {{ .Release.Name }}-storage (delete it by hand to wipe the repositories){{ else }}. persistence.keepOnUninstall is false, so `helm uninstall` deletes the repositories volume{{ end }}.
+Never delete the Secret while the database exists: SETTINGS_ENCRYPTION_KEY is what makes every stored CI variable, webhook
+secret, SMTP password and TOTP secret readable, and it cannot be rotated. If you render this chart with `helm template`,
+Argo CD or Flux instead of `helm upgrade`, `lookup` cannot see that Secret: pass secrets.jwtSecret,
+secrets.settingsEncryptionKey and secrets.bootstrapAdminPassword yourself, or every render invents new ones.
+{{- end }}
 {{- if .Values.kubernetesExecutor.enabled }}
 
 Kubernetes execution engine: the pod runs as the ServiceAccount {{ include "ferrisgit.serviceAccountName" . }}, allowed to manage

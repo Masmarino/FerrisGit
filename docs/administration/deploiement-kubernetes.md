@@ -11,8 +11,8 @@ Les noms ci-dessous supposent une release Helm appelée `ferrisgit`, dans le nam
 | `Deployment` | `ferrisgit` | Le serveur : une réplique, stratégie `Recreate`, conteneur `ferrisgit-server` sur le port 8080. |
 | `Service` | `ferrisgit` | Le port 8080 du serveur. |
 | `PersistentVolumeClaim` | `ferrisgit-storage` | Les dépôts Git, les wikis et les fichiers des releases, monté sur `/data` (20 Gio par défaut, `ReadWriteOnce`). |
-| `Deployment`, `Service` | `ferrisgit-postgres` | PostgreSQL 18, une réplique, stratégie `Recreate`, port 5432. |
-| `PersistentVolumeClaim` | `ferrisgit-postgres-data` | La base de données (10 Gio par défaut, `ReadWriteOnce`). |
+| `Deployment`, `Service` | `ferrisgit-postgres` | PostgreSQL 18, une réplique, stratégie `Recreate`, port 5432. Absents avec `postgres.enabled=false` (voir [Une base PostgreSQL externe](/docs/administration/deploiement-kubernetes#une-base-postgresql-externe)). |
+| `PersistentVolumeClaim` | `ferrisgit-postgres-data` | La base de données (10 Gio par défaut, `ReadWriteOnce`). Absent avec `postgres.enabled=false`. |
 | `Secret` | `ferrisgit-secrets` | Le mot de passe de la base, `JWT_SECRET`, `SETTINGS_ENCRYPTION_KEY`, le mot de passe du premier administrateur et `DATABASE_URL`. |
 | `ServiceAccount`, `Role`, `RoleBinding` | `ferrisgit-ci` | Les droits du moteur d'exécution Kubernetes (voir plus bas). Absents avec `kubernetesExecutor.enabled=false`. |
 | `ClusterRole`, `ClusterRoleBinding` | `ferrisgit-ferrisgit-storageclasses` | Lecture des `StorageClass`, pour pré-remplir un réglage. Absents avec `kubernetesExecutor.detectStorageClass=false`. |
@@ -98,6 +98,33 @@ Le chart écrit dans le Secret `ferrisgit-secrets` quatre valeurs, que vous pouv
 
 Ne supprimez jamais le Secret tant que le volume `ferrisgit-postgres-data` existe, et sauvegardez-le avec vos autres secrets : voir [Sauvegardes et mises à jour](/docs/administration/sauvegardes-et-mises-a-jour).
 
+## Une base PostgreSQL externe
+
+Pour utiliser une base existante, par exemple un cluster [CloudNativePG](https://cloudnative-pg.io) dans le namespace de la release, désactivez la base du chart et désignez le Secret qui porte la chaîne de connexion :
+
+```bash
+helm upgrade --install ferrisgit ./helm/ferrisgit \
+  --namespace ferrisgit --create-namespace \
+  --set image.tag=0.1.5 \
+  --set ingress.host=git.example.com \
+  --set-string ferrisgit.trustedProxyCidrs=10.42.0.0/16 \
+  --set postgres.enabled=false \
+  --set externalDatabase.existingSecret=ferrisgit-db-app
+```
+
+| Valeur | Défaut | Rôle |
+|---|---|---|
+| `postgres.enabled` | `true` | La base du chart. `false` : ni `Deployment`, ni `Service`, ni volume, ni `NetworkPolicy` `ferrisgit-postgres`, et aucun mot de passe de base n'est généré. |
+| `externalDatabase.existingSecret` | vide | Un Secret existant, dans le namespace de la release, dont une clé contient la chaîne de connexion. Le serveur lit `DATABASE_URL` directement depuis ce Secret. |
+| `externalDatabase.existingSecretKey` | `uri` | La clé de ce Secret. `uri` est celle du Secret `<cluster>-app` que CloudNativePG crée (`postgresql://app:…@<cluster>-rw.<namespace>:5432/app`). |
+| `externalDatabase.url` | vide | À la place du Secret, la chaîne de connexion elle-même, rangée dans `ferrisgit-secrets` sous `DATABASE_URL`. |
+
+Avec `postgres.enabled=false`, il faut exactement l'une des deux, `existingSecret` ou `url` : sinon le rendu échoue avec un message explicite, comme quand `externalDatabase` est renseigné alors que `postgres.enabled` vaut encore `true`. `secrets.postgresPassword` ne sert plus ; un mot de passe déjà stocké dans `ferrisgit-secrets` y reste.
+
+- **Le réseau.** Le chart ne pose alors aucune `NetworkPolicy` sur la base, et les Pods de jobs CI qui tournent dans le même namespace peuvent la joindre. Protégez-la de votre côté : n'autorisez sur le port 5432 que les Pods `app.kubernetes.io/instance: ferrisgit` et `app.kubernetes.io/component: server`, en plus de ce dont l'opérateur et les répliques ont besoin.
+- **TLS.** Le serveur se connecte sans TLS : n'ajoutez pas `sslmode=require` à la chaîne de connexion.
+- **Les sauvegardes.** Les commandes `kubectl exec deploy/ferrisgit-postgres …` de cette documentation ne s'appliquent plus : sauvegardez la base avec l'outil qui la gère (les sauvegardes de CloudNativePG, par exemple), toujours avant une mise à jour qui apporte une migration.
+
 ## Le certificat
 
 Trois modes, selon deux valeurs :
@@ -129,8 +156,8 @@ helm upgrade --install ferrisgit ./helm/ferrisgit \
 - **`--atomic`.** Si la mise à jour échoue (Pod qui ne devient pas prêt en 10 minutes, migration en erreur), Helm revient à la release précédente. Cela ne défait pas les migrations déjà appliquées : voir [Revenir en arrière](/docs/administration/deploiement-kubernetes#revenir-en-arrière).
 - **La concurrence.** Deux déploiements ne tournent jamais en même temps, et un déploiement en cours n'est jamais annulé à mi-chemin.
 - **Le tag sur `main`.** Le commit du tag doit être sur `main`, vérifié avant la publication de l'image puis de nouveau avant le déploiement. Le job utilise l'environnement GitHub `production` : vous pouvez y exiger une validation manuelle.
-- **Ce qu'il faut configurer dans GitHub.** Le secret `KUBE_CONFIG` : un kubeconfig encodé en base64, dont le compte peut ce que décrit la section suivante. La variable `TRUSTED_PROXY_CIDRS` (obligatoire : le déploiement s'arrête sans elle). Les variables facultatives `FERRISGIT_INGRESS_HOST`, `FERRISGIT_CERT_RESOLVER` et `FERRISGIT_CLUSTER_ISSUER` ; renseigner `FERRISGIT_CLUSTER_ISSUER` passe en mode cert-manager, et renseigner les deux est refusé. Tout le reste vient de `values.yaml` à ce commit.
-- **Le contrôle du chart.** Le job **Helm chart lint** passe `helm lint --strict` et `helm template` sur le chart à chaque poussée et chaque demande de fusion, avec les valeurs par défaut, avec cert-manager, et avec plusieurs options désactivées ; il vérifie aussi que renseigner les deux modes de certificat est refusé.
+- **Ce qu'il faut configurer dans GitHub.** Le secret `KUBE_CONFIG` : un kubeconfig encodé en base64, dont le compte peut ce que décrit la section suivante. La variable `TRUSTED_PROXY_CIDRS` (obligatoire : le déploiement s'arrête sans elle). Les variables facultatives `FERRISGIT_INGRESS_HOST`, `FERRISGIT_CERT_RESOLVER` et `FERRISGIT_CLUSTER_ISSUER` ; renseigner `FERRISGIT_CLUSTER_ISSUER` passe en mode cert-manager, et renseigner les deux est refusé. La variable facultative `FERRISGIT_DATABASE_SECRET` (et `FERRISGIT_DATABASE_SECRET_KEY`, `uri` par défaut) passe à une [base externe](/docs/administration/deploiement-kubernetes#une-base-postgresql-externe) : sans elle, chaque déploiement revient à la base du chart. Tout le reste vient de `values.yaml` à ce commit.
+- **Le contrôle du chart.** Le job **Helm chart lint** passe `helm lint --strict` et `helm template` sur le chart à chaque poussée et chaque demande de fusion, avec les valeurs par défaut, avec cert-manager, avec une base externe et avec plusieurs options désactivées ; il vérifie aussi que renseigner les deux modes de certificat, ou désactiver la base sans en donner une autre, est refusé.
 
 Une mise à jour coupe le service le temps du remplacement : la stratégie `Recreate` arrête l'ancien Pod avant de démarrer le nouveau, car les volumes sont `ReadWriteOnce`. Un déploiement qui échoue après l'arrêt de l'ancien Pod laisse le service arrêté jusqu'au retour arrière de `--atomic`. Gardez une seule réplique : les dépôts Git vivent sur un volume local, et les limites de débit sont comptées en mémoire par processus.
 

@@ -1,6 +1,7 @@
 {{- if and .Values.ingress.enabled (not (include "ferrisgit.trustedProxyCidrs" .)) (not .Values.ferrisgit.allowSharedRateLimit) }}
 {{- fail "ferrisgit.trustedProxyCidrs is empty or blank: behind the ingress every visitor would share one sign-in/registration rate-limit budget. Set it to the ingress controller's pod CIDR(s), e.g. --set-string ferrisgit.trustedProxyCidrs=10.42.0.0/16 (escape commas as \\, between several), or set ferrisgit.allowSharedRateLimit=true to accept the shared budget." }}
 {{- end }}
+{{- include "ferrisgit.validateDatabase" . }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -69,8 +70,13 @@ spec:
             - name: DATABASE_URL
               valueFrom:
                 secretKeyRef:
+                  {{- if and (not .Values.postgres.enabled) .Values.externalDatabase.existingSecret }}
+                  name: {{ .Values.externalDatabase.existingSecret }}
+                  key: {{ .Values.externalDatabase.existingSecretKey | default "uri" }}
+                  {{- else }}
                   name: {{ include "ferrisgit.secretName" . }}
                   key: DATABASE_URL
+                  {{- end }}
             - name: JWT_SECRET
               valueFrom:
                 secretKeyRef:

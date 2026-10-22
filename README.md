@@ -472,13 +472,13 @@ another instance), sign-ins for that user answer HTTP 500 by design, never a byp
 
 ## Deploying to Kubernetes
 
-The Helm chart [`helm/ferrisgit`](helm/ferrisgit) deploys FerrisGit with its own PostgreSQL. It replaces the manifests
-that used to live in `k8s/`. Its templates:
+The Helm chart [`helm/ferrisgit`](helm/ferrisgit) deploys FerrisGit with its own PostgreSQL, or on an external one. It
+replaces the manifests that used to live in `k8s/`. Its templates:
 
 | Template | Installs |
 |---|---|
 | `ferrisgit.yaml` | The server: volume claim, `Deployment` (a single replica, `Recreate` strategy) and `Service`. |
-| `postgres.yaml` | PostgreSQL: volume claim, `Deployment` and `Service`. |
+| `postgres.yaml` | PostgreSQL: volume claim, `Deployment` and `Service` (`postgres.enabled`). |
 | `secret.yaml` | The `ferrisgit-secrets` Secret. |
 | `ingress.yaml` | The Traefik `Ingress`. |
 | `networkpolicy.yaml` | Only the FerrisGit pod reaches PostgreSQL, and the FerrisGit pod only accepts port 8080 (`networkPolicy.enabled`). |
@@ -512,6 +512,11 @@ The release must be called `ferrisgit` for the resource names to be the ones the
   `helm template`, `--dry-run`, Argo CD or Flux `lookup` returns nothing, so pass every `secrets.*` value yourself
   (`helm/ferrisgit/values-secrets.example.yaml`). Never delete the Secret while the database volume exists, and never
   change `SETTINGS_ENCRYPTION_KEY`: there is no rotation, stored CI variables would become unreadable.
+- **External database.** `--set postgres.enabled=false --set externalDatabase.existingSecret=<secret>` deploys no
+  PostgreSQL and reads `DATABASE_URL` from the key `externalDatabase.existingSecretKey` (`uri` by default) of that Secret,
+  which fits CloudNativePG's `<cluster>-app` Secret; `externalDatabase.url` gives the connection string directly instead.
+  The chart refuses to render with neither. It then puts no `NetworkPolicy` on the database: restrict access on its side.
+  The server connects without TLS, so leave `sslmode=require` out of the connection string.
 - **Proxy network.** With the ingress on, set `ferrisgit.trustedProxyCidrs` to the ingress controller's pod network: the
   chart refuses to render otherwise, since every visitor would share one sign-in rate-limit budget
   (`ferrisgit.allowSharedRateLimit=true` accepts that).
@@ -676,7 +681,7 @@ pull request and on demand:
 | Helm chart lint | always | `helm lint --strict` and `helm template` of `helm/ferrisgit` with the default values, with cert-manager instead of the Traefik resolver, and with several switches off; checks that setting `ingress.certResolver` and `ingress.clusterIssuer` together is refused. |
 | Detect website changes | always | Compares the run with its base (the previous commit of a push, the target branch of a pull request) and says whether `website/` or the workflow changed. A version tag always counts as a change. |
 | Website lint, build & chart | when the site changed | `npm ci`, `npm run lint`, `npm test` and `npm run build` in `website/`, then `helm lint --strict` and `helm template` of `website/helm/ferrisgit-website` with the default values, with cert-manager instead of the Traefik resolver, with the middlewares off, without the ingress and with a digest; checks that both certificate sources together, and a missing `image.tag`, are refused. |
-| Deploy to Kubernetes | tags | Upgrades the production release with `helm upgrade --install --atomic`, pinned to the digest of the image just pushed. Needs the `production` environment, the secret `KUBE_CONFIG` (base64 kubeconfig) and the variable `TRUSTED_PROXY_CIDRS`; `FERRISGIT_INGRESS_HOST`, `FERRISGIT_CERT_RESOLVER` and `FERRISGIT_CLUSTER_ISSUER` are optional. Two deploys never run at once, and the commit must be on `main`. |
+| Deploy to Kubernetes | tags | Upgrades the production release with `helm upgrade --install --atomic`, pinned to the digest of the image just pushed. Needs the `production` environment, the secret `KUBE_CONFIG` (base64 kubeconfig) and the variable `TRUSTED_PROXY_CIDRS`; `FERRISGIT_INGRESS_HOST`, `FERRISGIT_CERT_RESOLVER` and `FERRISGIT_CLUSTER_ISSUER` are optional, and `FERRISGIT_DATABASE_SECRET` (with `FERRISGIT_DATABASE_SECRET_KEY`, `uri` by default) switches to an external database. Two deploys never run at once, and the commit must be on `main`. |
 | Build, scan & push website image | tags | After the site checks and the check that the tagged commit is on `main`: builds `website/Dockerfile`, scans the image with Trivy and Grype, and only then pushes `masmarino/ferrisgit-website:<version>`. |
 | Deploy website to Kubernetes | tags | Upgrades the `ferrisgit-website` release in the `ferrisgit-website` namespace (created if missing) with `helm upgrade --install --atomic`, pinned to the digest of the website image. Same `production` environment and `KUBE_CONFIG` as the application; two website deploys never run at once. |
 
