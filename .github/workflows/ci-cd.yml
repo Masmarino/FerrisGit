@@ -581,17 +581,22 @@ jobs:
           INGRESS_HOST: ${{ vars.FERRISGIT_INGRESS_HOST }}
           CERT_RESOLVER: ${{ vars.FERRISGIT_CERT_RESOLVER }}
           CLUSTER_ISSUER: ${{ vars.FERRISGIT_CLUSTER_ISSUER }}
+          # An existing Secret holding DATABASE_URL (CloudNativePG's <cluster>-app, say): no bundled PostgreSQL then.
+          DATABASE_SECRET: ${{ vars.FERRISGIT_DATABASE_SECRET }}
+          DATABASE_SECRET_KEY: ${{ vars.FERRISGIT_DATABASE_SECRET_KEY }}
         run: |
           [[ "$IMAGE_DIGEST" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "::error::no image digest from the build job"; exit 1; }
           [[ -n "$TRUSTED_PROXY_CIDRS" ]] || { echo "::error::repository variable TRUSTED_PROXY_CIDRS is not set"; exit 1; }
           [[ -z "$CERT_RESOLVER" || -z "$CLUSTER_ISSUER" ]] || { echo "::error::FERRISGIT_CERT_RESOLVER and FERRISGIT_CLUSTER_ISSUER are both set: pick one"; exit 1; }
           # A values file because --set would split the CIDR list at its commas.
-          jq -n --arg cidrs "$TRUSTED_PROXY_CIDRS" --arg host "$INGRESS_HOST" --arg resolver "$CERT_RESOLVER" --arg issuer "$CLUSTER_ISSUER" '
+          jq -n --arg cidrs "$TRUSTED_PROXY_CIDRS" --arg host "$INGRESS_HOST" --arg resolver "$CERT_RESOLVER" --arg issuer "$CLUSTER_ISSUER" \
+            --arg dbsecret "$DATABASE_SECRET" --arg dbkey "${DATABASE_SECRET_KEY:-uri}" '
             {ferrisgit: {trustedProxyCidrs: $cidrs}}
             + (if $host != "" or $resolver != "" or $issuer != "" then {ingress: ({}
                 + (if $host != "" then {host: $host} else {} end)
                 + (if $resolver != "" then {certResolver: $resolver} else {} end)
                 + (if $issuer != "" then {certResolver: "", clusterIssuer: $issuer} else {} end))} else {} end)
+            + (if $dbsecret != "" then {postgres: {enabled: false}, externalDatabase: {existingSecret: $dbsecret, existingSecretKey: $dbkey}} else {} end)
           ' > "$RUNNER_TEMP/values-ci.json"
           # --atomic rolls back a failed upgrade, but migrations already applied stay and the older release won't start on
           # them (README, "Deploying to Kubernetes").
