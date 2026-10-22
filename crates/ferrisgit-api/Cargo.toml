@@ -44,6 +44,6 @@ reqwest = { workspace = true, features = ["multipart", "query"] }
 # A plain path dev-dependency on ferrisgit-runner wouldn't set CARGO_BIN_EXE_ferrisgit-runner here: Cargo only sets it for
 # binaries of the test's own package, and a path dependency on a crate without a lib target is silently dropped.
 # escargot builds the binary at test time and hands back its path.
-escargot = "0.5"
+escargot = "1.0"
 # Software authenticator for the passkey flow tests. Stays on 0.5.x to match webauthn-rs 0.5 (see the application crate).
 webauthn-authenticator-rs.workspace = true
