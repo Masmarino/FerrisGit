@@ -6,6 +6,8 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-10-22
+
 ### Added
 
 - Choosing the interface language: it still opens in the browser's language, and now switches on the fly from a
@@ -88,7 +90,9 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
   (`GET /api/repositories/{id}/pipeline-definition` and `POST …/pipeline-definition/proposal`). The file is read from,
   and written to, the path the repository's settings name. A file that changed on the default branch since the editor
   was opened is refused with `409` instead of overwritten.
-
+- Helm chart: an external PostgreSQL, such as a CloudNativePG cluster, instead of the bundled one
+  (`postgres.enabled: false` with `externalDatabase.existingSecret`, or `externalDatabase.url`). The production deploy
+  keeps it with the `FERRISGIT_DATABASE_SECRET` repository variable.
 ## [0.1.5] - 2026-10-07
 
 ### Added
@@ -284,6 +288,7 @@ pages switches in `system_settings`). See "Upgrades" in the README.
 The CI/CD workflow builds and publishes the image, then creates the GitHub release `vX.Y.Z` with the text of the matching
 section. If the section is missing, only the release job fails (the image is not affected): add it, then rerun the job.
 
+[0.1.6]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.4
 [0.1.3]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.3
