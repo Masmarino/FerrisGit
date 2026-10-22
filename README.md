@@ -472,13 +472,13 @@ another instance), sign-ins for that user answer HTTP 500 by design, never a byp
 
 ## Deploying to Kubernetes
 
-The Helm chart [`helm/ferrisgit`](helm/ferrisgit) deploys FerrisGit with its own PostgreSQL. It replaces the manifests
-that used to live in `k8s/`. Its templates:
+The Helm chart [`helm/ferrisgit`](helm/ferrisgit) deploys FerrisGit with its own PostgreSQL, or on an external one. It
+replaces the manifests that used to live in `k8s/`. Its templates:
 
 | Template | Installs |
 |---|---|
 | `ferrisgit.yaml` | The server: volume claim, `Deployment` (a single replica, `Recreate` strategy) and `Service`. |
-| `postgres.yaml` | PostgreSQL: volume claim, `Deployment` and `Service`. |
+| `postgres.yaml` | PostgreSQL: volume claim, `Deployment` and `Service` (`postgres.enabled`). |
 | `secret.yaml` | The `ferrisgit-secrets` Secret. |
 | `ingress.yaml` | The Traefik `Ingress`. |
 | `networkpolicy.yaml` | Only the FerrisGit pod reaches PostgreSQL, and the FerrisGit pod only accepts port 8080 (`networkPolicy.enabled`). |
@@ -512,6 +512,11 @@ The release must be called `ferrisgit` for the resource names to be the ones the
   `helm template`, `--dry-run`, Argo CD or Flux `lookup` returns nothing, so pass every `secrets.*` value yourself
   (`helm/ferrisgit/values-secrets.example.yaml`). Never delete the Secret while the database volume exists, and never
   change `SETTINGS_ENCRYPTION_KEY`: there is no rotation, stored CI variables would become unreadable.
+- **External database.** `--set postgres.enabled=false --set externalDatabase.existingSecret=<secret>` deploys no
+  PostgreSQL and reads `DATABASE_URL` from the key `externalDatabase.existingSecretKey` (`uri` by default) of that Secret,
+  which fits CloudNativePG's `<cluster>-app` Secret; `externalDatabase.url` gives the connection string directly instead.
+  The chart refuses to render with neither. It then puts no `NetworkPolicy` on the database: restrict access on its side.
+  The server connects without TLS, so leave `sslmode=require` out of the connection string.
 - **Proxy network.** With the ingress on, set `ferrisgit.trustedProxyCidrs` to the ingress controller's pod network: the
   chart refuses to render otherwise, since every visitor would share one sign-in rate-limit budget
   (`ferrisgit.allowSharedRateLimit=true` accepts that).
