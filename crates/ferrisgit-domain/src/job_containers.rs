@@ -7,11 +7,11 @@ use crate::error::DomainError;
 /// container. Pinned by digest, like every image FerrisGit runs itself. Its static `docker` client is copied for the job,
 /// so `docker` works whatever the job's image.
 pub const DOCKER_DAEMON_IMAGE: &str =
-    "docker:29-dind@sha256:0b6d18a4a222e71c88be6034926b4f6cde2fc33c2218643d03ccfddc65995470";
+    "docker:29-dind@sha256:9e79b879b177fbd72c34376a3dd3d91747da5db49e1f560f76aea59561471977";
 
 /// What a Kubernetes job clones its repository with, before the job's own image starts.
 pub const CLONE_IMAGE: &str =
-    "alpine/git:v2.54.0@sha256:a4bb51f1a3553df194ce679fc1db721d8bfba2046fa1a88fe9d4ac551ffbce25";
+    "alpine/git:v2.54.0@sha256:4fac439ee3b9204bec99c712b8a15942999632458f716ae8149fbb97cb760cd4";
 
 /// Shared by the job and its Docker daemon: the daemon's socket, the `docker` client in `bin`, and in `config` the
 /// client's configuration with its buildx and compose plugins.

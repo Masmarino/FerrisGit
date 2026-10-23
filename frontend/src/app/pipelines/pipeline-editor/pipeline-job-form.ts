@@ -18,7 +18,7 @@ import { looksLikeSecret, referencedNames, unknownReferences } from './pipeline-
 import { TranslocoPipe } from '@jsverse/transloco';
 
 /** Images people often start from. A click fills the field, and anything else can still be typed. */
-const IMAGE_SUGGESTIONS = ['alpine:3.20', 'rust:1', 'node:22', 'python:3.13', 'golang:1.23', 'docker:27-cli'];
+const IMAGE_SUGGESTIONS = ['alpine:3.24', 'rust:1', 'node:24', 'python:3.14', 'golang:1.27', 'docker:29-cli'];
 const CACHE_SUGGESTIONS = ['cargo-home', 'cargo-target', 'npm', 'pip'];
 
 /**

@@ -16,11 +16,11 @@ const TWO_STAGES: &str = "stages: [build, test]
 jobs:
   compile:
     stage: build
-    image: alpine:3.20
+    image: alpine:3.24
     script: [\"true\"]
   unit:
     stage: test
-    image: alpine:3.20
+    image: alpine:3.24
     script: [\"true\"]
 ";
 
@@ -28,19 +28,19 @@ const THREE_STAGES_TWO_IN_THE_FIRST: &str = "stages: [build, test, deploy]
 jobs:
   compile:
     stage: build
-    image: alpine:3.20
+    image: alpine:3.24
     script: [\"true\"]
   lint:
     stage: build
-    image: alpine:3.20
+    image: alpine:3.24
     script: [\"true\"]
   unit:
     stage: test
-    image: alpine:3.20
+    image: alpine:3.24
     script: [\"true\"]
   ship:
     stage: deploy
-    image: alpine:3.20
+    image: alpine:3.24
     script: [\"true\"]
 ";
 
@@ -253,12 +253,12 @@ async fn an_invalid_pipeline_file_shows_up_as_a_failed_pipeline_with_the_parser_
 jobs:
   a:
     stage: build
-    image: alpine:3.20
+    image: alpine:3.24
     script: [\"true\"]
     needs: [b]
   b:
     stage: build
-    image: alpine:3.20
+    image: alpine:3.24
     script: [\"true\"]
     needs: [a]
 ",

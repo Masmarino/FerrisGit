@@ -11,7 +11,7 @@ Elles se déclarent dans le fichier de pipeline :
 jobs:
   build:
     stage: build
-    image: node:22
+    image: node:24
     variables:
       NODE_ENV: production
       API_URL: https://api.example.com
@@ -74,7 +74,7 @@ Avec Kubernetes, le serveur fait le même remplacement sur le journal du Pod, av
 jobs:
   publish:
     stage: deploy
-    image: alpine:3.20
+    image: alpine:3.24
     script:
       - apk add --no-cache curl
       - 'curl -fsS -H "Authorization: Bearer $DEPLOY_TOKEN" https://deploy.example.com/hook'

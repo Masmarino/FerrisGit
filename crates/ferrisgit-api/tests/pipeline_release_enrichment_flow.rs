@@ -132,7 +132,7 @@ async fn get_json(f: &Fixture, path: &str) -> Value {
     res.json().await.unwrap()
 }
 
-const CI_FILE: &str = "stages: [build]\njobs:\n  hello:\n    stage: build\n    image: alpine:3.20\n    script:\n      - echo hi\n";
+const CI_FILE: &str = "stages: [build]\njobs:\n  hello:\n    stage: build\n    image: alpine:3.24\n    script:\n      - echo hi\n";
 
 #[sqlx::test]
 async fn pipelines_carry_the_trigger_user_and_the_first_line_of_the_commit_message(pool: PgPool) {

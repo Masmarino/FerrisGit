@@ -293,7 +293,7 @@ async fn notifications_are_created_for_merge_request_activity_and_pipeline_failu
 
     std::fs::write(
         repo_path.join(".ferrisgit-ci.yml"),
-        "stages: [build]\njobs:\n  will-fail:\n    stage: build\n    image: alpine:3.20\n    script:\n      - exit 1\n",
+        "stages: [build]\njobs:\n  will-fail:\n    stage: build\n    image: alpine:3.24\n    script:\n      - exit 1\n",
     )
     .unwrap();
     assert!(

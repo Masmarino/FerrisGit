@@ -12,7 +12,7 @@ Dans un job, `cache` est une liste de clés :
 jobs:
   deps:
     stage: build
-    image: node:22
+    image: node:24
     cache: [npm]
     variables:
       npm_config_cache: /ferrisgit-cache/npm
@@ -84,7 +84,7 @@ stages: [demo]
 jobs:
   cache-demo:
     stage: demo
-    image: alpine:3.20
+    image: alpine:3.24
     cache: [demo-cache]
     script:
       - mkdir -p /ferrisgit-cache/demo-cache

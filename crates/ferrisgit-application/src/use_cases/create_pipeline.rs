@@ -545,7 +545,7 @@ mod tests {
     #[tokio::test]
     async fn jobs_are_created_in_stage_order_not_alphabetical_order() {
         // Creation order has to follow `stages`, not the BTreeMap's alphabetical one.
-        let yaml = b"stages: [prepare, check]\njobs:\n  a-check:\n    stage: check\n    image: alpine:3.20\n    script: [\"true\"]\n  z-prepare:\n    stage: prepare\n    image: alpine:3.20\n    script: [\"true\"]\n";
+        let yaml = b"stages: [prepare, check]\njobs:\n  a-check:\n    stage: check\n    image: alpine:3.24\n    script: [\"true\"]\n  z-prepare:\n    stage: prepare\n    image: alpine:3.24\n    script: [\"true\"]\n";
         let setup = setup(Config::with_file(yaml));
 
         push(&setup).await.unwrap();

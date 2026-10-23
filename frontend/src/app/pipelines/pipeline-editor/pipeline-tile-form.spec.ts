@@ -53,7 +53,7 @@ describe('PipelineTileForm', () => {
     const { el } = await setup(tileById('k8s-apply')!);
 
     expect(text(el.querySelector('.tile-form__lede'))).toContain('étape deploy');
-    expect(text(el.querySelector('#tile-form-preview')?.parentElement)).toContain('alpine:3.20');
+    expect(text(el.querySelector('#tile-form-preview')?.parentElement)).toContain('alpine:3.24');
   });
 
   it('hands over every answer, defaults included, when the job is added', async () => {

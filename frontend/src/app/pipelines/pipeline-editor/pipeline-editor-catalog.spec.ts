@@ -43,7 +43,7 @@ describe('PipelineEditor catalogue', () => {
 
       const job = ctx.internals.state().jobs.find((j) => j.name === 'update-k8s') as unknown as { stage: string; image: string; script: string[] };
       expect(job.stage).toBe('test');
-      expect(job.image).toBe('alpine:3.20');
+      expect(job.image).toBe('alpine:3.24');
       expect(job.script).toContain('kubectl rollout restart deployment/web -n prod');
       await answerRender(ctx);
     });

@@ -1,4 +1,4 @@
-FROM --platform=$BUILDPLATFORM node:26-alpine3.24 AS frontend-build
+FROM --platform=$BUILDPLATFORM node:26.12.1-alpine3.24 AS frontend-build
 
 WORKDIR /app/frontend
 
@@ -12,7 +12,7 @@ COPY docs/ ../docs/
 
 RUN npm run build -- --configuration production
 
-FROM rust:1.99.0-alpine3.24 AS backend-build
+FROM rust:1.99.1-alpine3.24 AS backend-build
 
 WORKDIR /app
 

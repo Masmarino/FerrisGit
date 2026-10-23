@@ -60,7 +60,7 @@ stages: [check, build]
 jobs:
   lint:
     stage: check
-    image: node:22
+    image: node:24
     cache: [npm]
     variables:
       npm_config_cache: /ferrisgit-cache/npm
@@ -70,7 +70,7 @@ jobs:
 
   unit-tests:
     stage: check
-    image: node:22
+    image: node:24
     cache: [npm]
     variables:
       npm_config_cache: /ferrisgit-cache/npm
@@ -80,7 +80,7 @@ jobs:
 
   build:
     stage: build
-    image: node:22
+    image: node:24
     needs: [lint, unit-tests]
     cache: [npm]
     variables:
@@ -96,7 +96,7 @@ Les scripts `lint`, `test` et `build` sont ceux de votre `package.json`. Les tes
 
 > **Attention** : le runner ne donne pas au job l'accès au démon Docker de sa machine (pas de socket monté, pas de mode privilégié). Un `docker build` ne peut donc fonctionner qu'avec un démon Docker **distant**, que vous exploitez vous-même, joignable depuis le runner et protégé (TLS ou réseau privé). FerrisGit ne fournit pas de service de construction.
 
-Dans cet exemple, l'image `docker:27-cli` fournit le client ; le démon est désigné par une variable CI du dépôt `DOCKER_HOST` (par exemple `tcp://builder.example.com:2376`), et la connexion au registre par `REGISTRY_USER` et `REGISTRY_PASSWORD`. Créez ces trois variables dans **Réglages > Variables CI/CD** (voir [Variables et secrets](/docs/ci-cd/variables-et-secrets)). Si le démon est protégé par TLS, ajoutez aussi les variables `DOCKER_TLS_VERIFY` et `DOCKER_CERT_PATH` que le client Docker attend, avec des certificats accessibles dans le job.
+Dans cet exemple, l'image `docker:29-cli` fournit le client ; le démon est désigné par une variable CI du dépôt `DOCKER_HOST` (par exemple `tcp://builder.example.com:2376`), et la connexion au registre par `REGISTRY_USER` et `REGISTRY_PASSWORD`. Créez ces trois variables dans **Réglages > Variables CI/CD** (voir [Variables et secrets](/docs/ci-cd/variables-et-secrets)). Si le démon est protégé par TLS, ajoutez aussi les variables `DOCKER_TLS_VERIFY` et `DOCKER_CERT_PATH` que le client Docker attend, avec des certificats accessibles dans le job.
 
 ```yaml ferrisgit-ci
 stages: [build]
@@ -104,7 +104,7 @@ stages: [build]
 jobs:
   image:
     stage: build
-    image: docker:27-cli
+    image: docker:29-cli
     variables:
       IMAGE_NAME: registry.example.com/equipe/application
     script:
@@ -130,7 +130,7 @@ stages: [deploy]
 jobs:
   deploy-vm:
     stage: deploy
-    image: alpine:3.20
+    image: alpine:3.24
     script:
       - apk add --no-cache openssh-client
       - mkdir -p ~/.ssh
@@ -149,7 +149,7 @@ stages: [deploy]
 jobs:
   copy-to-vm:
     stage: deploy
-    image: alpine:3.20
+    image: alpine:3.24
     script:
       - apk add --no-cache openssh-client rsync
       - mkdir -p ~/.ssh
@@ -174,7 +174,7 @@ stages: [deploy]
 jobs:
   update-k8s:
     stage: deploy
-    image: alpine:3.20
+    image: alpine:3.24
     script:
       - apk add --no-cache kubectl
       - mkdir -p ~/.kube
@@ -196,13 +196,13 @@ stages: [prepare, check, report]
 jobs:
   prepare:
     stage: prepare
-    image: alpine:3.20
+    image: alpine:3.24
     script:
       - echo "préparation"
 
   lint:
     stage: check
-    image: alpine:3.20
+    image: alpine:3.24
     needs: [prepare]
     script:
       - echo "analyse statique"
@@ -210,7 +210,7 @@ jobs:
 
   unit:
     stage: check
-    image: alpine:3.20
+    image: alpine:3.24
     needs: [prepare]
     script:
       - echo "tests unitaires"
@@ -218,7 +218,7 @@ jobs:
 
   integration:
     stage: check
-    image: alpine:3.20
+    image: alpine:3.24
     needs: [prepare]
     script:
       - echo "tests d'intégration"
@@ -226,7 +226,7 @@ jobs:
 
   summary:
     stage: report
-    image: alpine:3.20
+    image: alpine:3.24
     needs: [lint, unit, integration]
     script:
       - echo "tout est passé"
@@ -244,7 +244,7 @@ stages: [report]
 jobs:
   environment:
     stage: report
-    image: alpine:3.20
+    image: alpine:3.24
     variables:
       CI_GREETING: "bonjour depuis FerrisGit"
       TARGET: staging
@@ -272,14 +272,14 @@ stages: [test, deploy]
 jobs:
   tests:
     stage: test
-    image: node:22
+    image: node:24
     script:
       - npm ci
       - npm test
 
   deploy:
     stage: deploy
-    image: alpine:3.20
+    image: alpine:3.24
     needs: [tests]
     tags: [deploy]
     script:

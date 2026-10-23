@@ -2117,7 +2117,7 @@
       },
       "image": {
         "title": "Image",
-        "body": "The container the commands run in: it brings the tools (rust:1 for Cargo, node:22 for npm, alpine for simple commands). A Docker Hub image is written name:version."
+        "body": "The container the commands run in: it brings the tools (rust:1 for Cargo, node:24 for npm, alpine for simple commands). A Docker Hub image is written name:version."
       },
       "script": {
         "title": "Commands",

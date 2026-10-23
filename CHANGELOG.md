@@ -6,6 +6,36 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ## [Unreleased]
 
+## [0.1.8] - 2026-10-23
+
+### Security
+
+- Node.js 26.12.1 for every build of the web app and the site (Docker images, CI, `.nvmrc`, `engines`), from the
+  October 21, 2026 security release: CVE-2026-111497 (out-of-bounds write in the Brotli decoder, remote code
+  execution), CVE-2026-105482 (`dns.resolve` truncates names at a NUL character), CVE-2026-105483 and CVE-2026-106069
+  (TLS certificate hostname check bypassed for IP addresses written in fullwidth digits or loosely resolved), and six
+  medium and low ones (CVE-2026-105481, CVE-2026-106070 to CVE-2026-106074). Node.js only builds the static files and
+  runs the tests: neither image runs it.
+- `vite` 8.3.5 in `frontend/` and `website/`, through an npm override, since `@angular/build` 22.2.4 still pins 8.3.0
+  (GHSA-587h-7wmj-h5pm, GHSA-9jrq-w75r-8gcw, GHSA-rq7h-c2jc-7f22, GHSA-vfpm-58rq-9qcg, GHSA-698v-4r3x-3vcv,
+  GHSA-r825-w8mm-5pxw: development server only).
+- `ctutils` 0.4.5 (RUSTSEC-2026-0385: non-constant-time mask generation and `u128` comparisons).
+
+### Changed
+
+- Helm chart 0.5.1 (the bundled PostgreSQL moves to 18.6).
+- Rust 1.99.1 everywhere (`rust-toolchain.toml`, CI, the Docker image and FerrisGit's own pipeline), and every crate
+  updated within its range, `gix` 0.90 among them (`hyper` 1.12, `aws-lc-rs` 1.18.2, `uuid` 1.29).
+- Angular 22.2.4 (CLI, build, CDK, SSR), Storybook 10.6.3, `@analogjs/vite-plugin-angular` 2.9.2 and
+  `typescript-eslint` 8.72.0; the lockfiles are regenerated.
+- Images: PostgreSQL 18.6 (Helm chart and CI, pinned by digest), the `docker:29-dind` daemon and the `alpine/git`
+  v2.54.0 clone image of jobs on their current digests, and FerrisGit's own pipeline on `rust:1.99.1`, `node:26.12.1`
+  and the current `alpine:3.24`.
+- The pipeline editor and the documentation suggest current images: `alpine:3.24` (instead of 3.20, past its end of
+  life), `node:24`, `python:3.14`, `golang:1.27` and `docker:29-cli`.
+- GitHub Actions: `Swatinem/rust-cache` 2.9.3, `github/codeql-action/upload-sarif` 4.39.1 and the current
+  `dtolnay/rust-toolchain`.
+
 ## [0.1.7] - 2026-10-23
 
 ### Added
@@ -33,10 +63,6 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 ### Fixed
 
 - A runner job of a group repository cloned from the owner's path instead of the group's, and failed.
-
-### Security
-
-- `ctutils` 0.4.5 (RUSTSEC-2026-0385: non-constant-time mask generation and `u128` comparisons).
 
 ### Migrations
 
@@ -325,6 +351,7 @@ pages switches in `system_settings`). See "Upgrades" in the README.
 The CI/CD workflow builds and publishes the image, then creates the GitHub release `vX.Y.Z` with the text of the matching
 section. If the section is missing, only the release job fails (the image is not affected): add it, then rerun the job.
 
+[0.1.8]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.8
 [0.1.7]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.7
 [0.1.6]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.5

@@ -137,7 +137,7 @@ const sshRun = (): JobTile =>
   ],
   build: (values) => {
     const setup = sshSetup(values);
-    return { image: 'alpine:3.20', script: ['apk add --no-cache openssh-client', ...setup.script, ...remote(values, lines(values['commands']))], secrets: setup.secrets };
+    return { image: 'alpine:3.24', script: ['apk add --no-cache openssh-client', ...setup.script, ...remote(values, lines(values['commands']))], secrets: setup.secrets };
   },
 });
 
@@ -164,7 +164,7 @@ const sshCopy = (): JobTile =>
     const copy = `rsync -az ${on(values, 'delete') ? '--delete ' : ''}--mkpath -e "ssh ${setup.options}" ${text(values, 'source')} ${text(values, 'user')}@${text(values, 'host')}:${destination}/`;
     const after = lines(values['after']);
     return {
-      image: 'alpine:3.20',
+      image: 'alpine:3.24',
       script: ['apk add --no-cache openssh-client rsync', ...setup.script, copy, ...remote({ ...values, directory: '' }, after)],
       secrets: setup.secrets,
     };
@@ -197,7 +197,7 @@ const kubeApply = (): JobTile =>
     { id: 'wait', label: t('pipelines.tiles.k8s-apply.params.wait.label'), kind: 'text', default: '', placeholder: 'application', hint: t('pipelines.tiles.k8s-apply.params.wait.hint'), pattern: K8S_NAME, patternMessage: k8sMessage() },
   ],
   build: (values) => ({
-    image: 'alpine:3.20',
+    image: 'alpine:3.24',
     script: [
       'apk add --no-cache kubectl',
       ...kubeSetup(),
@@ -239,7 +239,7 @@ const kubeImage = (): JobTile =>
     const target = `deployment/${text(values, 'deployment')}`;
     const namespace = `-n ${text(values, 'namespace')}`;
     return {
-      image: 'alpine:3.20',
+      image: 'alpine:3.24',
       script: [
         'apk add --no-cache kubectl',
         ...kubeSetup(),
@@ -270,7 +270,7 @@ const helmUpgrade = (): JobTile =>
     { id: 'wait', label: t('pipelines.tiles.helm-upgrade.params.wait.label'), kind: 'toggle', default: true, hint: t('pipelines.tiles.helm-upgrade.params.wait.hint') },
   ],
   build: (values) => ({
-    image: 'alpine:3.20',
+    image: 'alpine:3.24',
     script: [
       'apk add --no-cache helm',
       ...kubeSetup(),

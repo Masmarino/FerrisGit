@@ -395,7 +395,7 @@ async fn a_git_push_to_a_wiki_does_not_trigger_pipeline_creation_for_the_real_re
             &repo_clone_url,
             "main",
             "add ci file",
-            &[(".ferrisgit-ci.yml", "stages: [build]\njobs:\n  hello:\n    stage: build\n    image: alpine:3.20\n    script:\n      - echo hi\n".as_bytes())]
+            &[(".ferrisgit-ci.yml", "stages: [build]\njobs:\n  hello:\n    stage: build\n    image: alpine:3.24\n    script:\n      - echo hi\n".as_bytes())]
         )
         .await,
         "the push adding the CI file to the real repo must succeed"

@@ -210,7 +210,7 @@ describe('deployment tiles', () => {
   it('makes a job from the answers', () => {
     const job = jobFromTile(tile('k8s-image'), 'deploy', [], { deployment: 'web', mode: 'restart' });
 
-    expect(job).toMatchObject({ name: 'update-k8s', stage: 'deploy', image: 'alpine:3.20', tags: [] });
+    expect(job).toMatchObject({ name: 'update-k8s', stage: 'deploy', image: 'alpine:3.24', tags: [] });
     expect(job.script.at(-2)).toBe('kubectl rollout restart deployment/web -n default');
   });
 

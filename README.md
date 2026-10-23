@@ -560,7 +560,7 @@ nothing with `frontend/`), prerendered to static files and served by nginx. The 
 - **Pages and languages.** Home, Features and Roadmap, in English (the default), French, Italian, Spanish and German:
   fifteen prerendered pages under `/<lang>/`, `/<lang>/features/` and `/<lang>/roadmap/`. The root `/` is not a page: nginx
   redirects it to the language of the visitor's `Accept-Language` header, or to `/en/`.
-- **Local development.** Node 26:
+- **Local development.** Node 26.12.1 or later:
 
   ```bash
   cd website
@@ -618,7 +618,7 @@ nothing with `frontend/`), prerendered to static files and served by nginx. The 
   with Clippy and rustfmt
 - [`sqlx-cli`](https://crates.io/crates/sqlx-cli), for `sqlx migrate run` and `cargo sqlx prepare`
 - A C toolchain (`aws-lc-rs`, which provides TLS, and OpenSSL, which WebAuthn needs, both compile C code)
-- Node.js 26 (`.nvmrc`, `engines` in `frontend/package.json`, and the version CI and the Docker image use), with npm
+- Node.js 26.12.1 or later (`.nvmrc`, `engines` in `frontend/package.json`, and the version CI and the Docker images use), with npm
 - Docker with Compose
 - `git` on the `PATH` (the server shells out to `git http-backend`)
 
@@ -687,7 +687,7 @@ pull request and on demand:
 |---|---|---|
 | Backend format & lint | always | `cargo fmt --check` and `cargo clippy -D warnings`. |
 | Backend build & test | always | Build and tests against a PostgreSQL service container. |
-| Frontend build & test | always | Production build and unit tests on Node 26. |
+| Frontend build & test | always | Production build and unit tests on Node 26.12.1. |
 | Security scan (source & dependencies) | pull requests, `main`, `develop`, `release/**`, tags | `cargo audit` (RustSec), plus Trivy and Grype on the source tree. A HIGH or CRITICAL finding fails the job; results also go to the repository's **Security** tab as SARIF. |
 | Require the tagged commit to be on main | every push | A `v*.*.*` tag is refused unless its commit is on `main`. |
 | Build, scan & push Docker image | `main`, `release/**`, tags | Builds the image, scans it with Trivy and Grype, and only then pushes it. |

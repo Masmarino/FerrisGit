@@ -2117,7 +2117,7 @@
       },
       "image": {
         "title": "Image",
-        "body": "Le conteneur dans lequel les commandes tournent : il apporte les outils (rust:1 pour Cargo, node:22 pour npm, alpine pour des commandes simples). Une image de Docker Hub s'écrit nom:version."
+        "body": "Le conteneur dans lequel les commandes tournent : il apporte les outils (rust:1 pour Cargo, node:24 pour npm, alpine pour des commandes simples). Une image de Docker Hub s'écrit nom:version."
       },
       "script": {
         "title": "Commandes",

@@ -2117,7 +2117,7 @@
       },
       "image": {
         "title": "Image",
-        "body": "Der Container, in dem die Befehle laufen: Er bringt die Werkzeuge mit (rust:1 für Cargo, node:22 für npm, alpine für einfache Befehle). Ein Image von Docker Hub schreibt sich name:version."
+        "body": "Der Container, in dem die Befehle laufen: Er bringt die Werkzeuge mit (rust:1 für Cargo, node:24 für npm, alpine für einfache Befehle). Ein Image von Docker Hub schreibt sich name:version."
       },
       "script": {
         "title": "Befehle",

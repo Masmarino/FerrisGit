@@ -84,7 +84,7 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
 
     std::fs::write(
         repo_path.join(".ferrisgit-ci.yml"),
-        "stages: [build]\njobs:\n  hello:\n    stage: build\n    image: alpine:3.20\n    script:\n      - echo hello-from-ci\n      - echo $SECRET_VALUE\n",
+        "stages: [build]\njobs:\n  hello:\n    stage: build\n    image: alpine:3.24\n    script:\n      - echo hello-from-ci\n      - echo $SECRET_VALUE\n",
     )
     .unwrap();
     assert!(
@@ -189,7 +189,7 @@ async fn a_pushed_pipeline_file_runs_to_success_via_a_real_runner(pool: PgPool) 
             }
         },
         Duration::from_secs(120),
-        "the pipeline to reach a terminal status (this requires a running Docker daemon to pull alpine:3.20 and run the job)",
+        "the pipeline to reach a terminal status (this requires a running Docker daemon to pull alpine:3.24 and run the job)",
     )
     .await;
 

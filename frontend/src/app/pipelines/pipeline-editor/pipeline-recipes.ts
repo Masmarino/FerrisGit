@@ -34,7 +34,7 @@ const PACKAGE_CACHES: Record<PackageManager, CacheRecipe> = {
 };
 
 export const NODE = {
-  image: (manager: PackageManager = 'npm', version?: string | null) => (manager === 'bun' ? 'oven/bun:1' : `node:${version ?? '22'}`),
+  image: (manager: PackageManager = 'npm', version?: string | null) => (manager === 'bun' ? 'oven/bun:1' : `node:${version ?? '24'}`),
   cache: (manager: PackageManager = 'npm'): CacheRecipe => PACKAGE_CACHES[manager],
   /** The frozen install of each package manager: the lockfile is the reference, and a job never updates it. */
   install: (manager: PackageManager = 'npm', locked = true): string[] =>
@@ -56,7 +56,7 @@ export const NODE = {
 };
 
 export const GO = {
-  image: (version?: string | null) => `golang:${version ?? '1.23'}`,
+  image: (version?: string | null) => `golang:${version ?? '1.27'}`,
   format: () => ['test -z "$(gofmt -l .)"'],
   vet: () => ['go vet ./...'],
   test: () => ['go test ./...'],
@@ -64,7 +64,7 @@ export const GO = {
 };
 
 export const PYTHON = {
-  image: (version?: string | null) => `python:${version ?? '3.13'}`,
+  image: (version?: string | null) => `python:${version ?? '3.14'}`,
   /** Installs the project and its dependencies. With pip, from requirements.txt when there is one. */
   setup: (tool: PythonTool = 'pip', requirements = true): string[] =>
     ({ uv: ['pip install uv', 'uv sync --frozen'], poetry: ['pip install poetry', 'poetry install'], pip: [requirements ? 'pip install -r requirements.txt' : 'pip install -e .'] })[tool],

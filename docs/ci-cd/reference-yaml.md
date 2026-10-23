@@ -63,7 +63,7 @@ Nom de l'étape du job. Si le nom n'est pas dans `stages`, le fichier est refus�
 
 ### image
 
-Nom de l'image de conteneur, par exemple `rust:1` ou `alpine:3.20`. FerrisGit ne vérifie pas son contenu : une image introuvable fait échouer le job au moment de son exécution.
+Nom de l'image de conteneur, par exemple `rust:1` ou `alpine:3.24`. FerrisGit ne vérifie pas son contenu : une image introuvable fait échouer le job au moment de son exécution.
 
 - Runners Docker : le job est lancé par `docker run` ; le runner doit pouvoir télécharger l'image. Le point d'entrée (`ENTRYPOINT`) de l'image est conservé : le script est passé en arguments sous la forme `sh -c <script>`. Une image dont le point d'entrée n'est pas un shell ou un lanceur transparent ne conviendra pas.
 - Kubernetes : la commande du conteneur est remplacée par `/bin/sh -c <script>`. L'image doit donc contenir `/bin/sh`.
@@ -174,7 +174,7 @@ jobs:
 
   publish:
     stage: deploy
-    image: alpine:3.20
+    image: alpine:3.24
     script:
       - echo "publication"
 ```

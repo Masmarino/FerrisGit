@@ -194,9 +194,9 @@ describe('PipelineJobForm', () => {
     it('fills the image from a suggestion', async () => {
       const { el, patches } = await setup();
 
-      el.querySelector<HTMLButtonElement>('[data-image="node:22"] button, button[data-image="node:22"]')!.click();
+      el.querySelector<HTMLButtonElement>('[data-image="node:24"] button, button[data-image="node:24"]')!.click();
 
-      expect(patches).toEqual([{ image: 'node:22' }]);
+      expect(patches).toEqual([{ image: 'node:24' }]);
     });
 
     it('adds a cache from a suggestion, and stops suggesting one that is there', async () => {

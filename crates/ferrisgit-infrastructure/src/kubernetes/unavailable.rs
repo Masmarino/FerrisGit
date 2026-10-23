@@ -31,7 +31,7 @@ mod tests {
             pipeline_id: Uuid::new_v4(),
             stage: "build".to_string(),
             name: "compile".to_string(),
-            image: "alpine:3.20".to_string(),
+            image: "alpine:3.24".to_string(),
             script: vec!["true".to_string()],
             variables: BTreeMap::new(),
             needs: vec![],

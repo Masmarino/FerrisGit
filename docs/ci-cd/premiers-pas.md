@@ -22,13 +22,13 @@ stages: [test]
 jobs:
   hello:
     stage: test
-    image: alpine:3.20
+    image: alpine:3.24
     script:
       - echo "Bonjour depuis FerrisGit"
       - uname -a
 ```
 
-Ce fichier déclare une étape (`test`) et un job (`hello`) qui s'exécute dans l'image `alpine:3.20`. Les lignes de `script` sont enchaînées avec `&&` : la première qui échoue fait échouer le job. Toutes les clés sont décrites dans [la référence](/docs/ci-cd/reference-yaml).
+Ce fichier déclare une étape (`test`) et un job (`hello`) qui s'exécute dans l'image `alpine:3.24`. Les lignes de `script` sont enchaînées avec `&&` : la première qui échoue fait échouer le job. Toutes les clés sont décrites dans [la référence](/docs/ci-cd/reference-yaml).
 
 ## Le pousser
 
