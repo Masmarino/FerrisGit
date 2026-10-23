@@ -34,6 +34,10 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 - A runner job of a group repository cloned from the owner's path instead of the group's, and failed.
 
+### Security
+
+- `ctutils` 0.4.5 (RUSTSEC-2026-0385: non-constant-time mask generation and `u128` comparisons).
+
 ### Migrations
 
 One migration applies at startup, with no manual step: `0011_job_containers` (the "Docker in jobs" setting, and the
