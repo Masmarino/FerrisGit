@@ -6,6 +6,8 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ## [Unreleased]
 
+## [0.1.7] - 2026-10-23
+
 ### Added
 
 - Kubernetes jobs work on their repository like runner jobs: an init container clones the pipeline's commit into
@@ -319,6 +321,7 @@ pages switches in `system_settings`). See "Upgrades" in the README.
 The CI/CD workflow builds and publishes the image, then creates the GitHub release `vX.Y.Z` with the text of the matching
 section. If the section is missing, only the release job fails (the image is not affected): add it, then rerun the job.
 
+[0.1.7]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.7
 [0.1.6]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.6
 [0.1.5]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.5
 [0.1.4]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.4
