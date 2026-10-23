@@ -130,3 +130,49 @@ impl PipelineEventPublisherPort for FakeEvents {
         Ok(())
     }
 }
+
+/// A job's environment as the server would give it: a repository, a commit, CI variables, Docker on or off. Tokens it
+/// issues are kept, to check what the Pod got.
+#[derive(Default)]
+pub struct FakeEnvironments {
+    pub repository_id: Uuid,
+    pub ci_variables: std::collections::BTreeMap<String, String>,
+    pub masked_values: Vec<String>,
+    pub docker: bool,
+    pub issued: Mutex<Vec<String>>,
+}
+
+impl FakeEnvironments {
+    pub fn for_repository(repository_id: Uuid) -> Self {
+        Self {
+            repository_id,
+            ..Self::default()
+        }
+    }
+}
+
+#[async_trait]
+impl ferrisgit_application::use_cases::job_environment::JobEnvironmentSource for FakeEnvironments {
+    async fn environment(
+        &self,
+        _job: &Job,
+    ) -> Result<ferrisgit_application::use_cases::job_environment::JobEnvironment, DomainError>
+    {
+        Ok(
+            ferrisgit_application::use_cases::job_environment::JobEnvironment {
+                repository_id: self.repository_id,
+                repository_path: "acme/widget".to_string(),
+                commit_sha: "abc123".to_string(),
+                ci_variables: self.ci_variables.clone(),
+                masked_values: self.masked_values.clone(),
+                docker: self.docker,
+            },
+        )
+    }
+
+    async fn issue_clone_token(&self, job_id: Uuid) -> Result<String, DomainError> {
+        let token = format!("fgj_test_{job_id}");
+        self.issued.lock().unwrap().push(token.clone());
+        Ok(token)
+    }
+}

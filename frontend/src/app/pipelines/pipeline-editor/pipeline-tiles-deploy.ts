@@ -24,9 +24,8 @@ const pathMessage = (): string => t('pipelines.tiles.shared.pathMessage');
 const k8sMessage = (): string => t('pipelines.tiles.shared.k8sMessage');
 
 /** A tile with questions. Its default fields are what the default answers build. */
-function questionTile(tile: Omit<JobTile, keyof TileBuild | 'needsSecrets'> & { params: TileParam[]; build: (values: ParamValues) => TileBuild }): JobTile {
-  const defaults = tile.build(defaultValues(tile.params));
-  return { ...tile, ...defaults, needsSecrets: (defaults.secrets ?? []).length > 0 };
+function questionTile(tile: Omit<JobTile, keyof TileBuild> & { params: TileParam[]; build: (values: ParamValues) => TileBuild }): JobTile {
+  return { ...tile, ...tile.build(defaultValues(tile.params)) };
 }
 
 // --- Docker image -----------------------------------------------------------------------------------------------
@@ -42,6 +41,17 @@ const dockerBuild = (): JobTile =>
   jobName: 'image',
   stage: 'package',
   params: [
+    {
+      id: 'daemon',
+      label: t('pipelines.tiles.docker-build.params.daemon.label'),
+      kind: 'choice',
+      default: 'job',
+      options: [
+        { value: 'job', label: t('pipelines.tiles.docker-build.params.daemon.options.job') },
+        { value: 'remote', label: t('pipelines.tiles.docker-build.params.daemon.options.remote') },
+      ],
+      hint: t('pipelines.tiles.docker-build.params.daemon.hint'),
+    },
     { id: 'registry', label: t('pipelines.tiles.docker-build.params.registry.label'), kind: 'text', default: 'registry.example.com', required: true, placeholder: 'registry.example.com', hint: t('pipelines.tiles.docker-build.params.registry.hint'), pattern: /^[A-Za-z0-9][A-Za-z0-9.-]*(:[0-9]+)?$/, patternMessage: t('pipelines.tiles.docker-build.params.registry.patternMessage') },
     { id: 'image', label: t('pipelines.tiles.docker-build.params.image.label'), kind: 'text', default: 'equipe/application', required: true, placeholder: 'equipe/application', hint: t('pipelines.tiles.docker-build.params.image.hint'), pattern: /^[a-z0-9][a-z0-9._/-]*$/, patternMessage: t('pipelines.tiles.docker-build.params.image.patternMessage') },
     { id: 'tag', label: t('pipelines.tiles.docker-build.params.tag.label'), kind: 'text', default: 'latest', required: true, hint: t('pipelines.tiles.docker-build.params.tag.hint'), pattern: /^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/, patternMessage: t('pipelines.tiles.docker-build.params.tag.patternMessage') },
@@ -52,16 +62,18 @@ const dockerBuild = (): JobTile =>
   ],
   build: (values) => {
     const reference = `${text(values, 'registry')}/${text(values, 'image')}:${text(values, 'tag')}`;
-    const docker = 'docker -H "$DOCKER_HOST"';
+    const remote = values['daemon'] === 'remote';
+    const docker = remote ? 'docker -H "$DOCKER_HOST"' : 'docker';
     const login = on(values, 'login');
     return {
-      image: 'docker:27-cli',
+      image: 'docker:29-cli',
       script: [
         ...(login ? [`echo "$REGISTRY_PASSWORD" | ${docker} login ${text(values, 'registry')} -u "$REGISTRY_USER" --password-stdin`] : []),
         `${docker} build -f ${text(values, 'dockerfile')} -t ${reference} ${text(values, 'context')}`,
         ...(on(values, 'push') ? [`${docker} push ${reference}`] : []),
       ],
-      secrets: ['DOCKER_HOST', ...(login ? ['REGISTRY_USER', 'REGISTRY_PASSWORD'] : [])],
+      secrets: [...(remote ? ['DOCKER_HOST'] : []), ...(login ? ['REGISTRY_USER', 'REGISTRY_PASSWORD'] : [])],
+      usesJobDocker: !remote,
     };
   },
 });

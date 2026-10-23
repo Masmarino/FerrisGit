@@ -18,6 +18,9 @@ pub struct ClaimedJob {
     pub ci_variables: BTreeMap<String, String>,
     #[serde(default)]
     pub masked_values: Vec<String>,
+    /// The Docker daemon to start beside the job, when the server gives jobs Docker.
+    #[serde(default)]
+    pub docker_image: Option<String>,
 }
 
 /// The runner can't stop a job mid-run, so a canceled job still runs to the end and reports what happened.

@@ -4,6 +4,7 @@ pub mod event_publisher;
 pub mod group_store;
 pub mod health_check;
 pub mod issue_store;
+pub mod job_containers_store;
 pub mod job_log_retention_store;
 pub mod job_store;
 pub mod label_store;

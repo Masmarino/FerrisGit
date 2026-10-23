@@ -33,16 +33,16 @@
     <ul class="tile-picker__tiles">
       @for (tile of section.tiles; track tile.id) {
         <li class="tile-picker__tile" [attr.data-tile]="tile.id">
-          <button type="button" class="tile-picker__choose" [disabled]="unavailable(tile) !== null" (click)="choose(tile)">
+          <button type="button" class="tile-picker__choose" (click)="choose(tile)">
             <gbt-icon class="tile-picker__icon" [name]="tile.icon" aria-hidden="true" />
             <span class="tile-picker__text">
               <span class="tile-picker__title">{{ tile.title }}</span>
               <span class="tile-picker__what">{{ tile.summary }}</span>
               <!-- A badge does not wrap, so it only says one short thing. The rest goes in text that does wrap. -->
-              @if (unavailable(tile); as reason) {
-                <span class="tile-picker__note" data-note="kubernetes">
-                  <gbt-badge variant="warning" icon="lock">{{ 'pipelines.tilePicker.notKubernetes' | transloco }}</gbt-badge>&ngsp;
-                  <span>{{ reason === 'secrets' ? "Les secrets n'y sont pas transmis." : "Le dépôt n'y est pas copié." }}</span>
+              @if (withoutDocker(tile)) {
+                <span class="tile-picker__note" data-note="docker">
+                  <gbt-badge variant="warning" icon="lock">{{ 'pipelines.tilePicker.noDocker' | transloco }}</gbt-badge>&ngsp;
+                  <span>{{ 'pipelines.tilePicker.noDockerReason' | transloco }}</span>
                 </span>
               } @else if (missing(tile).length > 0) {
                 <span class="tile-picker__note" data-note="secrets">

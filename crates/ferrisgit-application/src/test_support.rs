@@ -3331,6 +3331,49 @@ impl SystemSettingsStorePort for FakeSystemSettings {
     }
 }
 
+/// Clone tokens of unfinished jobs, by hash, with the repository each reads. Issued tokens are kept by job.
+pub struct FakeJobCloneTokens {
+    active: Mutex<Vec<(String, Uuid)>>,
+    issued: Mutex<Vec<(Uuid, String)>>,
+}
+
+impl FakeJobCloneTokens {
+    pub fn new(active: Vec<(String, Uuid)>) -> Self {
+        Self {
+            active: Mutex::new(active),
+            issued: Mutex::new(vec![]),
+        }
+    }
+
+    pub fn issued(&self) -> Vec<(Uuid, String)> {
+        self.issued.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl ferrisgit_domain::job_containers::JobCloneTokenPort for FakeJobCloneTokens {
+    async fn issue(&self, job_id: Uuid, token_hash: &str) -> Result<(), DomainError> {
+        self.issued
+            .lock()
+            .unwrap()
+            .push((job_id, token_hash.to_string()));
+        Ok(())
+    }
+
+    async fn repository_of_unfinished_job(
+        &self,
+        token_hash: &str,
+    ) -> Result<Option<Uuid>, DomainError> {
+        Ok(self
+            .active
+            .lock()
+            .unwrap()
+            .iter()
+            .find(|(hash, _)| hash == token_hash)
+            .map(|(_, repository)| *repository))
+    }
+}
+
 /// Deleting an unknown id isn't an error, like the real adapter.
 pub struct FakeRunners {
     runners: Mutex<Vec<Runner>>,

@@ -10,6 +10,7 @@ use ferrisgit_application::mailer::Mailer;
 use ferrisgit_application::merge_request_activity::MergeRequestActivity;
 use ferrisgit_application::passkey_ceremonies::PasskeyCeremonies;
 use ferrisgit_application::single_use_tokens::SingleUseTokens;
+use ferrisgit_application::use_cases::job_environment::JobEnvironments;
 use ferrisgit_application::use_cases::mfa::MfaService;
 use ferrisgit_application::use_cases::passkeys::{PasskeyService, build_webauthn};
 use ferrisgit_application::use_cases::protected_branches::ProtectedBranches;
@@ -36,6 +37,7 @@ use ferrisgit_domain::invitation::{PendingAccountPort, UserInvitationPort};
 use ferrisgit_domain::issue::IssueStorePort;
 use ferrisgit_domain::issue_comment::IssueCommentPort;
 use ferrisgit_domain::job::{JobLogRetentionPort, JobStorePort};
+use ferrisgit_domain::job_containers::{DockerInJobsPort, JobCloneTokenPort};
 use ferrisgit_domain::job_execution::JobExecutionPort;
 use ferrisgit_domain::label::LabelStorePort;
 use ferrisgit_domain::merge_executor::MergeExecutorPort;
@@ -95,6 +97,9 @@ use ferrisgit_infrastructure::postgres::event_publisher::PostgresEventPublisher;
 use ferrisgit_infrastructure::postgres::group_store::PostgresGroupStore;
 use ferrisgit_infrastructure::postgres::health_check::PostgresHealthCheck;
 use ferrisgit_infrastructure::postgres::issue_store::PostgresIssueStore;
+use ferrisgit_infrastructure::postgres::job_containers_store::{
+    PostgresDockerInJobsStore, PostgresJobCloneTokenStore,
+};
 use ferrisgit_infrastructure::postgres::job_log_retention_store::PostgresJobLogRetentionStore;
 use ferrisgit_infrastructure::postgres::job_store::PostgresJobStore;
 use ferrisgit_infrastructure::postgres::label_store::PostgresLabelStore;
@@ -202,6 +207,12 @@ pub struct AppState {
     pub invitations: Arc<dyn UserInvitationPort>,
     pub password_resets: Arc<dyn PasswordResetPort>,
     pub registration_settings: Arc<dyn RegistrationSettingsPort>,
+    /// The admin switch that gives every job a Docker daemon.
+    pub docker_in_jobs: Arc<dyn DockerInJobsPort>,
+    /// The tokens Kubernetes jobs clone their repository with.
+    pub job_clone_tokens: Arc<dyn JobCloneTokenPort>,
+    /// What a job needs from the server, whichever engine runs it.
+    pub job_environments: Arc<JobEnvironments>,
     pub public_pages_settings: Arc<dyn PublicPagesSettingsPort>,
     pub public_catalog: Arc<dyn PublicCatalogPort>,
     /// One per-IP budget for all the anonymous `/api/public/*` routes.
@@ -321,6 +332,23 @@ impl AppState {
         let docker_executor: Arc<dyn JobExecutionPort> =
             Arc::new(DockerRunnerExecutor::new(jobs.clone()));
 
+        let repository_settings: Arc<dyn RepositorySettingsStorePort> = Arc::new(
+            PostgresRepositorySettingsStore::new(pool.clone(), secret_encryptor.clone()),
+        );
+        let docker_in_jobs: Arc<dyn DockerInJobsPort> =
+            Arc::new(PostgresDockerInJobsStore::new(pool.clone()));
+        let job_clone_tokens: Arc<dyn JobCloneTokenPort> =
+            Arc::new(PostgresJobCloneTokenStore::new(pool.clone()));
+        let job_environments = Arc::new(JobEnvironments::new(
+            pipelines.clone(),
+            repositories.clone(),
+            users.clone(),
+            groups.clone(),
+            repository_settings.clone(),
+            docker_in_jobs.clone(),
+            job_clone_tokens.clone(),
+        ));
+
         // Not `kube::Client::try_default()`: we want the inferred config too, for its default namespace.
         let kubernetes_config = kube::Config::infer().await.ok();
         let kubernetes_client = kubernetes_config
@@ -343,7 +371,9 @@ impl AppState {
                 jobs.clone(),
                 system_settings.clone(),
                 pipeline_events.clone(),
+                job_environments.clone(),
                 default_k8s_namespace.clone(),
+                config.job_server_url.clone(),
             )),
             None => {
                 // infer() never checks connectivity, so this just means no config was found.
@@ -384,6 +414,7 @@ impl AppState {
                 users.clone(),
                 notifications.clone(),
                 webhooks.clone(),
+                job_environments.clone(),
             ));
             tokio::spawn(async move { watcher.run().await });
         }
@@ -452,10 +483,7 @@ impl AppState {
             runners: Arc::new(PostgresRunnerRepository::new(pool.clone())),
             pipeline_events,
             system_settings,
-            repository_settings: Arc::new(PostgresRepositorySettingsStore::new(
-                pool.clone(),
-                secret_encryptor.clone(),
-            )),
+            repository_settings,
             smtp_settings,
             mailer,
             job_execution,
@@ -500,6 +528,9 @@ impl AppState {
             invitations: Arc::new(PostgresUserInvitationStore::new(pool.clone())),
             password_resets: Arc::new(PostgresPasswordResetStore::new(pool.clone())),
             registration_settings: Arc::new(PostgresRegistrationSettingsStore::new(pool.clone())),
+            docker_in_jobs,
+            job_clone_tokens,
+            job_environments,
             public_pages_settings: Arc::new(PostgresPublicPagesSettingsStore::new(pool.clone())),
             public_catalog: Arc::new(PostgresPublicCatalogStore::new(pool.clone())),
             public_rate_limiter: Arc::new(LoginRateLimiter::with_limits(

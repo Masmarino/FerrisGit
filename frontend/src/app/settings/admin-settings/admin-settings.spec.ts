@@ -18,6 +18,7 @@ const SETTINGS: SystemSettings = {
   registrationEnabled: false,
   publicPagesEnabled: true,
   seoIndexingEnabled: false,
+  dockerInJobs: false,
   k8sNamespace: null,
   k8sCacheStorageClass: null,
   runnerRegistrationTokenConfigured: false,
@@ -107,12 +108,12 @@ describe('AdminSettings', () => {
       expect(links.map((a) => a.getAttribute('aria-current'))).toEqual(['page', null, null]);
     });
 
-    it('shows the execution section by default: the engine, its own settings and the job log cards, each with its icon', async () => {
+    it('shows the execution section by default: the engine, its own settings, Docker in jobs and the job log cards, each with its icon', async () => {
       const { harness, el } = await setup();
 
       const cards = harness.routeDebugElement!.queryAll(By.css('gbt-card'));
-      expect(cards.map((card) => text(card.nativeElement.querySelector('h2')))).toEqual(["Moteur d'exécution", 'Runners Docker', 'Journaux des jobs']);
-      expect(cards.map((card) => (card.query(By.directive(Icon))?.componentInstance as Icon | undefined)?.name())).toEqual(['server', 'key', 'clock']);
+      expect(cards.map((card) => text(card.nativeElement.querySelector('h2')))).toEqual(["Moteur d'exécution", 'Runners Docker', 'Docker dans les jobs', 'Journaux des jobs']);
+      expect(cards.map((card) => (card.query(By.directive(Icon))?.componentInstance as Icon | undefined)?.name())).toEqual(['server', 'key', 'shield-alert', 'clock']);
       expect(cards.every((card) => !!text(card.nativeElement.querySelector('.gbt-card__description')))).toBe(true);
       expect(el().querySelector('gbt-slider')).toBeNull();
     });
@@ -194,7 +195,7 @@ describe('AdminSettings', () => {
       http.expectOne('/api/admin/settings').flush(SETTINGS);
       await settle(harness);
       expect(el.querySelector('[aria-busy="true"]')).toBeNull();
-      expect(el.querySelectorAll('gbt-card')).toHaveLength(3);
+      expect(el.querySelectorAll('gbt-card')).toHaveLength(4);
     });
 
     it('shows a toast and a retry card when loading fails; retrying loads again', async () => {
@@ -246,14 +247,14 @@ describe('AdminSettings', () => {
         const { el } = await setup();
 
         expect(checkedEngine(el())).toBe('Docker / runners');
-        expect(cardTitles(el())).toEqual(["Moteur d'exécution", 'Runners Docker', 'Journaux des jobs']);
+        expect(cardTitles(el())).toEqual(["Moteur d'exécution", 'Runners Docker', 'Docker dans les jobs', 'Journaux des jobs']);
       });
 
       it("shows only the cluster's settings for Kubernetes", async () => {
         const { el } = await setup(SETTINGS_URL, { ...SETTINGS, executionEngine: 'kubernetes' });
 
         expect(checkedEngine(el())).toBe('Kubernetes');
-        expect(cardTitles(el())).toEqual(["Moteur d'exécution", 'Kubernetes', 'Journaux des jobs']);
+        expect(cardTitles(el())).toEqual(["Moteur d'exécution", 'Kubernetes', 'Docker dans les jobs', 'Journaux des jobs']);
       });
 
       it('switches the cards at once, saves nothing, and says the engine changes once saved', async () => {
@@ -263,7 +264,7 @@ describe('AdminSettings', () => {
         await settle(harness);
 
         http.expectNone('/api/admin/settings');
-        expect(cardTitles(el())).toEqual(["Moteur d'exécution", 'Kubernetes', 'Journaux des jobs']);
+        expect(cardTitles(el())).toEqual(["Moteur d'exécution", 'Kubernetes', 'Docker dans les jobs', 'Journaux des jobs']);
         expect(text(el().querySelector('[data-field="executionEngine"]'))).toContain('Le moteur change une fois les réglages enregistrés.');
         expect(summary(el())).toBe('Modifications non enregistrées');
       });
@@ -351,6 +352,23 @@ describe('AdminSettings', () => {
 
       expect(fieldLabelled(el(), 'Remplacer le jeton').value).toBe('');
       expect(el().textContent).not.toContain('mon-jeton-secret');
+      expect(summary(el())).toBe('');
+    });
+
+    it('turns Docker in jobs on with the rest of the section, whichever the engine', async () => {
+      const { harness, el, http } = await setup();
+      const docker = () => el().querySelector<HTMLInputElement>('[data-field="dockerInJobs"] input[role="switch"]')!;
+      expect(text(el().querySelector('[data-field="dockerInJobs"]'))).toContain('conteneur privilégié');
+
+      docker().click();
+      await settle(harness);
+      await save(harness, el());
+
+      const saved = http.expectOne('/api/admin/settings');
+      expect(saved.request.body).toEqual({ dockerInJobs: true });
+      saved.flush({ ...SETTINGS, dockerInJobs: true });
+      await settle(harness);
+      expect(docker().checked).toBe(true);
       expect(summary(el())).toBe('');
     });
 

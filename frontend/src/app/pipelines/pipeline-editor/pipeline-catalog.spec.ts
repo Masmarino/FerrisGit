@@ -30,7 +30,6 @@ describe('pipeline catalog', () => {
       for (const name of tile.secrets!) {
         expect(tile.script.join('\n'), `${tile.id} ${name}`).toContain(name);
       }
-      expect(tile.needsSecrets, tile.id).toBe(true);
     }
     expect(knownTileSecrets()).toEqual(expect.arrayContaining(['DEPLOY_TOKEN', 'REGISTRY_PASSWORD', 'DOCKER_HOST', 'SSH_PRIVATE_KEY', 'SSH_KNOWN_HOSTS', 'KUBE_CONFIG']));
     expect(secretsOfTiles(['http-deploy', 'http-deploy'])).toEqual(['DEPLOY_URL', 'DEPLOY_TOKEN']);

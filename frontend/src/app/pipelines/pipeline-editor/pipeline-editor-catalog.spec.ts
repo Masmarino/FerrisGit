@@ -187,17 +187,17 @@ describe('PipelineEditor catalogue', () => {
       await answerRender(ctx);
     });
 
-    it('proposes nothing with Kubernetes, and says why: a Pod gets no copy of the repository', async () => {
+    it('proposes a pipeline with Kubernetes too: its Pods get the repository', async () => {
       const ctx = setup('contributor', 'kubernetes');
       ctx.fixture.detectChanges();
       ctx.http.expectOne(FILE_URL).flush(fileBody(null));
       ctx.fixture.detectChanges();
 
-      ctx.http.expectNone(PROFILE_URL);
-      expect(ctx.el.querySelector('[data-prediction]')).toBeNull();
-      expect(ctx.el.querySelector('.starters__card')).toBeNull();
-      expect(text(ctx.el.querySelector('#starters-title'))).toBe("Partir d'un job vide");
-      expect(text(ctx.el.querySelector('fg-pipeline-starters [data-kubernetes]'))).toContain('ne reçoit pas de copie du dépôt');
+      ctx.http.expectOne(PROFILE_URL).flush(PROFILE);
+      ctx.fixture.detectChanges();
+
+      expect(ctx.el.querySelector('[data-prediction]')).not.toBeNull();
+      expect(ctx.el.querySelectorAll('.starters__card')).toHaveLength(pipelineTemplates().length);
       await answerRender(ctx);
     });
 

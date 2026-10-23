@@ -5,12 +5,12 @@ import { PipelineTilePicker } from './pipeline-tile-picker';
 const text = (el: Element | null | undefined) => (el?.textContent ?? '').replace(/\s+/g, ' ').trim();
 
 describe('PipelineTilePicker', () => {
-  function setup(secrets: string[] | null = null, engine: string | null = null) {
+  function setup(secrets: string[] | null = null, dockerInJobs = true) {
     TestBed.configureTestingModule({});
     const fixture = TestBed.createComponent(PipelineTilePicker);
     fixture.componentRef.setInput('stage', 'test');
     fixture.componentRef.setInput('secrets', secrets);
-    fixture.componentRef.setInput('engine', engine);
+    fixture.componentRef.setInput('dockerInJobs', dockerInJobs);
     const chosen: { tile: JobTile; values: ParamValues }[] = [];
     fixture.componentInstance.chosen.subscribe((choice) => chosen.push(choice));
     fixture.detectChanges();
@@ -60,9 +60,9 @@ describe('PipelineTilePicker', () => {
     const { el } = setup([]);
 
     const note = el.querySelector('[data-tile="docker-build"] [data-note="secrets"]')!;
-    expect(Array.from(note.querySelectorAll('gbt-badge'), text)).toEqual(['DOCKER_HOST', 'REGISTRY_USER', 'REGISTRY_PASSWORD']);
+    expect(Array.from(note.querySelectorAll('gbt-badge'), text)).toEqual(['REGISTRY_USER', 'REGISTRY_PASSWORD']);
     // Read aloud as separate words, not as one run of names.
-    expect(note.textContent!.replace(/\s+/g, ' ').trim()).toBe('Secrets à créer : DOCKER_HOST REGISTRY_USER REGISTRY_PASSWORD');
+    expect(note.textContent!.replace(/\s+/g, ' ').trim()).toBe('Secrets à créer : REGISTRY_USER REGISTRY_PASSWORD');
   });
 
   it('shows nothing about secrets when it cannot know which exist', () => {
@@ -100,33 +100,24 @@ describe('PipelineTilePicker', () => {
     });
   });
 
-  describe('with Kubernetes running the jobs', () => {
-    it('does not offer the tiles that read secrets, and says why', () => {
-      const { el, chosen } = setup(null, 'kubernetes');
-      const deploy = el.querySelector<HTMLButtonElement>('[data-tile="ssh-run"] .tile-picker__choose')!;
+  describe("with the job's own Docker", () => {
+    it('says when the jobs of this instance have none, and still offers the tile for a remote daemon', () => {
+      const { fixture, el } = setup(null, false);
+      const docker = el.querySelector<HTMLButtonElement>('[data-tile="docker-build"] .tile-picker__choose')!;
 
-      deploy.click();
-
-      expect(deploy.disabled).toBe(true);
-      expect(text(el.querySelector('[data-tile="ssh-run"] [data-note="kubernetes"]'))).toBe("Pas avec Kubernetes Les secrets n'y sont pas transmis.");
-      expect(chosen).toEqual([]);
-      expect(el.querySelector('[data-tile="custom"] .tile-picker__choose')).toHaveProperty('disabled', false);
+      expect(text(el.querySelector('[data-tile="docker-build"] [data-note="docker"]'))).toBe(
+        "Docker désactivé Les jobs n'ont pas Docker sur cette instance : demandez-le à un administrateur, ou choisissez un démon distant.",
+      );
+      expect(docker.disabled).toBe(false);
+      docker.click();
+      fixture.detectChanges();
+      expect(el.querySelector('fg-pipeline-tile-form')).not.toBeNull();
     });
 
-    it('does not offer the tiles that work on the repository either: a Pod gets no copy of it', () => {
-      const { el, chosen } = setup(null, 'kubernetes');
-      const test = el.querySelector<HTMLButtonElement>('[data-tile="go-test"] .tile-picker__choose')!;
+    it('says nothing when the jobs have Docker, and never greys a tile', () => {
+      const { el } = setup(null, true);
 
-      test.click();
-
-      expect(test.disabled).toBe(true);
-      expect(text(el.querySelector('[data-tile="go-test"] [data-note="kubernetes"]'))).toBe("Pas avec Kubernetes Le dépôt n'y est pas copié.");
-      expect(chosen).toEqual([]);
-    });
-
-    it('offers them all with Docker runners', () => {
-      const { el } = setup(null, 'docker-runners');
-
+      expect(el.querySelector('[data-note="docker"]')).toBeNull();
       expect(el.querySelectorAll('.tile-picker__choose:disabled')).toHaveLength(0);
     });
   });

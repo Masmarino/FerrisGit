@@ -12,6 +12,7 @@ Les réglages qui se modifient en cours de service (SMTP, inscription libre, dur
 | `JWT_SECRET` | oui | aucun | Texte d'au moins 32 octets | Signe les jetons de session ; sert aussi à dériver la clé des jetons intermédiaires de la double authentification. |
 | `SETTINGS_ENCRYPTION_KEY` | oui | aucun | Texte d'exactement 32 octets, utilisé tel quel comme clé AES-256 | Chiffre au repos les variables CI des dépôts, les secrets des webhooks, le mot de passe SMTP et les secrets TOTP. |
 | `PUBLIC_URL` | oui | aucun | Origine : `https://hôte[:port]`, sans chemin | Adresse publique : liens des e-mails, origine des clés d'accès. |
+| `JOB_SERVER_URL` | non | `PUBLIC_URL` | Origine, comme `PUBLIC_URL` | Adresse du serveur pour les Pods des jobs Kubernetes, qui y clonent leur dépôt. Utile quand l'adresse publique n'est pas joignable depuis le cluster, ou pour éviter le détour par l'ingress : le chart Helm y met l'adresse du Service, `http://<release>.<namespace>.svc:<port>`. |
 | `TRUSTED_PROXY_CIDRS` | non | vide | Liste de réseaux CIDR séparés par des virgules | Réseaux de votre reverse proxy : pour une connexion venant de là, l'adresse du client est lue dans `X-Forwarded-For`. |
 | `STORAGE_ROOT` | non | `./data` | Chemin d'un répertoire | Racine des dépôts Git, des wikis et des fichiers joints aux releases. |
 | `BIND_ADDR` | non | `0.0.0.0:8080` | `adresse:port`, par exemple `127.0.0.1:8080` ou `[::]:8080` | Adresse et port d'écoute. |

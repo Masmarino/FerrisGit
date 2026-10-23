@@ -51,6 +51,7 @@ pub mod get_admin_stats;
 pub mod get_health_status;
 pub mod get_metrics_history;
 pub mod invitations;
+pub mod job_environment;
 pub mod list_users;
 pub mod login;
 pub mod mark_all_notifications_read;

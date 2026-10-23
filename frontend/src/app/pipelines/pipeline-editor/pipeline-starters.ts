@@ -1,5 +1,4 @@
 import { Component, computed, input, output } from '@angular/core';
-import { Alert } from '@masmarino/gabarit/alert';
 import { Button } from '@masmarino/gabarit/button';
 import { Icon } from '@masmarino/gabarit/icon';
 import { Skeleton } from '@masmarino/gabarit/skeleton';
@@ -12,13 +11,12 @@ import { TranslocoPipe } from '@jsverse/transloco';
 /**
  * Whole pipelines to start an empty one from: a click lays out the stages and the jobs. The pipeline proposed for this
  * repository comes first, with the files it was read from. The generic templates stay below for whatever it did not
- * recognise. With Kubernetes, neither is offered: they all work on the repository's files, and a Pod gets no copy of
- * them.
+ * recognise.
  */
 @Component({
   selector: 'fg-pipeline-starters',
   standalone: true,
-  imports: [TranslocoPipe, Alert, Button, Icon, HelpTip, Skeleton],
+  imports: [TranslocoPipe, Button, Icon, HelpTip, Skeleton],
   templateUrl: './pipeline-starters.html',
   styleUrl: './pipeline-starters.scss',
 })
@@ -29,7 +27,6 @@ export class PipelineStarters {
   predicting = input(false);
   /** The default branch the proposal was read from. */
   branch = input<string | null>(null);
-  engine = input<string | null>(null);
   chosen = output<PipelineTemplate>();
   usePrediction = output<void>();
 

@@ -209,9 +209,9 @@ Supprime une variable. Rôle minimal : Mainteneur. Réponse 204. Erreur : 404 (v
 
 ### `GET /api/settings/public`
 
-Renvoie le moteur d'exécution de l'instance. Tout utilisateur connecté peut l'appeler.
+Renvoie le moteur d'exécution de l'instance, et si les jobs ont Docker. Tout utilisateur connecté peut l'appeler.
 
-Réponse 200 : `{ "executionEngine": "docker-runners" }`. La valeur est `docker-runners` ou `kubernetes`. Le réglage complet est dans [`GET /api/admin/settings`](/docs/api/administration).
+Réponse 200 : `{ "executionEngine": "docker-runners", "dockerInJobs": false }`. `executionEngine` vaut `docker-runners` ou `kubernetes`. Le réglage complet est dans [`GET /api/admin/settings`](/docs/api/administration).
 
 ## Runners (administration)
 
@@ -300,7 +300,7 @@ Réponse 204 (corps vide) s'il n'y a rien à faire, y compris quand le plafond d
 }
 ```
 
-`variables` vient du fichier de pipeline. `ciVariables` contient les variables CI du dépôt en clair. `maskedValues` liste les valeurs de celles qui sont masquées : le runner les remplace dans chaque ligne de journal.
+`variables` vient du fichier de pipeline. `ciVariables` contient les variables CI du dépôt en clair. `maskedValues` liste les valeurs de celles qui sont masquées : le runner les remplace dans chaque ligne de journal. `repositoryOwner` est ce qui précède le nom dans l'adresse de clonage : le propriétaire, ou le chemin du groupe (`acme/equipe`) pour un dépôt de groupe. `dockerImage`, présent seulement quand Docker dans les jobs est activé, est l'image du démon Docker que le runner lance à côté du job (voir [Runners Docker](/docs/ci-cd/runners-docker#docker-dans-les-jobs)).
 
 ### `POST /api/runner/jobs/{id}/logs`
 

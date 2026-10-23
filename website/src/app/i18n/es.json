@@ -352,7 +352,7 @@
       },
       "vars": {
         "title": "Variables y cachés",
-        "text": "Variables de CI por repositorio, cifradas en reposo con AES-256-GCM (runners Docker). Cachés por trabajo con Kubernetes."
+        "text": "Variables de CI por repositorio, cifradas en reposo con AES-256-GCM. Cachés por trabajo con Kubernetes. Opcionalmente, un daemon de Docker propio para cada trabajo, para construir y publicar imágenes."
       },
       "docs": "La referencia de .ferrisgit-ci.yml (en francés)"
     },
@@ -521,7 +521,7 @@
         "bullets": {
           "b1": "Pipelines descritos en `.ferrisgit-ci.yml`, en la raíz del repositorio",
           "b2": "Runners de Docker (un binario ligero `ferrisgit-runner` que consulta al servidor) o Kubernetes, donde cada job se ejecuta como un Pod",
-          "b3": "Variables por repositorio, cifradas en reposo (solo runners de Docker)",
+          "b3": "Variables por repositorio, cifradas en reposo",
           "b4": "Cachés por job (solo Kubernetes)"
         }
       },

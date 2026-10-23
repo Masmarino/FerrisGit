@@ -88,7 +88,7 @@
     </div>
 
     @if (showStarters()) {
-      <fg-pipeline-starters [prediction]="prediction()" [predicting]="profileState() === 'loading'" [branch]="doc.file()?.branch ?? null" [engine]="engine()" (chosen)="chooseTemplate($event)" (usePrediction)="usePrediction()" />
+      <fg-pipeline-starters [prediction]="prediction()" [predicting]="profileState() === 'loading'" [branch]="doc.file()?.branch ?? null" (chosen)="chooseTemplate($event)" (usePrediction)="usePrediction()" />
     }
 
     @if (doc.mode() === 'cards') {
@@ -287,7 +287,7 @@
 
 <gbt-drawer [isOpen]="pickerStage() !== null" [heading]="'pipelines.editor.addJob' | transloco" [closeLabel]="'common.close' | transloco" (closed)="closePicker()">
   @if (pickerStage(); as stage) {
-    <fg-pipeline-tile-picker [stage]="stage" [secrets]="secrets()" [engine]="engine()" [suggestions]="suggestions()" (chosen)="chooseTile($event.tile, $event.values)" (chosenJob)="chooseSuggested($event)" />
+    <fg-pipeline-tile-picker [stage]="stage" [secrets]="secrets()" [dockerInJobs]="dockerInJobs()" [suggestions]="suggestions()" (chosen)="chooseTile($event.tile, $event.values)" (chosenJob)="chooseSuggested($event)" />
   }
 </gbt-drawer>
 
@@ -296,7 +296,6 @@
     <fg-pipeline-secrets
       [repositoryId]="repositoryId()"
       [canManage]="canManageSecrets()"
-      [engine]="engine()"
       [missing]="missingSecretUses()"
       [existing]="existingSecretUses()"
       [suggestion]="secretSuggestion()"

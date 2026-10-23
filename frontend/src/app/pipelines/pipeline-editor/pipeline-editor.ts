@@ -128,6 +128,7 @@ export class PipelineEditor implements OnInit {
    */
   protected secrets = signal<string[] | null>(null);
   protected engine = computed(() => this.appSettings.publicSettings()?.executionEngine ?? null);
+  protected dockerInJobs = computed(() => this.appSettings.publicSettings()?.dockerInJobs ?? false);
   protected pickerStage = signal<string | null>(null);
   protected secretsOpen = signal(false);
   protected secretSuggestion = signal<string | null>(null);
@@ -158,11 +159,7 @@ export class PipelineEditor implements OnInit {
    */
   private profile = signal<RepositoryProfile | null>(null);
   protected profileState = signal<'idle' | 'loading' | 'done'>('idle');
-  /**
-   * Nothing is proposed with Kubernetes: every proposed job works on the repository's files, and a Pod does not get
-   * them.
-   */
-  protected prediction = computed(() => (this.engine() === 'kubernetes' ? null : predictPipeline(this.profile())));
+  protected prediction = computed(() => predictPipeline(this.profile()));
   /** The jobs made for this repository that the pipeline lacks, offered first when a job is added. */
   protected suggestions = computed(() => missingJobs(this.prediction(), this.state()));
 
@@ -205,8 +202,7 @@ export class PipelineEditor implements OnInit {
       }
     });
     effect(() => {
-      const proposable = this.engine() !== 'kubernetes';
-      if (proposable && this.doc.status() === 'ready' && this.canWrite() && (this.showStarters() || this.pickerStage() !== null) && untracked(this.profileState) === 'idle') {
+      if (this.doc.status() === 'ready' && this.canWrite() && (this.showStarters() || this.pickerStage() !== null) && untracked(this.profileState) === 'idle') {
         untracked(() => this.loadProfile());
       }
     });

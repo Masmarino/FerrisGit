@@ -46,6 +46,8 @@ interface Options {
   /** The repository's secrets by name, as a maintainer sees them. */
   secrets?: string[];
   engine?: 'docker-runners' | 'kubernetes';
+  /** Whether the jobs get a Docker daemon; on by default. */
+  dockerInJobs?: boolean;
   file?: Observable<RepositoryPipelineFile>;
   parsed?: ParsedPipeline;
   /** How typed YAML is reported. By default, it parses fine. */
@@ -89,7 +91,7 @@ function withData(options: Options = {}) {
           deleteCiVariable: () => of(undefined),
         },
       },
-      { provide: SettingsService, useValue: { publicSettings: signal({ executionEngine: options.engine ?? 'docker-runners' }), loadPublic: () => undefined } },
+      { provide: SettingsService, useValue: { publicSettings: signal({ executionEngine: options.engine ?? 'docker-runners', dockerInJobs: options.dockerInJobs ?? true }), loadPublic: () => undefined } },
     ],
   });
 }
@@ -456,32 +458,18 @@ export const DockerBuild: Story = {
       return el;
     });
     tile.click();
-    await waitFor(() => expect(doc.querySelector('.tile-form__preview')?.textContent).toContain('docker -H "$DOCKER_HOST" build'));
+    await waitFor(() => expect(doc.querySelector('.tile-form__preview')?.textContent).toContain('docker build -f Dockerfile'));
   },
 };
 
-/**
- * With Kubernetes running the jobs, the tiles that read secrets or work on the repository's files are disabled, and say
- * why.
- */
-export const CatalogueWithKubernetes: Story = {
-  decorators: [withData({ engine: 'kubernetes' })],
+/** On an instance whose jobs have no Docker, the image tile says so: it still works with a remote daemon. */
+export const CatalogueWithoutDocker: Story = {
+  decorators: [withData({ dockerInJobs: false })],
   play: async (context) => {
     const doc = context.canvasElement.ownerDocument;
     await expectBoardLayout(context);
     context.canvasElement.querySelector<HTMLButtonElement>('.pipeline-editor__add-job button')!.click();
-    await waitFor(() => expect(doc.querySelector<HTMLButtonElement>('[data-tile="ssh-run"] .tile-picker__choose')?.disabled).toBe(true));
-    await expect(doc.querySelector<HTMLButtonElement>('[data-tile="rust-test"] .tile-picker__choose')?.disabled).toBe(true);
-    await expect(doc.querySelector<HTMLButtonElement>('[data-tile="custom"] .tile-picker__choose')?.disabled).toBe(false);
-  },
-};
-
-/** An empty pipeline with Kubernetes: no proposal and no template, since all of them work on the repository's files. */
-export const EmptyWithKubernetes: Story = {
-  decorators: [withData({ engine: 'kubernetes', file: of({ ...FILE, yaml: null }), profile: of(FERRISGIT_PROFILE) })],
-  play: async ({ canvasElement }) => {
-    await waitFor(() => expect(canvasElement.querySelector('fg-pipeline-starters [data-kubernetes]')).not.toBeNull());
-    await expect(canvasElement.querySelector('[data-prediction]')).toBeNull();
-    await expect(canvasElement.querySelector('.starters__card')).toBeNull();
+    await waitFor(() => expect(doc.querySelector('[data-tile="docker-build"] [data-note="docker"]')).not.toBeNull());
+    await expect(doc.querySelectorAll('.tile-picker__choose:disabled')).toHaveLength(0);
   },
 };

@@ -47,3 +47,12 @@ reqwest = { workspace = true, features = ["multipart", "query"] }
 escargot = "1.0"
 # Software authenticator for the passkey flow tests. Stays on 0.5.x to match webauthn-rs 0.5 (see the application crate).
 webauthn-authenticator-rs.workspace = true
+
+[features]
+# Gates the tests that run jobs on a real kind cluster (`kind-ferrisgit-test`), like the infrastructure crate's. Off by
+# default, so `cargo test --workspace` never touches a cluster. Locally: `cargo test -p ferrisgit-api --features kind-tests`.
+kind-tests = []
+
+[[test]]
+name = "kubernetes_jobs_flow"
+required-features = ["kind-tests"]

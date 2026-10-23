@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use crate::kubernetes::cache::ensure_cache_pvcs;
-    use crate::kubernetes::pod_spec::{build_pod, pod_name};
+    use crate::kubernetes::pod_spec::{PodJob, build_pod, build_secret, pod_name};
     use crate::kubernetes::test_support::{
         TestNamespace, kubectl_apply, scoped_client_for, test_client,
     };
@@ -36,18 +36,44 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn the_documented_role_is_sufficient_for_everything_ferrisgit_does_with_pods_and_pvcs() {
+    async fn the_documented_role_is_sufficient_for_everything_ferrisgit_does_with_pods_pvcs_and_secrets()
+     {
         let cluster_client = test_client().await;
         let ns = TestNamespace::create(&cluster_client).await;
         kubectl_apply(&ns.name, FIXTURE).await;
         let scoped = scoped_client_for(&ns.name, "ferrisgit-ci").await;
 
         let the_job = job();
-        let pod = build_pod(&the_job, Uuid::new_v4(), &ns.name);
+        let names = vec!["DEPLOY_TOKEN".to_string()];
+        let pod = build_pod(&PodJob {
+            job: &the_job,
+            repository_id: Uuid::new_v4(),
+            namespace: &ns.name,
+            clone_url: "http://unused.test/none.git",
+            commit_sha: "none",
+            ci_variable_names: &names,
+            docker: true,
+        });
         let pods: Api<Pod> = Api::namespaced(scoped.clone(), &ns.name);
-        pods.create(&PostParams::default(), &pod)
+        let created = pods
+            .create(&PostParams::default(), &pod)
             .await
             .expect("create pod must be permitted");
+        let secrets: Api<Secret> = Api::namespaced(scoped.clone(), &ns.name);
+        let variables = BTreeMap::from([("DEPLOY_TOKEN".to_string(), "s3cret".to_string())]);
+        secrets
+            .create(
+                &PostParams::default(),
+                &build_secret(
+                    the_job.id,
+                    &ns.name,
+                    &created.metadata.uid.unwrap(),
+                    "token",
+                    &variables,
+                ),
+            )
+            .await
+            .expect("create secret must be permitted");
         pods.get(&pod_name(the_job.id))
             .await
             .expect("get pod must be permitted");
@@ -84,11 +110,14 @@ mod tests {
         .await
         .expect("create pvc must be permitted");
 
-        let secrets: Api<Secret> = Api::namespaced(scoped, &ns.name);
-        let forbidden = secrets.list(&ListParams::default()).await;
+        // Creating the job's Secret is all FerrisGit does with Secrets: Kubernetes deletes it with its Pod.
         assert!(
-            forbidden.is_err(),
-            "the role must NOT grant access to Secrets — it was never asked for"
+            secrets.list(&ListParams::default()).await.is_err(),
+            "the role must NOT let FerrisGit list Secrets"
+        );
+        assert!(
+            secrets.get(&pod_name(the_job.id)).await.is_err(),
+            "the role must NOT let FerrisGit read Secrets back"
         );
     }
 }

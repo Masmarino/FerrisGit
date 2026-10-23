@@ -13,6 +13,7 @@ pub mod invitation;
 pub mod issue;
 pub mod issue_comment;
 pub mod job;
+pub mod job_containers;
 pub mod job_execution;
 pub mod label;
 pub mod merge_conditions;

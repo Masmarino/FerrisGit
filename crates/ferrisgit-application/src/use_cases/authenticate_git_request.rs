@@ -5,6 +5,7 @@ use ferrisgit_domain::audit::{EventPublisherPort, SecurityEvent};
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::group::GroupStorePort;
 use ferrisgit_domain::group_membership::GroupMembershipPort;
+use ferrisgit_domain::job_containers::JobCloneTokenPort;
 use ferrisgit_domain::public_pages::PublicPagesSettingsPort;
 use ferrisgit_domain::repository::{Repository, RepositoryVisibility};
 use ferrisgit_domain::repository_authz::effective_repository_role;
@@ -27,6 +28,7 @@ pub struct AuthenticateGitRequestUseCase {
     api_tokens: Arc<dyn ApiTokenRepositoryPort>,
     events: Arc<dyn EventPublisherPort>,
     runners: Arc<dyn RunnerRepositoryPort>,
+    job_tokens: Arc<dyn JobCloneTokenPort>,
     collaborators: Arc<dyn RepositoryCollaboratorStorePort>,
     groups: Arc<dyn GroupStorePort>,
     group_membership: Arc<dyn GroupMembershipPort>,
@@ -39,6 +41,7 @@ impl AuthenticateGitRequestUseCase {
         api_tokens: Arc<dyn ApiTokenRepositoryPort>,
         events: Arc<dyn EventPublisherPort>,
         runners: Arc<dyn RunnerRepositoryPort>,
+        job_tokens: Arc<dyn JobCloneTokenPort>,
         collaborators: Arc<dyn RepositoryCollaboratorStorePort>,
         groups: Arc<dyn GroupStorePort>,
         group_membership: Arc<dyn GroupMembershipPort>,
@@ -48,6 +51,7 @@ impl AuthenticateGitRequestUseCase {
             api_tokens,
             events,
             runners,
+            job_tokens,
             collaborators,
             groups,
             group_membership,
@@ -77,10 +81,8 @@ impl AuthenticateGitRequestUseCase {
             return Err(DomainError::Unauthorized("missing credentials".to_string()));
         };
 
-        let stored = self
-            .api_tokens
-            .find_by_hash(&hash_token(&plain_token))
-            .await?;
+        let token_hash = hash_token(&plain_token);
+        let stored = self.api_tokens.find_by_hash(&token_hash).await?;
 
         if let Some(stored) = stored {
             let required = if access == GitAccess::Write {
@@ -105,11 +107,7 @@ impl AuthenticateGitRequestUseCase {
             return Ok((repo, Some(stored.user_id)));
         }
 
-        if let Some(runner) = self
-            .runners
-            .find_by_token_hash(&hash_token(&plain_token))
-            .await?
-        {
+        if let Some(runner) = self.runners.find_by_token_hash(&token_hash).await? {
             if matches!(access, GitAccess::Write) {
                 self.publish_denied(runner.name.clone(), &repo, None).await;
                 return Err(DomainError::Unauthorized(
@@ -118,6 +116,21 @@ impl AuthenticateGitRequestUseCase {
             }
             self.runners.touch_heartbeat(runner.id).await.ok();
             return Ok((repo, None));
+        }
+
+        // A Kubernetes job's clone token: its own repository, read only, while the job runs.
+        if let Some(repository_id) = self
+            .job_tokens
+            .repository_of_unfinished_job(&token_hash)
+            .await?
+        {
+            if repository_id == repo.id && matches!(access, GitAccess::Read) {
+                return Ok((repo, None));
+            }
+            self.publish_denied(username, &repo, None).await;
+            return Err(DomainError::Unauthorized(
+                "a job token only reads its own repository".to_string(),
+            ));
         }
 
         self.events
@@ -171,8 +184,8 @@ impl AuthenticateGitRequestUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{
-        FakeApiTokens, FakeCollaborators, FakeEvents, FakeGroups, FakePublicPagesSettings,
-        FakeRunners,
+        FakeApiTokens, FakeCollaborators, FakeEvents, FakeGroups, FakeJobCloneTokens,
+        FakePublicPagesSettings, FakeRunners,
     };
     use crate::use_cases::fixtures::{group, repository};
     use async_trait::async_trait;
@@ -206,6 +219,8 @@ mod tests {
     struct World {
         tokens: Vec<ApiToken>,
         runners: Vec<Runner>,
+        /// Clone tokens of unfinished jobs: (token, repository).
+        job_tokens: Vec<(String, Uuid)>,
         collaborators: Vec<(Uuid, Uuid, CollaboratorRole)>,
         groups: FakeGroups,
         public_pages: Arc<dyn PublicPagesSettingsPort>,
@@ -216,6 +231,7 @@ mod tests {
             Self {
                 tokens: vec![],
                 runners: vec![],
+                job_tokens: vec![],
                 collaborators: vec![],
                 groups: FakeGroups::empty(),
                 public_pages: public_pages(true),
@@ -229,6 +245,12 @@ mod tests {
                 Arc::new(FakeApiTokens::new(self.tokens)),
                 events.clone(),
                 Arc::new(FakeRunners::new(self.runners)),
+                Arc::new(FakeJobCloneTokens::new(
+                    self.job_tokens
+                        .into_iter()
+                        .map(|(token, repository)| (hash_token(&token), repository))
+                        .collect(),
+                )),
                 Arc::new(FakeCollaborators::new(self.collaborators)),
                 groups.clone(),
                 groups,
@@ -537,6 +559,40 @@ mod tests {
                 .iter()
                 .any(|(e, _)| matches!(e, SecurityEvent::GitAccessDenied { .. }))
         );
+    }
+
+    #[tokio::test]
+    async fn a_job_token_reads_its_own_repository_and_nothing_else() {
+        let repo = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
+        let other = personal_repo(Uuid::new_v4(), RepositoryVisibility::Private);
+        let world = || World {
+            job_tokens: vec![("job-token".to_string(), repo.id)],
+            ..World::new()
+        };
+
+        let (use_case, _) = world().build();
+        let read = use_case
+            .execute(
+                credentials("job", "job-token"),
+                repo.clone(),
+                GitAccess::Read,
+            )
+            .await;
+        assert!(read.is_ok(), "{read:?}");
+
+        for (target, access) in [(repo.clone(), GitAccess::Write), (other, GitAccess::Read)] {
+            let (use_case, events) = world().build();
+            let result = use_case
+                .execute(credentials("job", "job-token"), target, access)
+                .await;
+            assert!(matches!(result, Err(DomainError::Unauthorized(_))));
+            assert!(
+                events
+                    .security_events()
+                    .iter()
+                    .any(|(e, _)| matches!(e, SecurityEvent::GitAccessDenied { .. }))
+            );
+        }
     }
 
     fn group_repo(creator_id: Uuid, group_id: Uuid, name: &str) -> Repository {

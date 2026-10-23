@@ -2,7 +2,6 @@
 
 Un job reçoit des variables d'environnement de deux sources : celles que vous écrivez dans `.ferrisgit-ci.yml` (clé `variables`) et les variables CI du dépôt, saisies dans l'interface et chiffrées. Cette page dit lesquelles arrivent où, dans quel ordre, et ce que le masquage protège vraiment.
 
-> **Attention** : les variables CI du dépôt ne sont transmises qu'aux jobs des **runners Docker**. Avec le moteur Kubernetes, un job reçoit uniquement les variables de sa clé `variables`. Voir [Moteur Kubernetes](/docs/ci-cd/kubernetes#limites).
 
 ## Variables d'un job
 
@@ -22,14 +21,14 @@ jobs:
 
 - Les noms et les valeurs sont des chaînes. `PORT: 8080` donne la chaîne `8080`.
 - Les valeurs sont transmises telles quelles : FerrisGit ne développe pas `$AUTRE` dans une valeur. Le développement a lieu dans le script, par le shell : `echo "$API_URL"`.
-- Avec les runners Docker, chaque variable devient un `-e NOM=valeur` de la commande `docker run`. Avec Kubernetes, elle devient une variable d'environnement du conteneur.
+- Avec les runners Docker, chaque variable devient un `-e NOM=valeur` de la commande `docker run`. Avec Kubernetes, elle devient une variable d'environnement du conteneur du job.
 - Ces variables sont écrites dans le dépôt, donc lisibles par tous ceux qui lisent le code. N'y mettez pas de secret.
 
 ## Variables prédéfinies
 
-FerrisGit n'injecte aucune variable dans les jobs : pas de SHA de commit, de nom de branche, d'identifiant de pipeline ni de job. Le conteneur ne voit que les variables de l'image, celles de `variables` et (runners Docker) les variables CI du dépôt.
+FerrisGit n'injecte aucune variable dans les jobs : pas de SHA de commit, de nom de branche, d'identifiant de pipeline ni de job. Le conteneur ne voit que les variables de l'image, celles de `variables` et les variables CI du dépôt (et, quand un administrateur a activé Docker dans les jobs, `DOCKER_HOST` et `DOCKER_CONFIG`).
 
-Avec les runners Docker, le dépôt est cloné au bon commit mais son dossier `.git` est supprimé avant le lancement du conteneur : `git rev-parse HEAD` ou `git describe` n'y fonctionnent pas. Pour connaître le commit dans un job, il n'y a pas aujourd'hui de moyen fourni par FerrisGit.
+Avec l'un ou l'autre moteur, le dépôt est cloné au bon commit mais son dossier `.git` est supprimé avant le lancement du job : `git rev-parse HEAD` ou `git describe` n'y fonctionnent pas. Pour connaître le commit dans un job, il n'y a pas aujourd'hui de moyen fourni par FerrisGit.
 
 ## Variables CI du dépôt
 
@@ -53,13 +52,7 @@ Les valeurs sont chiffrées en base (AES-GCM) avec la clé `SETTINGS_ENCRYPTION_
 
 ### Précédence
 
-Avec les runners Docker, le runner assemble l'environnement du conteneur en partant des `variables` du job, puis en ajoutant les variables CI du dépôt. À nom égal, **la variable CI du dépôt l'emporte** sur celle du fichier de pipeline.
-
-| Source | Runners Docker | Kubernetes |
-|---|---|---|
-| `variables` du job | oui | oui |
-| Variables CI du dépôt | oui, prioritaires | non |
-| Variables prédéfinies par FerrisGit | aucune | aucune |
+L'environnement du job part des `variables` du job, puis reçoit les variables CI du dépôt. À nom égal, **la variable CI du dépôt l'emporte** sur celle du fichier de pipeline, avec l'un ou l'autre moteur. Avec Kubernetes, les variables CI passent par un Secret créé pour le job et supprimé avec son Pod : elles n'apparaissent pas dans la description du Pod. Seules celles dont le nom est un nom de variable d'environnement valide sont transmises (lettres, chiffres et `_`, sans chiffre au début), ce que le serveur exige de toute nouvelle variable.
 
 ## Masquage dans les journaux
 
@@ -73,7 +66,7 @@ Ce masquage est un garde-fou contre les fuites accidentelles, pas une protection
 
 > **Attention** : quiconque peut modifier le fichier de pipeline qui s'exécute peut écrire un script qui affiche ou envoie ailleurs les variables CI du dépôt. Ne donnez des secrets de déploiement qu'à un dépôt dont tous les Contributeurs sont dignes de confiance, et limitez-les avec les [rôles](/docs/utilisation/roles-et-permissions). Les runners reçoivent en clair les variables du dépôt dont ils exécutent un job : voir [Runners Docker](/docs/ci-cd/runners-docker#sécurité).
 
-Avec Kubernetes, les journaux sont repris tels quels du Pod : aucun masquage n'est appliqué.
+Avec Kubernetes, le serveur fait le même remplacement sur le journal du Pod, avant de l'enregistrer. Comme il travaille sur le journal entier, une valeur sur plusieurs lignes y est aussi masquée.
 
 ## Utiliser un secret dans un job
 

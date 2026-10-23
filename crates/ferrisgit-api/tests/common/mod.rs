@@ -160,6 +160,8 @@ impl WebauthnCredentialPort for Sabotage {
 pub struct Options {
     pub public_url: String,
     pub trusted_proxy_cidrs: String,
+    /// Listen on every interface, and give Kubernetes jobs the address a kind Pod reaches this machine at.
+    pub reachable_from_kind: bool,
 }
 
 impl Default for Options {
@@ -167,6 +169,7 @@ impl Default for Options {
         Self {
             public_url: ORIGIN.to_string(),
             trusted_proxy_cidrs: String::new(),
+            reachable_from_kind: false,
         }
     }
 }
@@ -318,6 +321,19 @@ async fn start(pool: PgPool, options: Options, customise: impl FnOnce(&mut AppSt
     let static_dir = tempfile::tempdir().unwrap().keep();
     std::fs::write(static_dir.join("index.html"), SHELL).unwrap();
 
+    // Bound first: the address jobs clone from needs its port.
+    let listener = if options.reachable_from_kind {
+        tokio::net::TcpListener::bind("0.0.0.0:0").await.unwrap()
+    } else {
+        tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap()
+    };
+    let port = listener.local_addr().unwrap().port();
+    let job_server_url = if options.reachable_from_kind {
+        format!("http://host.docker.internal:{port}")
+    } else {
+        options.public_url.clone()
+    };
+
     let config = Config {
         database_url: String::new(),
         jwt_secret: "test-secret-that-is-at-least-32-characters-long".to_string(),
@@ -327,6 +343,7 @@ async fn start(pool: PgPool, options: Options, customise: impl FnOnce(&mut AppSt
         bootstrap_admin_username: Some("admin".to_string()),
         bootstrap_admin_password: Some(ADMIN_PASSWORD.to_string()),
         settings_encryption_key: [b'k'; 32],
+        job_server_url,
         public_url: options.public_url,
         trusted_proxy_cidrs: parse_cidr_list(&options.trusted_proxy_cidrs).unwrap(),
     };
@@ -342,8 +359,7 @@ async fn start(pool: PgPool, options: Options, customise: impl FnOnce(&mut AppSt
         .unwrap();
 
     let app = build_router(state.clone(), &static_dir);
-    let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
-    let addr = listener.local_addr().unwrap();
+    let addr = SocketAddr::from(([127, 0, 0, 1], port));
     tokio::spawn(async move {
         axum::serve(
             listener,

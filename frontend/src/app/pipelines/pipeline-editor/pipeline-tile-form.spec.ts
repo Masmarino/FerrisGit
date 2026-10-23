@@ -110,11 +110,14 @@ describe('PipelineTileForm', () => {
     expect(text(el.querySelector('[data-secret="KUBE_CONFIG"]'))).toBe('KUBE_CONFIG');
   });
 
-  it('follows the secrets to the answers: no login, no registry secrets', async () => {
+  it('follows the secrets to the answers: no login, no registry secrets; a remote daemon, its address', async () => {
     const { fixture, el } = await setup(tileById('docker-build')!);
+    const param = (id: string) => tileById('docker-build')!.params!.find((p) => p.id === id)!;
     expect(el.querySelector('[data-secret="REGISTRY_USER"]')).not.toBeNull();
+    expect(el.querySelector('[data-secret="DOCKER_HOST"]')).toBeNull();
 
-    fixture.componentInstance['set'](tileById('docker-build')!.params!.find((p) => p.id === 'login')!, false);
+    fixture.componentInstance['set'](param('login'), false);
+    fixture.componentInstance['set'](param('daemon'), 'remote');
     fixture.detectChanges();
 
     expect(el.querySelector('[data-secret="REGISTRY_USER"]')).toBeNull();

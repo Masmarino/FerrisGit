@@ -28,7 +28,6 @@ export class PipelineSecrets {
   repositoryId = input.required<string>();
   /** Only a maintainer can read or write the repository's secrets. */
   canManage = input(false);
-  engine = input<string | null>(null);
   /** Read by the jobs, but missing from the repository. */
   missing = input<SecretUse[]>([]);
   /** In the repository, with the jobs that read them. */

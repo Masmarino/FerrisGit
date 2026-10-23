@@ -1104,6 +1104,10 @@
       "maxJobs": "Jobs simultanés",
       "unlimited": "Illimité",
       "maxJobsHint": "Nombre maximal de jobs en cours sur l'ensemble des runners ; les autres attendent. Vide : pas de limite.",
+      "docker": "Docker dans les jobs",
+      "dockerHelp": "Un démon Docker pour chaque job, avec l'un ou l'autre moteur.",
+      "dockerSwitch": "Donner Docker à chaque job",
+      "dockerHint": "Chaque job reçoit son propre démon Docker, supprimé à la fin du job : il peut construire, lancer et publier des images avec <code>docker</code>, quelle que soit son image. Ce démon tourne dans un conteneur privilégié, qui a la main sur la machine ou le nœud qui l'exécute : n'activez ce réglage que si vous faites confiance à toutes les personnes qui peuvent modifier un fichier de pipeline. Avec Kubernetes, le namespace des jobs doit accepter les pods privilégiés.",
       "logs": "Journaux des jobs",
       "logsHelp": "Combien de temps le texte des journaux est gardé une fois le job terminé.",
       "retention": "Durée de conservation des journaux (jours)",
@@ -1881,8 +1885,16 @@
       "docker-build": {
         "title": "Construire et publier une image Docker",
         "summary": "docker build, puis docker push vers votre registre.",
-        "help": "Le runner ne donne pas accès au Docker de sa machine : la construction se fait sur un démon Docker distant que vous exploitez, désigné par le secret DOCKER_HOST (tcp://hôte:2376). S'il est protégé par TLS, ajoutez les secrets DOCKER_TLS_VERIFY et DOCKER_CERT_PATH. La connexion au registre utilise les secrets REGISTRY_USER et REGISTRY_PASSWORD.",
+        "help": "Quand un administrateur a activé Docker dans les jobs, chaque job a son propre démon Docker, supprimé à la fin du job : rien n'est gardé d'une pipeline à l'autre. Sinon, choisissez un démon distant que vous exploitez, désigné par le secret DOCKER_HOST (tcp://hôte:2376) ; s'il est protégé par TLS, ajoutez les secrets DOCKER_TLS_VERIFY et DOCKER_CERT_PATH. La connexion au registre utilise les secrets REGISTRY_USER et REGISTRY_PASSWORD.",
         "params": {
+          "daemon": {
+            "label": "Démon Docker",
+            "hint": "Celui du job demande que Docker dans les jobs soit activé par un administrateur.",
+            "options": {
+              "job": "Celui du job",
+              "remote": "Un démon distant (DOCKER_HOST)"
+            }
+          },
           "registry": {
             "label": "Registre",
             "hint": "Où publier l'image : registry.example.com, ghcr.io, docker.io…",
@@ -2356,20 +2368,17 @@
       "intro": "Un secret est une valeur confidentielle (un jeton, un mot de passe) gardée chiffrée pour le dépôt, hors du fichier de pipeline. Les jobs la lisent comme une variable : il suffit d'écrire <code>$NOM</code> dans une commande.",
       "readBy": "lu par {{ jobs }}",
       "maintainerOnly": "Seul un mainteneur du dépôt peut voir et créer les secrets. Vous pouvez quand même les utiliser dans vos commandes avec <code>$NOM</code> : demandez-lui les noms disponibles.",
-      "kubernetes": "Votre instance exécute les jobs avec Kubernetes : les secrets du dépôt ne sont transmis qu'aux runners Docker, un job Kubernetes ne les reçoit pas.",
       "toCreate": "À créer",
       "missingHint": "Vos jobs lisent ces secrets, qui n'existent pas encore.",
       "whereUsed": "Où ils servent",
       "unused": "Aucun job ne le lit"
     },
     "starters": {
-      "kubernetes": "Votre instance exécute les jobs avec Kubernetes : le Pod d'un job ne reçoit pas de copie du dépôt. Les modèles compilent et testent ses fichiers : ils n'y fonctionneraient pas. Ajoutez un job vide à une étape, et faites-lui récupérer le code dont il a besoin (avec <code>git clone</code>, par exemple).",
       "forRepository": "Pour ce dépôt : {{ title }}",
       "fromBranch": "D'après les fichiers de la branche {{ branch }}. Chaque job reprend les versions, les outils et les scripts du projet ; vous pourrez tout changer ensuite.",
       "defaultBranch": "par défaut",
       "orTemplate": "Ou partir d'un modèle",
       "template": "Partir d'un modèle",
-      "empty": "Partir d'un job vide",
       "reading": "Lecture du dépôt",
       "proposedStages": "Étapes proposées, dans l'ordre",
       "use": "Utiliser cette pipeline",
@@ -2393,7 +2402,8 @@
       "leadAfter": "avec une image et des commandes prêtes, que vous réglerez ensuite.",
       "forRepository": "Pour ce dépôt",
       "forRepositoryHint": "Les jobs que ses projets appellent et que la pipeline n'a pas encore, avec leurs versions et leurs scripts.",
-      "notKubernetes": "Pas avec Kubernetes",
+      "noDocker": "Docker désactivé",
+      "noDockerReason": "Les jobs n'ont pas Docker sur cette instance : demandez-le à un administrateur, ou choisissez un démon distant.",
       "secretsToCreate": "Secrets à créer :"
     },
     "mergeRequest": "Demande de fusion"

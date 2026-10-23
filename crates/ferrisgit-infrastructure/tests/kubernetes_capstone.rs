@@ -109,6 +109,7 @@ jobs:
     cache: [scratch]
     script:
       - "cat /ferrisgit-cache/scratch/marker"
+      - "cat marker-from-the-repository.txt"
 "#;
 
 #[sqlx::test(migrations = "../../migrations")]
@@ -123,6 +124,7 @@ async fn a_two_stage_pipeline_with_a_shared_cache_runs_to_success_entirely_on_ku
 
     let client = test_client().await;
     let ns = TestNamespace::create(&client).await;
+    let git = common::serve_repository(&[("marker-from-the-repository.txt", "cloned\n")]);
     let cache_pvc_name = pvc_name(repository_id, "scratch");
     let storage_class = provision_static_rwx_storage(&client, &ns.name, &cache_pvc_name).await;
     system_settings
@@ -143,7 +145,13 @@ async fn a_two_stage_pipeline_with_a_shared_cache_runs_to_success_entirely_on_ku
         jobs.clone(),
         system_settings.clone(),
         events.clone(),
+        Arc::new(common::ServedEnvironments {
+            repository_id,
+            commit: git.commit.clone(),
+            docker: false,
+        }),
         ns.name.clone(),
+        git.url.clone(),
     ));
     let job_execution = Arc::new(JobExecutionResolver::new(
         docker_executor,
@@ -168,6 +176,11 @@ async fn a_two_stage_pipeline_with_a_shared_cache_runs_to_success_entirely_on_ku
         Arc::new(PostgresUserRepository::new(pool.clone())),
         Arc::new(PostgresNotificationStore::new(pool.clone())),
         Arc::new(common::FakeWebhooks),
+        Arc::new(common::ServedEnvironments {
+            repository_id,
+            commit: git.commit.clone(),
+            docker: false,
+        }),
     ));
     let watcher_handle = tokio::spawn({
         let watcher = watcher.clone();
@@ -222,5 +235,9 @@ async fn a_two_stage_pipeline_with_a_shared_cache_runs_to_success_entirely_on_ku
     assert!(
         verify_job.logs.contains("cached-value"),
         "the verify job's own Pod must be able to read what the build job's Pod wrote to the SAME cache PVC — proving the cache is genuinely shared, not per-Pod"
+    );
+    assert!(
+        verify_job.logs.contains("cloned"),
+        "the job runs on the repository's files, cloned into its Pod"
     );
 }

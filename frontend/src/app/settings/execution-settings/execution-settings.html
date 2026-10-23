@@ -63,6 +63,15 @@
     </gbt-card>
   }
 
+  <gbt-card variant="outlined" icon="shield-alert" [heading]="'settings.execution.docker' | transloco" [description]="'settings.execution.dockerHelp' | transloco">
+    <div class="admin-settings__field admin-settings__switch" data-field="dockerInJobs">
+      <gbt-switch [label]="'settings.execution.dockerSwitch' | transloco" [ngModel]="docker()" (ngModelChange)="docker.set($event)" />
+      <div class="admin-settings__field-footer">
+        <p class="admin-settings__hint" [innerHTML]="'settings.execution.dockerHint' | transloco"></p>
+      </div>
+    </div>
+  </gbt-card>
+
   <gbt-card variant="outlined" icon="clock" [heading]="'settings.execution.logs' | transloco" [description]="'settings.execution.logsHelp' | transloco">
     <div class="admin-settings__field admin-settings__count" data-field="logRetentionDays">
       <gbt-input

@@ -3,6 +3,8 @@ import { inject, Injectable, signal } from '@angular/core';
 
 export interface PublicSettings {
   executionEngine: 'docker-runners' | 'kubernetes';
+  /** Every job gets its own Docker daemon (Docker-in-Docker), whichever engine runs it. */
+  dockerInJobs: boolean;
 }
 
 export interface SystemSettings {
@@ -20,6 +22,8 @@ export interface SystemSettings {
   publicPagesEnabled: boolean;
   /** Search engines may index the public pages, but only while this is on. */
   seoIndexingEnabled: boolean;
+  /** Every job gets its own Docker daemon, in a privileged container. */
+  dockerInJobs: boolean;
   // Detected by the server from the cluster, not persisted: pre-fills the fields above when they're unset.
   detectedK8sNamespace: string | null;
   detectedK8sDefaultStorageClass: string | null;
@@ -38,6 +42,7 @@ export interface SystemSettingsUpdate {
   registrationEnabled?: boolean;
   publicPagesEnabled?: boolean;
   seoIndexingEnabled?: boolean;
+  dockerInJobs?: boolean;
 }
 
 export type SmtpSecurity = 'none' | 'starttls' | 'tls';
