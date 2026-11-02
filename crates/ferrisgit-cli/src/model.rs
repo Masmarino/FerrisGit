@@ -282,6 +282,12 @@ pub struct CiVariable {
     pub masked: bool,
 }
 
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CiSecret {
+    pub id: String,
+    pub key: String,
+}
+
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct DeviceStart {

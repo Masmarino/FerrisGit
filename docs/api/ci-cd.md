@@ -193,7 +193,7 @@ Corps :
 | `value` | texte | oui | Valeur, stockée chiffrée. |
 | `masked` | booléen | non | Si `true` (défaut), la valeur est masquée dans les journaux des jobs. |
 
-Réponse 200 : `{ "id", "key", "masked" }`. L'appel est un « créer ou remplacer » : la clé est unique par dépôt. Un nom invalide est refusé avec 400.
+Réponse 200 : `{ "id", "key", "masked" }`. L'appel est un « créer ou remplacer » : la clé est unique par dépôt. Un nom invalide est refusé avec 400. `"masked": false` sur la clé d'un secret répond 409 et ne change rien : un secret ne redevient pas une variable simple par un simple remplacement.
 
 ```bash
 curl -s -X POST "$BASE/api/repositories/$REPO_ID/ci-variables" \
@@ -204,6 +204,36 @@ curl -s -X POST "$BASE/api/repositories/$REPO_ID/ci-variables" \
 ### `DELETE /api/repositories/{repository_id}/ci-variables/{id}`
 
 Supprime une variable. Rôle minimal : Mainteneur. Réponse 204. Erreur : 404 (variable inconnue pour ce dépôt).
+
+## Secrets CI du dépôt
+
+Un secret est une variable CI masquée dans les journaux, dans la même liste et sous le même nom unique : `GET …/ci-variables` les montre aussi, avec `masked: true`. Il reçoit les mêmes garanties de chiffrement et le même chemin vers les jobs. Ces routes ne touchent que les secrets, et s'adressent à eux par leur nom : un script n'a pas à chercher un identifiant, ni à craindre de remplacer une variable simple.
+
+### `GET /api/repositories/{repository_id}/ci-secrets`
+
+Liste les secrets. Rôle minimal : Mainteneur.
+
+Réponse 200 : `[ { "id": "…", "key": "REGISTRY_TOKEN" } ]`. Les valeurs ne sont jamais renvoyées.
+
+### `PUT /api/repositories/{repository_id}/ci-secrets/{key}`
+
+Crée un secret, ou remplace sa valeur. Rôle minimal : Mainteneur.
+
+Chemin : `key`, le nom du secret : lettres ASCII, chiffres et `_`, sans commencer par un chiffre. Corps : `{ "value": "s3cret" }`.
+
+Réponse 200 : `{ "id", "key" }`.
+
+Erreurs : 400 `a CI secret name is letters, digits and _, not starting with a digit`, 400 `a CI secret can't be empty` (une valeur vide ne peut pas être masquée), 409 si une variable simple porte déjà ce nom. Elle reste alors telle quelle : supprimez-la d'abord.
+
+```bash
+curl -s -X PUT "$BASE/api/repositories/$REPO_ID/ci-secrets/REGISTRY_TOKEN" \
+  -H "Authorization: Bearer $JWT" -H 'Content-Type: application/json' \
+  -d '{"value":"s3cret"}'
+```
+
+### `DELETE /api/repositories/{repository_id}/ci-secrets/{key}`
+
+Supprime un secret. Rôle minimal : Mainteneur. Réponse 204. Erreur : 404 (pas de secret de ce nom, y compris si c'est une variable simple qui le porte : elle reste).
 
 ## Réglage lisible par tous
 

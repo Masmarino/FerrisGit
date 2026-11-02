@@ -32,7 +32,7 @@ Avec l'un ou l'autre moteur, le dépôt est cloné au bon commit mais son dossie
 
 ## Variables CI du dépôt
 
-Ce sont les secrets : jetons d'API, mots de passe de registre, URL privées.
+Ce sont les secrets : jetons d'API, mots de passe de registre, URL privées. Hors de l'interface, [`fgit secret`](/docs/ligne-de-commande/commandes) et les [routes `ci-secrets`](/docs/api/ci-cd) les gèrent par leur nom. Une variable masquée et un secret sont la même chose.
 
 ### Les créer
 

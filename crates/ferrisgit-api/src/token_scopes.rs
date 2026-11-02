@@ -76,7 +76,9 @@ fn repository_area(area: &str, level: ScopeLevel) -> TokenAccess {
     match area {
         "issues" | "labels" | "milestones" => scoped(ScopeArea::Issues, level),
         "merge-requests" => scoped(ScopeArea::MergeRequests, level),
-        "pipelines" | "pipeline-definition" | "ci-variables" => scoped(ScopeArea::Pipelines, level),
+        "pipelines" | "pipeline-definition" | "ci-variables" | "ci-secrets" => {
+            scoped(ScopeArea::Pipelines, level)
+        }
         "releases" | "tags" => scoped(ScopeArea::Releases, level),
         // A webhook's URL often carries a secret, and its deliveries hold whole payloads.
         "webhooks" => scoped(ScopeArea::Repositories, ScopeLevel::Write),
@@ -200,6 +202,14 @@ mod tests {
             ),
             (
                 "/api/repositories/{repository_id}/ci-variables",
+                "pipelines:read",
+            ),
+            (
+                "/api/repositories/{repository_id}/ci-secrets",
+                "pipelines:read",
+            ),
+            (
+                "/api/repositories/{repository_id}/ci-secrets/{key}",
                 "pipelines:read",
             ),
             ("/api/pipelines/{id}", "pipelines:read"),

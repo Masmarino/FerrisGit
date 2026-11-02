@@ -87,7 +87,8 @@ Les identifiants sont des UUID, les dates sont au format ISO 8601. `UserRef` vau
 | `release view`, `create` | `id`, `tagName`, `title`, `notes`, `draft`, `prerelease`, `author`, `targetCommitSha`, `assets`, `createdAt`, `publishedAt`. |
 | `release upload`, et `assets` ci-dessus | `id`, `filename`, `contentType`, `sizeBytes`, `createdAt`. |
 | `release download` | Tableau des chemins enregistrés. |
-| `variable list`, `set`, `secret list`, `set` | `id`, `key`, `masked`. |
+| `variable list`, `set` | `id`, `key`, `masked` (toujours `false`). |
+| `secret list`, `set` | `id`, `key`. |
 | `auth login` | `host`, `username`, `source` (`environment`, `keychain` ou `file`), `scopes`, `expiresAt`. |
 | `auth status` | Tableau de `host`, `username`, `source`, `valid`, `error`, `isDefault`. |
 

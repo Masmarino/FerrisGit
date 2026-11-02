@@ -47,6 +47,17 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
     async fn delete_ci_variable(&self, _id: Uuid, _repository_id: Uuid) -> Result<(), DomainError> {
         unimplemented!()
     }
+    async fn set_ci_secret(
+        &self,
+        _repository_id: Uuid,
+        _key: &str,
+        _plaintext_value: &str,
+    ) -> Result<ferrisgit_domain::settings::CiVariable, DomainError> {
+        unimplemented!()
+    }
+    async fn delete_ci_secret(&self, _repository_id: Uuid, _key: &str) -> Result<(), DomainError> {
+        unimplemented!()
+    }
     async fn resolve_ci_variables_plaintext(
         &self,
         _repository_id: Uuid,

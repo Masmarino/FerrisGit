@@ -88,7 +88,9 @@ Avec `--watch` et `--follow`, le code de sortie est 1 si le pipeline ne réussit
 
 ## `variable` et `secret`
 
-Ce sont les [variables de CI](/docs/ci-cd/variables-et-secrets) d'un dépôt, qui demandent le rôle Mainteneur. Un secret est une variable dont la valeur est masquée dans les journaux. Chaque commande ne voit que les siens : `secret delete` ne peut pas supprimer une variable simple par erreur. Le serveur ne renvoie jamais les valeurs.
+Ce sont les [variables de CI](/docs/ci-cd/variables-et-secrets) d'un dépôt, qui demandent le rôle Mainteneur. Un secret est une variable dont la valeur est masquée dans les journaux. Le serveur ne renvoie jamais les valeurs.
+
+Un nom ne sert qu'une fois dans un dépôt, et chaque commande ne touche que les siens : `secret set` sur une variable simple, ou `variable set` sur un secret, répond le code 5 et ne change rien. Pour passer de l'un à l'autre, supprimez d'abord. `secret delete` ne peut pas non plus supprimer une variable simple par erreur.
 
 | Commande | Effet |
 |---|---|
@@ -96,7 +98,7 @@ Ce sont les [variables de CI](/docs/ci-cd/variables-et-secrets) d'un dépôt, qu
 | `fgit variable set <clé>` | Crée ou remplace. La valeur vient de `--value`, de `--value-file` ou de l'entrée standard. |
 | `fgit variable delete <clé>` | Supprime. Demande `--yes` sans terminal. |
 
-`fgit secret` prend les mêmes sous-commandes. Pour un secret, préférez l'entrée standard : une ligne de commande reste dans l'historique du shell.
+`fgit secret` prend les mêmes sous-commandes. Une valeur de secret ne peut pas être vide, puisqu'elle ne pourrait pas être masquée. Préférez l'entrée standard : une ligne de commande reste dans l'historique du shell.
 
 ```bash
 printf %s "$JETON_DE_DEPLOIEMENT" | fgit secret set DEPLOY_TOKEN

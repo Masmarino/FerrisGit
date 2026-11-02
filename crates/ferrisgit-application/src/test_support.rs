@@ -3212,6 +3212,11 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
         if let Some(existing) = variables.iter_mut().find(|(v, _)| {
             v.repository_id == new_variable.repository_id && v.key == new_variable.key
         }) {
+            if existing.0.masked && !new_variable.masked {
+                return Err(DomainError::Conflict(
+                    "a secret already has this name".to_string(),
+                ));
+            }
             existing.0.masked = new_variable.masked;
             existing.1 = new_variable.plaintext_value;
             return Ok(existing.0.clone());
@@ -3232,6 +3237,40 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
         variables.retain(|(v, _)| !(v.id == id && v.repository_id == repository_id));
         if variables.len() == before {
             return Err(DomainError::NotFound("ci variable".to_string()));
+        }
+        Ok(())
+    }
+
+    async fn set_ci_secret(
+        &self,
+        repository_id: Uuid,
+        key: &str,
+        plaintext_value: &str,
+    ) -> Result<CiVariable, DomainError> {
+        if !filter_in(&self.ci_variables, |(v, _)| {
+            v.repository_id == repository_id && v.key == key && !v.masked
+        })
+        .is_empty()
+        {
+            return Err(DomainError::Conflict(
+                "a plain variable already has this name".to_string(),
+            ));
+        }
+        self.set_ci_variable(NewCiVariable {
+            repository_id,
+            key: key.to_string(),
+            plaintext_value: plaintext_value.to_string(),
+            masked: true,
+        })
+        .await
+    }
+
+    async fn delete_ci_secret(&self, repository_id: Uuid, key: &str) -> Result<(), DomainError> {
+        let mut variables = self.ci_variables.lock().unwrap();
+        let before = variables.len();
+        variables.retain(|(v, _)| !(v.repository_id == repository_id && v.key == key && v.masked));
+        if variables.len() == before {
+            return Err(DomainError::NotFound("ci secret".to_string()));
         }
         Ok(())
     }

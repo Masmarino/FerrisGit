@@ -1,6 +1,6 @@
 {
   "db_name": "PostgreSQL",
-  "query": "\n            INSERT INTO repository_ci_variables (repository_id, key, encrypted_value, masked)\n            VALUES ($1, $2, $3, $4)\n            ON CONFLICT (repository_id, key) DO UPDATE SET encrypted_value = $3, masked = $4\n            RETURNING id, repository_id, key, masked\n            ",
+  "query": "\n            INSERT INTO repository_ci_variables (repository_id, key, encrypted_value, masked)\n            VALUES ($1, $2, $3, $4)\n            ON CONFLICT (repository_id, key) DO UPDATE SET encrypted_value = $3, masked = $4\n            WHERE $4 OR NOT repository_ci_variables.masked\n            RETURNING id, repository_id, key, masked\n            ",
   "describe": {
     "columns": [
       {
@@ -63,5 +63,5 @@
       false
     ]
   },
-  "hash": "be37c0b8e56513a5caad555d465a98a33596a1935762cdfaf55a6bd8760c8404"
+  "hash": "6c48ff5b0a5e07a0fb3568d329dff255106b3fc90e98e3d247c9d69ebe6b232c"
 }

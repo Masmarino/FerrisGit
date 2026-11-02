@@ -1,21 +1,20 @@
 use serde_json::json;
 
 use crate::cli::VariableCommand;
-use crate::context::{Context, read_file_or_stdin};
+use crate::client::Client;
+use crate::context::{Context, Repo, read_file_or_stdin};
 use crate::error::{CliError, Result};
-use crate::model::CiVariable;
+use crate::model::{CiSecret, CiVariable};
 use crate::output::{confirm, read_stdin, stdin_is_terminal};
 
-/// `variable` and `secret` are one list on the server, told apart by `masked`: a secret is a variable whose value is masked
-/// in job logs. Each command only sees its own, so `secret delete` can't take out a plain variable by mistake.
-pub async fn run(context: &Context, command: VariableCommand, masked: bool) -> Result<()> {
-    let noun = if masked { "secret" } else { "variable" };
+/// The plain ones. The server's list holds secrets too, and refuses to make one plain by accident.
+pub async fn run_variable(context: &Context, command: VariableCommand) -> Result<()> {
     let (client, repo) = context.repo().await?;
     let route = repo.route("/ci-variables");
     match command {
         VariableCommand::List => {
             let all: Vec<CiVariable> = client.get(&route).await?;
-            let listed: Vec<CiVariable> = all.into_iter().filter(|v| v.masked == masked).collect();
+            let listed: Vec<CiVariable> = all.into_iter().filter(|v| !v.masked).collect();
             context.out.result(&listed, || {
                 let rows: Vec<Vec<String>> = listed.iter().map(|v| vec![v.key.clone()]).collect();
                 context.out.table(&rows);
@@ -26,28 +25,68 @@ pub async fn run(context: &Context, command: VariableCommand, masked: bool) -> R
             value,
             value_file,
         } => {
-            let value = read_value(masked, value, value_file.as_deref())?;
+            let value = read_value(false, value, value_file.as_deref())?;
             let stored: CiVariable = client
                 .post(
                     &route,
-                    &json!({ "key": key, "value": value, "masked": masked }),
+                    &json!({ "key": key, "value": value, "masked": false }),
                 )
                 .await?;
-            context.out.message(&format!("Set the {noun} {key}."));
+            context.out.message(&format!("Set the variable {key}."));
             context.out.result(&stored, || {})
         }
         VariableCommand::Delete { key } => {
+            confirm(context.global.yes, &format!("Delete the variable {key}?"))?;
             let all: Vec<CiVariable> = client.get(&route).await?;
             let found = all
                 .iter()
-                .find(|v| v.key == key && v.masked == masked)
-                .ok_or_else(|| CliError::NotFound(format!("no {noun} named {key}")))?;
-            confirm(context.global.yes, &format!("Delete the {noun} {key}?"))?;
+                .find(|v| v.key == key && !v.masked)
+                .ok_or_else(|| CliError::NotFound(format!("no variable named {key}")))?;
             client.delete(&format!("{route}/{}", found.id)).await?;
-            context.out.message(&format!("Deleted the {noun} {key}."));
+            context.out.message(&format!("Deleted the variable {key}."));
             Ok(())
         }
     }
+}
+
+pub async fn run_secret(context: &Context, command: VariableCommand) -> Result<()> {
+    let (client, repo) = context.repo().await?;
+    match command {
+        VariableCommand::List => {
+            let secrets: Vec<CiSecret> = client.get(&repo.route("/ci-secrets")).await?;
+            context.out.result(&secrets, || {
+                let rows: Vec<Vec<String>> = secrets.iter().map(|s| vec![s.key.clone()]).collect();
+                context.out.table(&rows);
+            })
+        }
+        VariableCommand::Set {
+            key,
+            value,
+            value_file,
+        } => {
+            let value = read_value(true, value, value_file.as_deref())?;
+            let stored = put_secret(&client, &repo, &key, &value).await?;
+            context.out.message(&format!("Set the secret {key}."));
+            context.out.result(&stored, || {})
+        }
+        VariableCommand::Delete { key } => {
+            confirm(context.global.yes, &format!("Delete the secret {key}?"))?;
+            client.delete(&secret_route(&repo, &key)).await?;
+            context.out.message(&format!("Deleted the secret {key}."));
+            Ok(())
+        }
+    }
+}
+
+fn secret_route(repo: &Repo, key: &str) -> String {
+    let encoded: String = url::form_urlencoded::byte_serialize(key.as_bytes()).collect();
+    repo.route(&format!("/ci-secrets/{encoded}"))
+}
+
+async fn put_secret(client: &Client, repo: &Repo, key: &str, value: &str) -> Result<CiSecret> {
+    client
+        .put(&secret_route(repo, key), &json!({ "value": value }))
+        .await
 }
 
 /// Exactly what's in the file or on stdin, only without a final line break, which is almost never part of the value.
@@ -57,7 +96,7 @@ fn trim_final_line_break(text: String) -> String {
 }
 
 fn read_value(
-    masked: bool,
+    hidden: bool,
     value: Option<String>,
     file: Option<&std::path::Path>,
 ) -> Result<String> {
@@ -70,7 +109,7 @@ fn read_value(
     if !stdin_is_terminal() {
         return read_stdin().map(trim_final_line_break);
     }
-    if masked {
+    if hidden {
         rpassword::prompt_password("Value: ")
             .map_err(|e| CliError::Other(format!("could not read the value: {e}")))
     } else {

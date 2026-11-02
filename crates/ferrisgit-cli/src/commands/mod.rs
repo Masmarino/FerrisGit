@@ -21,8 +21,8 @@ pub async fn run(context: &mut Context, command: Command) -> Result<()> {
         Command::Mr(command) => mr::run(context, command).await,
         Command::Pipeline(command) => pipeline::run(context, command).await,
         Command::Release(command) => release::run(context, command).await,
-        Command::Variable(command) => variable::run(context, command, false).await,
-        Command::Secret(command) => variable::run(context, command, true).await,
+        Command::Variable(command) => variable::run_variable(context, command).await,
+        Command::Secret(command) => variable::run_secret(context, command).await,
         Command::Api(args) => api::run(context, args).await,
     }
 }

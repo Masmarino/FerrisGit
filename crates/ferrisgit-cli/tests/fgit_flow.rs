@@ -1277,8 +1277,28 @@ async fn variables_and_secrets_are_kept_apart(pool: PgPool) {
         )
         .await
         .json();
-    assert_eq!(secret["masked"], true);
+    assert_eq!(secret["key"], "DEPLOY_TOKEN");
     assert!(!secret.to_string().contains("s3cret-value"));
+
+    // Neither command takes over the other's name, and nothing changes when it's refused.
+    let unmask = machine
+        .fgit(
+            &work,
+            &["variable", "set", "DEPLOY_TOKEN", "--value", "open"],
+        )
+        .await;
+    assert_eq!(unmask.code, 5, "stderr: {}", unmask.stderr);
+    assert!(unmask.stderr.contains("secret"), "{}", unmask.stderr);
+    let takeover = machine
+        .fgit(&work, &["secret", "set", "DEPLOY_ENV", "--value", "hidden"])
+        .await;
+    assert_eq!(takeover.code, 5, "stderr: {}", takeover.stderr);
+
+    let empty = machine
+        .fgit_with_stdin(&work, &["secret", "set", "EMPTY"], "")
+        .await;
+    assert_eq!(empty.code, 5, "stderr: {}", empty.stderr);
+    assert!(empty.stderr.contains("empty"), "{}", empty.stderr);
 
     assert_eq!(
         machine
