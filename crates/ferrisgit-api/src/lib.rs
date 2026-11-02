@@ -11,6 +11,7 @@ pub mod mfa_rate_limiter;
 pub mod pending_account_sweep;
 pub mod routes;
 pub mod state;
+pub mod token_scopes;
 
 use std::path::Path;
 

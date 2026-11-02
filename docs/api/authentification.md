@@ -1,6 +1,6 @@
 # Authentification
 
-Cette page décrit le parcours de connexion par l'API, la double authentification, la gestion du compte et les jetons Git.
+Cette page décrit le parcours de connexion par l'API, la double authentification, la gestion du compte, les jetons d'API et les jetons Git.
 
 ## Le parcours de connexion
 
@@ -22,7 +22,7 @@ Le jeton MFA vit 5 minutes. Il n'est consommé que par un succès : une mauvaise
 
 L'enrôlement obligatoire suit les mêmes règles pour un compte qui vient d'être activé (par invitation ou après une inscription) : la première connexion renvoie un jeton MFA avec `mfaSetupRequired: true`.
 
-> **Note** : un script ne peut pas utiliser une passkey, qui exige un navigateur ou une clé matérielle. Pour l'automatisation, enrôlez un TOTP et calculez le code avec un outil compatible (`oathtool`, par exemple).
+> **Note** : pour un script, un job de CI ou un agent, utilisez plutôt un [jeton d'API](#jetons-dapi) : il ne demande ni mot de passe ni second facteur à chaque appel.
 
 ## Exemple de bout en bout avec un compte TOTP
 
@@ -60,7 +60,186 @@ curl -s "$BASE/api/repositories" -H "Authorization: Bearer $JWT"
 
 ## Jetons Git
 
-Un jeton Git, ou jeton d'accès personnel (préfixe `fg_`), sert uniquement à Git en HTTP, comme mot de passe de l'authentification Basic. Il n'ouvre **pas** l'API : l'extracteur d'authentification de l'API n'accepte que des JWT de session, et un `fg_…` répond `401 invalid or expired token`. Les routes qui créent et listent ces jetons demandent, elles, un JWT. Voir [Cloner et pousser](/docs/utilisation/cloner-et-pousser) et [Compte et sécurité](/docs/utilisation/compte-et-securite).
+Un jeton Git, ou jeton d'accès personnel (préfixe `fg_`), sert uniquement à Git en HTTP, comme mot de passe de l'authentification Basic. Il n'ouvre **pas** l'API : un `fg_…` y répond `401 invalid or expired token`. Les routes qui créent et listent ces jetons demandent un JWT. Pour l'API, utilisez un [jeton d'API](#jetons-dapi). Voir [Cloner et pousser](/docs/utilisation/cloner-et-pousser) et [Compte et sécurité](/docs/utilisation/compte-et-securite).
+
+## Jetons d'API
+
+Un jeton d'API (préfixe `fga_`) remplace le JWT de session pour un programme : la ligne de commande [`fgit`](/docs/ligne-de-commande/presentation), un script, un job de CI ou un agent. Il s'envoie de la même façon :
+
+```bash
+curl -s "$BASE/api/repositories" -H "Authorization: Bearer $FERRISGIT_TOKEN"
+```
+
+Un jeton a toujours une date d'expiration, d'au plus un an, et une liste de portées. Ce qu'il peut faire est l'intersection de ses portées et des droits de son propriétaire : une portée n'ouvre jamais un dépôt sur lequel le compte n'a pas de rôle.
+
+### Portées
+
+Une portée s'écrit `domaine:niveau`. Le niveau est `read` ou `write`, et `write` comprend `read`. `GET` et `HEAD` demandent `read`, les autres méthodes `write`.
+
+| Domaine | Ce qu'il couvre |
+|---|---|
+| `repositories` | Dépôts, branches, contenu, collaborateurs, branches protégées, réglages, wikis, groupes, `GET /api/resolve/{*path}`. Ouvre aussi Git en HTTP. |
+| `issues` | Tickets, leurs commentaires, étiquettes et jalons. |
+| `merge-requests` | Demandes de fusion, relectures, commentaires, diff, fusion. |
+| `pipelines` | Pipelines, journaux des jobs, définition de pipeline, variables et secrets de CI. |
+| `releases` | Releases, leurs fichiers, tags. |
+| `admin` | Les routes `/api/admin/…`. Seul un administrateur peut créer un jeton avec cette portée. |
+
+Quelques cas particuliers :
+
+- Les webhooks demandent `repositories:write`, même en lecture : leur URL contient souvent un secret et leurs livraisons des contenus complets.
+- `GET /api/search`, `GET /api/dashboard` et `/api/notifications` mêlent plusieurs domaines. Ils demandent le même niveau sur `repositories`, `issues` et `merge-requests`.
+- `GET /api/auth/me` et `GET /api/settings/public` acceptent n'importe quel jeton valide.
+- Un jeton ne peut pas gérer les identifiants ni le compte : jetons Git et d'API, double authentification, mot de passe, adresse e-mail, déconnexion, approbation d'un terminal. Ces routes ne répondent qu'à une session.
+- Une route qu'aucune règle ne nomme est refusée aux jetons.
+
+Erreurs communes à toutes les routes : 401 `invalid or expired token` (jeton inconnu, révoqué ou expiré), 403 `this token lacks the scope issues:write` (portée insuffisante), 403 `this route needs a signed-in session, an API token can't use it`. Un dépôt sur lequel le propriétaire n'a pas de rôle répond 404, comme pour une session.
+
+### Git en HTTP
+
+Un jeton d'API ouvre aussi Git en HTTP, comme mot de passe de l'authentification Basic : `repositories:read` pour récupérer, `repositories:write` pour pousser, toujours dans la limite du rôle du propriétaire. Le nom d'utilisateur est ignoré. `fgit` s'en sert comme aide d'authentification de Git.
+
+### `POST /api/access-tokens`
+
+Crée un jeton d'API. Demande une session.
+
+Corps :
+
+| Champ | Type | Obligatoire | Description |
+|---|---|---|---|
+| `name` | texte | oui | 1 à 100 caractères, sans caractère de contrôle. |
+| `scopes` | tableau de textes | oui | Au moins une portée, par exemple `["issues:read", "merge-requests:write"]`. |
+| `expiresInDays` | entier | oui | Durée de vie, de 1 à 365 jours. |
+
+Réponse 200 :
+
+```json
+{
+  "id": "9a2c…",
+  "name": "ci",
+  "scopes": ["issues:read"],
+  "expiresAt": "2027-01-01T10:00:00Z",
+  "expired": false,
+  "createdAt": "2026-11-02T10:00:00Z",
+  "lastUsedAt": null,
+  "token": "fga_5b0e…"
+}
+```
+
+`token` est la seule fois où la valeur en clair est visible : FerrisGit n'en garde que l'empreinte.
+
+Erreurs : 400 `unknown scope: …`, 400 `at least one scope is required`, 400 `a token lives between 1 and 365 days`, 400 `only an administrator can create a token with the admin scope`.
+
+### `GET /api/access-tokens`
+
+Liste vos jetons d'API, y compris ceux qui ont expiré. Demande une session.
+
+Réponse 200 : un tableau d'objets comme ci-dessus, sans `token`. `lastUsedAt` est précis à la minute.
+
+### `DELETE /api/access-tokens/{id}`
+
+Révoque un jeton : il cesse d'authentifier immédiatement. Demande une session.
+
+Réponse 204. Erreur : 404 `access token` (inconnu ou appartenant à un autre compte).
+
+## Connexion d'un terminal
+
+C'est le parcours de `fgit auth login`, sur le modèle de l'autorisation d'appareil (RFC 8628). Le terminal demande un code, la personne le confirme dans l'interface web avec son second facteur, et le terminal récupère un jeton d'API. Le jeton n'existe qu'à ce moment-là, il n'est donc jamais stocké en clair en attendant d'être récupéré.
+
+### `POST /api/auth/device/start`
+
+Démarre une demande. Route anonyme, limitée à 30 requêtes par 5 minutes et par adresse IP.
+
+Corps :
+
+| Champ | Type | Obligatoire | Description |
+|---|---|---|---|
+| `clientName` | texte | oui | Nom montré à la personne et donné au jeton. 1 à 100 caractères, sans caractère de contrôle. |
+| `scopes` | tableau de textes | oui | Les portées demandées. |
+| `expiresInDays` | entier | oui | Durée de vie du jeton, de 1 à 365 jours. |
+
+Réponse 200 :
+
+```json
+{
+  "deviceCode": "3f9c…",
+  "userCode": "BCDF-GHJK",
+  "verificationUri": "https://git.example.com/account/device",
+  "verificationUriComplete": "https://git.example.com/account/device?code=BCDF-GHJK",
+  "expiresIn": 900,
+  "interval": 5
+}
+```
+
+`deviceCode` est le secret du terminal, à ne pas afficher. `userCode` est ce que la personne confirme. La demande vit `expiresIn` secondes, et le terminal attend `interval` secondes entre deux appels à `token`.
+
+### `POST /api/auth/device/token`
+
+Récupère le jeton. Route anonyme, autorisée par le code du corps.
+
+Corps : `{ "deviceCode": "…" }`.
+
+Réponse 200 : le jeton, comme pour `POST /api/access-tokens`. Il n'est remis qu'une fois.
+
+Tant qu'il n'y a pas de jeton, la réponse est un 400 dont `error` dit où en est la demande :
+
+| `error` | Sens |
+|---|---|
+| `authorization_pending` | Pas encore confirmée : réessayez après `interval` secondes. |
+| `slow_down` | Appel trop rapproché du précédent : attendez plus longtemps. |
+| `access_denied` | La personne a refusé. |
+| `expired_token` | Demande inconnue, expirée ou déjà récupérée. |
+
+### `GET /api/auth/device/{user_code}`
+
+Montre une demande en attente, pour que la personne sache ce qu'elle confirme. Demande une session. La casse et le tiret du code sont libres.
+
+Réponse 200 :
+
+```json
+{
+  "userCode": "BCDF-GHJK",
+  "clientName": "fgit sur portable",
+  "scopes": ["issues:read"],
+  "tokenLifetimeDays": 90,
+  "requestedAt": "2026-11-02T10:00:00Z",
+  "expiresAt": "2026-11-02T10:15:00Z",
+  "hasTotp": true,
+  "hasPasskey": false
+}
+```
+
+`clientName` vient du terminal et n'est garanti par rien. `hasTotp` et `hasPasskey` décrivent les facteurs du compte connecté. Erreur : 404 `device request` (inconnue, expirée ou déjà traitée).
+
+### `POST /api/auth/device/{user_code}/passkey`
+
+Démarre la vérification par passkey avant une approbation. Demande une session. Limitée comme `POST /api/auth/mfa/passkey/start`.
+
+Pas de corps. Réponse 200 : `{ "challengeId": "…", "publicKey": { … } }`, à passer à `navigator.credentials.get({ publicKey })`.
+
+Erreurs : 400 `no passkey is registered`, 404 `device request`, 429, 503 `passkeys are not available on this server`.
+
+### `POST /api/auth/device/{user_code}/approve`
+
+Approuve la demande. Demande une session **et** le second facteur, même si la session est récente, parce que l'approbation délivre un jeton de longue durée.
+
+Corps, au choix :
+
+| Champs | Facteur |
+|---|---|
+| `code` | Code TOTP. |
+| `backupCode` | Code de secours, à usage unique. |
+| `challengeId` et `credential` | Passkey, avec la valeur reçue de la route `passkey` et le `PublicKeyCredential` du navigateur. |
+
+Réponse 204. Chaque appel compte dans le budget de 10 tentatives par 5 minutes de la double authentification.
+
+Erreurs : 400 `invalid code` (en 400, pas en 401, pour qu'un formulaire ne déconnecte pas l'utilisateur), 400 `only an administrator can create a token with the admin scope`, 404 `device request`, 429, 503.
+
+### `POST /api/auth/device/{user_code}/deny`
+
+Refuse la demande : le terminal reçoit `access_denied`. Demande une session.
+
+Réponse 204. Erreur : 404 `device request`.
 
 ## Connexion
 
@@ -321,7 +500,7 @@ Erreurs : 400 `password must be at least 8 characters`, 400 `current password is
 
 ### `POST /api/auth/logout-all`
 
-Déconnecte le compte partout : tous les JWT émis jusque-là sont révoqués, y compris celui de la requête. Les jetons d'accès Git restent valables ; ils se révoquent un par un. L'événement est consigné dans le journal de sécurité.
+Déconnecte le compte partout : tous les JWT émis jusque-là sont révoqués, y compris celui de la requête. Les jetons Git et les jetons d'API restent valables ; ils se révoquent un par un. L'événement est consigné dans le journal de sécurité.
 
 Pas de corps. Réponse 204.
 

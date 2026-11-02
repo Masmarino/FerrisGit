@@ -8,6 +8,7 @@ use ferrisgit_domain::health::{ComponentHealth, HealthCheckPort};
 
 use crate::state::AppState;
 
+pub mod access_tokens;
 pub mod api_tokens;
 pub mod auth;
 pub mod collaborators;
@@ -81,6 +82,7 @@ pub fn api_router(state: AppState) -> Router<AppState> {
         .merge(auth::router())
         .merge(mfa::router())
         .merge(api_tokens::router())
+        .merge(access_tokens::router())
         .merge(repositories::router())
         .merge(collaborators::router())
         .merge(dashboard::router())

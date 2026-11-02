@@ -17,6 +17,7 @@ impl IntoResponse for ApiError {
             DomainError::NotFound(m) => (StatusCode::NOT_FOUND, m.clone()),
             DomainError::Conflict(m) => (StatusCode::CONFLICT, m.clone()),
             DomainError::Unauthorized(m) => (StatusCode::UNAUTHORIZED, m.clone()),
+            DomainError::Forbidden(m) => (StatusCode::FORBIDDEN, m.clone()),
             DomainError::Validation(m) => (StatusCode::BAD_REQUEST, m.clone()),
             DomainError::RateLimited(m) => (StatusCode::TOO_MANY_REQUESTS, m.clone()),
             DomainError::ServiceUnavailable(m) => (StatusCode::SERVICE_UNAVAILABLE, m.clone()),

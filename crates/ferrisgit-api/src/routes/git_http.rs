@@ -356,6 +356,7 @@ pub async fn git_smart_http(state: AppState, req: axum::extract::Request) -> Res
 
     let use_case = AuthenticateGitRequestUseCase::new(
         state.api_tokens.clone(),
+        state.access_tokens.clone(),
         state.events.clone(),
         state.runners.clone(),
         state.job_clone_tokens.clone(),

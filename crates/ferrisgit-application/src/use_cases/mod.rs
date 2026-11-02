@@ -11,6 +11,7 @@ pub(crate) mod require_group_maintainer;
 pub(crate) mod require_in_scope;
 pub(crate) mod source_branch_tip;
 
+pub mod access_tokens;
 pub mod add_collaborator;
 pub mod add_group_member;
 pub mod add_issue_comment;

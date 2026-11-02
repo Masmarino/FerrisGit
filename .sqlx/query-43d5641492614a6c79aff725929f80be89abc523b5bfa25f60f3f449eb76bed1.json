@@ -1,0 +1,19 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO device_authorizations\n                 (device_code_hash, user_code, client_name, scopes, token_lifetime_days, expires_at)\n             VALUES ($1, $2, $3, $4, $5, $6)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Text",
+        "Text",
+        "TextArray",
+        "Int4",
+        "Timestamptz"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "43d5641492614a6c79aff725929f80be89abc523b5bfa25f60f3f449eb76bed1"
+}

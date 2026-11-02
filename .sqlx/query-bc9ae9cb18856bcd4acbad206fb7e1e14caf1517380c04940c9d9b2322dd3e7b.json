@@ -1,0 +1,36 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH previous AS (\n                   SELECT id, status, last_polled_at FROM device_authorizations\n                   WHERE device_code_hash = $1 AND expires_at > now()\n                   FOR UPDATE\n               ), updated AS (\n                   UPDATE device_authorizations AS d SET last_polled_at = now()\n                   FROM previous WHERE d.id = previous.id\n               )\n               SELECT status AS \"status!\",\n                      COALESCE(last_polled_at > now() - make_interval(secs => $2::int), false) AS \"too_fast!\"\n               FROM previous",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status!",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "device_authorizations",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "too_fast!",
+        "type_info": "Bool",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false,
+      null
+    ]
+  },
+  "hash": "bc9ae9cb18856bcd4acbad206fb7e1e14caf1517380c04940c9d9b2322dd3e7b"
+}

@@ -24,6 +24,7 @@ use ferrisgit_application::use_cases::repository_profile::{
     PROFILE_CACHE_CAPACITY, RepositoryProfileCache,
 };
 use ferrisgit_application::use_cases::sweep_pending_accounts::SweepPendingAccountsUseCase;
+use ferrisgit_domain::access_token::{AccessTokenRepositoryPort, DeviceAuthorizationPort};
 use ferrisgit_domain::api_token::ApiTokenRepositoryPort;
 use ferrisgit_domain::apply_suggestion_executor::ApplySuggestionExecutorPort;
 use ferrisgit_domain::audit::EventPublisherPort;
@@ -92,6 +93,9 @@ use ferrisgit_infrastructure::kubernetes::pod_executor::KubernetesPodExecutor;
 use ferrisgit_infrastructure::kubernetes::unavailable::UnavailableKubernetesExecutor;
 use ferrisgit_infrastructure::kubernetes::watcher::PodWatcher;
 use ferrisgit_infrastructure::local_release_asset_storage::LocalReleaseAssetStorage;
+use ferrisgit_infrastructure::postgres::access_token_repository::{
+    PostgresAccessTokenRepository, PostgresDeviceAuthorizationStore,
+};
 use ferrisgit_infrastructure::postgres::api_token_repository::PostgresApiTokenRepository;
 use ferrisgit_infrastructure::postgres::backup_code_store::PostgresBackupCodeStore;
 use ferrisgit_infrastructure::postgres::event_publisher::PostgresEventPublisher;
@@ -148,6 +152,8 @@ const PUBLIC_PAGES_WINDOW: std::time::Duration = std::time::Duration::from_secs(
 pub struct AppState {
     pub users: Arc<dyn UserRepositoryPort>,
     pub api_tokens: Arc<dyn ApiTokenRepositoryPort>,
+    pub access_tokens: Arc<dyn AccessTokenRepositoryPort>,
+    pub device_authorizations: Arc<dyn DeviceAuthorizationPort>,
     pub repositories: Arc<dyn RepositoryStorePort>,
     pub repository_collaborators: Arc<dyn RepositoryCollaboratorStorePort>,
     pub repository_stars: Arc<dyn RepositoryStarStorePort>,
@@ -223,6 +229,8 @@ pub struct AppState {
     /// Without a usable `PUBLIC_URL` the passkey routes answer 503 and TOTP keeps working.
     pub passkeys: Arc<PasskeyService>,
     pub passkey_start_limiter: Arc<LoginRateLimiter>,
+    /// An anonymous caller creating rows, so per IP. A terminal needs one start per sign-in.
+    pub device_start_limiter: Arc<LoginRateLimiter>,
     /// Doesn't publish security events or bump the epoch, the routes do.
     pub mfa: Arc<MfaService>,
     pub mfa_pending: Arc<dyn MfaPendingTokenPort>,
@@ -484,6 +492,8 @@ impl AppState {
         Self {
             users,
             api_tokens: Arc::new(PostgresApiTokenRepository::new(pool.clone())),
+            access_tokens: Arc::new(PostgresAccessTokenRepository::new(pool.clone())),
+            device_authorizations: Arc::new(PostgresDeviceAuthorizationStore::new(pool.clone())),
             repositories,
             repository_collaborators,
             repository_stars: Arc::new(PostgresRepositoryStarStore::new(pool.clone())),
@@ -558,6 +568,10 @@ impl AppState {
             passkey_credentials,
             passkeys,
             passkey_start_limiter: Arc::new(LoginRateLimiter::with_limits(
+                PASSKEY_START_MAX_ATTEMPTS,
+                PASSKEY_START_WINDOW,
+            )),
+            device_start_limiter: Arc::new(LoginRateLimiter::with_limits(
                 PASSKEY_START_MAX_ATTEMPTS,
                 PASSKEY_START_WINDOW,
             )),
