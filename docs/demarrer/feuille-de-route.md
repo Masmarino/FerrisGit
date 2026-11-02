@@ -8,7 +8,7 @@ changera à mesure que chaque fonction sera conçue. Pour ce qui est disponible 
 
 | Version | Thème |
 |---|---|
-| 0.2 | Le socle CI des vérifications (branches protégées, pipelines sur les demandes de fusion, artefacts, jetons sur l'API), l'interface en cinq langues et le choix du thème |
+| 0.2 | Le socle CI des vérifications (branches protégées, pipelines sur les demandes de fusion, artefacts), l'interface en cinq langues et le choix du thème |
 | 0.3 | Le moteur d'analyse, la détection de secrets et l'audit des dépendances |
 | 0.4 | Les portes qualité, le tableau de bord et le traitement des anomalies |
 | 0.5 | La qualité du code : complexité, duplication, mauvaises pratiques, couverture de tests |
@@ -25,7 +25,7 @@ demande de fusion et qu'il peut en bloquer la fusion. Cette version construit ce
   s'exécute ;
 - les artefacts de pipeline et l'envoi de rapports ;
 - la relance d'une pipeline depuis l'interface et les pipelines planifiées ;
-- les jetons d'accès utilisables sur l'API REST, avec des portées, et une description OpenAPI générée depuis le code ;
+- une description OpenAPI de l'API REST, générée depuis le code ;
 - un premier lien avec ArtiFerris : publier depuis une pipeline un artefact vers une instance ArtiFerris ;
 - l'internationalisation avec Transloco : l'interface en anglais, français, italien, espagnol et allemand. La langue suit
   le navigateur à la première visite, se change à tout moment et est enregistrée sur le compte ; les e-mails sont envoyés

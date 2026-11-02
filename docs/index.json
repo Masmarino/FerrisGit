@@ -180,6 +180,27 @@
       ]
     },
     {
+      "slug": "ligne-de-commande",
+      "title": "Ligne de commande",
+      "pages": [
+        {
+          "slug": "presentation",
+          "title": "Présentation et connexion",
+          "description": "Installer fgit, se connecter, choisir le dépôt et l'instance."
+        },
+        {
+          "slug": "commandes",
+          "title": "Commandes",
+          "description": "Dépôts, tickets, demandes de fusion, pipelines, releases, variables et appels bruts à l'API."
+        },
+        {
+          "slug": "scripts-et-agents",
+          "title": "Scripts et agents",
+          "description": "Le contrat pour les programmes : jetons, sorties, codes de sortie et champs JSON."
+        }
+      ]
+    },
+    {
       "slug": "api",
       "title": "API REST",
       "pages": [
