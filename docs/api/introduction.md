@@ -4,13 +4,13 @@ L'API REST de FerrisGit est celle que l'interface web utilise elle-même. Tout c
 
 Ces pages décrivent l'état actuel du code. Les chemins ne portent pas de numéro de version (ils commencent tous par `/api`) : si une route change, la page change avec elle. En cas de doute entre une page et le comportement observé, c'est le comportement de votre version de FerrisGit qui fait foi.
 
-> **Attention** : l'API s'utilise avec la session JWT obtenue à la connexion, pas avec un jeton Git. Comme la double authentification est obligatoire, un script doit refaire le parcours de connexion complet. Voir [Authentification](/docs/api/authentification).
+> **Note** : l'API s'utilise avec la session JWT obtenue à la connexion, ou avec un [jeton d'API](/docs/api/authentification#jetons-dapi), qui est ce qu'il faut à un script. Un jeton Git ne l'ouvre pas. Pour le terminal, voir aussi [`fgit`](/docs/ligne-de-commande/presentation).
 
 ## Les pages de la référence
 
 | Page | Contenu |
 |---|---|
-| [Authentification](/docs/api/authentification) | Connexion, double authentification, compte, jetons Git |
+| [Authentification](/docs/api/authentification) | Connexion, double authentification, compte, jetons d'API, connexion d'un terminal, jetons Git |
 | [Dépôts et groupes](/docs/api/depots) | Dépôts, groupes, fichiers, collaborateurs, paramètres |
 | [Demandes de fusion](/docs/api/merge-requests) | Demandes de fusion, commentaires, relectures, fusion |
 | [Tickets, étiquettes et jalons](/docs/api/tickets) | Tickets, kanban, étiquettes, jalons |
@@ -35,10 +35,12 @@ Ces pages décrivent l'état actuel du code. Les chemins ne portent pas de numé
 Toute route de la référence qui n'est pas marquée « anonyme » attend l'en-tête :
 
 ```http
-Authorization: Bearer <JWT>
+Authorization: Bearer <JWT ou jeton d'API>
 ```
 
 Le JWT s'obtient en deux étapes (mot de passe, puis second facteur), décrites dans [Authentification](/docs/api/authentification). Il est valable 12 heures par défaut. Un administrateur peut changer cette durée entre 1 et 720 heures.
+
+Un jeton d'API (`fga_…`) s'utilise de la même façon, dans la limite de ses [portées](/docs/api/authentification#portées). Quelques routes, celles qui gèrent les identifiants et le compte, n'acceptent qu'une session.
 
 Voici les réponses 401 que vous pouvez rencontrer sur une route authentifiée :
 
@@ -46,13 +48,13 @@ Voici les réponses 401 que vous pouvez rencontrer sur une route authentifiée :
 |---|---|
 | `missing Authorization header` | L'en-tête est absent. |
 | `expected Bearer token` | L'en-tête n'utilise pas le schéma `Bearer`. |
-| `invalid or expired token` | Le jeton est mal formé, expiré, ou ce n'est pas un JWT de session. |
+| `invalid or expired token` | Le jeton est mal formé, expiré ou révoqué, ou ce n'est ni un JWT de session ni un jeton d'API. |
 | `token has been revoked` | Le mot de passe a changé, un facteur a été supprimé ou l'administrateur a réinitialisé le compte depuis l'émission du jeton. |
 | `user no longer exists` | Le compte a été supprimé. |
 
 Deux autres types de jetons existent, mais ils ne servent pas sur l'API :
 
-- Les jetons Git (`fg_…`) ne servent que pour Git en HTTP. Sur `/api`, ils sont refusés comme n'importe quelle valeur qui n'est pas un JWT.
+- Les jetons Git (`fg_…`) ne servent que pour Git en HTTP. Sur `/api`, ils sont refusés comme n'importe quelle valeur inconnue.
 - Les jetons de runner (`fgr_…`) ne servent que sur les routes `/api/runner/jobs/*`, et pour cloner en lecture. Voir [Pipelines et runners](/docs/api/ci-cd).
 
 ## Droits d'accès
@@ -61,7 +63,8 @@ Les routes d'un dépôt ou d'un groupe vérifient votre rôle : Lecteur, Contrib
 
 Quelques règles valent pour toute l'API :
 
-- **Il n'y a jamais de code 403.** Si vous n'avez pas le rôle nécessaire sur un dépôt ou un groupe, la route répond 404, comme si la ressource n'existait pas. Un dépôt privé ne révèle donc pas son existence.
+- Si vous n'avez pas le rôle nécessaire sur un dépôt ou un groupe, la route répond 404, comme si la ressource n'existait pas. Un dépôt privé ne révèle donc pas son existence.
+- Le code 403 ne concerne que les jetons d'API : la portée du jeton ne couvre pas la route, ou la route n'accepte qu'une session. Une session ne le reçoit jamais.
 - Un dépôt public donne le rôle Lecteur à tout utilisateur connecté sur les routes de lecture. La liste des collaborateurs fait exception : elle exige un rôle explicite.
 - Une route réservée aux administrateurs répond 401 avec `admin access required` à un utilisateur qui ne l'est pas.
 
@@ -79,6 +82,7 @@ Le message est écrit en anglais, pour un humain. Appuyez-vous sur le code HTTP,
 |---|---|
 | 400 | Valeur refusée par une règle : nom invalide, rôle inconnu, état qui ne permet pas l'action. Le message dit laquelle. |
 | 401 | Jeton absent ou invalide, identifiants incorrects, ou droits d'administrateur manquants. |
+| 403 | Un jeton d'API que sa portée ne laisse pas passer. Le message dit laquelle. |
 | 404 | La ressource n'existe pas, ou vous n'avez pas le droit de la voir. |
 | 409 | Conflit : nom déjà pris, dernier Mainteneur ou dernier administrateur, groupe non vide. |
 | 413 | Corps trop gros. |
@@ -143,7 +147,7 @@ Pour les dépôts publics, la version anonyme est [`GET /api/public/resolve/{*pa
 
 ## Git en HTTP
 
-Les routes Git ne sont pas sous `/api`. Elles vivent à la racine, sous la forme `/{utilisateur}/{depot}.git/…` pour un dépôt personnel, et `/{groupe}/…/{depot}.git/…` pour un dépôt de groupe. Elles s'authentifient en HTTP Basic, avec un jeton Git comme mot de passe. Un dépôt public se lit sans identifiants tant que les pages publiques sont activées. Voir [Cloner et pousser](/docs/utilisation/cloner-et-pousser).
+Les routes Git ne sont pas sous `/api`. Elles vivent à la racine, sous la forme `/{utilisateur}/{depot}.git/…` pour un dépôt personnel, et `/{groupe}/…/{depot}.git/…` pour un dépôt de groupe. Elles s'authentifient en HTTP Basic, avec un jeton Git ou un jeton d'API comme mot de passe. Un dépôt public se lit sans identifiants tant que les pages publiques sont activées. Voir [Cloner et pousser](/docs/utilisation/cloner-et-pousser).
 
 ## Santé du serveur
 

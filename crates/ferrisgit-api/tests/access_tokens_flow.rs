@@ -566,6 +566,34 @@ mod device_login {
             "authorization_pending",
         )
         .await;
+
+        // The refusal came before the factor was checked, so it hasn't cost a one-time code.
+        let other = start(&client, addr, &["issues:read"]).await;
+        let backup_code = &bob.backup_codes[0];
+        let refused = post(
+            &client,
+            addr,
+            &bob.session,
+            &format!(
+                "/auth/device/{}/approve",
+                started["userCode"].as_str().unwrap()
+            ),
+            &json!({ "backupCode": backup_code }),
+        )
+        .await;
+        assert_eq!(refused.status(), 400);
+        let approved = post(
+            &client,
+            addr,
+            &bob.session,
+            &format!(
+                "/auth/device/{}/approve",
+                other["userCode"].as_str().unwrap()
+            ),
+            &json!({ "backupCode": backup_code }),
+        )
+        .await;
+        assert_eq!(approved.status(), 204);
     }
 
     #[sqlx::test]

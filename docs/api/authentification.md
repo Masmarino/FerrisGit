@@ -89,6 +89,7 @@ Quelques cas particuliers :
 
 - Les webhooks demandent `repositories:write`, même en lecture : leur URL contient souvent un secret et leurs livraisons des contenus complets.
 - `GET /api/search`, `GET /api/dashboard` et `/api/notifications` mêlent plusieurs domaines. Ils demandent le même niveau sur `repositories`, `issues` et `merge-requests`.
+- `POST /api/repositories/{repository_id}/pipeline-definition/proposal` crée une branche et une demande de fusion : elle demande `write` sur `pipelines`, `repositories` et `merge-requests`.
 - `GET /api/auth/me` et `GET /api/settings/public` acceptent n'importe quel jeton valide.
 - Un jeton ne peut pas gérer les identifiants ni le compte : jetons Git et d'API, double authentification, mot de passe, adresse e-mail, déconnexion, approbation d'un terminal. Ces routes ne répondent qu'à une session.
 - Une route qu'aucune règle ne nomme est refusée aux jetons.

@@ -58,6 +58,13 @@ pub fn required_access(method: &Method, template: &str) -> TokenAccess {
         ["groups", _, "labels" | "milestones", ..] => scoped(ScopeArea::Issues, level),
         ["groups", ..] => scoped(ScopeArea::Repositories, level),
 
+        // Commits to a new branch and opens a merge request on it, whatever the route is called.
+        ["repositories", _, "pipeline-definition", "proposal"] => TokenAccess::Requires(vec![
+            TokenScope::new(ScopeArea::Pipelines, ScopeLevel::Write),
+            TokenScope::new(ScopeArea::Repositories, ScopeLevel::Write),
+            TokenScope::new(ScopeArea::MergeRequests, ScopeLevel::Write),
+        ]),
+
         ["repositories", id, area, ..] if id.starts_with('{') => repository_area(area, level),
         ["repositories", ..] => scoped(ScopeArea::Repositories, level),
 
@@ -222,6 +229,17 @@ mod tests {
             post("/api/pipeline-definitions/parse"),
             scope("pipelines:read")
         );
+    }
+
+    #[test]
+    fn a_proposal_needs_write_on_everything_it_touches() {
+        let TokenAccess::Requires(scopes) =
+            post("/api/repositories/{repository_id}/pipeline-definition/proposal")
+        else {
+            panic!("a proposal must be scoped");
+        };
+        assert_eq!(scopes.len(), 3);
+        assert!(scopes.iter().all(|s| s.level == ScopeLevel::Write));
     }
 
     #[test]

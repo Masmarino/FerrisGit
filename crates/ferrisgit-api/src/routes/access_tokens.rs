@@ -6,7 +6,9 @@ use chrono::{DateTime, Utc};
 use ferrisgit_application::use_cases::access_tokens::{
     CreateAccessTokenUseCase, DeviceCollect, DeviceLoginService,
 };
-use ferrisgit_domain::access_token::{AccessToken, TokenScope, parse_requested_scopes};
+use ferrisgit_domain::access_token::{
+    AccessToken, TokenScope, ensure_owner_can_hold, parse_requested_scopes,
+};
 use ferrisgit_domain::audit::SecurityEvent;
 use ferrisgit_domain::error::DomainError;
 use serde::{Deserialize, Serialize};
@@ -275,6 +277,9 @@ async fn device_approve(
 ) -> Result<axum::http::StatusCode, ApiError> {
     let service = device_service(&state);
     let request = service.find_pending(&user_code).await?;
+    // Before the factor is checked: a refusal mustn't cost a backup code or a TOTP step.
+    let owner = require_user(&state, user_id).await?;
+    ensure_owner_can_hold(&request.scopes, owner.is_admin)?;
     if !state.mfa_limiter.check(user_id) {
         return Err(DomainError::RateLimited(TOO_MANY_ATTEMPTS.to_string()).into());
     }
@@ -309,7 +314,6 @@ async fn device_approve(
         Err(e) => return Err(e.into()),
     }
 
-    let owner = require_user(&state, user_id).await?;
     service
         .approve(&request.user_code, user_id, owner.is_admin)
         .await?;
