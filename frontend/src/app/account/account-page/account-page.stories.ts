@@ -4,7 +4,7 @@ import { provideRouter, Router } from '@angular/router';
 import type { Meta, StoryObj } from '@storybook/angular-vite';
 import { applicationConfig, moduleMetadata } from '@storybook/angular-vite';
 import { expect, userEvent, waitFor, within } from 'storybook/test';
-import { Observable, of, throwError, timer } from 'rxjs';
+import { NEVER, Observable, of, throwError, timer } from 'rxjs';
 import { switchMap } from 'rxjs/operators';
 import { AccountPage } from './account-page';
 import { AuthService } from '../../auth/auth.service';
@@ -17,6 +17,7 @@ import { MfaService } from '../../auth/mfa.service';
 import { provideFerrisgitAuth } from '../../auth/auth-kit';
 import { fakeMfaService, withMfa } from '../mfa-story-helpers';
 import { ApiTokenSummary, TokensService } from '../../api-tokens/api-tokens.service';
+import { AccessTokensService, AccessTokenSummary } from '../../api-tokens/access-tokens.service';
 import { daysAgo, hoursAgo, inShellContentArea, minutesAgo, withFerrisgitIcons } from '../../shared/layout/page-story-helpers';
 import { expectSettingsLayout, fakeToast } from '../../shared/layout/settings-story-helpers';
 
@@ -68,6 +69,10 @@ const TOKENS: ApiTokenSummary[] = [
   { id: 't1', name: 'ci-github-actions', createdAt: daysAgo(44), lastUsedAt: minutesAgo(7) },
   { id: 't2', name: 'poste-de-travail-florian', createdAt: daysAgo(114), lastUsedAt: hoursAgo(20) },
   { id: 't3', name: 'script-de-sauvegarde', createdAt: daysAgo(5), lastUsedAt: null },
+];
+
+const ACCESS_TOKENS: AccessTokenSummary[] = [
+  { id: 'a1', name: 'fgit-portable', scopes: ['repositories:write', 'issues:read'], expiresAt: daysAgo(-60), expired: false, createdAt: daysAgo(30), lastUsedAt: minutesAgo(7) },
 ];
 
 function fakeTokensService(list: ApiTokenSummary[]): Pick<TokensService, 'list' | 'create' | 'revoke'> {
@@ -153,6 +158,7 @@ const meta: Meta<AccountPage> = {
         // A factory, so every story starts from the same profile whatever a previous one saved.
         { provide: MeService, useFactory: () => fakeMeService(ME) },
         { provide: TokensService, useValue: fakeTokensService(TOKENS) },
+        { provide: AccessTokensService, useValue: { list: () => of(ACCESS_TOKENS), create: () => NEVER, revoke: () => of(undefined) } },
         { provide: MfaService, useFactory: () => fakeMfaService({ totpEnabled: true, backupCodesRemaining: 8, passkeys: [PASSKEY] }) },
         provideFerrisgitAuth(),
         { provide: PageTitleService, useValue: { set: () => {} } },
@@ -318,6 +324,11 @@ export const TokenRevealed: Story = {
     await waitFor(() => expect(canvasElement.querySelector('.api-tokens-list__revealed')).not.toBeNull());
     await expectAccountPage(canvasElement, 'Jetons Git');
   },
+};
+
+export const AccessTokens: Story = {
+  decorators: [startAt('/?section=access-tokens')],
+  play: ({ canvasElement }) => expectAccountPage(canvasElement, "Jetons d'API"),
 };
 
 export const UnknownSection: Story = {

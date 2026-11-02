@@ -1,6 +1,6 @@
 # Cloner et pousser
 
-FerrisGit sert Git en HTTP(S). Il n'y a pas d'accès SSH : vous vous authentifiez avec votre nom d'utilisateur et un jeton Git.
+FerrisGit sert Git en HTTP(S). Il n'y a pas d'accès SSH : vous vous authentifiez avec votre nom d'utilisateur et un jeton Git, ou avec un [jeton d'API](#avec-un-jeton-dapi).
 
 ## Adresse d'un dépôt
 
@@ -39,6 +39,12 @@ Ce que le jeton permet exactement :
 - Il ne donne **pas** accès à l'API REST. Voir [Compte et sécurité](/docs/utilisation/compte-et-securite).
 
 > **Attention** : évitez d'écrire le jeton dans l'adresse (`https://alice:fg_...@hôte/...`). Il serait enregistré en clair dans `.git/config` et dans l'historique de votre shell. Dans un script ou une CI, passez-le par une variable secrète et ne le journalisez pas.
+
+### Avec un jeton d'API
+
+Un [jeton d'API](/docs/utilisation/compte-et-securite#jetons-dapi) (préfixe `fga_`) qui a la portée **Dépôts** fonctionne aussi pour Git, à la place d'un jeton Git : en **Lecture** pour cloner et récupérer, en **Écriture** pour pousser, toujours dans la limite de votre rôle sur le dépôt. Il expire à la date choisie, et le nom d'utilisateur saisi est ignoré.
+
+C'est ce que fait [`fgit`](/docs/ligne-de-commande/presentation), la ligne de commande de FerrisGit : elle s'en sert comme aide d'authentification de Git, et vous n'avez rien à saisir.
 
 ## Cloner
 

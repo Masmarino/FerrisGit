@@ -51,6 +51,7 @@ export const routes: Routes = [
       { path: 'search', loadComponent: () => import('./search/search-results/search-results').then((m) => m.SearchResults) },
       { path: 'docs', children: DOCS_ROUTES },
       { path: 'account', loadComponent: () => import('./account/account-page/account-page').then((m) => m.AccountPage) },
+      { path: 'account/device', data: { trail: [{ get label() { return t('nav.account'); }, link: ['/account'] }] }, loadComponent: () => import('./account/device-page/device-page').then((m) => m.DevicePage) },
 
       // Bare `/repositories` is the workspace; anything deeper resolves to a group or a repository.
       { path: 'repositories', loadComponent: () => import('./repositories/workspace-page/workspace-page').then((m) => m.WorkspacePage) },

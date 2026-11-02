@@ -11,6 +11,12 @@ export function loginLink(url: string): LoginLink {
   return { commands: ['/login'], queryParams: back ? { returnUrl: back } : null };
 }
 
+/** The same, as one URL, for a guard or an interceptor that redirects rather than links. */
+export function loginUrl(url: string): string {
+  const back = loginLink(url).queryParams?.['returnUrl'] as string | undefined;
+  return back ? `/login?returnUrl=${encodeURIComponent(back)}` : '/login';
+}
+
 /** Only follow a `returnUrl` that stays on this site: one leading slash, no scheme, no `//host`, no `/\host`. */
 export function safeReturnUrl(value: string | null): string | null {
   if (!value || !value.startsWith('/') || value.startsWith('//') || value.startsWith('/\\') || value.startsWith('/login')) {

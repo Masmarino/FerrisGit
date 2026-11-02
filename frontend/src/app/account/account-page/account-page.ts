@@ -26,17 +26,19 @@ import { MfaSettings } from '../mfa-settings/mfa-settings';
 import { PasskeySettings } from '../passkey-settings/passkey-settings';
 import { SessionSettings } from '../session-settings/session-settings';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
+import { AccessTokensList } from '../../api-tokens/access-tokens-list/access-tokens-list';
 import { LANGUAGE_NAMES, Language, SUPPORTED_LANGUAGES, detectBrowserLanguage } from '../../shared/i18n/languages';
 import { activeLocale, t } from '../../shared/i18n/translator';
 import { TranslocoPipe } from '@jsverse/transloco';
 
-type AccountSectionKey = 'profile' | 'password' | 'security' | 'tokens';
+type AccountSectionKey = 'profile' | 'password' | 'security' | 'tokens' | 'access-tokens';
 
 const SECTIONS: { key: AccountSectionKey; label: string; icon: string }[] = [
   { key: 'profile', get label() { return t('account.tabs.profile'); }, icon: 'user' },
   { key: 'password', get label() { return t('account.tabs.password'); }, icon: 'lock' },
   { key: 'security', get label() { return t('account.tabs.security'); }, icon: 'shield-check' },
   { key: 'tokens', get label() { return t('account.tabs.tokens'); }, icon: 'key' },
+  { key: 'access-tokens', get label() { return t('account.tabs.accessTokens'); }, icon: 'terminal' },
 ];
 
 const DEFAULT_SECTION: AccountSectionKey = 'profile';
@@ -54,7 +56,7 @@ type LanguageChoice = Language | typeof BROWSER_LANGUAGE;
 @Component({
   selector: 'fg-account-page',
   standalone: true,
-  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, Avatar, Badge, Button, GbtInput, Icon, SaveStatus, Select, Skeleton, ApiTokensList, MfaSettings, PasskeySettings, SessionSettings, PageHeader, PageLayout, Card, NavTab, NavTabs, RouterLink, GbtDateTimePipe],
+  imports: [TranslocoPipe, FormsModule, NgTemplateOutlet, Avatar, Badge, Button, GbtInput, Icon, SaveStatus, Select, Skeleton, ApiTokensList, AccessTokensList, MfaSettings, PasskeySettings, SessionSettings, PageHeader, PageLayout, Card, NavTab, NavTabs, RouterLink, GbtDateTimePipe],
   templateUrl: './account-page.html',
   styleUrl: './account-page.scss',
 })

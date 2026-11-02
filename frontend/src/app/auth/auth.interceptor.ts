@@ -3,6 +3,7 @@ import { inject } from '@angular/core';
 import { Router } from '@angular/router';
 import { catchError, throwError } from 'rxjs';
 import { AuthService } from './auth.service';
+import { loginUrl } from './login-link';
 
 export const authInterceptor: HttpInterceptorFn = (req, next) => {
   const auth = inject(AuthService);
@@ -16,7 +17,11 @@ export const authInterceptor: HttpInterceptorFn = (req, next) => {
       // fresh session.
       if (error instanceof HttpErrorResponse && error.status === 401 && auth.token() === token) {
         auth.logout();
-        router.navigateByUrl('/login');
+        // An expired session comes back to this page once signed in. On the sign-in page itself a wrong password answers
+        // 401: stay, or its own `returnUrl` is lost.
+        if (!router.url.startsWith('/login')) {
+          router.navigateByUrl(loginUrl(router.url));
+        }
       }
       return throwError(() => error);
     }),

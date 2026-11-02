@@ -35,6 +35,7 @@ describe('LoginPage', () => {
           { path: 'register', component: Elsewhere },
           { path: 'repositories', component: Elsewhere },
           { path: 'repositories/**', component: Elsewhere },
+          { path: 'account/device', component: Elsewhere },
         ]),
       ],
     });
@@ -185,6 +186,20 @@ describe('LoginPage', () => {
       await ctx.refresh();
 
       expect(ctx.router.url).toBe('/repositories/alice/hello/-/releases');
+    });
+
+    it('goes back to the terminal it was confirming, code included, even after a wrong password', async () => {
+      const ctx = await setup({ interceptor: true, url: '/login?returnUrl=%2Faccount%2Fdevice%3Fcode%3DABCD-EFGH' });
+
+      (await signIn(ctx)).flush({ error: 'invalid username or password' }, { status: 401, statusText: 'Unauthorized' });
+      await ctx.refresh();
+      expect(ctx.router.url).toBe('/login?returnUrl=%2Faccount%2Fdevice%3Fcode%3DABCD-EFGH');
+
+      ctx.el().querySelector('form')!.dispatchEvent(new Event('submit'));
+      ctx.http.expectOne(LOGIN).flush({ token: 'abc' });
+      await ctx.refresh();
+
+      expect(ctx.router.url).toBe('/account/device?code=ABCD-EFGH');
     });
 
     for (const unsafe of ['https://evil.example/x', '//evil.example/x', '/\\evil.example', 'javascript:alert(1)']) {

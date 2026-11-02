@@ -17,20 +17,31 @@ describe('authGuard', () => {
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
 
-    const result = TestBed.runInInjectionContext(() => authGuard({} as never, {} as never));
+    const result = TestBed.runInInjectionContext(() => authGuard({} as never, { url: '/home' } as never));
 
     expect(result).toBe(true);
   });
 
-  it('redirects to /login when no token is present', () => {
+  it('redirects to /login when no token is present, coming back to the page afterwards', () => {
     localStorage.removeItem(TOKEN_KEY);
     TestBed.configureTestingModule({
       providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
     });
 
-    const result = TestBed.runInInjectionContext(() => authGuard({} as never, {} as never));
+    const result = TestBed.runInInjectionContext(() => authGuard({} as never, { url: '/home' } as never));
 
     expect(result).toBeInstanceOf(UrlTree);
-    expect((result as UrlTree).toString()).toBe('/login');
+    expect((result as UrlTree).toString()).toBe('/login?returnUrl=%2Fhome');
+  });
+
+  it('keeps the query string in the way back: a terminal\'s link holds its code there', () => {
+    localStorage.removeItem(TOKEN_KEY);
+    TestBed.configureTestingModule({
+      providers: [provideHttpClient(), provideHttpClientTesting(), provideRouter([])],
+    });
+
+    const result = TestBed.runInInjectionContext(() => authGuard({} as never, { url: '/account/device?code=ABCD-EFGH' } as never)) as UrlTree;
+
+    expect(result.queryParams).toEqual({ returnUrl: '/account/device?code=ABCD-EFGH' });
   });
 });
