@@ -3,10 +3,35 @@ use std::path::Path;
 
 use super::{
     DiffLineKindRaw, DiffLineRaw, FileChangeKindRaw, FileDiffRaw, GitReadError,
-    GixRepositoryReader, HunkRaw, open,
+    GixRepositoryReader, HunkRaw, commit_by_sha, open,
 };
 
 impl GixRepositoryReader {
+    /// The files that differ between two commits, sorted. `Ok(None)` when a revision doesn't exist or isn't a commit.
+    /// Folders whose tree is the same on both sides aren't entered, so that a small change in a large repository stays
+    /// cheap: a push waits for this.
+    pub fn changed_paths(
+        &self,
+        disk_path: &Path,
+        base: &str,
+        head: &str,
+    ) -> Result<Option<Vec<String>>, GitReadError> {
+        let repo = open(disk_path)?;
+        let tree_of = |sha: &str| {
+            commit_by_sha(&repo, sha)
+                .map(|commit| commit.tree_id().map(|id| id.detach()))
+                .transpose()
+                .map_err(GitReadError::other)
+        };
+        let (Some(base_tree), Some(head_tree)) = (tree_of(base)?, tree_of(head)?) else {
+            return Ok(None);
+        };
+        let mut paths = Vec::new();
+        collect_changed_paths(&repo, Some(base_tree), Some(head_tree), "", &mut paths)?;
+        paths.sort();
+        Ok(Some(paths))
+    }
+
     /// Diffs the merge base of the two branches against the source tip. Both trees are walked into BTreeMap
     /// snapshots because gix's tree-diff feature isn't enabled; line diffs come from `similar`.
     pub fn diff_branches(
@@ -116,6 +141,68 @@ impl GixRepositoryReader {
         }
         Ok(diffs)
     }
+}
+
+type TreeEntry = (gix::ObjectId, gix::objs::tree::EntryMode);
+
+/// What a tree holds, by name. `None` is a folder that isn't there.
+fn tree_entries(
+    repo: &gix::Repository,
+    tree: Option<gix::ObjectId>,
+) -> Result<BTreeMap<String, TreeEntry>, GitReadError> {
+    let mut entries = BTreeMap::new();
+    let Some(tree) = tree else {
+        return Ok(entries);
+    };
+    let tree = repo
+        .find_object(tree)
+        .map_err(GitReadError::other)?
+        .into_tree();
+    for entry in tree.iter() {
+        let entry = entry.map_err(GitReadError::other)?;
+        entries.insert(
+            entry.filename().to_string(),
+            (entry.oid().to_owned(), entry.mode()),
+        );
+    }
+    Ok(entries)
+}
+
+/// A folder missing on one side counts as empty, so that all it holds on the other side is listed.
+fn collect_changed_paths(
+    repo: &gix::Repository,
+    base: Option<gix::ObjectId>,
+    head: Option<gix::ObjectId>,
+    prefix: &str,
+    out: &mut Vec<String>,
+) -> Result<(), GitReadError> {
+    let base = tree_entries(repo, base)?;
+    let head = tree_entries(repo, head)?;
+    let names: BTreeSet<&String> = base.keys().chain(head.keys()).collect();
+    for name in names {
+        let old = base.get(name);
+        let new = head.get(name);
+        if old == new {
+            continue;
+        }
+        let path = if prefix.is_empty() {
+            name.clone()
+        } else {
+            format!("{prefix}/{name}")
+        };
+        let folder_of =
+            |side: Option<&TreeEntry>| side.filter(|(_, mode)| mode.is_tree()).map(|(id, _)| *id);
+        let (old_folder, new_folder) = (folder_of(old), folder_of(new));
+        if old_folder.is_some() || new_folder.is_some() {
+            collect_changed_paths(repo, old_folder, new_folder, &path, out)?;
+        }
+        // A file on either side has changed, even when a folder took its place.
+        let is_file = |side: Option<&TreeEntry>| side.is_some_and(|(_, mode)| !mode.is_tree());
+        if is_file(old) || is_file(new) {
+            out.push(path);
+        }
+    }
+    Ok(())
 }
 
 fn commit_tree(id: gix::Id<'_>) -> Result<gix::Tree<'_>, GitReadError> {

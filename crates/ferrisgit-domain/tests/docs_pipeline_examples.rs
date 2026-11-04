@@ -4,7 +4,8 @@
 use std::fs;
 use std::path::{Path, PathBuf};
 
-use ferrisgit_domain::pipeline_definition::parse_pipeline_definition;
+use ferrisgit_domain::pipeline_definition::{PipelineDefinition, parse_pipeline_definition};
+use ferrisgit_domain::pipeline_rules::{JobRules, RuleEvent, select_jobs};
 
 const BLOCK_TAG: &str = "yaml ferrisgit-ci";
 
@@ -73,6 +74,80 @@ fn every_pipeline_example_in_the_docs_is_accepted_by_the_parser() {
     assert!(
         checked > 0,
         "no `{BLOCK_TAG}` block found: the docs lost their pipeline examples, or the tag changed"
+    );
+}
+
+/// The examples of the reference that a reader of its `rules` section relies on, read back with the real selection.
+#[test]
+fn the_reference_shows_every_key_of_rules_and_means_what_it_says_about_them() {
+    let markdown = fs::read_to_string(docs_dir().join("ci-cd/reference-yaml.md")).unwrap();
+    let examples: Vec<PipelineDefinition> = tagged_blocks(&markdown)
+        .into_iter()
+        .map(|(_, yaml)| parse_pipeline_definition(&yaml).unwrap())
+        .collect();
+    let rules: Vec<&JobRules> = examples
+        .iter()
+        .flat_map(|example| example.jobs.values())
+        .filter_map(|job| job.rules.as_ref())
+        .collect();
+    assert!(rules.iter().any(|r| r.branches.is_some()));
+    assert!(rules.iter().any(|r| r.tags.is_some()));
+    assert!(rules.iter().any(|r| r.merge_requests.is_some()));
+    assert!(rules.iter().any(|r| r.changes.is_some()));
+
+    let names = |example: &PipelineDefinition, event, changed: Option<&[String]>| -> Vec<String> {
+        select_jobs(example, event, changed)
+            .keys()
+            .map(|name| name.to_string())
+            .collect()
+    };
+    let with_job = |job: &str| {
+        examples
+            .iter()
+            .find(|example| example.jobs.contains_key(job))
+            .unwrap()
+    };
+
+    // "`publish` ne tourne que pour un tag", "`unit-tests` tourne sur `main`, sur les branches `release/…`..."
+    let overview = with_job("publish");
+    assert_eq!(
+        names(overview, RuleEvent::Tag("v1"), None),
+        ["lint", "publish", "site"]
+    );
+    assert_eq!(
+        names(overview, RuleEvent::Branch("release/1"), Some(&[])),
+        ["lint", "unit-tests"]
+    );
+    assert_eq!(
+        names(
+            overview,
+            RuleEvent::MergeRequest,
+            Some(&["README.md".into()])
+        ),
+        ["lint", "site", "unit-tests"]
+    );
+    assert_eq!(
+        names(overview, RuleEvent::Branch("feature"), Some(&[])),
+        ["lint"]
+    );
+
+    // "un push sur `main` qui ne touche pas `src/` ne déploie rien"
+    let gated = with_job("deploy");
+    assert!(
+        names(
+            gated,
+            RuleEvent::Branch("main"),
+            Some(&["README.md".into()])
+        )
+        .is_empty()
+    );
+    assert_eq!(
+        names(
+            gated,
+            RuleEvent::Branch("main"),
+            Some(&["src/main.rs".into()])
+        ),
+        ["deploy", "unit-tests"]
     );
 }
 

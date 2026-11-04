@@ -1,4 +1,4 @@
-import { DefinitionDto, JobDto } from './pipeline-definitions.service';
+import { DefinitionDto, JobDto, JobRulesDto } from './pipeline-definitions.service';
 
 /**
  * A variable as an editable row. Rows rather than a map, so that an empty or repeated key can be typed before it is
@@ -18,6 +18,8 @@ export interface BuilderJob {
   needs: string[];
   tags: string[];
   cache: string[];
+  /** Absent for a job that runs in every pipeline, the same as in the file. */
+  rules?: JobRulesDto;
 }
 
 /** What the editor edits: the stages in order, and the jobs, which keep their order within a stage. */
@@ -49,6 +51,7 @@ export function fromDefinition(definition: DefinitionDto): BuilderState {
     needs: [...job.needs],
     tags: [...job.tags],
     cache: [...job.cache],
+    ...(job.rules ? { rules: structuredClone(job.rules) } : {}),
   }));
   return { stages: [...definition.stages], jobs: grouped(definition.stages, jobs) };
 }
@@ -66,6 +69,7 @@ export function toDefinition(state: BuilderState): DefinitionDto {
       needs: [...job.needs],
       tags: [...job.tags],
       cache: [...job.cache],
+      ...(job.rules ? { rules: structuredClone(job.rules) } : {}),
     };
   }
   return { stages: [...state.stages], jobs };
@@ -171,6 +175,7 @@ export function duplicateJob(state: BuilderState, name: string): { state: Builde
     needs: [...original.needs],
     tags: [...original.tags],
     cache: [...original.cache],
+    ...(original.rules ? { rules: structuredClone(original.rules) } : {}),
   };
   const at = state.jobs.indexOf(original) + 1;
   return { state: { ...state, jobs: [...state.jobs.slice(0, at), copy, ...state.jobs.slice(at)] }, copy: copy.name };

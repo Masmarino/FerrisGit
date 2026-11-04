@@ -65,6 +65,10 @@ export const help = perLanguage(() => ({
     title: t('pipelines.help.cache.title'),
     body: t('pipelines.help.cache.body'),
   },
+  rules: {
+    title: t('pipelines.help.rules.title'),
+    body: t('pipelines.help.rules.body'),
+  },
   yaml: {
     title: t('pipelines.help.yaml.title'),
     body: t('pipelines.help.yaml.body'),

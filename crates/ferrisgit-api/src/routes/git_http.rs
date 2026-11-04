@@ -3,7 +3,7 @@ use axum::response::{IntoResponse, Response};
 use ferrisgit_application::use_cases::authenticate_git_request::{
     AuthenticateGitRequestUseCase, GitAccess,
 };
-use ferrisgit_application::use_cases::create_pipeline::CreatePipelineUseCase;
+use ferrisgit_application::use_cases::create_pipeline::{CreatePipelineUseCase, pipelines_of_push};
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::merge_request::MergeRequestStatus;
 use ferrisgit_domain::wiki::{NewWiki, wiki_disk_path_for};
@@ -42,39 +42,46 @@ fn classify_access(rest: &str, query_string: &str) -> GitAccess {
     }
 }
 
-/// We don't parse the push body for ref updates, so any successful receive-pack triggers at most one pipeline,
-/// for the current `HEAD`.
 fn should_trigger_pipeline_creation(access: &GitAccess, rest: &str, status: u16) -> bool {
     matches!(access, GitAccess::Write) && rest.ends_with("git-receive-pack") && status == 200
 }
 
-/// Awaited before the git response goes out so a client that pushes and lists pipelines right away sees the new
-/// one. The price is a slightly slower `git push`. Failures are logged and swallowed.
+/// A push of every tag of a repository must not flood the runners, nor keep `git push` waiting for long.
+const MAX_PIPELINES_PER_PUSH: usize = 20;
+
+/// One pipeline per branch or tag the push moved. Awaited before the git response goes out so a client that pushes and
+/// lists pipelines right away sees the new ones. The price is a slightly slower `git push`. Failures are logged and
+/// swallowed.
 async fn trigger_pipeline_creation(
     state: &AppState,
     repo: &ferrisgit_domain::repository::Repository,
     triggered_by: Uuid,
+    body: &[u8],
 ) {
-    let full_path = std::path::PathBuf::from(&state.config.storage_root).join(&repo.disk_path);
-    let git_reader = state.git_reader.clone();
-    let latest_commit_sha = match tokio::task::spawn_blocking(move || {
-        git_reader.list_commits(&full_path, 1)
-    })
-    .await
-    {
-        Ok(Ok(commits)) => commits.into_iter().next().map(|c| c.sha),
-        Ok(Err(err)) => {
-            tracing::error!(error = %err, repository_id = %repo.id, "failed to read HEAD after push");
-            None
-        }
+    let updates = match parse_commands(body) {
+        Ok(commands) => commands.updates,
+        // Not worth more than a debug line: git sends a request with no command to probe the server before a large push.
         Err(err) => {
-            tracing::error!(error = %err, repository_id = %repo.id, "blocking task panicked reading HEAD after push");
-            None
+            tracing::debug!(error = %err, repository_id = %repo.id, "a push with no readable command creates no pipeline");
+            return;
         }
     };
-    let Some(commit_sha) = latest_commit_sha else {
-        return;
+    let refs = tokio::try_join!(
+        state.branch_reader.list_branches(&repo.disk_path),
+        state.tags.list_tags(&repo.disk_path),
+    );
+    let (branches, tags) = match refs {
+        Ok(refs) => refs,
+        Err(err) => {
+            tracing::error!(error = %err, repository_id = %repo.id, "failed to read the refs of a repository after a push");
+            return;
+        }
     };
+    let mut pushed = pipelines_of_push(&updates, &branches, &tags);
+    if pushed.len() > MAX_PIPELINES_PER_PUSH {
+        tracing::warn!(repository_id = %repo.id, refs = pushed.len(), "a push moved more refs than get a pipeline");
+        pushed.truncate(MAX_PIPELINES_PER_PUSH);
+    }
 
     let use_case = CreatePipelineUseCase::new(
         state.repository_settings.clone(),
@@ -89,11 +96,20 @@ async fn trigger_pipeline_creation(
         state.notifications.clone(),
         state.webhooks.clone(),
     );
-    if let Err(err) = use_case
-        .execute(repo.id, &repo.disk_path, &commit_sha, triggered_by)
-        .await
-    {
-        tracing::error!(error = %err, repository_id = %repo.id, commit_sha, "failed to create pipeline after push");
+    for pipeline in pushed {
+        let commit_sha = pipeline.commit_sha;
+        if let Err(err) = use_case
+            .execute(
+                repo.id,
+                &repo.disk_path,
+                &commit_sha,
+                triggered_by,
+                pipeline.trigger,
+            )
+            .await
+        {
+            tracing::error!(error = %err, repository_id = %repo.id, commit_sha, "failed to create pipeline after push");
+        }
     }
 }
 
@@ -253,7 +269,7 @@ async fn heal_wiki_head_after_push(state: &AppState, wiki_disk_path: &str) {
     }
 }
 
-/// Has to run before `trigger_pipeline_creation`, which reads `HEAD`: a first push leaves it dangling.
+/// Has to run before `trigger_pipeline_creation`, which lists the branches and `HEAD`: a first push leaves it dangling.
 async fn heal_repo_head_after_push(state: &AppState, disk_path: &str) {
     if let Err(err) = state.git_backend.heal_dangling_head(disk_path).await {
         tracing::error!(error = %err, disk_path, "failed to heal a possibly-dangling repository HEAD after push");
@@ -437,7 +453,7 @@ pub async fn git_smart_http(state: AppState, req: axum::extract::Request) -> Res
             if !is_wiki && should_trigger_pipeline_creation(&access, &rest, response.status) {
                 heal_repo_head_after_push(&state, &disk_path).await;
                 if let Some(pusher_id) = pusher_id {
-                    trigger_pipeline_creation(&state, &repo, pusher_id).await;
+                    trigger_pipeline_creation(&state, &repo, pusher_id, &body_bytes).await;
                     record_pushed_commits(&state, &repo, pusher_id).await;
                 }
             }

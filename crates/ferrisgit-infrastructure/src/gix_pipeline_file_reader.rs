@@ -33,6 +33,18 @@ impl PipelineFileReaderPort for GixPipelineFileReader {
         blocking(move || GixRepositoryReader.read_file_at_revision(&full_path, &revision, &path))
             .await
     }
+
+    async fn changed_paths(
+        &self,
+        repository_disk_path: &str,
+        base_revision: &str,
+        head_revision: &str,
+    ) -> Result<Option<Vec<String>>, DomainError> {
+        let full_path = self.storage_root.join(repository_disk_path);
+        let base = base_revision.to_string();
+        let head = head_revision.to_string();
+        blocking(move || GixRepositoryReader.changed_paths(&full_path, &base, &head)).await
+    }
 }
 
 #[async_trait]
@@ -103,6 +115,69 @@ mod tests {
             .unwrap();
 
         assert_eq!(content, Some(b"stages: [build]".to_vec()));
+    }
+
+    #[tokio::test]
+    async fn lists_the_files_that_differ_between_two_commits() {
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
+        let write = |path: &str, text: &str| {
+            let file = dir.join(path);
+            std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+            std::fs::write(file, text).unwrap();
+        };
+        let commit = |message: &str| {
+            git(dir, &["add", "-A"]);
+            git(dir, &["commit", "-q", "--allow-empty", "-m", message]);
+            GixRepositoryReader.list_commits(dir, 1).unwrap()[0]
+                .sha
+                .clone()
+        };
+        git(dir, &["init", "-q"]);
+        write("README.md", "hello\n");
+        write("src/main.rs", "fn main() {}\n");
+        write("src/deep/er/lib.rs", "// lib\n");
+        write("gone/file.txt", "x\n");
+        write("becomes-a-folder", "x\n");
+        let base = commit("base");
+
+        write("src/main.rs", "fn main() { todo!() }\n");
+        write("new/folder/file.txt", "x\n");
+        std::fs::remove_dir_all(dir.join("gone")).unwrap();
+        std::fs::remove_file(dir.join("becomes-a-folder")).unwrap();
+        write("becomes-a-folder/inside.txt", "x\n");
+        let head = commit("head");
+        let empty = commit("empty");
+
+        let adapter = GixPipelineFileReader::new(dir.parent().unwrap().to_path_buf());
+        let disk_path = dir.file_name().unwrap().to_str().unwrap();
+        let changed = |from: String, to: String| {
+            let adapter = &adapter;
+            async move { adapter.changed_paths(disk_path, &from, &to).await.unwrap() }
+        };
+
+        let expected: Vec<String> = [
+            "becomes-a-folder",
+            "becomes-a-folder/inside.txt",
+            "gone/file.txt",
+            "new/folder/file.txt",
+            "src/main.rs",
+        ]
+        .iter()
+        .map(|path| path.to_string())
+        .collect();
+        assert_eq!(
+            changed(base.clone(), head.clone()).await,
+            Some(expected.clone())
+        );
+        assert_eq!(
+            changed(head.clone(), base.clone()).await,
+            Some(expected),
+            "the same files whichever way round"
+        );
+        assert_eq!(changed(head.clone(), empty).await, Some(vec![]));
+        assert_eq!(changed("0".repeat(40), head.clone()).await, None);
+        assert_eq!(changed(head, "not-a-sha".to_string()).await, None);
     }
 
     #[tokio::test]

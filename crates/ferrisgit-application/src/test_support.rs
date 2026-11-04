@@ -3247,15 +3247,34 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
     }
 }
 
-pub struct FakeFileReader(Option<Vec<u8>>);
+/// The same file at every revision. `changed_paths` answers with what `with_changed_paths` gave, and remembers what it
+/// was asked to compare.
+pub struct FakeFileReader {
+    content: Option<Vec<u8>>,
+    changed: Option<Vec<String>>,
+    compared: Mutex<Vec<(String, String)>>,
+}
 
 impl FakeFileReader {
     pub fn new(content: Option<Vec<u8>>) -> Self {
-        Self(content)
+        Self {
+            content,
+            changed: None,
+            compared: Mutex::new(Vec::new()),
+        }
     }
 
     pub fn none() -> Self {
-        Self(None)
+        Self::new(None)
+    }
+
+    pub fn with_changed_paths(mut self, paths: &[&str]) -> Self {
+        self.changed = Some(paths.iter().map(|path| path.to_string()).collect());
+        self
+    }
+
+    pub fn compared(&self) -> Vec<(String, String)> {
+        self.compared.lock().unwrap().clone()
     }
 }
 
@@ -3267,7 +3286,20 @@ impl PipelineFileReaderPort for FakeFileReader {
         _revision: &str,
         _path: &str,
     ) -> Result<Option<Vec<u8>>, DomainError> {
-        Ok(self.0.clone())
+        Ok(self.content.clone())
+    }
+
+    async fn changed_paths(
+        &self,
+        _repository_disk_path: &str,
+        base_revision: &str,
+        head_revision: &str,
+    ) -> Result<Option<Vec<String>>, DomainError> {
+        self.compared
+            .lock()
+            .unwrap()
+            .push((base_revision.to_string(), head_revision.to_string()));
+        Ok(self.changed.clone())
     }
 }
 

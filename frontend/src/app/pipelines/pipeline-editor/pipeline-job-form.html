@@ -151,5 +151,17 @@
     }
   </div>
 
+  <section class="job-form__group" role="group" aria-labelledby="job-rules-title">
+    <div class="job-form__head">
+      <h3 id="job-rules-title" class="job-form__title">{{ 'pipelines.help.rules.title' | transloco }}</h3>
+      <fg-help-tip [help]="help.rules" />
+    </div>
+    <p class="job-form__lede">{{ 'pipelines.jobForm.rulesLede' | transloco }}</p>
+    <gbt-tag-input [id]="'job-rules-branches'" [label]="'pipelines.jobForm.rulesBranches' | transloco" placeholder="main" [ngModel]="ruleList('branches')" (ngModelChange)="setRuleList('branches', $event)" />
+    <gbt-tag-input [id]="'job-rules-tags'" [label]="'pipelines.jobForm.rulesTags' | transloco" placeholder="v*" [ngModel]="ruleList('tags')" (ngModelChange)="setRuleList('tags', $event)" />
+    <gbt-checkbox [label]="'pipelines.jobForm.rulesMergeRequests' | transloco" [checked]="job().rules?.mergeRequests === true" (checkedChange)="setRuleMergeRequests($event)" />
+    <gbt-tag-input [id]="'job-rules-changes'" [label]="'pipelines.jobForm.rulesChanges' | transloco" placeholder="src/**" [ngModel]="ruleList('changes')" (ngModelChange)="setRuleList('changes', $event)" />
+  </section>
+
   <gbt-button class="job-form__remove" variant="danger" [text]="'pipelines.jobForm.remove' | transloco" (clicked)="remove.emit()" />
 </div>

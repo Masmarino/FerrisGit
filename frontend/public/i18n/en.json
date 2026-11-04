@@ -2147,6 +2147,10 @@
         "title": "Caches",
         "body": "Folders kept from one pipeline to the next to save time (downloaded packages, for example). Give a key: the same name shares the same cache. Only the Kubernetes engine applies them; with Docker runners they have no effect."
       },
+      "rules": {
+        "title": "When the job runs",
+        "body": "By default a job runs in every pipeline. Name the branches, the tags or the merge requests it belongs to, and it only runs in those. List files to also ask for one of them to have changed: src/** is everything under src. A job left out takes with it the jobs that wait for it."
+      },
       "yaml": {
         "title": "The YAML",
         "body": "The file FerrisGit actually reads. The cards and the YAML describe the same thing: change one, the other follows. In the YAML view, your comments are kept."
@@ -2278,6 +2282,7 @@
       "laterDependency": "The job {{ job }} depends on {{ dependency }}, which is in a later stage.",
       "cycle": "Dependencies form a loop: {{ cycle }}.",
       "invalidCache": "The cache {{ key }} of the job {{ job }} is not valid: lowercase letters, digits and hyphens only.",
+      "invalidRules": "The rules of the job {{ job }} are not valid: {{ detail }}",
       "emptyImage": "The job {{ job }} has no image.",
       "emptyScript": "The job {{ job }} has no command.",
       "duplicateStage": "The stage {{ stage }} is declared twice."
@@ -2360,6 +2365,11 @@
       "cacheHint": "A cache key: lowercase letters, digits and hyphens.",
       "commonCaches": "Common caches",
       "cachesIgnored": "Your instance uses Docker runners: caches have no effect there. They work with the Kubernetes engine.",
+      "rulesLede": "Leave everything empty for the job to run in every pipeline.",
+      "rulesBranches": "Branches",
+      "rulesTags": "Git tags",
+      "rulesMergeRequests": "In merge request pipelines",
+      "rulesChanges": "Files changed",
       "remove": "Delete the job",
       "valuePlaceholder": "value",
       "namePlaceholder": "NAME"

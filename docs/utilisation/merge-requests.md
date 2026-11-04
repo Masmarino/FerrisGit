@@ -104,7 +104,7 @@ Le panneau **Conditions de fusion** de la page de la demande liste ce que la fus
 - les réglages du dépôt : **Approbations requises avant fusion** et **Exiger une pipeline réussie avant la fusion** ;
 - les [branches protégées](/docs/utilisation/cloner-et-pousser#branches-protégées) qui couvrent la branche cible. Dans **Réglages > Branches protégées**, chaque règle peut exiger des **approbations requises** (s'ajoutant au réglage du dépôt : la plus grande valeur s'applique, et plusieurs règles qui couvrent la même branche se cumulent de la même façon) et des **vérifications requises**.
 
-Une vérification est désignée par son nom. Aujourd'hui, la pipeline de la demande fournit `pipeline` (l'état de toute la pipeline) et `pipeline/<job>` pour chacun de ses jobs, par exemple `pipeline/test`. Seules comptent la pipeline et les relectures du commit actuel de la branche source : un nouveau push les remet à zéro. Une vérification qui n'a pas tourné, ou dont le nom ne correspond à rien, bloque la fusion.
+Une vérification est désignée par son nom. Aujourd'hui, la pipeline de la demande fournit `pipeline` (l'état de toute la pipeline) et `pipeline/<job>` pour chacun de ses jobs, par exemple `pipeline/test`. Seules comptent la pipeline et les relectures du commit actuel de la branche source : un nouveau push les remet à zéro. Une vérification qui n'a pas tourné, ou dont le nom ne correspond à rien, bloque la fusion. C'est le cas de `pipeline/<job>` quand les [`rules`](/docs/ci-cd/reference-yaml#rules) ont écarté ce job de la pipeline ; `pipeline` seule, elle, est satisfaite par une pipeline réussie sans aucun job.
 
 Quand des approbations sont exigées, une relecture à jour qui demande des changements bloque aussi la fusion.
 

@@ -2,7 +2,7 @@ mod common;
 
 use ferrisgit_application::job_execution_resolver::JobExecutionResolver;
 use ferrisgit_application::use_cases::cancel_pipeline::CancelPipelineUseCase;
-use ferrisgit_application::use_cases::create_pipeline::CreatePipelineUseCase;
+use ferrisgit_application::use_cases::create_pipeline::{CreatePipelineUseCase, PipelineTrigger};
 use ferrisgit_domain::job::{JobStatus, JobStorePort};
 use ferrisgit_domain::job_execution::JobExecutionPort;
 use ferrisgit_domain::pipeline::{PipelineStatus, PipelineStorePort};
@@ -93,7 +93,16 @@ async fn canceling_a_kubernetes_pipeline_still_deletes_its_real_pod_after_the_li
         Arc::new(common::FakeWebhooks),
     );
     let pipeline = create_pipeline
-        .execute(repository_id, "unused-disk-path", "deadbeef", owner_id)
+        .execute(
+            repository_id,
+            "unused-disk-path",
+            "deadbeef",
+            owner_id,
+            PipelineTrigger::Branch {
+                name: "main".to_string(),
+                previous_sha: None,
+            },
+        )
         .await
         .unwrap()
         .unwrap();

@@ -8,7 +8,7 @@ Il n'y a pas de route pour créer une pipeline à la main : une pipeline démarr
 
 ## Pipelines et jobs
 
-Les statuts d'une pipeline sont `pending`, `running`, `success`, `failed` et `canceled`. Ceux d'un job sont les mêmes, plus `skipped` : un job qui n'a jamais démarré parce qu'un job dont il dépend (par `needs` ou par une étape précédente) a échoué ou a été annulé. Une pipeline est `pending` jusqu'à ce que son premier job démarre, puis `running` jusqu'à ce que tous ses jobs soient terminés.
+Les statuts d'une pipeline sont `pending`, `running`, `success`, `failed` et `canceled`. Ceux d'un job sont les mêmes, plus `skipped` : un job qui n'a jamais démarré parce qu'un job dont il dépend (par `needs` ou par une étape précédente) a échoué ou a été annulé. Une pipeline est `pending` jusqu'à ce que son premier job démarre, puis `running` jusqu'à ce que tous ses jobs soient terminés. La pipeline d'une demande de fusion dont les [`rules`](/docs/ci-cd/reference-yaml#rules) ne laissent aucun job est `success` dès sa création, avec une liste de jobs vide.
 
 ### `GET /api/repositories/{repository_id}/pipelines`
 
@@ -99,9 +99,9 @@ Réponse 204. Sur une pipeline déjà terminée, la route répond 204 sans rien 
 
 Ces deux routes sont celles de l'[éditeur visuel](/docs/ci-cd/editeur-visuel) : elles font passer un fichier `.ferrisgit-ci.yml` à une description JSON et inversement, avec l'analyseur du serveur. Elles ne touchent à aucun dépôt et n'enregistrent rien ; tout utilisateur connecté peut les appeler. Le corps est limité à 256 Kio.
 
-Une description a la forme `{ "stages": ["build", "test"], "jobs": { "compile": { "stage": "build", "image": "rust:1", "script": ["cargo build"], "variables": {}, "needs": [], "tags": [], "cache": [] } } }`. Les champs vides d'un job peuvent être omis.
+Une description a la forme `{ "stages": ["build", "test"], "jobs": { "compile": { "stage": "build", "image": "rust:1", "script": ["cargo build"], "variables": {}, "needs": [], "tags": [], "cache": [] } } }`. Les champs vides d'un job peuvent être omis. Un job limité par des [`rules`](/docs/ci-cd/reference-yaml#rules) a aussi un champ `"rules": { "branches": [], "tags": [], "mergeRequests": true, "changes": [] }`, où seules figurent les clés du fichier ; il est absent sans `rules`. Une clé inconnue dans `rules` est refusée en 422.
 
-Un problème est un objet `{ "code", "message", … }` avec, selon le cas, `job`, `stage`, `dependency`, `key` ou `jobs`. Ce sont les erreurs de [validation](/docs/ci-cd/reference-yaml#erreurs-de-validation), mais toutes sont rapportées d'un coup, pas seulement la première. Les codes sont `invalid_yaml`, `unknown_stage`, `unknown_dependency`, `needs_must_precede_own_stage`, `needs_cycle` et `invalid_cache_key`. Un avertissement est un objet `{ "code", "job"?, "stage"? }` qui n'empêche pas le fichier d'être accepté : `empty_image`, `empty_script`, `duplicate_stage`.
+Un problème est un objet `{ "code", "message", … }` avec, selon le cas, `job`, `stage`, `dependency`, `key` ou `jobs`. Ce sont les erreurs de [validation](/docs/ci-cd/reference-yaml#erreurs-de-validation), mais toutes sont rapportées d'un coup, pas seulement la première. Les codes sont `invalid_yaml`, `unknown_stage`, `unknown_dependency`, `needs_must_precede_own_stage`, `needs_cycle`, `invalid_cache_key` et `invalid_rules`. Un avertissement est un objet `{ "code", "job"?, "stage"? }` qui n'empêche pas le fichier d'être accepté : `empty_image`, `empty_script`, `duplicate_stage`.
 
 ### `POST /api/pipeline-definitions/parse`
 

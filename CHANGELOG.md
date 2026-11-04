@@ -6,6 +6,22 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ## [Unreleased]
 
+### Added
+
+- `rules` on pipeline jobs: run a job only on some branches (`branches`), tags (`tags`), in merge request pipelines
+  (`merge_requests`) or when certain files changed (`changes`). An unknown key in `rules` is an error, and the visual
+  editor reads and edits them. A job that `needs` a job left out by its rules is left out too. When no job remains, a
+  push creates no pipeline, and a merge request gets a pipeline that has already succeeded, so that it doesn't wait for
+  a required one forever.
+
+### Changed
+
+- A push now creates one pipeline for each branch and tag it creates or moves, on that commit and with that commit's
+  pipeline file, instead of one pipeline on `HEAD` whatever was pushed. A work branch is now tested when it is pushed,
+  a push to a branch with an open merge request runs two pipelines (use `rules` to keep one), and deleting a ref runs
+  nothing. A push creates at most 20 pipelines.
+- A pipeline file with no job at all no longer gives a pipeline that stays pending forever.
+
 ### Fixed
 
 - A `git push` larger than `http.postBuffer` (1 MiB by default) no longer fails with a 403 on a repository that has

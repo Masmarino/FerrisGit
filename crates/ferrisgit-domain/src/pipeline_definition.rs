@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
+use crate::pipeline_rules::JobRules;
+
 #[derive(Debug, Clone, PartialEq, Deserialize, Serialize)]
 pub struct PipelineDefinition {
     pub stages: Vec<String>,
@@ -20,6 +22,8 @@ pub struct JobDefinition {
     pub tags: Vec<String>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub cache: Vec<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rules: Option<JobRules>,
 }
 
 #[derive(Debug, Clone, thiserror::Error, PartialEq)]
@@ -40,6 +44,8 @@ pub enum PipelineDefinitionError {
         "job '{job}' declares cache key '{key}', which is not valid: cache keys must be lowercase alphanumeric characters and hyphens only (matching `^[a-z0-9-]+$`)"
     )]
     InvalidCacheKey { job: String, key: String },
+    #[error("job '{job}' has invalid `rules`: {reason}")]
+    InvalidRules { job: String, reason: String },
 }
 
 /// Renders a cycle as `a -> b -> a`.
@@ -155,6 +161,12 @@ pub fn check_pipeline_definition(definition: &PipelineDefinition) -> Vec<Pipelin
                     key: cache_key.clone(),
                 });
             }
+        }
+        if let Some(Err(reason)) = job.rules.as_ref().map(JobRules::check) {
+            report(PipelineDefinitionError::InvalidRules {
+                job: job_name.clone(),
+                reason,
+            });
         }
     }
 
@@ -339,7 +351,7 @@ pub fn render_pipeline_definition(
 }
 
 const TOP_LEVEL_FIELDS: [&str; 2] = ["stages", "jobs"];
-const JOB_FIELDS: [&str; 7] = [
+const JOB_FIELDS: [&str; 8] = [
     "stage",
     "image",
     "script",
@@ -347,6 +359,7 @@ const JOB_FIELDS: [&str; 7] = [
     "needs",
     "tags",
     "cache",
+    "rules",
 ];
 
 /// The fields of a pipeline file that the parser does not read (`jobs.build.when`, `include`...), as dotted paths. An
@@ -710,6 +723,7 @@ jobs:
             needs: needs.iter().map(|n| n.to_string()).collect(),
             tags: Vec::new(),
             cache: Vec::new(),
+            rules: None,
         }
     }
 

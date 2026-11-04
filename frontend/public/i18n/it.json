@@ -2147,6 +2147,10 @@
         "title": "Cache",
         "body": "Cartelle conservate da una pipeline all'altra per risparmiare tempo (i pacchetti scaricati, per esempio). Indica una chiave: lo stesso nome condivide la stessa cache. Solo il motore Kubernetes le applica; con i runner Docker non hanno effetto."
       },
+      "rules": {
+        "title": "Quando viene eseguito il job",
+        "body": "Per impostazione predefinita un job viene eseguito in tutte le pipeline. Indica i branch, i tag o le richieste di merge a cui appartiene, e verrà eseguito solo in quelle. Elenca dei file per chiedere anche che uno di essi sia cambiato: src/** è tutto ciò che sta sotto src. Un job escluso si porta dietro i job che lo attendono."
+      },
       "yaml": {
         "title": "Il YAML",
         "body": "Il file che FerrisGit legge davvero. Le schede e il YAML descrivono la stessa cosa: modifica l'uno, l'altro segue. Nella vista YAML i tuoi commenti vengono conservati."
@@ -2278,6 +2282,7 @@
       "laterDependency": "Il job {{ job }} dipende da {{ dependency }}, che è in una fase successiva.",
       "cycle": "Le dipendenze formano un ciclo: {{ cycle }}.",
       "invalidCache": "La cache {{ key }} del job {{ job }} non è valida: solo minuscole, cifre e trattini.",
+      "invalidRules": "Le regole del job {{ job }} non sono valide: {{ detail }}",
       "emptyImage": "Il job {{ job }} non ha un'immagine.",
       "emptyScript": "Il job {{ job }} non ha alcun comando.",
       "duplicateStage": "La fase {{ stage }} è dichiarata due volte."
@@ -2360,6 +2365,11 @@
       "cacheHint": "Una chiave di cache: minuscole, cifre e trattini.",
       "commonCaches": "Cache comuni",
       "cachesIgnored": "La tua istanza usa runner Docker: lì le cache non hanno effetto. Servono con il motore Kubernetes.",
+      "rulesLede": "Lascia tutto vuoto perché il job venga eseguito in tutte le pipeline.",
+      "rulesBranches": "Branch",
+      "rulesTags": "Tag Git",
+      "rulesMergeRequests": "Nelle pipeline delle richieste di merge",
+      "rulesChanges": "File modificati",
       "remove": "Elimina il job",
       "valuePlaceholder": "valore",
       "namePlaceholder": "NOME"
