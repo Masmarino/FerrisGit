@@ -76,6 +76,27 @@ describe('pipeline builder model', () => {
 
       expect(definition.jobs['compile'].script).toEqual(['cargo build']);
     });
+
+    it('carries the rules of a job there and back, and adds none to a job without', () => {
+      const rules = { branches: ['main'], mergeRequests: true, changes: ['src/**'] };
+      const withRules: DefinitionDto = { ...definition, jobs: { ...definition.jobs, unit: { ...definition.jobs['unit'], rules } } };
+
+      const back = toDefinition(fromDefinition(withRules));
+
+      expect(back.jobs['unit'].rules).toEqual(rules);
+      expect('rules' in back.jobs['compile']).toBe(false);
+    });
+
+    it('does not share the rules with its input, and a copy of a job gets its own', () => {
+      const rules = { branches: ['main'] };
+      const state = fromDefinition({ ...definition, jobs: { unit: { ...definition.jobs['unit'], rules } } });
+
+      const copied = duplicateJob(state, 'unit')!;
+
+      expect(state.jobs[0].rules).not.toBe(rules);
+      expect(copied.state.jobs[1].rules).toEqual(rules);
+      expect(copied.state.jobs[1].rules).not.toBe(state.jobs[0].rules);
+    });
   });
 
   describe('stages', () => {

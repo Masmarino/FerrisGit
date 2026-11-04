@@ -10,6 +10,7 @@ import { TagInput } from '@masmarino/gabarit/tag-input';
 import { Textarea } from '@masmarino/gabarit/textarea';
 import { HelpTip } from './help-tip';
 import { BuilderJob, BuilderVariable } from './pipeline-builder-model';
+import { JobRulesDto } from './pipeline-definitions.service';
 import { help } from './pipeline-help';
 import { ProblemView } from './pipeline-problems';
 import { knownTileSecrets } from './pipeline-catalog';
@@ -20,6 +21,10 @@ import { TranslocoPipe } from '@jsverse/transloco';
 /** Images people often start from. A click fills the field, and anything else can still be typed. */
 const IMAGE_SUGGESTIONS = ['alpine:3.24', 'rust:1', 'node:24', 'python:3.14', 'golang:1.27', 'docker:29-cli'];
 const CACHE_SUGGESTIONS = ['cargo-home', 'cargo-target', 'npm', 'pip'];
+/** One array for every empty rule: a new one on each change detection would look like a new value to `ngModel`. */
+const NO_PATTERNS: string[] = [];
+
+type RuleList = 'branches' | 'tags' | 'changes';
 
 /**
  * The fields of one job, in the drawer. It holds no state of its own: every change goes out as a patch that the editor
@@ -161,5 +166,28 @@ export class PipelineJobForm {
 
   protected addCache(key: string): void {
     this.patch.emit({ cache: [...this.job().cache, key] });
+  }
+
+  protected ruleList(key: RuleList): string[] {
+    return this.job().rules?.[key] ?? NO_PATTERNS;
+  }
+
+  protected setRuleList(key: RuleList, patterns: string[]): void {
+    this.setRule(key, patterns.length > 0 ? patterns : undefined);
+  }
+
+  protected setRuleMergeRequests(checked: boolean): void {
+    this.setRule('mergeRequests', checked ? true : undefined);
+  }
+
+  /** A rule emptied is a key left out, and rules with no key left are no rules: the file refuses empty ones. */
+  private setRule<K extends keyof JobRulesDto>(key: K, value: JobRulesDto[K]): void {
+    const rules = { ...this.job().rules };
+    if (value === undefined) {
+      delete rules[key];
+    } else {
+      rules[key] = value;
+    }
+    this.patch.emit({ rules: Object.keys(rules).length > 0 ? rules : undefined });
   }
 }

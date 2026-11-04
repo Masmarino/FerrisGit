@@ -9,7 +9,7 @@ use ferrisgit_domain::repository::Repository;
 use uuid::Uuid;
 
 use crate::use_cases::cancel_pipeline::CancelPipelineUseCase;
-use crate::use_cases::create_pipeline::CreatePipelineUseCase;
+use crate::use_cases::create_pipeline::{CreatePipelineUseCase, PipelineTrigger};
 use crate::use_cases::source_branch_tip::source_branch_tip;
 
 /// The ref that holds the merge commit the pipelines of a merge request run on.
@@ -95,14 +95,17 @@ impl RunMergeRequestPipelineUseCase {
             return Ok(None);
         };
         self.create_pipeline
-            .execute_for_merge_request(
+            .execute(
                 repo.id,
                 &repo.disk_path,
                 &merge.commit_sha,
                 triggered_by,
-                MergeRequestPipeline {
-                    merge_request_id: mr.id,
-                    source_sha: merge.source_sha,
+                PipelineTrigger::MergeRequest {
+                    run: MergeRequestPipeline {
+                        merge_request_id: mr.id,
+                        source_sha: merge.source_sha,
+                    },
+                    target_sha: merge.target_sha,
                 },
             )
             .await

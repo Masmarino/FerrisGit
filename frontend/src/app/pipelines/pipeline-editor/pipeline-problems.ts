@@ -26,6 +26,8 @@ export function describeProblem(problem: PipelineProblem): ProblemView {
     }
     case 'invalid_cache_key':
       return { message: t('pipelines.problems.invalidCache', { key: quote(problem.key ?? '?'), job: quote(problem.job ?? '?') }), job };
+    case 'invalid_rules':
+      return { message: t('pipelines.problems.invalidRules', { job: quote(problem.job ?? '?'), detail: problem.message.replace(/^job '.*?' has invalid `rules`: /, '') }), job };
     default:
       return { message: problem.message, job };
   }

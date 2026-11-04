@@ -1,7 +1,7 @@
 mod common;
 
 use ferrisgit_application::job_execution_resolver::JobExecutionResolver;
-use ferrisgit_application::use_cases::create_pipeline::CreatePipelineUseCase;
+use ferrisgit_application::use_cases::create_pipeline::{CreatePipelineUseCase, PipelineTrigger};
 use ferrisgit_application::use_cases::report_job_result::{
     AppendJobLogsUseCase, ReportJobResultUseCase,
 };
@@ -203,7 +203,16 @@ async fn a_two_stage_pipeline_with_a_shared_cache_runs_to_success_entirely_on_ku
         Arc::new(common::FakeWebhooks),
     );
     let pipeline = create_pipeline
-        .execute(repository_id, "unused-disk-path", "deadbeef", owner_id)
+        .execute(
+            repository_id,
+            "unused-disk-path",
+            "deadbeef",
+            owner_id,
+            PipelineTrigger::Branch {
+                name: "main".to_string(),
+                previous_sha: None,
+            },
+        )
         .await
         .unwrap()
         .expect("CI is enabled, so a pipeline must be created");

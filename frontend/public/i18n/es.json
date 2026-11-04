@@ -2147,6 +2147,10 @@
         "title": "Cachés",
         "body": "Carpetas conservadas de una pipeline a otra para ganar tiempo (los paquetes descargados, por ejemplo). Indique una clave: el mismo nombre comparte la misma caché. Solo el motor Kubernetes las aplica; con runners Docker no tienen efecto."
       },
+      "rules": {
+        "title": "Cuándo se ejecuta el job",
+        "body": "Por defecto, un job se ejecuta en todas las pipelines. Indique las ramas, las etiquetas o las solicitudes de fusión a las que pertenece, y solo se ejecutará en ellas. Indique archivos para exigir además que uno de ellos haya cambiado: src/** es todo lo que hay bajo src. Un job descartado arrastra a los jobs que lo esperan."
+      },
       "yaml": {
         "title": "El YAML",
         "body": "El archivo que FerrisGit lee de verdad. Las tarjetas y el YAML describen lo mismo: modifique uno y el otro le sigue. En la vista YAML, sus comentarios se conservan."
@@ -2278,6 +2282,7 @@
       "laterDependency": "El job {{ job }} depende de {{ dependency }}, que está en una etapa posterior.",
       "cycle": "Las dependencias forman un bucle: {{ cycle }}.",
       "invalidCache": "La caché {{ key }} del job {{ job }} no es válida: solo minúsculas, cifras y guiones.",
+      "invalidRules": "Las reglas del job {{ job }} no son válidas: {{ detail }}",
       "emptyImage": "El job {{ job }} no tiene imagen.",
       "emptyScript": "El job {{ job }} no tiene ningún comando.",
       "duplicateStage": "La etapa {{ stage }} se declara dos veces."
@@ -2360,6 +2365,11 @@
       "cacheHint": "Una clave de caché: minúsculas, cifras y guiones.",
       "commonCaches": "Cachés habituales",
       "cachesIgnored": "Su instancia usa runners Docker: las cachés no tienen efecto en ellos. Sirven con el motor Kubernetes.",
+      "rulesLede": "Deje todo vacío para que el job se ejecute en todas las pipelines.",
+      "rulesBranches": "Ramas",
+      "rulesTags": "Etiquetas Git",
+      "rulesMergeRequests": "En las pipelines de solicitudes de fusión",
+      "rulesChanges": "Archivos modificados",
       "remove": "Eliminar el job",
       "valuePlaceholder": "valor",
       "namePlaceholder": "NOMBRE"

@@ -46,6 +46,74 @@ describe('PipelineJobForm', () => {
   };
   const button = (el: HTMLElement, label: string) => Array.from(el.querySelectorAll<HTMLButtonElement>('button')).find((b) => text(b) === label)!;
 
+  describe('rules', () => {
+    type RuleLists = { ruleList(key: string): string[]; setRuleList(key: string, patterns: string[]): void };
+    /** The last checkbox of the form: the ones before it are the job's dependencies. */
+    const mergeRequests = (fixture: { debugElement: { queryAll: (predicate: ReturnType<typeof By.directive>) => { componentInstance: Checkbox }[] } }) => fixture.debugElement.queryAll(By.directive(Checkbox)).at(-1)!.componentInstance;
+
+    it('leaves a job without rules without any, and shows nothing ticked', async () => {
+      const { fixture, patches } = await setup();
+
+      expect(mergeRequests(fixture).checked()).toBe(false);
+      expect(mergeRequests(fixture).label()).toBe('Dans les pipelines de demande de fusion');
+      expect(patches).toEqual([]);
+    });
+
+    it('shows the rules of the job', async () => {
+      const { fixture, el } = await setup({ ...JOB, rules: { branches: ['main'], tags: ['v*'], mergeRequests: true, changes: ['src/**'] } });
+      const form = fixture.componentInstance as unknown as RuleLists;
+
+      expect(mergeRequests(fixture).checked()).toBe(true);
+      expect(form.ruleList('branches')).toEqual(['main']);
+      expect(form.ruleList('tags')).toEqual(['v*']);
+      expect(form.ruleList('changes')).toEqual(['src/**']);
+      for (const id of ['job-rules-branches', 'job-rules-tags', 'job-rules-changes']) {
+        expect(el.querySelector(`[id="${id}"]`), id).not.toBeNull();
+      }
+    });
+
+    it('adds a rule to the ones the job has', async () => {
+      const { fixture, patches } = await setup({ ...JOB, rules: { branches: ['main'] } });
+
+      (fixture.componentInstance as unknown as RuleLists).setRuleList('changes', ['src/**']);
+
+      expect(patches).toEqual([{ rules: { branches: ['main'], changes: ['src/**'] } }]);
+    });
+
+    it('sends the merge requests rule when it is ticked', async () => {
+      const { fixture, patches } = await setup({ ...JOB, rules: { tags: ['v*'] } });
+
+      mergeRequests(fixture).checked.set(true);
+      fixture.detectChanges();
+
+      expect(patches.at(-1)).toEqual({ rules: { tags: ['v*'], mergeRequests: true } });
+    });
+
+    it('leaves the key out when merge requests are unticked', async () => {
+      const { fixture, patches } = await setup({ ...JOB, rules: { tags: ['v*'], mergeRequests: true } });
+
+      mergeRequests(fixture).checked.set(false);
+      fixture.detectChanges();
+
+      expect(patches.at(-1)).toEqual({ rules: { tags: ['v*'] } });
+    });
+
+    it('takes the rules away with their last key, since the server refuses empty ones', async () => {
+      const { fixture, patches } = await setup({ ...JOB, rules: { branches: ['main'] } });
+
+      (fixture.componentInstance as unknown as RuleLists).setRuleList('branches', []);
+
+      expect(patches).toEqual([{ rules: undefined }]);
+    });
+
+    it('keeps the same empty list between two looks, for ngModel not to see a change', async () => {
+      const { fixture } = await setup();
+      const form = fixture.componentInstance as unknown as RuleLists;
+
+      expect(form.ruleList('tags')).toBe(form.ruleList('branches'));
+    });
+  });
+
   it('shows the job as it is', async () => {
     const { el } = await setup();
 
@@ -116,7 +184,7 @@ describe('PipelineJobForm', () => {
   it('offers the possible dependencies and ticks those already waited for', async () => {
     const { fixture } = await setup();
 
-    const boxes = fixture.debugElement.queryAll(By.directive(Checkbox));
+    const boxes = fixture.debugElement.queryAll(By.directive(Checkbox)).slice(0, -1);
 
     expect(boxes.map((b) => b.componentInstance.label())).toEqual(['compile', 'lint']);
     expect(boxes.map((b) => b.componentInstance.checked())).toEqual([true, false]);
@@ -145,7 +213,7 @@ describe('PipelineJobForm', () => {
   it('still lists a dependency that is no longer possible, so it can be removed', async () => {
     const { fixture } = await setup({ ...JOB, needs: ['deploy'] }, { needOptions: ['compile'] });
 
-    const labels = fixture.debugElement.queryAll(By.directive(Checkbox)).map((b) => b.componentInstance.label());
+    const labels = fixture.debugElement.queryAll(By.directive(Checkbox)).slice(0, -1).map((b) => b.componentInstance.label());
 
     expect(labels).toEqual(['compile', 'deploy']);
   });

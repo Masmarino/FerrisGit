@@ -13,6 +13,7 @@ use ferrisgit_application::use_cases::repository_profile::DetectRepositoryProfil
 use ferrisgit_domain::pipeline_definition::{
     JobDefinition, PipelineDefinition, PipelineDefinitionError, PipelineDefinitionWarning,
 };
+use ferrisgit_domain::pipeline_rules::JobRules;
 use ferrisgit_domain::repository_collaborator::CollaboratorRole;
 use ferrisgit_domain::repository_profile::RepositoryProfile;
 use serde::{Deserialize, Serialize};
@@ -39,6 +40,45 @@ struct JobDto {
     needs: Vec<String>,
     tags: Vec<String>,
     cache: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    rules: Option<JobRulesDto>,
+}
+
+/// The `rules` of a job. As in the file, a key left out is no condition, and unlike the rest of a draft an unknown key
+/// is refused: dropping it would silently widen when the job runs.
+#[derive(Debug, Default, Serialize, Deserialize)]
+#[serde(default, rename_all = "camelCase", deny_unknown_fields)]
+struct JobRulesDto {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    branches: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    tags: Option<Vec<String>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    merge_requests: Option<bool>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    changes: Option<Vec<String>>,
+}
+
+impl From<JobRules> for JobRulesDto {
+    fn from(rules: JobRules) -> Self {
+        Self {
+            branches: rules.branches,
+            tags: rules.tags,
+            merge_requests: rules.merge_requests,
+            changes: rules.changes,
+        }
+    }
+}
+
+impl From<JobRulesDto> for JobRules {
+    fn from(dto: JobRulesDto) -> Self {
+        Self {
+            branches: dto.branches,
+            tags: dto.tags,
+            merge_requests: dto.merge_requests,
+            changes: dto.changes,
+        }
+    }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -66,6 +106,7 @@ impl From<PipelineDefinition> for DefinitionDto {
                             needs: job.needs,
                             tags: job.tags,
                             cache: job.cache,
+                            rules: job.rules.map(JobRulesDto::from),
                         },
                     )
                 })
@@ -92,6 +133,7 @@ impl From<DefinitionDto> for PipelineDefinition {
                             needs: job.needs,
                             tags: job.tags,
                             cache: job.cache,
+                            rules: job.rules.map(JobRules::from),
                         },
                     )
                 })
@@ -159,6 +201,10 @@ impl From<&PipelineDefinitionError> for ProblemDto {
                 job: Some(job.clone()),
                 key: Some(key.clone()),
                 ..Self::new("invalid_cache_key", error)
+            },
+            PipelineDefinitionError::InvalidRules { job, .. } => Self {
+                job: Some(job.clone()),
+                ..Self::new("invalid_rules", error)
             },
         }
     }

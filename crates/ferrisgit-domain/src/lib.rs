@@ -30,6 +30,7 @@ pub mod pipeline;
 pub mod pipeline_definition;
 pub mod pipeline_events;
 pub mod pipeline_file_reader;
+pub mod pipeline_rules;
 pub mod protected_branch;
 pub mod public_pages;
 pub mod registration;

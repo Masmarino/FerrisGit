@@ -17,6 +17,13 @@ describe('pipeline problems in French', () => {
     expect(describeProblem({ code: 'needs_cycle', message: 'x', jobs: ['a', 'b'] })).toEqual({ message: 'Des dépendances forment une boucle : a → b → a.', job: 'a' });
   });
 
+  it('says which rules are wrong and why, in the words of the server', () => {
+    expect(describeProblem({ code: 'invalid_rules', message: "job 'a' has invalid `rules`: `tags` is empty", job: 'a' })).toEqual({
+      message: 'Les règles du job « a » ne sont pas valides : `tags` is empty',
+      job: 'a',
+    });
+  });
+
   it('explains what a valid cache key is', () => {
     expect(describeProblem({ code: 'invalid_cache_key', message: 'x', job: 'a', key: 'Bad Key' }).message).toContain('minuscules, chiffres et tirets seulement');
   });
