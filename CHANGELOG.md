@@ -20,6 +20,8 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
   pipeline file, instead of one pipeline on `HEAD` whatever was pushed. A work branch is now tested when it is pushed,
   a push to a branch with an open merge request runs two pipelines (use `rules` to keep one), and deleting a ref runs
   nothing. A push creates at most 20 pipelines.
+- A release that creates its tag, through the web interface or the API and drafts included, now runs a pipeline for that
+  tag as a pushed tag does, so that `rules: { tags: [...] }` jobs run for it. A release on an existing tag runs nothing.
 - A pipeline file with no job at all no longer gives a pipeline that stays pending forever.
 
 ## [0.1.8] - 2026-10-23

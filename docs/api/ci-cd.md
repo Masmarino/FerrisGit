@@ -4,7 +4,7 @@ Cette page décrit les routes des pipelines et de leurs jobs, des variables CI d
 
 Les routes de pipeline, de variables et d'administration demandent un JWT (voir [Authentification](/docs/api/authentification)). Un rôle insuffisant sur un dépôt répond 404, jamais 403. Les routes `/api/runner/jobs/*` s'authentifient avec un jeton de runner (voir plus bas).
 
-Il n'y a pas de route pour créer une pipeline à la main : une pipeline démarre quand un `git push` réussit, et après la fusion d'une demande de fusion.
+Il n'y a pas de route pour créer une pipeline à la main : une pipeline démarre quand un `git push` réussit, après la fusion d'une demande de fusion, et quand une release crée son tag.
 
 ## Pipelines et jobs
 

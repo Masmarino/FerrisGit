@@ -42,11 +42,12 @@ Le push s'authentifie comme d'habitude avec un jeton Git, voir [Cloner et pousse
 
 ## Quand une pipeline se déclenche
 
-FerrisGit crée une pipeline dans trois cas :
+FerrisGit crée une pipeline dans quatre cas :
 
 - **Après chaque push réussi** vers le dépôt : une pipeline pour chaque branche et chaque tag que le push crée ou déplace, sur le commit où ils pointent désormais et avec le fichier de pipeline de ce commit. Supprimer une branche ou un tag ne déclenche rien, et un même push crée au plus 20 pipelines.
 - **Pour une demande de fusion ouverte**, à sa création puis à chaque nouveau commit de sa branche source : voir [Pipelines des demandes de fusion](#pipelines-des-demandes-de-fusion).
 - **Après la fusion d'une demande de fusion**, sur le nouveau commit de la branche cible. Voir [Demandes de fusion](/docs/utilisation/merge-requests).
+- **Quand une release crée son tag**, depuis l'interface ou par l'API, brouillon compris : une pipeline pour ce tag, comme s'il avait été poussé. Une release sur un tag qui existe déjà ne déclenche rien. Voir [Releases et tags](/docs/utilisation/releases).
 
 Aucune pipeline n'est créée, sans message, quand :
 
@@ -56,7 +57,7 @@ Aucune pipeline n'est créée, sans message, quand :
 
 Si le fichier existe mais qu'il est invalide, le push réussit et FerrisGit crée une pipeline **Échouée**, sans job, qui porte le message d'erreur : vous le lisez dans l'interface (voir [Dépannage](/docs/ci-cd/depannage#le-fichier-est-invalide)).
 
-> **Attention** : une branche qui a une demande de fusion ouverte reçoit deux pipelines à chaque push : celle de la branche, et celle de la demande. Pour n'en garder qu'une, utilisez [`rules`](/docs/ci-cd/reference-yaml#rules), par exemple `branches: [main]` et `merge_requests: true`. Un push vers un wiki ne déclenche rien, pas plus qu'un tag créé depuis l'interface ou par l'API, avec une release : seuls les tags poussés comptent.
+> **Attention** : une branche qui a une demande de fusion ouverte reçoit deux pipelines à chaque push : celle de la branche, et celle de la demande. Pour n'en garder qu'une, utilisez [`rules`](/docs/ci-cd/reference-yaml#rules), par exemple `branches: [main]` et `merge_requests: true`. Un push vers un wiki ne déclenche rien.
 
 ## Pipelines des demandes de fusion
 

@@ -160,6 +160,17 @@ impl World {
         names
     }
 
+    async fn post_release(&self, tag: &str, commit: &str, draft: bool) -> reqwest::Response {
+        post(
+            &self.client,
+            self.addr,
+            &self.jwt,
+            &format!("/repositories/{}/releases", self.repo_id),
+            &json!({ "tagName": tag, "targetCommitSha": commit, "title": tag, "draft": draft }),
+        )
+        .await
+    }
+
     async fn open_merge_request(&self, source: &str) -> Value {
         post_json(
             &self.client,
@@ -319,6 +330,84 @@ async fn each_kind_of_pipeline_gets_the_jobs_its_rules_select_on_the_commit_it_i
         })
         .await;
     assert_eq!(created.len(), 2, "{created:#?}");
+}
+
+#[sqlx::test]
+async fn a_release_that_creates_its_tag_runs_the_pipeline_of_that_tag(pool: PgPool) {
+    let world = World::start(pool).await;
+    let dir = world.dir();
+    let tagged = world.commit(".ferrisgit-ci.yml", PIPELINE_FILE).await;
+    let tip = world.commit("README.md", "hello\n").await;
+    git(&["push", "-q", "origin", "HEAD:main"], dir).await;
+
+    // On the commit of the tag, not the tip of the default branch. The same jobs as a pushed tag.
+    let created = world
+        .created_by(async {
+            let response = world.post_release("v1.0.0", &tagged, false).await;
+            assert_eq!(response.status(), 200);
+        })
+        .await;
+    assert_eq!(created.len(), 1, "{created:#?}");
+    assert_eq!(created[0]["commitSha"], tagged.as_str());
+    assert_eq!(created[0]["mergeRequestId"], Value::Null);
+    assert_eq!(
+        world.job_names(&created[0]).await,
+        vec!["on-source-change", "on-tag", "unconditional"]
+    );
+
+    // A draft's tag is a tag like any other. The rules see its name.
+    let created = world
+        .created_by(async {
+            let response = world.post_release("nightly", &tip, true).await;
+            assert_eq!(response.status(), 200);
+        })
+        .await;
+    assert_eq!(created.len(), 1, "{created:#?}");
+    assert_eq!(
+        world.job_names(&created[0]).await,
+        vec!["on-source-change", "unconditional"]
+    );
+
+    // A short sha is enough for git, and a pipeline still gets the commit in full.
+    let created = world
+        .created_by(async {
+            let response = world.post_release("v1.1.0", &tip[..7], false).await;
+            assert_eq!(response.status(), 200);
+        })
+        .await;
+    assert_eq!(created.len(), 1, "{created:#?}");
+    assert_eq!(created[0]["commitSha"], tip.as_str());
+
+    // A tag that was pushed has had its pipeline: its release adds none.
+    git(&["tag", "v2.0.0"], dir).await;
+    git(&["push", "-q", "origin", "v2.0.0"], dir).await;
+    let created = world
+        .created_by(async {
+            let response = world.post_release("v2.0.0", &tip, false).await;
+            assert_eq!(response.status(), 200);
+        })
+        .await;
+    assert!(created.is_empty(), "{created:#?}");
+
+    // No tag created, no pipeline.
+    let created = world
+        .created_by(async {
+            let response = world.post_release("v1.0.0", &tip, false).await;
+            assert_eq!(response.status(), 400);
+        })
+        .await;
+    assert!(created.is_empty(), "{created:#?}");
+
+    // The tag of a release was deleted by a push. A second release is refused, but it did bring the tag back, and a retry
+    // would now find it there and run nothing.
+    git(&["push", "-q", "origin", "--delete", "v1.0.0"], dir).await;
+    let created = world
+        .created_by(async {
+            let response = world.post_release("v1.0.0", &tagged, false).await;
+            assert_eq!(response.status(), 409);
+        })
+        .await;
+    assert_eq!(created.len(), 1, "{created:#?}");
 }
 
 #[sqlx::test]

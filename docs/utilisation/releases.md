@@ -16,7 +16,7 @@ Un Contributeur ne peut donc pas publier de release. Les rôles sont détaillés
 
 ## Les tags
 
-Un tag est un nom attaché à un commit précis. Pour une release, FerrisGit crée un tag **léger** (sans message ni signature), ou réutilise un tag existant. Les tags poussés avec Git (`git push origin v1.0.0`) sont donc utilisables directement. Tous les tags du dépôt apparaissent dans le sélecteur **Branche ou tag** de l'arborescence.
+Un tag est un nom attaché à un commit précis. Pour une release, FerrisGit crée un tag **léger** (sans message ni signature), ou réutilise un tag existant. Les tags poussés avec Git (`git push origin v1.0.0`) sont donc utilisables directement. Un tag créé pour une release, même en brouillon, démarre une pipeline comme un tag poussé ; un tag réutilisé n'en démarre pas d'autre (voir [Premiers pas CI/CD](/docs/ci-cd/premiers-pas)). Tous les tags du dépôt apparaissent dans le sélecteur **Branche ou tag** de l'arborescence.
 
 Le nom d'un tag ne peut pas être vide, ne peut pas contenir `/`, `..`, `@{` ni de caractère de contrôle, ne peut pas commencer par `-` ni se terminer par `.lock`. Il est unique par dépôt, et une seule release porte un tag donné.
 

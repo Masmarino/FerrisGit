@@ -6,7 +6,6 @@ use chrono::{DateTime, Utc};
 use ferrisgit_application::use_cases::cancel_pipeline::CancelPipelineUseCase;
 use ferrisgit_application::use_cases::close_merge_request::CloseMergeRequestUseCase;
 use ferrisgit_application::use_cases::create_merge_request::CreateMergeRequestUseCase;
-use ferrisgit_application::use_cases::create_pipeline::CreatePipelineUseCase;
 use ferrisgit_application::use_cases::merge_merge_request::{
     MergeMergeRequestResult, MergeMergeRequestUseCase,
 };
@@ -44,19 +43,7 @@ pub(crate) async fn run_merge_request_pipeline(
     repo: &Repository,
     triggered_by: Uuid,
 ) {
-    let create_pipeline = CreatePipelineUseCase::new(
-        state.repository_settings.clone(),
-        state.system_settings.clone(),
-        state.pipelines.clone(),
-        state.jobs.clone(),
-        state.pipeline_file_reader.clone(),
-        state.pipeline_events.clone(),
-        state.job_execution.clone(),
-        state.repositories.clone(),
-        state.users.clone(),
-        state.notifications.clone(),
-        state.webhooks.clone(),
-    );
+    let create_pipeline = state.create_pipeline();
     let cancel_pipeline = CancelPipelineUseCase::new(
         state.pipelines.clone(),
         state.jobs.clone(),

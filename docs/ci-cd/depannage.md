@@ -10,10 +10,10 @@ Le push réussit toujours, même quand aucune pipeline n'est créée. Vérifiez 
 
 1. **La CI est-elle activée ?** **Réglages > Pipeline > CI activée pour ce dépôt** (rôle Mainteneur).
 2. **Le fichier existe-t-il où FerrisGit le cherche ?** Par défaut `.ferrisgit-ci.yml` à la racine ; le chemin se règle dans **Chemin du fichier pipeline**. Un fichier absent ne produit aucun message.
-3. **Le fichier est-il présent sur le commit poussé ?** FerrisGit lit le fichier sur le commit de la branche ou du tag que vous venez de pousser. Une branche partie d'avant l'ajout du fichier ne le voit pas.
+3. **Le fichier est-il présent sur le commit poussé ?** FerrisGit lit le fichier sur le commit de la branche ou du tag que vous venez de pousser, ou que votre release vient de créer. Une branche partie d'avant l'ajout du fichier ne le voit pas.
 4. **Le fichier est-il valide ?** Un fichier invalide donne une pipeline **Échouée** visible dans la liste, pas une absence de pipeline : voir la section suivante.
 5. **Les règles laissent-elles un job ?** Si les [`rules`](/docs/ci-cd/reference-yaml#rules) écartent tous les jobs de ce push, aucune pipeline n'est créée. Un job absent d'une pipeline a été écarté par ses règles, ou parce qu'un job de ses `needs` l'a été.
-6. Le push visait-il le wiki du dépôt, ou supprimait-il seulement une branche ou un tag ? Cela ne déclenche rien.
+6. Le push visait-il le wiki du dépôt, ou supprimait-il seulement une branche ou un tag ? La release portait-elle sur un tag qui existait déjà ? Cela ne déclenche rien.
 
 ## Le fichier est invalide
 

@@ -287,6 +287,7 @@ async fn create(
         state.repositories.clone(),
         state.tags.clone(),
         state.tag_creator.clone(),
+        state.create_pipeline(),
     );
     let release = use_case
         .execute(

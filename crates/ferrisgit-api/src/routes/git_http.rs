@@ -3,7 +3,7 @@ use axum::response::{IntoResponse, Response};
 use ferrisgit_application::use_cases::authenticate_git_request::{
     AuthenticateGitRequestUseCase, GitAccess,
 };
-use ferrisgit_application::use_cases::create_pipeline::{CreatePipelineUseCase, pipelines_of_push};
+use ferrisgit_application::use_cases::create_pipeline::pipelines_of_push;
 use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::merge_request::MergeRequestStatus;
 use ferrisgit_domain::wiki::{NewWiki, wiki_disk_path_for};
@@ -83,19 +83,7 @@ async fn trigger_pipeline_creation(
         pushed.truncate(MAX_PIPELINES_PER_PUSH);
     }
 
-    let use_case = CreatePipelineUseCase::new(
-        state.repository_settings.clone(),
-        state.system_settings.clone(),
-        state.pipelines.clone(),
-        state.jobs.clone(),
-        state.pipeline_file_reader.clone(),
-        state.pipeline_events.clone(),
-        state.job_execution.clone(),
-        state.repositories.clone(),
-        state.users.clone(),
-        state.notifications.clone(),
-        state.webhooks.clone(),
-    );
+    let use_case = state.create_pipeline();
     for pipeline in pushed {
         let commit_sha = pipeline.commit_sha;
         if let Err(err) = use_case
