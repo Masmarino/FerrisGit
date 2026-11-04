@@ -275,8 +275,8 @@ jobs:
 
 The repository's own [`.ferrisgit-ci.yml`](.ferrisgit-ci.yml) is a small smoke-test pipeline.
 
-A pipeline is created after every successful push, from the file at the root of the default branch. An open merge
-request also gets one, at its creation and at each new commit of its source branch: it runs on the source branch merged
+A pipeline is created for each branch or tag a push creates or moves and for the tag a release creates, from the file
+in that commit. An open merge request also gets one, at its creation and at each new commit of its source branch: it runs on the source branch merged
 into the target branch (a merge commit kept under the hidden ref `refs/merge-requests/<id>/merge`, which clients
 neither see nor push to), and cancels the run of the previous source commit if it is still going. With *Exiger une
 pipeline réussie avant la fusion* on (`pipelineMustSucceed`), a merge waits until the pipeline of the source branch's

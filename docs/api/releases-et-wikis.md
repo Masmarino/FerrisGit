@@ -55,7 +55,7 @@ Réponse 200 : un tableau de résumés.
 
 ### `POST /api/repositories/{repository_id}/releases`
 
-Crée une release, et le tag correspondant s'il n'existe pas. Rôle minimal : Mainteneur.
+Crée une release, et le tag correspondant s'il n'existe pas. Créer le tag démarre une pipeline, comme le push d'un tag (voir [Premiers pas CI/CD](/docs/ci-cd/premiers-pas)). Rôle minimal : Mainteneur.
 
 Corps :
 

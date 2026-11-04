@@ -10,6 +10,7 @@ use ferrisgit_application::mailer::Mailer;
 use ferrisgit_application::merge_request_activity::MergeRequestActivity;
 use ferrisgit_application::passkey_ceremonies::PasskeyCeremonies;
 use ferrisgit_application::single_use_tokens::SingleUseTokens;
+use ferrisgit_application::use_cases::create_pipeline::CreatePipelineUseCase;
 use ferrisgit_application::use_cases::job_environment::JobEnvironments;
 use ferrisgit_application::use_cases::mfa::MfaService;
 use ferrisgit_application::use_cases::passkeys::{PasskeyService, build_webauthn};
@@ -261,6 +262,22 @@ impl AppState {
             self.smtp_settings.clone(),
             self.config.public_url.clone(),
         ))
+    }
+
+    pub fn create_pipeline(&self) -> CreatePipelineUseCase {
+        CreatePipelineUseCase::new(
+            self.repository_settings.clone(),
+            self.system_settings.clone(),
+            self.pipelines.clone(),
+            self.jobs.clone(),
+            self.pipeline_file_reader.clone(),
+            self.pipeline_events.clone(),
+            self.job_execution.clone(),
+            self.repositories.clone(),
+            self.users.clone(),
+            self.notifications.clone(),
+            self.webhooks.clone(),
+        )
     }
 
     pub async fn new(pool: PgPool, config: Config) -> Self {
