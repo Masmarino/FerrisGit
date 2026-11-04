@@ -110,6 +110,8 @@ Passer des cartes à l'enregistrement, ou du YAML aux cartes, réécrit le fichi
 - les **commentaires** ;
 - les **clés que FerrisGit ne connaît pas**, que l'analyseur ignore déjà à l'exécution.
 
+Les [`rules`](/docs/ci-cd/reference-yaml#rules) d'un job sont conservées : elles se lisent et se modifient dans le panneau du job, section **Quand le job tourne**. Le tableau, lui, ne les montre pas : il affiche tous les jobs du fichier, y compris ceux qu'une pipeline donnée écartera. Une clé inconnue dans `rules` rend le fichier illisible : il faut la corriger dans la vue YAML.
+
 À l'ouverture, un encadré liste ce que le fichier du dépôt contient de ce genre ; au passage du YAML aux cartes, un autre dit ce qui vient d'être perdu. Le bouton **Revenir au fichier du dépôt** abandonne les modifications faites dans l'éditeur, après une confirmation, car cela ne s'annule pas. Pour garder les commentaires, modifiez le fichier dans la vue YAML sans repasser par les cartes.
 
 Si le fichier du dépôt est illisible (YAML mal formé), l'éditeur le dit et part d'une pipeline vide plutôt que de deviner.

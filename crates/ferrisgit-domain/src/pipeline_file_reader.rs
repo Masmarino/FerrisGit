@@ -12,6 +12,17 @@ pub trait PipelineFileReaderPort: Send + Sync {
         revision: &str,
         path: &str,
     ) -> Result<Option<Vec<u8>>, DomainError>;
+
+    /// The files that differ between two commits, `/`-separated and repo-relative. `Ok(None)` when it can't be told,
+    /// because one of them doesn't exist or isn't a commit.
+    async fn changed_paths(
+        &self,
+        _repository_disk_path: &str,
+        _base_revision: &str,
+        _head_revision: &str,
+    ) -> Result<Option<Vec<String>>, DomainError> {
+        Ok(None)
+    }
 }
 
 #[cfg(test)]

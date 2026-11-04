@@ -2147,6 +2147,10 @@
         "title": "Caches",
         "body": "Des dossiers conservés d'une pipeline à l'autre pour gagner du temps (les paquets téléchargés, par exemple). Donnez une clé : le même nom partage le même cache. Seul le moteur Kubernetes les applique ; avec des runners Docker ils sont sans effet."
       },
+      "rules": {
+        "title": "Quand le job tourne",
+        "body": "Par défaut, un job tourne dans toutes les pipelines. Nommez les branches, les tags ou les demandes de fusion auxquels il appartient, et il ne tourne que dans celles-là. Listez des fichiers pour exiger en plus que l'un d'eux ait changé : src/** désigne tout ce qui est sous src. Un job écarté emporte avec lui les jobs qui l'attendent."
+      },
       "yaml": {
         "title": "Le YAML",
         "body": "Le fichier que FerrisGit lit vraiment. Les cartes et le YAML décrivent la même chose : modifiez l'un, l'autre suit. Dans la vue YAML, vos commentaires sont conservés."
@@ -2278,6 +2282,7 @@
       "laterDependency": "Le job {{ job }} dépend de {{ dependency }}, qui est dans une étape ultérieure.",
       "cycle": "Des dépendances forment une boucle : {{ cycle }}.",
       "invalidCache": "Le cache {{ key }} du job {{ job }} n'est pas valide : minuscules, chiffres et tirets seulement.",
+      "invalidRules": "Les règles du job {{ job }} ne sont pas valides : {{ detail }}",
       "emptyImage": "Le job {{ job }} n'a pas d'image.",
       "emptyScript": "Le job {{ job }} n'a aucune commande.",
       "duplicateStage": "L'étape {{ stage }} est déclarée deux fois."
@@ -2360,6 +2365,11 @@
       "cacheHint": "Une clé de cache : minuscules, chiffres et tirets.",
       "commonCaches": "Caches courants",
       "cachesIgnored": "Votre instance utilise des runners Docker : les caches n'y ont pas d'effet. Ils servent avec le moteur Kubernetes.",
+      "rulesLede": "Laissez tout vide pour que le job tourne dans toutes les pipelines.",
+      "rulesBranches": "Branches",
+      "rulesTags": "Tags Git",
+      "rulesMergeRequests": "Dans les pipelines de demande de fusion",
+      "rulesChanges": "Fichiers modifiés",
       "remove": "Supprimer le job",
       "valuePlaceholder": "valeur",
       "namePlaceholder": "NOM"

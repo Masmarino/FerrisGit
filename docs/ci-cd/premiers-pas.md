@@ -44,18 +44,19 @@ Le push s'authentifie comme d'habitude avec un jeton Git, voir [Cloner et pousse
 
 FerrisGit crée une pipeline dans trois cas :
 
-- **Après chaque push réussi** vers le dépôt, quelle que soit la branche ou le tag poussé. FerrisGit ne regarde pas ce qui a été poussé : il prend le commit sur lequel pointe `HEAD` dans le dépôt (la branche par défaut du dépôt) et y lit le fichier de pipeline.
+- **Après chaque push réussi** vers le dépôt : une pipeline pour chaque branche et chaque tag que le push crée ou déplace, sur le commit où ils pointent désormais et avec le fichier de pipeline de ce commit. Supprimer une branche ou un tag ne déclenche rien, et un même push crée au plus 20 pipelines.
 - **Pour une demande de fusion ouverte**, à sa création puis à chaque nouveau commit de sa branche source : voir [Pipelines des demandes de fusion](#pipelines-des-demandes-de-fusion).
 - **Après la fusion d'une demande de fusion**, sur le nouveau commit de la branche cible. Voir [Demandes de fusion](/docs/utilisation/merge-requests).
 
 Aucune pipeline n'est créée, sans message, quand :
 
 - la CI est désactivée sur le dépôt ;
-- le fichier de pipeline n'existe pas dans le commit lu.
+- le fichier de pipeline n'existe pas dans le commit lu ;
+- les [`rules`](/docs/ci-cd/reference-yaml#rules) de ses jobs n'en laissent aucun (sauf pour une demande de fusion, voir [plus bas](#pipelines-des-demandes-de-fusion)).
 
 Si le fichier existe mais qu'il est invalide, le push réussit et FerrisGit crée une pipeline **Échouée**, sans job, qui porte le message d'erreur : vous le lisez dans l'interface (voir [Dépannage](/docs/ci-cd/depannage#le-fichier-est-invalide)).
 
-> **Attention** : puisque c'est le commit de `HEAD` qui est lu, pousser une branche de travail ne teste pas cette branche : la pipeline créée porte sur la pointe de la branche par défaut. Pour tester une branche, ouvrez une demande de fusion : sa pipeline tourne sur la branche fusionnée dans la cible. Un push vers un wiki ne déclenche rien.
+> **Attention** : une branche qui a une demande de fusion ouverte reçoit deux pipelines à chaque push : celle de la branche, et celle de la demande. Pour n'en garder qu'une, utilisez [`rules`](/docs/ci-cd/reference-yaml#rules), par exemple `branches: [main]` et `merge_requests: true`. Un push vers un wiki ne déclenche rien, pas plus qu'un tag créé depuis l'interface ou par l'API, avec une release : seuls les tags poussés comptent.
 
 ## Pipelines des demandes de fusion
 
@@ -64,6 +65,7 @@ Une demande de fusion ouverte a sa propre pipeline. Elle ne tourne pas sur la br
 - Elle démarre à la création de la demande, puis à chaque nouveau commit sur la branche source (un push, ou une suggestion appliquée). Un commit qui a déjà sa pipeline n'en reçoit pas une deuxième.
 - Quand la branche source avance, la pipeline du commit précédent est **annulée** si elle tourne encore : elle ne dit plus rien de ce qui serait fusionné.
 - Si les deux branches sont en conflit, aucune pipeline ne démarre.
+- Si les [`rules`](/docs/ci-cd/reference-yaml#rules) ne laissent aucun job, la pipeline est enregistrée **Réussie** dès sa création, sans job : il n'y avait rien à vérifier, et une fusion qui exige une pipeline réussie n'est pas bloquée.
 - Une avance de la branche cible ne relance rien : la pipeline suivante partira du nouvel état de la cible.
 
 Son état s'affiche dans la liste des demandes, dans le panneau **Pipeline** de la page de la demande et dans sa chronologie, où chaque pipeline apparaît à son démarrage. Elle figure aussi dans la liste des pipelines du dépôt, marquée **Demande de fusion**.

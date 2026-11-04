@@ -103,33 +103,35 @@ const MAX_PATTERN_LENGTH: usize = 255;
 /// included (`release/*`, `*-stable`, `*`). Returns the pattern to store.
 pub fn normalize_pattern(pattern: &str) -> Result<String, DomainError> {
     let pattern = pattern.trim();
-    let invalid = |reason: &str| {
-        Err(DomainError::Validation(format!(
-            "invalid branch pattern: {reason}"
-        )))
-    };
+    check_ref_pattern(pattern)
+        .map_err(|reason| DomainError::Validation(format!("invalid branch pattern: {reason}")))?;
+    Ok(pattern.to_string())
+}
+
+/// Why `pattern` can't name branches or tags, whose names follow the same rules.
+pub fn check_ref_pattern(pattern: &str) -> Result<(), &'static str> {
     if pattern.is_empty() {
-        return invalid("it is empty");
+        return Err("it is empty");
     }
     if pattern.chars().count() > MAX_PATTERN_LENGTH {
-        return invalid("it is longer than 255 characters");
+        return Err("it is longer than 255 characters");
     }
     if pattern.starts_with("refs/") {
-        return invalid("write the branch name without refs/heads/");
+        return Err("write the name without refs/heads/ or refs/tags/");
     }
     if pattern.starts_with('-') || pattern.starts_with('/') || pattern.ends_with('/') {
-        return invalid("it cannot start with - or /, nor end with /");
+        return Err("it cannot start with - or /, nor end with /");
     }
     if pattern.contains("..") || pattern.contains("//") || pattern.ends_with(".lock") {
-        return invalid("it cannot contain .. or //, nor end with .lock");
+        return Err("it cannot contain .. or //, nor end with .lock");
     }
     if pattern
         .chars()
         .any(|c| c.is_whitespace() || c.is_control() || "~^:?[\\".contains(c))
     {
-        return invalid("it cannot contain spaces nor any of ~ ^ : ? [ \\");
+        return Err("it cannot contain spaces nor any of ~ ^ : ? [ \\");
     }
-    Ok(pattern.to_string())
+    Ok(())
 }
 
 /// Whether `branch` (a short name such as `main`) is covered by `pattern`. `*` matches any run of characters, `/`
@@ -185,6 +187,11 @@ impl RefUpdate {
     /// The branch this command moves, `None` for a tag or any other ref.
     pub fn branch(&self) -> Option<&str> {
         self.ref_name.strip_prefix("refs/heads/")
+    }
+
+    /// The tag this command moves, `None` for a branch or any other ref.
+    pub fn tag(&self) -> Option<&str> {
+        self.ref_name.strip_prefix("refs/tags/")
     }
 }
 

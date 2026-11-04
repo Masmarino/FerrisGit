@@ -10,6 +10,15 @@ export interface JobDto {
   needs: string[];
   tags: string[];
   cache: string[];
+  rules?: JobRulesDto;
+}
+
+/** When a job runs. A key left out is no condition. */
+export interface JobRulesDto {
+  branches?: string[];
+  tags?: string[];
+  mergeRequests?: boolean;
+  changes?: string[];
 }
 
 /** A pipeline as the server's parser reads it: stages in order, jobs by name. */

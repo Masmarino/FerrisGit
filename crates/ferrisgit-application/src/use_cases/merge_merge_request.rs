@@ -22,7 +22,7 @@ use uuid::Uuid;
 
 use crate::job_execution_resolver::JobExecutionResolver;
 use crate::mergeability::MergeabilityChecker;
-use crate::use_cases::create_pipeline::CreatePipelineUseCase;
+use crate::use_cases::create_pipeline::{CreatePipelineUseCase, PipelineTrigger};
 use crate::use_cases::event_context::EventContext;
 use crate::use_cases::protected_branches::ProtectedBranches;
 
@@ -167,6 +167,16 @@ impl MergeMergeRequestUseCase {
                 None,
             ),
         };
+        // Only what the pipeline after the merge compares with for `rules: changes`, and not knowing runs the job: not
+        // worth failing a merge for.
+        let target_before_merge = self
+            .branch_reader
+            .list_branches(&repo.disk_path)
+            .await
+            .unwrap_or_default()
+            .into_iter()
+            .find(|branch| branch.name == mr.target_branch)
+            .map(|branch| branch.tip_sha);
         let outcome = self
             .merge_executor
             .merge(
@@ -200,7 +210,16 @@ impl MergeMergeRequestUseCase {
                     self.webhooks.clone(),
                 );
                 if let Err(err) = create_pipeline
-                    .execute(repo.id, &repo.disk_path, &commit_sha, user_id)
+                    .execute(
+                        repo.id,
+                        &repo.disk_path,
+                        &commit_sha,
+                        user_id,
+                        PipelineTrigger::Branch {
+                            name: mr.target_branch.clone(),
+                            previous_sha: target_before_merge,
+                        },
+                    )
                     .await
                 {
                     tracing::error!(error = %err, merge_request_id = %mr.id, "failed to create pipeline after merge");

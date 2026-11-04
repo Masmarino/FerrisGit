@@ -160,7 +160,7 @@ jobs:
       - 'rsync -az --mkpath -e "ssh -i ~/.ssh/id_deploy -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -p 22" dist/ deploy@vm.example.com:/var/www/app/'
 ```
 
-Rappels : les secrets ne sont transmis qu'aux runners Docker (voir [Variables et secrets](/docs/ci-cd/variables-et-secrets)) ; la machine doit être joignable depuis le runner ; et une pipeline part à chaque push, donc ce job se relance à chaque fois. Le masquage des journaux ne reconnaît pas une clé sur plusieurs lignes : le job ne l'affiche jamais, et votre script ne doit pas le faire non plus.
+Rappels : les secrets ne sont transmis qu'aux runners Docker (voir [Variables et secrets](/docs/ci-cd/variables-et-secrets)) ; la machine doit être joignable depuis le runner ; et une pipeline part à chaque push, donc ce job se relance à chaque fois, sur toutes les branches, sauf si des [`rules`](/docs/ci-cd/reference-yaml#rules) le limitent. Le masquage des journaux ne reconnaît pas une clé sur plusieurs lignes : le job ne l'affiche jamais, et votre script ne doit pas le faire non plus.
 
 ## Déploiement sur Kubernetes
 
@@ -264,7 +264,7 @@ jobs:
 
 ## Déploiement par appel HTTP
 
-Les tests d'abord, puis un déploiement qui appelle un point d'entrée de votre plateforme. Le job `deploy` est réservé, grâce à `tags`, à un runner qui porte l'étiquette `deploy` (un runner dédié, dont l'accès réseau est celui de votre plateforme). `DEPLOY_URL` et `DEPLOY_TOKEN` sont des variables CI du dépôt.
+Les tests d'abord, puis un déploiement qui appelle un point d'entrée de votre plateforme. Le job `deploy` ne tourne, grâce à `rules`, que sur la branche `main`, et il est réservé, grâce à `tags`, à un runner qui porte l'étiquette `deploy` (un runner dédié, dont l'accès réseau est celui de votre plateforme). `DEPLOY_URL` et `DEPLOY_TOKEN` sont des variables CI du dépôt.
 
 ```yaml ferrisgit-ci
 stages: [test, deploy]
@@ -282,6 +282,8 @@ jobs:
     image: alpine:3.24
     needs: [tests]
     tags: [deploy]
+    rules:
+      branches: [main]
     script:
       - apk add --no-cache curl
       - 'curl -fsS -X POST -H "Authorization: Bearer $DEPLOY_TOKEN" "$DEPLOY_URL"'
@@ -289,6 +291,6 @@ jobs:
 
 Rappels importants :
 
-- Une pipeline est créée après **chaque** push, sur le commit de `HEAD` : ce `deploy` repart donc à chaque push réussi du dépôt. FerrisGit n'a pas de condition par branche ni de déclenchement manuel. Si vous ne voulez pas déployer à chaque fois, faites porter le déploiement par un dépôt ou un runner que seuls les Mainteneurs contrôlent.
+- Une pipeline est créée après **chaque** push, sur le commit poussé : ce `deploy` repart donc à chaque push réussi sur `main`, et après chaque fusion vers `main`. FerrisGit n'a pas de déclenchement manuel. Les [`rules`](/docs/ci-cd/reference-yaml#rules) sont lues dans le fichier du commit poussé : quiconque peut pousser une branche peut les y changer. Pour réserver vraiment le déploiement, faites-le porter par un runner que seuls les Mainteneurs contrôlent.
 - Les valeurs des variables CI sont lisibles par quiconque peut modifier le fichier de pipeline. Voir [Variables et secrets](/docs/ci-cd/variables-et-secrets#masquage-dans-les-journaux).
 - Si aucun runner ne porte l'étiquette `deploy`, le job reste **En attente** : voir [Dépannage](/docs/ci-cd/depannage).

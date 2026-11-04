@@ -2147,6 +2147,10 @@
         "title": "Caches",
         "body": "Ordner, die von einer Pipeline zur nächsten erhalten bleiben, um Zeit zu sparen (zum Beispiel heruntergeladene Pakete). Geben Sie einen Schlüssel an: Gleicher Name, gleicher Cache. Nur die Kubernetes-Engine wendet sie an; mit Docker-Runnern haben sie keine Wirkung."
       },
+      "rules": {
+        "title": "Wann der Job läuft",
+        "body": "Standardmäßig läuft ein Job in jeder Pipeline. Nennen Sie die Branches, Tags oder Merge Requests, zu denen er gehört, dann läuft er nur dort. Geben Sie Dateien an, um zusätzlich zu verlangen, dass sich eine davon geändert hat: src/** ist alles unter src. Ein ausgelassener Job nimmt die Jobs mit, die auf ihn warten."
+      },
       "yaml": {
         "title": "Das YAML",
         "body": "Die Datei, die FerrisGit tatsächlich liest. Karten und YAML beschreiben dasselbe: Ändern Sie das eine, folgt das andere. In der YAML-Ansicht bleiben Ihre Kommentare erhalten."
@@ -2278,6 +2282,7 @@
       "laterDependency": "Der Job {{ job }} hängt von {{ dependency }} ab, das in einer späteren Stufe liegt.",
       "cycle": "Die Abhängigkeiten bilden eine Schleife: {{ cycle }}.",
       "invalidCache": "Der Cache {{ key }} des Jobs {{ job }} ist ungültig: nur Kleinbuchstaben, Ziffern und Bindestriche.",
+      "invalidRules": "Die Regeln des Jobs {{ job }} sind ungültig: {{ detail }}",
       "emptyImage": "Der Job {{ job }} hat kein Image.",
       "emptyScript": "Der Job {{ job }} hat keinen Befehl.",
       "duplicateStage": "Die Stufe {{ stage }} ist zweimal angegeben."
@@ -2360,6 +2365,11 @@
       "cacheHint": "Ein Cache-Schlüssel: Kleinbuchstaben, Ziffern und Bindestriche.",
       "commonCaches": "Gängige Caches",
       "cachesIgnored": "Ihre Instanz verwendet Docker-Runner: Dort haben Caches keine Wirkung. Sie greifen mit der Kubernetes-Engine.",
+      "rulesLede": "Lassen Sie alles leer, damit der Job in jeder Pipeline läuft.",
+      "rulesBranches": "Branches",
+      "rulesTags": "Git-Tags",
+      "rulesMergeRequests": "In Merge-Request-Pipelines",
+      "rulesChanges": "Geänderte Dateien",
       "remove": "Job löschen",
       "valuePlaceholder": "Wert",
       "namePlaceholder": "NAME"
