@@ -6,6 +6,12 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ## [Unreleased]
 
+### Fixed
+
+- A `git push` larger than `http.postBuffer` (1 MiB by default) no longer fails with a 403 on a repository that has
+  protected branches, whichever branch it updates: the probe git sends first, a lone flush packet, was refused as a push
+  that could not be checked. Protected branches are still checked on the push that follows.
+
 ## [0.1.8] - 2026-10-23
 
 ### Security

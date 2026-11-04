@@ -89,6 +89,12 @@ pub fn parse_commands(body: &[u8]) -> Result<ReceivePackCommands, ReceivePackPar
     })
 }
 
+/// Whether the request is the probe git sends before a push too large for `http.postBuffer`, to see that a POST goes
+/// through: a lone flush packet, which names no ref and so moves none. With anything after the flush it isn't one.
+pub fn is_push_probe(body: &[u8]) -> bool {
+    body == FLUSH
+}
+
 impl ReceivePackCommands {
     fn has(&self, capability: &str) -> bool {
         self.capabilities.iter().any(|c| c == capability)
@@ -247,6 +253,17 @@ mod tests {
             parse_commands(&request(&["push-cert\0report-status\n"])),
             Err(ReceivePackParseError::PushCertificate)
         );
+    }
+
+    #[test]
+    fn only_a_lone_flush_packet_is_a_push_probe() {
+        assert!(is_push_probe(FLUSH));
+        assert!(!is_push_probe(b""));
+        assert!(!is_push_probe(b"00000000"));
+        assert!(!is_push_probe(b"0000PACK\x00\x00\x00\x02"));
+        assert!(!is_push_probe(&request(&[&format!(
+            "{A} {B} refs/heads/main\0report-status\n"
+        )])));
     }
 
     #[test]
