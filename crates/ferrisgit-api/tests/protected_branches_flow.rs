@@ -196,6 +196,134 @@ async fn a_push_to_a_protected_branch_is_refused_over_git_http_with_the_reason(p
     git(&["push", "-q", "origin", "HEAD:main"], &carol_dir).await;
 }
 
+/// A pack too large for `http.postBuffer` makes git POST a lone flush packet first, to see that the request goes
+/// through, before streaming the real one.
+#[sqlx::test]
+async fn a_push_larger_than_the_post_buffer_is_checked_like_any_other(pool: PgPool) {
+    let addr = common::spawn_app(pool).await.addr;
+    let client = reqwest::Client::new();
+    let jwt = login(&client, addr, "admin", "adminpassword123").await;
+    let token = mint_api_token(&client, addr, &jwt, "owner").await;
+    let repo: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
+    let res = post(
+        &client,
+        addr,
+        &jwt,
+        &format!(
+            "/repositories/{}/protected-branches",
+            repo["id"].as_str().unwrap()
+        ),
+        &json!({ "pattern": "main" }),
+    )
+    .await;
+    assert_eq!(res.status(), 201);
+
+    let parent = tempfile::tempdir().unwrap();
+    let url = format!("http://admin:{token}@{addr}/admin/hello.git");
+    git(&["clone", "-q", &url, "work"], parent.path()).await;
+    let dir = parent.path().join("work");
+    commit_file(&dir, "README.md", "# hello\n", "init").await;
+    git(&["push", "-q", "origin", "HEAD:main"], &dir).await;
+    let main_tip = remote_tip(&dir, "main").await;
+
+    // Random hex only compresses by half, so this pack stays above the buffer set below.
+    let large: String = (0..200)
+        .map(|_| uuid::Uuid::new_v4().simple().to_string())
+        .collect();
+    commit_file(&dir, "large.txt", &large, "large").await;
+    let local_tip = git(&["rev-parse", "HEAD"], &dir).await;
+
+    let (pushed, stderr) = try_git(
+        &[
+            "-c",
+            "http.postBuffer=1024",
+            "push",
+            "origin",
+            "HEAD:feature",
+        ],
+        &dir,
+    )
+    .await;
+    assert!(pushed, "an unprotected branch takes a large push: {stderr}");
+    assert_eq!(remote_tip(&dir, "feature").await, local_tip);
+
+    let (pushed, stderr) = try_git(
+        &["-c", "http.postBuffer=1024", "push", "origin", "HEAD:main"],
+        &dir,
+    )
+    .await;
+    assert!(!pushed, "a large push to main must fail");
+    assert!(
+        stderr.contains("branch 'main' is protected"),
+        "git prints the reason: {stderr}"
+    );
+    assert_eq!(remote_tip(&dir, "main").await, main_tip);
+}
+
+/// Only the exact probe gets past the check: a request with anything after its flush packet could carry a pack, and no
+/// command of it can be read.
+#[sqlx::test]
+async fn only_a_lone_flush_packet_passes_as_a_probe_when_a_branch_is_protected(pool: PgPool) {
+    let addr = common::spawn_app(pool).await.addr;
+    let client = reqwest::Client::new();
+    let jwt = login(&client, addr, "admin", "adminpassword123").await;
+    let token = mint_api_token(&client, addr, &jwt, "owner").await;
+    let repo: serde_json::Value = post_json(
+        &client,
+        addr,
+        &jwt,
+        "/repositories",
+        &json!({ "name": "hello", "visibility": "private" }),
+    )
+    .await;
+    let res = post(
+        &client,
+        addr,
+        &jwt,
+        &format!(
+            "/repositories/{}/protected-branches",
+            repo["id"].as_str().unwrap()
+        ),
+        &json!({ "pattern": "main" }),
+    )
+    .await;
+    assert_eq!(res.status(), 201);
+
+    let receive_pack = |body: &'static [u8]| {
+        client
+            .post(format!("http://{addr}/admin/hello.git/git-receive-pack"))
+            .basic_auth("admin", Some(&token))
+            .header("Content-Type", "application/x-git-receive-pack-request")
+            .body(body)
+            .send()
+    };
+
+    assert_eq!(receive_pack(b"0000").await.unwrap().status(), 200);
+    for unreadable in [
+        &b""[..],
+        b"00",
+        b"00000000",
+        b"0000PACK\x00\x00\x00\x02",
+        b"0011not a command",
+    ] {
+        let res = receive_pack(unreadable).await.unwrap();
+        assert_eq!(
+            res.status(),
+            403,
+            "{:?}",
+            String::from_utf8_lossy(unreadable)
+        );
+        assert!(res.text().await.unwrap().contains("could not be checked"));
+    }
+}
+
 #[sqlx::test]
 async fn only_maintainers_manage_the_protected_branches_and_readers_see_them(pool: PgPool) {
     let addr = common::spawn_app(pool).await.addr;

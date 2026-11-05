@@ -8,7 +8,7 @@ use ferrisgit_domain::error::DomainError;
 use ferrisgit_domain::merge_request::MergeRequestStatus;
 use ferrisgit_domain::wiki::{NewWiki, wiki_disk_path_for};
 use ferrisgit_infrastructure::git_backend::SmartHttpRequest;
-use ferrisgit_infrastructure::git_receive_pack::{parse_commands, refusal_response};
+use ferrisgit_infrastructure::git_receive_pack::{is_push_probe, parse_commands, refusal_response};
 use uuid::Uuid;
 
 use crate::git_auth::parse_basic_auth;
@@ -109,13 +109,17 @@ fn is_receive_pack_rpc(access: &GitAccess, rest: &str) -> bool {
 /// Checks a push against the repository's protected branches before `git http-backend` sees it, and answers in its
 /// place when the push is refused: every ref is reported `ng`, with the reason, so `git push` prints why. `None` lets
 /// the push through. A push whose commands can't be read is refused outright while the repository protects a branch,
-/// since there is no telling what it would move.
+/// since there is no telling what it would move. The probe that comes before a large push moves nothing and passes:
+/// refusing it would refuse the push behind it, whichever branch that one updates.
 async fn refuse_protected_branch_updates(
     state: &AppState,
     repo: &ferrisgit_domain::repository::Repository,
     pusher_id: Option<Uuid>,
     body: &[u8],
 ) -> Option<Response> {
+    if is_push_probe(body) {
+        return None;
+    }
     let forbidden = |message: String| Some((StatusCode::FORBIDDEN, message).into_response());
     let commands = match parse_commands(body) {
         Ok(commands) => commands,
