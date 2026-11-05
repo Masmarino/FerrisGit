@@ -6,6 +6,8 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 
 ## [Unreleased]
 
+## [0.1.9] - 2026-11-05
+
 ### Added
 
 - `rules` on pipeline jobs: run a job only on some branches (`branches`), tags (`tags`), in merge request pipelines
@@ -45,6 +47,11 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 - A `git push` larger than `http.postBuffer` (1 MiB by default) no longer fails with a 403 on a repository that has
   protected branches, whichever branch it updates: the probe git sends first, a lone flush packet, was refused as a push
   that could not be checked. Protected branches are still checked on the push that follows.
+
+### Migrations
+
+One migration applies at startup, with no manual step: `0012_access_tokens` (API tokens, and the sign-ins of terminals
+waiting for a confirmation).
 
 ## [0.1.8] - 2026-10-23
 
@@ -396,6 +403,7 @@ image is not affected): add it, then rerun the job.
 To publish `fgit` on crates.io, run `cargo publish -p ferrisgit-cli` from that commit. The CI doesn't do it, since it would
 need a registry token.
 
+[0.1.9]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.9
 [0.1.8]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.8
 [0.1.7]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.7
 [0.1.6]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.6
