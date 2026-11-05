@@ -104,3 +104,5 @@ if ($script:failures -gt 0) {
     exit 1
 }
 Write-Host 'all checks passed'
+# The last check leaves the exit code of an install meant to fail, which GitHub's runner would take for this script's.
+exit 0
