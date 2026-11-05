@@ -115,6 +115,6 @@ jobs:
     stage: publier
     image: alpine:3.24
     script:
-      - wget -qO- "$URL_DE_FGIT" | tar xz -C /usr/local/bin
+      - wget -qO- https://raw.githubusercontent.com/Masmarino/FerrisGit/main/scripts/install-fgit.sh | FGIT_INSTALL_DIR=/usr/local/bin sh
       - fgit release create "v1.2.3" --repo git.example.com/acme/api --title "Version 1.2.3" --asset dist/app.tar.gz
 ```

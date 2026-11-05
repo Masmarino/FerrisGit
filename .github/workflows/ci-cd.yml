@@ -502,6 +502,26 @@ jobs:
           [[ "$digest" =~ ^sha256:[0-9a-f]{64}$ ]] || { echo "unexpected digest: $digest"; exit 1; }
           echo "digest=$digest" >> "$GITHUB_OUTPUT"
 
+  # Against a fake release on a local server, so that a broken installer shows before it is published.
+  install-scripts:
+    name: fgit install scripts (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-15, windows-2025]
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: install-fgit.sh and render-fgit-formula.sh
+        if: runner.os != 'Windows'
+        run: sh scripts/test-install-fgit.sh
+
+      - name: install-fgit.ps1
+        if: runner.os == 'Windows'
+        shell: powershell
+        run: scripts/test-install-fgit.ps1
+
   # fgit for every platform, each built natively: on a tag for the release, and on pull requests so that a change that only
   # breaks on Windows or macOS shows up before the tag does. Static on Linux, so it runs anywhere.
   cli-binaries:
@@ -552,7 +572,8 @@ jobs:
         env:
           TARGET: ${{ matrix.target }}
         run: |
-          name="fgit-${GITHUB_REF_NAME#v}-$TARGET"
+          # No version in the name: it is what lets releases/latest/download/... be an address that always works.
+          name="fgit-$TARGET"
           mkdir -p "$RUNNER_TEMP/dist"
           cd "target/$TARGET/release"
           if [[ "$TARGET" == *windows* ]]; then
@@ -573,7 +594,7 @@ jobs:
   github-release:
     name: GitHub release
     runs-on: ubuntu-latest
-    needs: [build-and-push, cli-binaries]
+    needs: [build-and-push, cli-binaries, install-scripts]
     if: startsWith(github.ref, 'refs/tags/v')
     permissions:
       contents: write
@@ -614,8 +635,48 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cd "$RUNNER_TEMP/fgit"
-          sha256sum fgit-* > "fgit-${GITHUB_REF_NAME#v}-checksums.txt"
+          sha256sum fgit-* > fgit-checksums.txt
           gh release upload "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --clobber ./*
+
+      # What the documentation tells people to run, on what was just published.
+      - name: The published fgit installs
+        run: |
+          FGIT_VERSION="$GITHUB_REF_NAME" FGIT_INSTALL_DIR="$RUNNER_TEMP/bin" sh scripts/install-fgit.sh
+          "$RUNNER_TEMP/bin/fgit" --version | grep -qF "${GITHUB_REF_NAME#v}"
+
+  # `brew install masmarino/tap/fgit` reads this formula, in the repository Masmarino/homebrew-tap. Only when the secret
+  # HOMEBREW_TAP_TOKEN exists, a token that can push there: without it a release is otherwise complete.
+  homebrew-tap:
+    name: Publish the fgit Homebrew formula
+    runs-on: ubuntu-latest
+    needs: github-release
+    if: startsWith(github.ref, 'refs/tags/v')
+    env:
+      HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Update the formula
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ -z "$HOMEBREW_TAP_TOKEN" ]; then
+            echo "::notice::HOMEBREW_TAP_TOKEN is not set: the Homebrew formula was not updated"
+            exit 0
+          fi
+          gh release download "$GITHUB_REF_NAME" --pattern fgit-checksums.txt --dir "$RUNNER_TEMP"
+          git clone "https://x-access-token:$HOMEBREW_TAP_TOKEN@github.com/Masmarino/homebrew-tap.git" "$RUNNER_TEMP/tap"
+          mkdir -p "$RUNNER_TEMP/tap/Formula"
+          sh scripts/render-fgit-formula.sh "$GITHUB_REF_NAME" "$RUNNER_TEMP/fgit-checksums.txt" > "$RUNNER_TEMP/tap/Formula/fgit.rb"
+          cd "$RUNNER_TEMP/tap"
+          git add Formula/fgit.rb
+          if git diff --cached --quiet; then
+            echo "The formula is already up to date."
+            exit 0
+          fi
+          git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+            commit -m "fgit ${GITHUB_REF_NAME#v}"
+          git push
 
   # Upgrades production to the pushed image, by digest. Version tags only, on a commit that is on main (verify-tag already
   # checked, before publishing).

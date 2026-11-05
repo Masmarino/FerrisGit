@@ -16,7 +16,8 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 - `fgit`, a command-line client for people, scripts and AI agents (crate `ferrisgit-cli`): sign-in, repositories, issues,
   merge requests, pipelines and job logs, releases, CI variables and secrets, and raw API calls. `--json` and `--jq` on
   every command, no prompt without a terminal, results on stdout and messages on stderr, documented exit codes, `--help`
-  with examples on every command. Binaries for Linux, macOS and Windows (x86_64 and arm64) are attached to each release.
+  with examples on every command. Binaries for Linux, macOS and Windows (x86_64 and arm64) are attached to each release,
+  and it installs with `brew install masmarino/tap/fgit` or a one-line script on each system.
 - API tokens (`fga_`), next to session JWTs on the REST API: scoped per area and level, always expiring, listed and
   revocable in Mon compte. A token reaches the intersection of its scopes and its owner's rights, can't manage
   credentials or the account, and any route without a rule is refused to it. Tokens also open Git over HTTP within their
@@ -388,7 +389,8 @@ pages switches in `system_settings`). See "Upgrades" in the README.
 3. Merge to `main`, then push the tag `vX.Y.Z` on that commit.
 
 The CI/CD workflow builds and publishes the image, then creates the GitHub release `vX.Y.Z` with the text of the matching
-section, and attaches the `fgit` binaries and their checksums. If the section is missing, only the release job fails (the
+section, attaches the `fgit` binaries and their checksums, and updates the Homebrew formula in `Masmarino/homebrew-tap` if
+the secret `HOMEBREW_TAP_TOKEN` exists. If the section is missing, only the release job fails (the
 image is not affected): add it, then rerun the job.
 
 To publish `fgit` on crates.io, run `cargo publish -p ferrisgit-cli` from that commit. The CI doesn't do it, since it would
