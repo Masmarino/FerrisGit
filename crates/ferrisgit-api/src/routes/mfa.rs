@@ -42,7 +42,7 @@ const PASSKEY_METHOD_LABEL: &str = "une clé d'accès (passkey)";
 
 const ALREADY_SET_UP: &str = "MFA is already set up";
 const PASSKEYS_UNAVAILABLE: &str = "passkeys are not available on this server";
-const TOO_MANY_ATTEMPTS: &str = "too many attempts, try again later";
+pub(crate) const TOO_MANY_ATTEMPTS: &str = "too many attempts, try again later";
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -260,11 +260,13 @@ fn bad_body() -> ApiError {
 }
 
 /// Raw JSON, so the handler picks where it's parsed: after the availability check, before the token lookup.
-fn parse_credential<T: DeserializeOwned>(credential: serde_json::Value) -> Result<T, ApiError> {
+pub(crate) fn parse_credential<T: DeserializeOwned>(
+    credential: serde_json::Value,
+) -> Result<T, ApiError> {
     serde_json::from_value(credential).map_err(|_| bad_body())
 }
 
-fn ensure_passkeys_available(state: &AppState) -> Result<(), ApiError> {
+pub(crate) fn ensure_passkeys_available(state: &AppState) -> Result<(), ApiError> {
     if state.passkeys.available() {
         Ok(())
     } else {
@@ -273,7 +275,7 @@ fn ensure_passkeys_available(state: &AppState) -> Result<(), ApiError> {
 }
 
 /// Spent first, since every start parks a ceremony in memory whatever the token.
-fn within_start_budget(
+pub(crate) fn within_start_budget(
     state: &AppState,
     connect_info: Option<std::net::SocketAddr>,
     headers: &HeaderMap,
@@ -291,12 +293,12 @@ fn within_start_budget(
 /// webauthn-rs nests the challenge under a second `publicKey`, which we unwrap.
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
-struct ChallengeResponse {
+pub(crate) struct ChallengeResponse {
     challenge_id: Uuid,
     public_key: serde_json::Value,
 }
 
-fn challenge_response(
+pub(crate) fn challenge_response(
     challenge_id: Uuid,
     public_key: &impl Serialize,
 ) -> Result<Json<ChallengeResponse>, ApiError> {

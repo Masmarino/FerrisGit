@@ -14,6 +14,8 @@ import { Language } from '../../shared/i18n/languages';
 import { PageTitleService } from '../../shell/page-title.service';
 import { ApiTokenSummary, TokensService } from '../../api-tokens/api-tokens.service';
 import { ApiTokensList } from '../../api-tokens/api-tokens-list/api-tokens-list';
+import { AccessTokensService } from '../../api-tokens/access-tokens.service';
+import { AccessTokensList } from '../../api-tokens/access-tokens-list/access-tokens-list';
 import { MfaService } from '../../auth/mfa.service';
 import { MfaSettings } from '../mfa-settings/mfa-settings';
 import { stubPasskeyBrowser } from '../../shared/webauthn-testing';
@@ -72,6 +74,7 @@ describe('AccountPage', () => {
         { provide: GbtToastService, useValue: toastStub },
         { provide: PageTitleService, useValue: pageTitleStub },
         { provide: TokensService, useValue: tokensStub },
+        { provide: AccessTokensService, useValue: { list: vi.fn(() => of([])), create: vi.fn(), revoke: vi.fn() } },
         { provide: MfaService, useValue: mfaStub },
       ],
     });
@@ -130,12 +133,12 @@ describe('AccountPage', () => {
       expect(el().querySelector('.form-container')).toBeNull();
     });
 
-    it('lists the four sections, in order, as links to ?section=<key> (the profile on the bare path), each with an icon', async () => {
+    it('lists the five sections, in order, as links to ?section=<key> (the profile on the bare path), each with an icon', async () => {
       const { el } = await setup();
 
       const links = Array.from(el().querySelectorAll<HTMLAnchorElement>('gbt-nav-tabs a'));
-      expect(links.map((a) => a.querySelector('.gbt-nav-tab__label')?.textContent)).toEqual(['Profil', 'Mot de passe', 'Sécurité', "Jetons d'accès"]);
-      expect(links.map((a) => a.getAttribute('href'))).toEqual(['/account', '/account?section=password', '/account?section=security', '/account?section=tokens']);
+      expect(links.map((a) => a.querySelector('.gbt-nav-tab__label')?.textContent)).toEqual(['Profil', 'Mot de passe', 'Sécurité', 'Jetons Git', "Jetons d'API"]);
+      expect(links.map((a) => a.getAttribute('href'))).toEqual(['/account', '/account?section=password', '/account?section=security', '/account?section=tokens', '/account?section=access-tokens']);
       expect(links.every((a) => a.querySelector('gbt-icon') !== null)).toBe(true);
     });
 
@@ -164,9 +167,16 @@ describe('AccountPage', () => {
 
       await harness.navigateByUrl('/account?section=tokens');
       harness.fixture.detectChanges();
-      expect(current()).toEqual(["Jetons d'accès"]);
+      expect(current()).toEqual(['Jetons Git']);
       expect(harness.routeDebugElement!.queryAll(By.directive(ApiTokensList))).toHaveLength(1);
+      expect(harness.routeDebugElement!.queryAll(By.directive(AccessTokensList))).toHaveLength(0);
       expect(card('Mot de passe')).toBeUndefined();
+
+      await harness.navigateByUrl('/account?section=access-tokens');
+      harness.fixture.detectChanges();
+      expect(current()).toEqual(["Jetons d'API"]);
+      expect(harness.routeDebugElement!.queryAll(By.directive(AccessTokensList))).toHaveLength(1);
+      expect(harness.routeDebugElement!.queryAll(By.directive(ApiTokensList))).toHaveLength(0);
     });
 
     it('falls back to the profile for an unknown section, in the page and in the nav', async () => {

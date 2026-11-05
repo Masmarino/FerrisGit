@@ -1,4 +1,4 @@
-import { loginLink, safeReturnUrl } from './login-link';
+import { loginLink, loginUrl, safeReturnUrl } from './login-link';
 
 describe('loginLink', () => {
   it('comes back to the current page after signing in', () => {
@@ -8,6 +8,22 @@ describe('loginLink', () => {
   it('needs no return from the site root or the sign-in page itself', () => {
     expect(loginLink('/').queryParams).toBeNull();
     expect(loginLink('/login?returnUrl=%2Fx').queryParams).toBeNull();
+  });
+});
+
+describe('loginUrl', () => {
+  it('writes the way back as one URL, its query encoded', () => {
+    expect(loginUrl('/account/device?code=ABCD-EFGH')).toBe('/login?returnUrl=%2Faccount%2Fdevice%3Fcode%3DABCD-EFGH');
+  });
+
+  it('is the bare sign-in page when there is no way back', () => {
+    expect(loginUrl('/')).toBe('/login');
+  });
+
+  it('gives what safeReturnUrl follows back', () => {
+    const back = new URL(loginUrl('/account/device?code=ABCD-EFGH'), 'https://x.example').searchParams.get('returnUrl');
+
+    expect(safeReturnUrl(back)).toBe('/account/device?code=ABCD-EFGH');
   });
 });
 

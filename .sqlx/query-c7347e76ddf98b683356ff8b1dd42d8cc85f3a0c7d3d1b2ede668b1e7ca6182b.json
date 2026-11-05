@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM repository_ci_variables WHERE repository_id = $1 AND key = $2 AND masked",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "c7347e76ddf98b683356ff8b1dd42d8cc85f3a0c7d3d1b2ede668b1e7ca6182b"
+}

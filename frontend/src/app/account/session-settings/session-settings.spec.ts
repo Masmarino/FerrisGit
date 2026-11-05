@@ -35,7 +35,7 @@ describe('SessionSettings', () => {
 
     expect(el.querySelector('h2')?.textContent?.trim()).toBe('Sessions');
     expect(el.textContent).toContain('Ferme toutes vos sessions ouvertes, celle-ci comprise.');
-    expect(el.textContent).toContain("Vos jetons d'accès restent valides");
+    expect(el.textContent).toContain("Vos jetons Git et d'API restent valides");
   });
 
   it('ends every session after a confirmation, then goes to sign-in', async () => {

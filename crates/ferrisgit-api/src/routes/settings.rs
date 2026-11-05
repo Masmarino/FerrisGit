@@ -1,6 +1,6 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
-use axum::routing::{delete, get};
+use axum::routing::{delete, get, put};
 use axum::{Json, Router};
 use ferrisgit_application::use_cases::update_system_settings::UpdateSystemSettingsUseCase;
 use ferrisgit_domain::error::DomainError;
@@ -366,6 +366,82 @@ async fn delete_ci_variable(
     Ok(StatusCode::NO_CONTENT)
 }
 
+#[derive(Serialize)]
+struct CiSecretResponse {
+    id: Uuid,
+    key: String,
+}
+
+impl From<CiVariable> for CiSecretResponse {
+    fn from(v: CiVariable) -> Self {
+        Self {
+            id: v.id,
+            key: v.key,
+        }
+    }
+}
+
+async fn list_ci_secrets(
+    AuthUser(user_id): AuthUser,
+    State(state): State<AppState>,
+    Path(repository_id): Path<Uuid>,
+) -> Result<Json<Vec<CiSecretResponse>>, ApiError> {
+    require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Maintainer).await?;
+    let variables = state
+        .repository_settings
+        .list_ci_variables(repository_id)
+        .await?;
+    Ok(Json(
+        variables
+            .into_iter()
+            .filter(|variable| variable.masked)
+            .map(Into::into)
+            .collect(),
+    ))
+}
+
+#[derive(Deserialize)]
+struct SetCiSecretRequest {
+    value: String,
+}
+
+async fn set_ci_secret(
+    AuthUser(user_id): AuthUser,
+    State(state): State<AppState>,
+    Path((repository_id, key)): Path<(Uuid, String)>,
+    Json(req): Json<SetCiSecretRequest>,
+) -> Result<Json<CiSecretResponse>, ApiError> {
+    require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Maintainer).await?;
+    if !is_env_name(&key) {
+        return Err(DomainError::Validation(
+            "a CI secret name is letters, digits and _, not starting with a digit".to_string(),
+        )
+        .into());
+    }
+    // An empty value can't be masked in the logs, so it couldn't be what a secret promises.
+    if req.value.is_empty() {
+        return Err(DomainError::Validation("a CI secret can't be empty".to_string()).into());
+    }
+    let secret = state
+        .repository_settings
+        .set_ci_secret(repository_id, &key, &req.value)
+        .await?;
+    Ok(Json(secret.into()))
+}
+
+async fn delete_ci_secret(
+    AuthUser(user_id): AuthUser,
+    State(state): State<AppState>,
+    Path((repository_id, key)): Path<(Uuid, String)>,
+) -> Result<StatusCode, ApiError> {
+    require_role_by_id(&state, user_id, repository_id, CollaboratorRole::Maintainer).await?;
+    state
+        .repository_settings
+        .delete_ci_secret(repository_id, &key)
+        .await?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
 pub fn router() -> Router<AppState> {
     Router::new()
         .route(
@@ -384,5 +460,13 @@ pub fn router() -> Router<AppState> {
         .route(
             "/repositories/{repository_id}/ci-variables/{id}",
             delete(delete_ci_variable),
+        )
+        .route(
+            "/repositories/{repository_id}/ci-secrets",
+            get(list_ci_secrets),
+        )
+        .route(
+            "/repositories/{repository_id}/ci-secrets/{key}",
+            put(set_ci_secret).delete(delete_ci_secret),
         )
 }

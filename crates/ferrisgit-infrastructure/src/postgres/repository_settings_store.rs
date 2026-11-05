@@ -104,6 +104,7 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
             INSERT INTO repository_ci_variables (repository_id, key, encrypted_value, masked)
             VALUES ($1, $2, $3, $4)
             ON CONFLICT (repository_id, key) DO UPDATE SET encrypted_value = $3, masked = $4
+            WHERE $4 OR NOT repository_ci_variables.masked
             RETURNING id, repository_id, key, masked
             "#,
             new_variable.repository_id,
@@ -111,9 +112,61 @@ impl RepositorySettingsStorePort for PostgresRepositorySettingsStore {
             encrypted_value,
             new_variable.masked,
         )
-        .fetch_one(&self.pool)
+        .fetch_optional(&self.pool)
         .await
-        .map_err(infra)
+        .map_err(infra)?
+        .ok_or_else(|| {
+            DomainError::Conflict(
+                "a secret already has this name: delete it first to make it a plain variable"
+                    .to_string(),
+            )
+        })
+    }
+
+    async fn set_ci_secret(
+        &self,
+        repository_id: Uuid,
+        key: &str,
+        plaintext_value: &str,
+    ) -> Result<CiVariable, DomainError> {
+        let encrypted_value = self.encryptor.encrypt(plaintext_value)?;
+        sqlx::query_as!(
+            CiVariable,
+            r#"
+            INSERT INTO repository_ci_variables (repository_id, key, encrypted_value, masked)
+            VALUES ($1, $2, $3, true)
+            ON CONFLICT (repository_id, key) DO UPDATE SET encrypted_value = $3
+            WHERE repository_ci_variables.masked
+            RETURNING id, repository_id, key, masked
+            "#,
+            repository_id,
+            key,
+            encrypted_value,
+        )
+        .fetch_optional(&self.pool)
+        .await
+        .map_err(infra)?
+        .ok_or_else(|| {
+            DomainError::Conflict(
+                "a plain variable already has this name: delete it first to make it a secret"
+                    .to_string(),
+            )
+        })
+    }
+
+    async fn delete_ci_secret(&self, repository_id: Uuid, key: &str) -> Result<(), DomainError> {
+        let result = sqlx::query!(
+            "DELETE FROM repository_ci_variables WHERE repository_id = $1 AND key = $2 AND masked",
+            repository_id,
+            key
+        )
+        .execute(&self.pool)
+        .await
+        .map_err(infra)?;
+        if result.rows_affected() == 0 {
+            return Err(DomainError::NotFound("ci secret".to_string()));
+        }
+        Ok(())
     }
 
     async fn delete_ci_variable(&self, id: Uuid, repository_id: Uuid) -> Result<(), DomainError> {

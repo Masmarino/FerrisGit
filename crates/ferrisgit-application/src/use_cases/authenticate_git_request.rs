@@ -1,5 +1,9 @@
 use std::sync::Arc;
 
+use chrono::Utc;
+use ferrisgit_domain::access_token::{
+    ACCESS_TOKEN_PREFIX, AccessTokenRepositoryPort, ScopeArea, ScopeLevel, TokenScope,
+};
 use ferrisgit_domain::api_token::ApiTokenRepositoryPort;
 use ferrisgit_domain::audit::{EventPublisherPort, SecurityEvent};
 use ferrisgit_domain::error::DomainError;
@@ -26,6 +30,7 @@ pub enum GitAccess {
 /// Authenticates and authorizes a git smart-HTTP request for a repository the route has already resolved.
 pub struct AuthenticateGitRequestUseCase {
     api_tokens: Arc<dyn ApiTokenRepositoryPort>,
+    access_tokens: Arc<dyn AccessTokenRepositoryPort>,
     events: Arc<dyn EventPublisherPort>,
     runners: Arc<dyn RunnerRepositoryPort>,
     job_tokens: Arc<dyn JobCloneTokenPort>,
@@ -39,6 +44,7 @@ impl AuthenticateGitRequestUseCase {
     #[allow(clippy::too_many_arguments)]
     pub fn new(
         api_tokens: Arc<dyn ApiTokenRepositoryPort>,
+        access_tokens: Arc<dyn AccessTokenRepositoryPort>,
         events: Arc<dyn EventPublisherPort>,
         runners: Arc<dyn RunnerRepositoryPort>,
         job_tokens: Arc<dyn JobCloneTokenPort>,
@@ -49,6 +55,7 @@ impl AuthenticateGitRequestUseCase {
     ) -> Self {
         Self {
             api_tokens,
+            access_tokens,
             events,
             runners,
             job_tokens,
@@ -82,6 +89,11 @@ impl AuthenticateGitRequestUseCase {
         };
 
         let token_hash = hash_token(&plain_token);
+        if plain_token.starts_with(ACCESS_TOKEN_PREFIX) {
+            return self
+                .authorize_access_token(username, &token_hash, repo, access, public_read)
+                .await;
+        }
         let stored = self.api_tokens.find_by_hash(&token_hash).await?;
 
         if let Some(stored) = stored {
@@ -140,6 +152,49 @@ impl AuthenticateGitRequestUseCase {
         Err(DomainError::Unauthorized("invalid token".to_string()))
     }
 
+    /// An API token opens Git within its `repositories` scope and its owner's role, whichever is narrower.
+    async fn authorize_access_token(
+        &self,
+        username: String,
+        token_hash: &str,
+        repo: Repository,
+        access: GitAccess,
+        public_read: bool,
+    ) -> Result<(Repository, Option<Uuid>), DomainError> {
+        let token = self
+            .access_tokens
+            .find_by_hash(token_hash)
+            .await?
+            .filter(|token| !token.is_expired(Utc::now()));
+        let Some(token) = token else {
+            self.events
+                .publish_security_event(SecurityEvent::GitTokenInvalid { username }, None)
+                .await
+                .ok();
+            return Err(DomainError::Unauthorized("invalid token".to_string()));
+        };
+
+        let (level, required_role) = match access {
+            GitAccess::Read => (ScopeLevel::Read, CollaboratorRole::Reader),
+            GitAccess::Write => (ScopeLevel::Write, CollaboratorRole::Contributor),
+        };
+        let authorized = token.allows(TokenScope::new(ScopeArea::Repositories, level))
+            && (public_read
+                || self
+                    .effective_role(&repo, token.user_id)
+                    .await?
+                    .is_some_and(|r| r >= required_role));
+        if !authorized {
+            self.publish_denied(username, &repo, Some(token.user_id))
+                .await;
+            return Err(DomainError::Unauthorized(
+                "token does not grant access to this repository".to_string(),
+            ));
+        }
+        self.access_tokens.touch_last_used(token.id).await.ok();
+        Ok((repo, Some(token.user_id)))
+    }
+
     async fn publish_denied(&self, username: String, repo: &Repository, actor_id: Option<Uuid>) {
         self.events
             .publish_security_event(
@@ -184,12 +239,13 @@ impl AuthenticateGitRequestUseCase {
 mod tests {
     use super::*;
     use crate::test_support::{
-        FakeApiTokens, FakeCollaborators, FakeEvents, FakeGroups, FakeJobCloneTokens,
-        FakePublicPagesSettings, FakeRunners,
+        FakeAccessTokens, FakeApiTokens, FakeCollaborators, FakeEvents, FakeGroups,
+        FakeJobCloneTokens, FakePublicPagesSettings, FakeRunners,
     };
     use crate::use_cases::fixtures::{group, repository};
     use async_trait::async_trait;
     use chrono::Utc;
+    use ferrisgit_domain::access_token::AccessToken;
     use ferrisgit_domain::api_token::ApiToken;
     use ferrisgit_domain::public_pages::{PublicPagesSettings, PublicPagesSettingsUpdate};
     use ferrisgit_domain::runner::Runner;
@@ -218,6 +274,7 @@ mod tests {
     /// What the use case is wired to: public pages on, nothing else unless a test adds it.
     struct World {
         tokens: Vec<ApiToken>,
+        access_tokens: Vec<AccessToken>,
         runners: Vec<Runner>,
         /// Clone tokens of unfinished jobs: (token, repository).
         job_tokens: Vec<(String, Uuid)>,
@@ -230,6 +287,7 @@ mod tests {
         fn new() -> Self {
             Self {
                 tokens: vec![],
+                access_tokens: vec![],
                 runners: vec![],
                 job_tokens: vec![],
                 collaborators: vec![],
@@ -243,6 +301,7 @@ mod tests {
             let groups = Arc::new(self.groups);
             let use_case = AuthenticateGitRequestUseCase::new(
                 Arc::new(FakeApiTokens::new(self.tokens)),
+                Arc::new(FakeAccessTokens::new(self.access_tokens)),
                 events.clone(),
                 Arc::new(FakeRunners::new(self.runners)),
                 Arc::new(FakeJobCloneTokens::new(
@@ -822,5 +881,116 @@ mod tests {
         let result = use_case.execute(None, repo, GitAccess::Read).await;
 
         assert!(matches!(result, Err(DomainError::Unauthorized(_))));
+    }
+
+    mod access_tokens {
+        use super::*;
+
+        const PLAIN: &str = "fga_plain";
+
+        fn access_token(user_id: Uuid, scopes: &[&str], days: i64) -> AccessToken {
+            AccessToken {
+                id: Uuid::new_v4(),
+                user_id,
+                name: "fgit".to_string(),
+                token_hash: hash_token(PLAIN),
+                scopes: scopes.iter().map(|s| s.parse().unwrap()).collect(),
+                expires_at: Utc::now() + chrono::Duration::days(days),
+                created_at: Utc::now(),
+                last_used_at: None,
+            }
+        }
+
+        async fn attempt(
+            scopes: &[&str],
+            days: i64,
+            role: Option<CollaboratorRole>,
+            access: GitAccess,
+        ) -> Result<Option<Uuid>, DomainError> {
+            let user_id = Uuid::new_v4();
+            let repo = repository(Uuid::new_v4());
+            let mut world = World::new();
+            world.access_tokens = vec![access_token(user_id, scopes, days)];
+            if let Some(role) = role {
+                world.collaborators = vec![(repo.id, user_id, role)];
+            }
+            let (use_case, _) = world.build();
+            use_case
+                .execute(Some(("fgit".to_string(), PLAIN.to_string())), repo, access)
+                .await
+                .map(|(_, pusher)| pusher)
+        }
+
+        #[tokio::test]
+        async fn write_scope_and_a_contributor_role_can_push() {
+            let pusher = attempt(
+                &["repositories:write"],
+                1,
+                Some(CollaboratorRole::Contributor),
+                GitAccess::Write,
+            )
+            .await;
+            assert!(pusher.unwrap().is_some());
+        }
+
+        #[tokio::test]
+        async fn read_scope_can_fetch_but_not_push() {
+            let role = Some(CollaboratorRole::Maintainer);
+            assert!(
+                attempt(&["repositories:read"], 1, role, GitAccess::Read)
+                    .await
+                    .is_ok()
+            );
+            assert!(matches!(
+                attempt(&["repositories:read"], 1, role, GitAccess::Write).await,
+                Err(DomainError::Unauthorized(_))
+            ));
+        }
+
+        #[tokio::test]
+        async fn a_token_without_the_repositories_scope_opens_nothing() {
+            assert!(matches!(
+                attempt(
+                    &["issues:write"],
+                    1,
+                    Some(CollaboratorRole::Maintainer),
+                    GitAccess::Read
+                )
+                .await,
+                Err(DomainError::Unauthorized(_))
+            ));
+        }
+
+        #[tokio::test]
+        async fn the_scope_does_not_reach_past_the_owners_role() {
+            assert!(matches!(
+                attempt(
+                    &["repositories:write"],
+                    1,
+                    Some(CollaboratorRole::Reader),
+                    GitAccess::Write
+                )
+                .await,
+                Err(DomainError::Unauthorized(_))
+            ));
+            assert!(matches!(
+                attempt(&["repositories:write"], 1, None, GitAccess::Read).await,
+                Err(DomainError::Unauthorized(_))
+            ));
+        }
+
+        #[tokio::test]
+        async fn an_expired_token_opens_nothing() {
+            assert!(matches!(
+                attempt(
+                    &["repositories:write"],
+                    -1,
+                    Some(CollaboratorRole::Maintainer),
+                    GitAccess::Read
+                )
+                .await,
+                Err(DomainError::Unauthorized(_))
+            ));
+        }
     }
 }

@@ -60,6 +60,18 @@ pub enum SecurityEvent {
     SessionsRevoked {
         user_id: Uuid,
     },
+    AccessTokenCreated {
+        user_id: Uuid,
+        token_id: Uuid,
+    },
+    AccessTokenRevoked {
+        user_id: Uuid,
+        token_id: Uuid,
+    },
+    /// A terminal was let in from the web interface, the second factor checked again.
+    DeviceLoginApproved {
+        user_id: Uuid,
+    },
 }
 
 impl SecurityEvent {
@@ -81,6 +93,9 @@ impl SecurityEvent {
             SecurityEvent::PasskeyDeleted { .. } => "PasskeyDeleted",
             SecurityEvent::PasskeyVerificationFailed { .. } => "PasskeyVerificationFailed",
             SecurityEvent::SessionsRevoked { .. } => "SessionsRevoked",
+            SecurityEvent::AccessTokenCreated { .. } => "AccessTokenCreated",
+            SecurityEvent::AccessTokenRevoked { .. } => "AccessTokenRevoked",
+            SecurityEvent::DeviceLoginApproved { .. } => "DeviceLoginApproved",
         }
     }
 }

@@ -6,6 +6,7 @@ members = [
     "crates/ferrisgit-infrastructure",
     "crates/ferrisgit-api",
     "crates/ferrisgit-runner",
+    "crates/ferrisgit-cli",
 ]
 
 [workspace.package]

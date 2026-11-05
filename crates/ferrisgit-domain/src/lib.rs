@@ -1,3 +1,4 @@
+pub mod access_token;
 pub mod api_token;
 pub mod apply_suggestion_executor;
 pub mod audit;

@@ -12,6 +12,7 @@ import { PublicNotFound } from './public/public-not-found/public-not-found';
 import { AppShell } from './shell/app-shell';
 import { HomePage } from './home/home-page/home-page';
 import { LoginPage } from './auth/login-page/login-page';
+import { DevicePage } from './account/device-page/device-page';
 import { WorkspacePage } from './repositories/workspace-page/workspace-page';
 import { RepositoryPathResolver } from './repositories/repository-path-resolver/repository-path-resolver';
 import { DocsPage } from './docs/docs-page/docs-page';
@@ -63,8 +64,8 @@ describe('routes', () => {
       expect(await open(url)).toEqual({ url, components: [PublicLayout, PublicRepositoryPage] });
     });
 
-    it.each(['/repositories', '/home', '/account', '/admin/settings'])('keeps sending the signed-in page %s to the sign-in page', async (url) => {
-      expect(await open(url)).toEqual({ url: '/login', components: [LoginPage] });
+    it.each(['/repositories', '/home', '/account', '/admin/settings', '/account/device?code=ABCD-EFGH'])('keeps sending the signed-in page %s to the sign-in page, and back', async (url) => {
+      expect(await open(url)).toEqual({ url: `/login?returnUrl=${encodeURIComponent(url)}`, components: [LoginPage] });
     });
 
     describe('documentation', () => {
@@ -107,6 +108,11 @@ describe('routes', () => {
 
     it('keeps an unknown docs page in the shell, for the docs\' own "not found"', async () => {
       expect(await open('/docs/ci-cd/inconnue', { signedIn: true })).toEqual({ url: '/docs/ci-cd/inconnue', components: [AppShell, DocsPage] });
+    });
+
+    it('opens the confirmation of a terminal in the shell, with its code', async () => {
+      const url = '/account/device?code=ABCD-EFGH';
+      expect(await open(url, { signedIn: true })).toEqual({ url, components: [AppShell, DevicePage] });
     });
 
     it('can still open the catalog at /explore, in the public layout', async () => {

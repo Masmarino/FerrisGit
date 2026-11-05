@@ -119,6 +119,70 @@ fn the_api_reference_and_the_router_list_the_same_paths() {
     );
 }
 
+/// Anonymous, or authenticated by something other than `AuthUser`, so a token's scopes have no say on them.
+fn is_outside_token_auth(path: &str) -> bool {
+    !path.starts_with("/api/")
+        || path.starts_with("/api/public/")
+        || path.starts_with("/api/runner/")
+        || path.starts_with("/api/auth/mfa/")
+        || [
+            "/api/version",
+            "/api/auth/config",
+            "/api/auth/register",
+            "/api/auth/activate",
+            "/api/auth/reset-password",
+            "/api/auth/login",
+            "/api/auth/device/start",
+            "/api/auth/device/token",
+        ]
+        .contains(&path)
+}
+
+/// A new route is refused to tokens until it is given a scope, which is safe but easy to forget. This makes that a
+/// decision: give it a scope in `token_scopes.rs`, or add it here.
+const SESSION_ONLY: &[&str] = &[
+    "/api/tokens",
+    "/api/tokens/{id}",
+    "/api/access-tokens",
+    "/api/access-tokens/{id}",
+    "/api/auth/device/{user_code}",
+    "/api/auth/device/{user_code}/approve",
+    "/api/auth/device/{user_code}/passkey",
+    "/api/auth/device/{user_code}/deny",
+    "/api/auth/me/language",
+    "/api/auth/me/password",
+    "/api/auth/logout-all",
+];
+
+#[test]
+fn every_route_is_scoped_or_knowingly_kept_from_tokens() {
+    use axum::http::Method;
+    use ferrisgit_api::token_scopes::{TokenAccess, required_access};
+
+    let unclassified: Vec<String> = router_paths()
+        .into_iter()
+        .filter(|path| !is_outside_token_auth(path))
+        .filter(|path| !path.starts_with("/api/me/mfa"))
+        .filter(|path| !SESSION_ONLY.contains(&path.as_str()))
+        .filter(|path| required_access(&Method::GET, path) == TokenAccess::SessionOnly)
+        .collect();
+
+    assert!(
+        unclassified.is_empty(),
+        "routes tokens can't reach, with no decision recorded:\n{}",
+        unclassified.join("\n")
+    );
+    for path in SESSION_ONLY {
+        for method in [Method::GET, Method::POST, Method::DELETE] {
+            assert_eq!(
+                required_access(&method, path),
+                TokenAccess::SessionOnly,
+                "{method} {path}"
+            );
+        }
+    }
+}
+
 #[test]
 fn the_route_extraction_handles_multi_line_calls() {
     let source = r#"

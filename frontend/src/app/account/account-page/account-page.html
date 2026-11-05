@@ -91,6 +91,9 @@
       @case ('tokens') {
         <fg-api-tokens-list />
       }
+      @case ('access-tokens') {
+        <fg-access-tokens-list />
+      }
       @default {
         <gbt-card variant="outlined" icon="user" [heading]="'account.profile' | transloco" [description]="'account.profileDescription' | transloco">
           <div class="account-page__profile">

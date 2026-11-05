@@ -13,6 +13,20 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
   editor reads and edits them. A job that `needs` a job left out by its rules is left out too. When no job remains, a
   push creates no pipeline, and a merge request gets a pipeline that has already succeeded, so that it doesn't wait for
   a required one forever.
+- `fgit`, a command-line client for people, scripts and AI agents (crate `ferrisgit-cli`): sign-in, repositories, issues,
+  merge requests, pipelines and job logs, releases, CI variables and secrets, and raw API calls. `--json` and `--jq` on
+  every command, no prompt without a terminal, results on stdout and messages on stderr, documented exit codes, `--help`
+  with examples on every command. Binaries for Linux, macOS and Windows (x86_64 and arm64) are attached to each release,
+  and it installs with `brew install masmarino/tap/fgit` or a one-line script on each system.
+- API tokens (`fga_`), next to session JWTs on the REST API: scoped per area and level, always expiring, listed and
+  revocable in Mon compte. A token reaches the intersection of its scopes and its owner's rights, can't manage
+  credentials or the account, and any route without a rule is refused to it. Tokens also open Git over HTTP within their
+  `repositories` scope. `fg_` Git tokens are unchanged, and still only open Git.
+- Signing a terminal in from the web interface (device authorization, `/account/device`). The second factor is asked again
+  on confirmation, and the token is only created when the terminal collects it, so it is never stored in clear.
+- CI secrets on the REST API (`/repositories/{id}/ci-secrets`), by name. A secret is a masked CI variable, in the same
+  list, so jobs and the web interface see no difference. These routes only touch secrets and refuse an empty value.
+- A "Ligne de commande" section in the documentation.
 
 ### Changed
 
@@ -23,6 +37,8 @@ versions follow [SemVer](https://semver.org/). Each section is the text of the G
 - A release that creates its tag, through the web interface or the API and drafts included, now runs a pipeline for that
   tag as a pushed tag does, so that `rules: { tags: [...] }` jobs run for it. A release on an existing tag runs nothing.
 - A pipeline file with no job at all no longer gives a pipeline that stays pending forever.
+- A refusal for a token's scope answers 403. It's the first use of that status: everything else stays as documented.
+- `POST /repositories/{id}/ci-variables` with `"masked": false` on the name of a secret answers 409 instead of unmasking it.
 
 ### Fixed
 
@@ -373,7 +389,12 @@ pages switches in `system_settings`). See "Upgrades" in the README.
 3. Merge to `main`, then push the tag `vX.Y.Z` on that commit.
 
 The CI/CD workflow builds and publishes the image, then creates the GitHub release `vX.Y.Z` with the text of the matching
-section. If the section is missing, only the release job fails (the image is not affected): add it, then rerun the job.
+section, attaches the `fgit` binaries and their checksums, and updates the Homebrew formula in `Masmarino/homebrew-tap` if
+the secret `HOMEBREW_TAP_TOKEN` exists. If the section is missing, only the release job fails (the
+image is not affected): add it, then rerun the job.
+
+To publish `fgit` on crates.io, run `cargo publish -p ferrisgit-cli` from that commit. The CI doesn't do it, since it would
+need a registry token.
 
 [0.1.8]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.8
 [0.1.7]: https://github.com/Masmarino/FerrisGit/releases/tag/v0.1.7

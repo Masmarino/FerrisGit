@@ -1,0 +1,182 @@
+<gbt-page-header [heading]="'deviceLogin.title' | transloco">
+  <p header-meta class="device-page__intro">{{ 'deviceLogin.intro' | transloco }}</p>
+</gbt-page-header>
+
+<gbt-page-layout width="narrow">
+  <div class="device-page__content">
+    @switch (view()) {
+      @case ('enter') {
+        <gbt-card variant="outlined" icon="terminal" [heading]="'deviceLogin.enterTitle' | transloco" [description]="'deviceLogin.enterDescription' | transloco">
+          <!-- ngNoForm keeps this a plain form so Enter submits. Its field is a standalone ngModel. -->
+          <form ngNoForm class="device-page__form" (submit)="$event.preventDefault(); submitTypedCode()">
+            <gbt-input
+              class="device-page__code-field"
+              [label]="'deviceLogin.codeLabel' | transloco"
+              mono
+              placeholder="ABCD-EFGH"
+              autocomplete="off"
+              autocapitalize="characters"
+              [spellcheck]="false"
+              [errorMessage]="typedCodeError()"
+              [ngModel]="typedCode()"
+              (ngModelChange)="setTypedCode($event)"
+            />
+            <div class="device-page__actions">
+              <gbt-button type="submit" iconName="check" [text]="'deviceLogin.continue' | transloco" [disabled]="!typedCode().trim()" />
+            </div>
+          </form>
+        </gbt-card>
+      }
+      @case ('loading') {
+        <gbt-skeleton-list [rows]="3" [loadingLabel]="'deviceLogin.loading' | transloco" />
+      }
+      @case ('ready') {
+        @if (request(); as request) {
+          <gbt-card class="device-page__request" variant="outlined" icon="terminal" [heading]="'deviceLogin.requestTitle' | transloco">
+            <div class="device-page__request-body">
+              <gbt-alert class="device-page__warning" variant="warning">{{ 'deviceLogin.warning' | transloco }}</gbt-alert>
+              <dl class="device-page__facts">
+                <div class="device-page__fact">
+                  <dt>{{ 'deviceLogin.codeShown' | transloco }}</dt>
+                  <dd><code class="device-page__code">{{ request.userCode }}</code></dd>
+                </div>
+                <div class="device-page__fact">
+                  <dt>{{ 'deviceLogin.client' | transloco }}</dt>
+                  <!-- Written by the terminal: interpolated, so it stays text, and isolated so it can't reorder what surrounds it. -->
+                  <dd>
+                    <bdi class="device-page__client">{{ request.clientName }}</bdi>
+                    <span class="device-page__hint">{{ 'deviceLogin.clientHint' | transloco }}</span>
+                  </dd>
+                </div>
+                <div class="device-page__fact">
+                  <dt>{{ 'deviceLogin.scopes' | transloco }}</dt>
+                  <dd>
+                    <ul class="device-page__scopes">
+                      @for (scope of scopes(); track scope.label) {
+                        <li>
+                          <span class="device-page__scope">{{ scope.label }}</span>
+                          @if (scope.hint; as hint) {
+                            <span class="device-page__hint">{{ hint }}</span>
+                          }
+                        </li>
+                      }
+                    </ul>
+                  </dd>
+                </div>
+                <div class="device-page__fact">
+                  <dt>{{ 'deviceLogin.lifetime' | transloco }}</dt>
+                  <dd class="device-page__lifetime">{{ 'accessTokens.days' | translocoCount: request.tokenLifetimeDays }}</dd>
+                </div>
+              </dl>
+            </div>
+          </gbt-card>
+
+          <gbt-card variant="outlined" icon="shield-check" [heading]="'deviceLogin.confirmTitle' | transloco" [description]="'deviceLogin.confirmDescription' | transloco">
+            <!-- ngNoForm keeps this a plain form so Enter submits. Its fields are standalone ngModels. -->
+            <form ngNoForm class="device-page__form" (submit)="$event.preventDefault(); approveWithCode()">
+              @if (passkeyBlocked()) {
+                <gbt-alert variant="warning" appearance="subtle" live="off">{{ 'deviceLogin.passkeyUnsupported' | transloco }}</gbt-alert>
+              }
+              @if (error(); as problem) {
+                <gbt-alert class="device-page__error" [variant]="problem.variant" appearance="subtle">{{ problem.message }}</gbt-alert>
+              }
+
+              @if (showBackupCode()) {
+                <gbt-input
+                  #factorField
+                  class="device-page__factor-field"
+                  [label]="'deviceLogin.backupCodeLabel' | transloco"
+                  mono
+                  autocomplete="off"
+                  autocapitalize="off"
+                  [spellcheck]="false"
+                  [ngModel]="backupCode()"
+                  (ngModelChange)="backupCode.set($event)"
+                />
+              } @else {
+                @if (canUsePasskey()) {
+                  <gbt-button
+                    class="device-page__passkey"
+                    iconName="key"
+                    [text]="'deviceLogin.usePasskey' | transloco"
+                    [loading]="busy() === 'passkey'"
+                    [loadingLabel]="'deviceLogin.passkeyWaiting' | transloco"
+                    [disabled]="busy() !== null && busy() !== 'passkey'"
+                    (clicked)="approveWithPasskey()"
+                  />
+                }
+                @if (hasTotp()) {
+                  <gbt-input
+                    #factorField
+                    class="device-page__factor-field"
+                    [label]="'deviceLogin.codeTotpLabel' | transloco"
+                    inputmode="numeric"
+                    autocomplete="one-time-code"
+                    [spellcheck]="false"
+                    [ngModel]="code()"
+                    (ngModelChange)="code.set($event)"
+                  />
+                }
+              }
+
+              <div class="device-page__actions">
+                @if (!backupOnly()) {
+                  <gbt-button class="device-page__toggle" variant="link" [text]="(showBackupCode() ? 'deviceLogin.useOtherFactor' : 'deviceLogin.useBackupCode') | transloco" (clicked)="toggleBackupCode()" />
+                }
+                <gbt-button class="device-page__deny" variant="secondary" iconName="x" [text]="'deviceLogin.deny' | transloco" [loading]="busy() === 'deny'" [loadingLabel]="'deviceLogin.denying' | transloco" [disabled]="busy() !== null && busy() !== 'deny'" (clicked)="deny()" />
+                @if (showBackupCode() || hasTotp()) {
+                  <gbt-button
+                    class="device-page__approve"
+                    type="submit"
+                    iconName="check"
+                    [variant]="canUsePasskey() && !showBackupCode() ? 'secondary' : 'primary'"
+                    [text]="'deviceLogin.approve' | transloco"
+                    [loading]="busy() === 'code' || busy() === 'backup'"
+                    [loadingLabel]="'deviceLogin.approving' | transloco"
+                    [disabled]="busy() === 'passkey' || busy() === 'deny' || !(showBackupCode() ? backupCode() : code()).trim()"
+                  />
+                }
+              </div>
+            </form>
+          </gbt-card>
+        }
+      }
+      @case ('notFound') {
+        <gbt-card class="device-page__result" variant="outlined" tone="warning" icon="clock" [heading]="'deviceLogin.notFoundTitle' | transloco">
+          <div class="device-page__form">
+            <p class="device-page__message">{{ 'deviceLogin.notFoundMessage' | transloco }}</p>
+            <div class="device-page__actions">
+              <gbt-button variant="secondary" [text]="'deviceLogin.enterAnother' | transloco" (clicked)="enterAnotherCode()" />
+            </div>
+          </div>
+        </gbt-card>
+      }
+      @case ('rateLimited') {
+        <gbt-card class="device-page__result" variant="outlined" tone="warning" icon="clock" [heading]="'deviceLogin.rateLimitedTitle' | transloco">
+          <div class="device-page__form">
+            <p class="device-page__message">{{ 'deviceLogin.tooManyAttempts' | transloco }}</p>
+            <div class="device-page__actions">
+              <gbt-button variant="secondary" [text]="'common.retry' | transloco" (clicked)="retry()" />
+            </div>
+          </div>
+        </gbt-card>
+      }
+      @case ('loadFailed') {
+        <gbt-alert variant="error" appearance="subtle">
+          {{ 'deviceLogin.loadFailed' | transloco }}
+          <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry()" />
+        </gbt-alert>
+      }
+      @case ('approved') {
+        <gbt-card class="device-page__result" variant="outlined" tone="success" icon="check" [heading]="'deviceLogin.approvedTitle' | transloco">
+          <p class="device-page__message">{{ 'deviceLogin.approvedMessage' | transloco }}</p>
+        </gbt-card>
+      }
+      @case ('denied') {
+        <gbt-card class="device-page__result" variant="outlined" icon="ban" [heading]="'deviceLogin.deniedTitle' | transloco">
+          <p class="device-page__message">{{ 'deviceLogin.deniedMessage' | transloco }}</p>
+        </gbt-card>
+      }
+    }
+  </div>
+</gbt-page-layout>

@@ -8,6 +8,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use uuid::Uuid;
 
+use ferrisgit_domain::access_token::{
+    AccessToken, AccessTokenRepositoryPort, DeviceAuthorization, DeviceAuthorizationPort,
+    DeviceAuthorizationStatus, DevicePoll, NewAccessToken, NewDeviceAuthorization,
+};
 use ferrisgit_domain::api_token::{ApiToken, ApiTokenRepositoryPort, NewApiToken};
 use ferrisgit_domain::audit::{EventPublisherPort, SecurityEvent};
 use ferrisgit_domain::branch::{BranchInfo, BranchReaderPort};
@@ -3208,6 +3212,11 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
         if let Some(existing) = variables.iter_mut().find(|(v, _)| {
             v.repository_id == new_variable.repository_id && v.key == new_variable.key
         }) {
+            if existing.0.masked && !new_variable.masked {
+                return Err(DomainError::Conflict(
+                    "a secret already has this name".to_string(),
+                ));
+            }
             existing.0.masked = new_variable.masked;
             existing.1 = new_variable.plaintext_value;
             return Ok(existing.0.clone());
@@ -3228,6 +3237,40 @@ impl RepositorySettingsStorePort for FakeRepositorySettings {
         variables.retain(|(v, _)| !(v.id == id && v.repository_id == repository_id));
         if variables.len() == before {
             return Err(DomainError::NotFound("ci variable".to_string()));
+        }
+        Ok(())
+    }
+
+    async fn set_ci_secret(
+        &self,
+        repository_id: Uuid,
+        key: &str,
+        plaintext_value: &str,
+    ) -> Result<CiVariable, DomainError> {
+        if !filter_in(&self.ci_variables, |(v, _)| {
+            v.repository_id == repository_id && v.key == key && !v.masked
+        })
+        .is_empty()
+        {
+            return Err(DomainError::Conflict(
+                "a plain variable already has this name".to_string(),
+            ));
+        }
+        self.set_ci_variable(NewCiVariable {
+            repository_id,
+            key: key.to_string(),
+            plaintext_value: plaintext_value.to_string(),
+            masked: true,
+        })
+        .await
+    }
+
+    async fn delete_ci_secret(&self, repository_id: Uuid, key: &str) -> Result<(), DomainError> {
+        let mut variables = self.ci_variables.lock().unwrap();
+        let before = variables.len();
+        variables.retain(|(v, _)| !(v.repository_id == repository_id && v.key == key && v.masked));
+        if variables.len() == before {
+            return Err(DomainError::NotFound("ci secret".to_string()));
         }
         Ok(())
     }
@@ -3547,6 +3590,160 @@ impl ApiTokenRepositoryPort for FakeApiTokens {
             |t| t.id == id,
             |token| token.last_used_at = Some(Utc::now()),
         );
+        Ok(())
+    }
+}
+
+#[derive(Default)]
+pub struct FakeAccessTokens {
+    tokens: Mutex<Vec<AccessToken>>,
+}
+
+impl FakeAccessTokens {
+    pub fn new(tokens: Vec<AccessToken>) -> Self {
+        Self {
+            tokens: Mutex::new(tokens),
+        }
+    }
+
+    pub fn snapshot(&self) -> Vec<AccessToken> {
+        self.tokens.lock().unwrap().clone()
+    }
+}
+
+#[async_trait]
+impl AccessTokenRepositoryPort for FakeAccessTokens {
+    async fn create(&self, new_token: NewAccessToken) -> Result<AccessToken, DomainError> {
+        let token = AccessToken {
+            id: Uuid::new_v4(),
+            user_id: new_token.user_id,
+            name: new_token.name,
+            token_hash: new_token.token_hash,
+            scopes: new_token.scopes,
+            expires_at: new_token.expires_at,
+            created_at: Utc::now(),
+            last_used_at: None,
+        };
+        self.tokens.lock().unwrap().push(token.clone());
+        Ok(token)
+    }
+
+    async fn list_for_user(&self, user_id: Uuid) -> Result<Vec<AccessToken>, DomainError> {
+        Ok(filter_in(&self.tokens, |t| t.user_id == user_id))
+    }
+
+    async fn find_by_hash(&self, token_hash: &str) -> Result<Option<AccessToken>, DomainError> {
+        Ok(find_in(&self.tokens, |t| t.token_hash == token_hash))
+    }
+
+    async fn revoke(&self, id: Uuid, user_id: Uuid) -> Result<(), DomainError> {
+        let mut tokens = self.tokens.lock().unwrap();
+        let before = tokens.len();
+        tokens.retain(|t| !(t.id == id && t.user_id == user_id));
+        if tokens.len() == before {
+            return Err(DomainError::NotFound("access token".to_string()));
+        }
+        Ok(())
+    }
+
+    async fn touch_last_used(&self, id: Uuid) -> Result<(), DomainError> {
+        update_in(
+            &self.tokens,
+            |t| t.id == id,
+            |token| token.last_used_at = Some(Utc::now()),
+        );
+        Ok(())
+    }
+}
+
+/// Requests by device code hash. A collected one is removed, like the real store's DELETE.
+#[derive(Default)]
+pub struct FakeDeviceAuthorizations {
+    requests: Mutex<Vec<(String, DeviceAuthorization)>>,
+}
+
+#[async_trait]
+impl DeviceAuthorizationPort for FakeDeviceAuthorizations {
+    async fn create(&self, new_request: NewDeviceAuthorization) -> Result<(), DomainError> {
+        self.requests.lock().unwrap().push((
+            new_request.device_code_hash,
+            DeviceAuthorization {
+                id: Uuid::new_v4(),
+                user_code: new_request.user_code,
+                client_name: new_request.client_name,
+                scopes: new_request.scopes,
+                token_lifetime_days: new_request.token_lifetime_days,
+                status: DeviceAuthorizationStatus::Pending,
+                user_id: None,
+                created_at: Utc::now(),
+                expires_at: new_request.expires_at,
+            },
+        ));
+        Ok(())
+    }
+
+    async fn find_pending_by_user_code(
+        &self,
+        user_code: &str,
+    ) -> Result<Option<DeviceAuthorization>, DomainError> {
+        let requests = self.requests.lock().unwrap();
+        Ok(requests
+            .iter()
+            .map(|(_, request)| request)
+            .find(|r| {
+                r.user_code == user_code
+                    && r.status == DeviceAuthorizationStatus::Pending
+                    && r.expires_at > Utc::now()
+            })
+            .cloned())
+    }
+
+    async fn approve(&self, user_code: &str, user_id: Uuid) -> Result<bool, DomainError> {
+        let mut requests = self.requests.lock().unwrap();
+        let found = requests
+            .iter_mut()
+            .map(|(_, r)| r)
+            .find(|r| r.user_code == user_code && r.status == DeviceAuthorizationStatus::Pending);
+        Ok(found
+            .map(|r| {
+                r.status = DeviceAuthorizationStatus::Approved;
+                r.user_id = Some(user_id);
+            })
+            .is_some())
+    }
+
+    async fn deny(&self, user_code: &str) -> Result<bool, DomainError> {
+        let mut requests = self.requests.lock().unwrap();
+        let found = requests
+            .iter_mut()
+            .map(|(_, r)| r)
+            .find(|r| r.user_code == user_code && r.status == DeviceAuthorizationStatus::Pending);
+        Ok(found
+            .map(|r| r.status = DeviceAuthorizationStatus::Denied)
+            .is_some())
+    }
+
+    async fn poll(
+        &self,
+        device_code_hash: &str,
+        _min_interval_seconds: i32,
+    ) -> Result<DevicePoll, DomainError> {
+        let mut requests = self.requests.lock().unwrap();
+        let Some(at) = requests.iter().position(|(h, _)| h == device_code_hash) else {
+            return Ok(DevicePoll::Expired);
+        };
+        Ok(match requests[at].1.status {
+            DeviceAuthorizationStatus::Pending => DevicePoll::Pending,
+            DeviceAuthorizationStatus::Denied => DevicePoll::Denied,
+            DeviceAuthorizationStatus::Approved => DevicePoll::Approved(requests.remove(at).1),
+        })
+    }
+
+    async fn delete_expired(&self) -> Result<(), DomainError> {
+        self.requests
+            .lock()
+            .unwrap()
+            .retain(|(_, r)| r.expires_at > Utc::now());
         Ok(())
     }
 }

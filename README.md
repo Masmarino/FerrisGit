@@ -34,6 +34,7 @@ registry (npm and Docker/OCI). Connecting the two is one of the [long-term goals
 
 - Git over HTTP (smart protocol): clone, fetch and push, authenticated with your username and a personal access token
   (public repositories can be cloned anonymously while the public pages are on).
+- `fgit`, a command-line client for people, scripts and AI agents, with scoped API tokens and sign-in from the browser.
 - Repositories owned by a user or nested inside hierarchical **groups**, public or private (the description and the
   visibility can be changed afterwards; any signed-in user can create a top-level group). A repository can be
   **renamed or transferred** to its Maintainer's own namespace or to a group they maintain; its old path keeps working
@@ -93,6 +94,7 @@ FerrisGit follows a hexagonal (ports and adapters) layout, split across five Car
 | `ferrisgit-infrastructure` | Adapters: PostgreSQL stores (`sqlx`), Git access (`gix` and the `git` binary), SMTP (`lettre`), Kubernetes (`kube`), password hashing (Argon2), encryption (AES-GCM), JWT. |
 | `ferrisgit-api` | The HTTP server (`axum`): REST API under `/api`, the Git smart-HTTP endpoints, and the static Angular bundle. Produces the `ferrisgit-api` binary. |
 | `ferrisgit-runner` | The stand-alone Docker job runner. |
+| `ferrisgit-cli` | `fgit`, the command-line client: a typed client of the REST API, published on crates.io under that name. Depends on none of the crates above. |
 
 | Layer | Technology |
 |---|---|
@@ -183,7 +185,8 @@ git clone https://ferrisgit.example.com/<owner-or-group-path>/<repository>.git
 
 Git authenticates with HTTP Basic credentials: your **username** and a **personal access token** (`fg_…`), created
 under *Mon compte → Jetons Git*. A token is for Git over HTTPS only (clone, fetch, push): it does not authenticate
-against the REST API, which takes the session obtained at sign-in. Wikis are separate repositories reachable at
+against the REST API, which takes the session obtained at sign-in or an API token (`fga_…`). An API token with the
+`repositories` scope opens Git too, which is what `fgit` uses. Wikis are separate repositories reachable at
 `<repository>.wiki.git`. A public repository, and its wiki, can be cloned without credentials while *Pages publiques*
 is on; see [Public pages](#public-pages).
 
@@ -800,7 +803,7 @@ and can stop a merge. This version builds that, translates the interface and let
 - [ ] Predefined CI variables (commit, branch, merge request, pipeline) and `rules` to decide when a job runs.
 - [ ] Pipeline artifacts and a report upload API, which is what the scans of the next versions use.
 - [ ] Re-running a pipeline from the interface, and scheduled pipelines.
-- [ ] Personal access tokens usable on the REST API, with scopes, and an OpenAPI description generated from the code.
+- [ ] An OpenAPI description of the REST API, generated from the code.
 - [ ] A first link with ArtiFerris: publish an artifact built by a pipeline to an ArtiFerris instance.
 - [ ] Internationalisation with [Transloco](https://github.com/jsverse/transloco): the interface in English, French,
   Italian, Spanish and German. The language follows the browser on a first visit, can be changed on the fly and is saved

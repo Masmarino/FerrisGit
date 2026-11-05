@@ -1,0 +1,193 @@
+@use '../../shared/layout/settings-section';
+
+:host {
+  @include settings-section.section;
+}
+
+// A card focused from script puts the focus on its heading. The ring only shows for keyboard users.
+:host ::ng-deep .gbt-card__title:focus {
+  outline: none;
+}
+
+:host ::ng-deep .gbt-card__title:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+.access-tokens-list__form {
+  @include settings-section.form;
+}
+
+.access-tokens-list__name {
+  display: block;
+  max-width: 24rem;
+}
+
+.access-tokens-list__group {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.access-tokens-list__legend {
+  padding: 0;
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.access-tokens-list__hint {
+  @include settings-section.hint;
+}
+
+.access-tokens-list__areas {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.access-tokens-list__area {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 1rem;
+  padding-block: 0.625rem;
+  border-top: 1px solid var(--gbt-hairline);
+}
+
+.access-tokens-list__area-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.access-tokens-list__area-name {
+  color: var(--text-primary);
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.access-tokens-list__area gbt-segmented-control {
+  flex: none;
+}
+
+.access-tokens-list__custom-lifetime {
+  display: block;
+  max-width: 12rem;
+}
+
+.access-tokens-list__actions {
+  @include settings-section.form-actions;
+}
+
+.access-tokens-list__summary {
+  @include settings-section.form-summary;
+}
+
+.access-tokens-list__reveal {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.access-tokens-list__token ::ng-deep .gbt-copy-field__value {
+  min-height: 2.25rem; // the copy button's height, borders included
+  padding: 0.4375rem 0.75rem;
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.access-tokens-list__token ::ng-deep .gbt-copy-field__copy .gbt-button {
+  width: 2.25rem;
+  height: 2.25rem;
+}
+
+.access-tokens-list__reveal-footer {
+  @include settings-section.form-actions;
+  justify-content: space-between;
+}
+
+.access-tokens-list__warning {
+  display: block;
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.access-tokens-list__rows {
+  @include settings-section.rows;
+}
+
+.access-tokens-list__token-name.access-tokens-list__token-name {
+  @include settings-section.row-title-text;
+  @include settings-section.mono;
+  color: var(--text-primary);
+  font-weight: 600;
+}
+
+.access-tokens-list__details {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  min-width: 0;
+}
+
+.access-tokens-list__scopes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  min-width: 0;
+}
+
+.access-tokens-list__scope {
+  @include settings-section.chip;
+}
+
+.access-tokens-list__meta {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0 0.5rem;
+  min-width: 0;
+
+  > * + *::before {
+    content: '·';
+    margin-right: 0.5rem;
+  }
+}
+
+.access-tokens-list__meta time {
+  white-space: nowrap;
+}
+
+.access-tokens-list__last-used--never {
+  font-style: italic;
+}
+
+@container settings-card (max-width: 519px) {
+  .access-tokens-list__name {
+    max-width: none;
+  }
+
+  .access-tokens-list__area {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .access-tokens-list__scope {
+    white-space: normal;
+  }
+
+  // One date per line, since a wrapped "·" would start the second line.
+  .access-tokens-list__meta {
+    flex-direction: column;
+
+    > * + *::before {
+      content: none;
+    }
+  }
+}

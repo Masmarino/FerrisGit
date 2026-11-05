@@ -1,3 +1,4 @@
+import { ApplicationRef } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { HttpClient, provideHttpClient, withInterceptors } from '@angular/common/http';
 import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
@@ -43,6 +44,35 @@ describe('authInterceptor', () => {
 
     expect(logoutSpy).toHaveBeenCalled();
     expect(navigateSpy).toHaveBeenCalledWith('/login');
+  });
+
+  describe('a 401 and where it goes', () => {
+    async function at(url: string) {
+      localStorage.setItem(TOKEN_KEY, 'stale');
+      TestBed.configureTestingModule({
+        providers: [provideHttpClient(withInterceptors([authInterceptor])), provideHttpClientTesting(), provideRouter([{ path: '**', children: [] }])],
+      });
+      const router = TestBed.inject(Router);
+      await router.navigateByUrl(url);
+      const http = TestBed.inject(HttpClient);
+      http.get('/api/auth/me').subscribe({ error: () => {} });
+      TestBed.inject(HttpTestingController).expectOne('/api/auth/me').flush('unauthorized', { status: 401, statusText: 'Unauthorized' });
+      await TestBed.inject(ApplicationRef).whenStable();
+      return router;
+    }
+
+    it('comes back to the page, query string included, when a stored session turns out to have expired', async () => {
+      const router = await at('/account/device?code=ABCD-EFGH');
+
+      expect(router.parseUrl(router.url).queryParams).toEqual({ returnUrl: '/account/device?code=ABCD-EFGH' });
+      expect(router.url.startsWith('/login?')).toBe(true);
+    });
+
+    it('stays where it is on the sign-in page, whose returnUrl a wrong password must not lose', async () => {
+      const router = await at('/login?returnUrl=%2Faccount%2Fdevice%3Fcode%3DABCD-EFGH');
+
+      expect(router.parseUrl(router.url).queryParams).toEqual({ returnUrl: '/account/device?code=ABCD-EFGH' });
+    });
   });
 
   describe('a 401 and the token it was sent with', () => {

@@ -6,6 +6,9 @@ pub enum DomainError {
     Conflict(String),
     #[error("unauthorized: {0}")]
     Unauthorized(String),
+    /// Known caller, but this credential may not do this. Signing in again wouldn't help, unlike `Unauthorized`.
+    #[error("forbidden: {0}")]
+    Forbidden(String),
     #[error("validation error: {0}")]
     Validation(String),
     #[error("rate limited: {0}")]

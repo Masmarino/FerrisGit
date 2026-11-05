@@ -1,0 +1,174 @@
+<gbt-card variant="outlined" icon="plus" [heading]="'accessTokens.newTitle' | transloco" [description]="'accessTokens.newDescription' | transloco">
+  <!-- ngNoForm keeps this a plain form so Enter submits. Its fields are standalone ngModels. -->
+  <form ngNoForm class="access-tokens-list__form" (submit)="$event.preventDefault(); create()">
+    <gbt-input
+      #nameField
+      class="access-tokens-list__name"
+      [label]="'apiTokens.list.name' | transloco"
+      mono
+      [placeholder]="'apiTokens.list.namePlaceholder' | transloco"
+      autocomplete="off"
+      [errorMessage]="nameError()"
+      [ngModel]="newTokenName()"
+      (ngModelChange)="newTokenName.set($event)"
+    />
+
+    <fieldset class="access-tokens-list__group">
+      <legend class="access-tokens-list__legend">{{ 'accessTokens.scopes.title' | transloco }}</legend>
+      <p class="access-tokens-list__hint">{{ 'accessTokens.scopes.description' | transloco }}</p>
+      <ul class="access-tokens-list__areas">
+        @for (item of areas(); track item.area) {
+          <li class="access-tokens-list__area" [attr.data-area]="item.area">
+            <div class="access-tokens-list__area-text">
+              <span class="access-tokens-list__area-name">{{ item.name }}</span>
+              <span class="access-tokens-list__hint">{{ item.hint }}</span>
+            </div>
+            <gbt-segmented-control size="sm" [ariaLabel]="item.name" [options]="levelOptions()" [value]="choices()[item.area]" (valueChange)="choose(item.area, $event)" />
+          </li>
+        }
+      </ul>
+    </fieldset>
+
+    <div class="access-tokens-list__group">
+      <gbt-segmented-control class="access-tokens-list__lifetime" size="sm" wrap [label]="'accessTokens.lifetime' | transloco" [options]="lifetimeOptions()" [value]="lifetime()" (valueChange)="lifetime.set($event)" />
+      @if (lifetime() === 'custom') {
+        <gbt-input
+          class="access-tokens-list__custom-lifetime"
+          type="number"
+          [min]="lifetimeMin"
+          [max]="lifetimeMax"
+          [label]="'accessTokens.lifetimeDays' | transloco"
+          [errorMessage]="lifetimeError()"
+          [ngModel]="customLifetime()"
+          (ngModelChange)="customLifetime.set($event)"
+        />
+      }
+    </div>
+
+    <div class="access-tokens-list__actions">
+      @if (noScope()) {
+        <p class="access-tokens-list__summary">{{ 'accessTokens.scopes.noneChosen' | transloco }}</p>
+      }
+      <gbt-button class="access-tokens-list__submit" type="submit" iconName="key" [text]="'apiTokens.list.generate' | transloco" [loadingLabel]="'apiTokens.list.generating' | transloco" [disabled]="!canCreate()" [loading]="creating()" />
+    </div>
+  </form>
+</gbt-card>
+
+@if (revealed(); as token) {
+  <gbt-card
+    #revealCard
+    class="access-tokens-list__revealed"
+    variant="outlined"
+    tone="success"
+    icon="check"
+    [heading]="'apiTokens.list.generatedTitle' | transloco: { name: token.name }"
+    [description]="'apiTokens.list.generatedDescription' | transloco"
+  >
+    <div class="access-tokens-list__reveal">
+      <gbt-copy-field class="access-tokens-list__token" [value]="token.token" [copyLabel]="'apiTokens.list.copy' | transloco" [copiedText]="'common.copied' | transloco" [failedText]="'apiTokens.list.copyFailed' | transloco" />
+      <div class="access-tokens-list__reveal-footer">
+        <gbt-alert class="access-tokens-list__warning" variant="warning">{{ 'apiTokens.list.shownOnce' | transloco }}</gbt-alert>
+        <gbt-button variant="secondary" size="small" iconName="check" [text]="'apiTokens.list.copiedIt' | transloco" (clicked)="dismissReveal()" />
+      </div>
+    </div>
+  </gbt-card>
+}
+
+<gbt-card
+  #listCard
+  variant="outlined"
+  icon="terminal"
+  [heading]="'accessTokens.listTitle' | transloco"
+  [description]="'accessTokens.listDescription' | transloco"
+  [count]="listState() === 'loaded' ? list().length : null"
+  [flush]="listState() !== 'failed'"
+>
+  @switch (listState()) {
+    @case ('loading') {
+      <gbt-skeleton-list [rows]="2" leadingSize="1rem" [loadingLabel]="'apiTokens.list.loading' | transloco" />
+    }
+    @case ('failed') {
+      <gbt-alert variant="error" appearance="subtle" live="off">
+        {{ 'apiTokens.list.loadFailed' | transloco }}
+        <gbt-button alert-actions variant="secondary" size="small" [text]="'common.retry' | transloco" (clicked)="retry()" />
+      </gbt-alert>
+    }
+    @default {
+      @if (list().length === 0) {
+        <gbt-empty-state
+          size="compact"
+          icon="terminal"
+          [heading]="'apiTokens.list.emptyTitle' | transloco"
+          [message]="'accessTokens.emptyMessage' | transloco"
+        />
+      } @else {
+        <ul class="access-tokens-list__rows" [attr.aria-label]="'accessTokens.listTitle' | transloco">
+          @for (token of list(); track token.id) {
+            <li>
+              <gbt-list-row>
+                <gbt-icon row-leading name="terminal" aria-hidden="true" />
+                <span class="access-tokens-list__token-name" [title]="token.name">{{ token.name }}</span>
+                @if (token.id === revealed()?.id) {
+                  <gbt-badge variant="info" icon="sparkles">{{ 'apiTokens.list.new' | transloco }}</gbt-badge>
+                }
+                @if (token.expired) {
+                  <gbt-badge class="access-tokens-list__expired-badge" variant="warning" icon="clock">{{ 'accessTokens.expired' | transloco }}</gbt-badge>
+                }
+                <span row-meta class="access-tokens-list__details">
+                  <span class="access-tokens-list__scopes">
+                    @for (scope of token.scopes; track scope) {
+                      <span class="access-tokens-list__scope" [title]="scope">{{ scopeLabel(scope) }}</span>
+                    }
+                  </span>
+                  <span class="access-tokens-list__meta">
+                    <span class="access-tokens-list__expiry">
+                      @if (token.expired) {
+                        {{ 'accessTokens.expiredOn' | transloco: { date: token.expiresAt | gbtDateTime : { locale: locale(), day: '2-digit', month: '2-digit', year: 'numeric' } } }}
+                      } @else {
+                        {{ 'accessTokens.expiresOn' | transloco: { date: token.expiresAt | gbtDateTime : { locale: locale(), day: '2-digit', month: '2-digit', year: 'numeric' } } }}
+                      }
+                    </span>
+                    <span class="access-tokens-list__last-used" [class.access-tokens-list__last-used--never]="!token.lastUsedAt">
+                      @if (token.lastUsedAt; as lastUsed) {
+                        {{ 'apiTokens.list.used' | transloco: { on: on(lastUsed) } }}<time [attr.datetime]="lastUsed" [title]="lastUsed | gbtDateTime : { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }">{{ lastUsed | gbtRelativeTime : { style: 'short', maxUnit: 'day', absoluteAfterDays: 30 } }}</time>
+                      } @else {
+                        {{ 'apiTokens.list.neverUsed' | transloco }}
+                      }
+                    </span>
+                  </span>
+                </span>
+                <gbt-button
+                  row-trailing
+                  class="access-tokens-list__revoke"
+                  variant="ghost-danger"
+                  size="medium"
+                  [iconOnly]="true"
+                  iconName="trash-2"
+                  [title]="'apiTokens.list.revoke' | transloco"
+                  [ariaLabel]="'apiTokens.list.revokeNamed' | transloco: { name: token.name }"
+                  (clicked)="confirmRevoke(token)"
+                />
+              </gbt-list-row>
+            </li>
+          }
+        </ul>
+      }
+    }
+  }
+</gbt-card>
+
+@if (tokenPendingRevoke(); as token) {
+  <gbt-confirm-danger-modal
+    [isOpen]="true"
+    [heading]="'apiTokens.list.revokeTitle' | transloco"
+    [message]="'accessTokens.revokeMessage' | transloco: { name: token.name }"
+    [confirmLabel]="'apiTokens.list.revoke' | transloco"
+    confirmIcon="trash-2"
+    [cancelLabel]="'common.cancel' | transloco"
+    [closeLabel]="'common.close' | transloco"
+    [busyLabel]="'apiTokens.list.revoking' | transloco"
+    [busy]="revoking()"
+    (confirmed)="revoke(token.id)"
+    (closed)="tokenPendingRevoke.set(null)"
+  />
+}

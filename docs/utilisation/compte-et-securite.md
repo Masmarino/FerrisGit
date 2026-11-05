@@ -1,6 +1,6 @@
 # Compte et sécurité
 
-Votre compte se gère depuis **Mon compte** : ouvrez le menu qui porte votre nom d'utilisateur, en haut à droite. La page a quatre onglets : **Profil**, **Mot de passe**, **Sécurité** et **Jetons Git**.
+Votre compte se gère depuis **Mon compte** : ouvrez le menu qui porte votre nom d'utilisateur, en haut à droite. La page a cinq onglets : **Profil**, **Mot de passe**, **Sécurité**, **Jetons Git** et **Jetons d'API**.
 
 ## Profil
 
@@ -33,7 +33,7 @@ Dans l'onglet **Mot de passe**, saisissez le mot de passe actuel, le nouveau (8 
 
 - Les autres sessions ouvertes sont fermées. Votre session actuelle continue.
 - Un e-mail vous informe du changement.
-- Les [jetons Git](#jetons-git) ne sont **pas** révoqués. Si votre mot de passe a fuité, révoquez aussi vos jetons.
+- Les [jetons Git](#jetons-git) et les [jetons d'API](#jetons-dapi) ne sont **pas** révoqués. Si votre mot de passe a fuité, révoquez aussi vos jetons.
 
 **Il n'y a pas de « mot de passe oublié » en libre-service.** Demandez à un administrateur de réinitialiser votre mot de passe : votre ancien mot de passe cesse de fonctionner immédiatement, vos sessions sont fermées et vous recevez par e-mail un lien valable **1 heure** pour en choisir un nouveau. Vos facteurs d'authentification restent en place.
 
@@ -96,9 +96,43 @@ Les jetons Git (jetons d'accès personnels) se gèrent dans l'onglet **Jetons Gi
 ### Ce qu'un jeton permet
 
 - **Git en HTTP.** Un jeton sert de mot de passe pour `git clone`, `git fetch` et `git push`. Voir [Cloner et pousser](/docs/utilisation/cloner-et-pousser).
-- **Pas l'API REST.** Le serveur n'accepte sur `/api` que la session obtenue à la connexion (en-tête `Authorization: Bearer <JWT de session>`). Présenter un jeton `fg_...` à l'API donne une erreur 401. Comme la double authentification est obligatoire, un script qui appelle l'API doit refaire le parcours de connexion et de second facteur. Voir [Authentification de l'API](/docs/api/authentification).
+- **Pas l'API REST.** Présenter un jeton `fg_...` à `/api` donne une erreur 401. Pour un script qui appelle l'API, utilisez un [jeton d'API](#jetons-dapi).
 - **Mêmes droits que vous.** Un jeton n'a ni périmètre ni expiration : il vaut ce que vaut votre compte, sur tous vos dépôts, jusqu'à sa révocation. Il permet de cloner si vous êtes au moins Lecteur, de pousser si vous êtes au moins Contributeur.
 - **Il remplace le second facteur pour Git.** Quiconque détient le jeton accède à vos dépôts sans mot de passe ni code.
 - **Il survit aux changements de mot de passe** et aux réinitialisations de la double authentification. Il disparaît avec la révocation ou la suppression du compte.
 
 Bonnes pratiques : un jeton par machine ou par outil, un nom parlant, une révocation dès qu'un outil n'est plus utilisé, et jamais de jeton dans un dépôt ou dans un message.
+
+## Jetons d'API
+
+Un jeton d'API (préfixe `fga_`) permet à un programme d'agir pour vous : la ligne de commande [`fgit`](/docs/ligne-de-commande/presentation), un script, un job de CI ou un agent. Contrairement à un jeton Git, il ouvre l'API REST, il est limité à ce que vous lui donnez, et il expire toujours. Ils se gèrent dans l'onglet **Jetons d'API**.
+
+| | |
+|---|---|
+| Créer | Un nom, un niveau par domaine (**Aucun**, **Lecture** ou **Écriture**), une durée de vie, puis **Générer**. |
+| Durée de vie | De 1 à 365 jours : 7, 30, 90 ou 365 jours, ou **Autre** pour un nombre de votre choix. |
+| Affichage | Une seule fois, à la création, comme un jeton Git. |
+| Liste | Nom, portées, date d'expiration, dernière utilisation. Un jeton expiré reste listé avec la mention **Expiré**. |
+| Révoquer | Icône **Révoquer**, après confirmation. Les programmes qui l'utilisent perdent l'accès aussitôt. |
+
+Les domaines sont **Dépôts**, **Tickets**, **Demandes de fusion**, **Pipelines** et **Releases**, plus **Administration** si vous êtes administrateur. L'écriture comprend la lecture.
+
+- **Jamais plus que vous.** Un jeton fait ce que permettent à la fois ses portées et vos droits : une portée n'ouvre pas un dépôt sur lequel vous n'avez pas de rôle.
+- **Git aussi.** La portée **Dépôts** ouvre Git en HTTP : lecture pour cloner et récupérer, écriture pour pousser. Voir [Cloner et pousser](/docs/utilisation/cloner-et-pousser#avec-un-jeton-dapi).
+- **Pas votre compte.** Un jeton ne peut gérer ni les jetons, ni la double authentification, ni le mot de passe, ni l'adresse e-mail, ni confirmer un terminal. Ces actions demandent une session.
+- **Il remplace le second facteur.** Comme un jeton Git, il survit aux changements de mot de passe et à **Se déconnecter partout**. Traitez-le comme un mot de passe, et révoquez-le s'il a pu fuiter.
+
+La liste des portées et ce que chacune couvre se trouvent dans [Authentification de l'API](/docs/api/authentification#jetons-dapi).
+
+### Confirmer la connexion d'un terminal
+
+La commande `fgit auth login` n'a pas besoin que vous copiiez un jeton. Elle affiche un code de la forme `BCDF-GHJK` et un lien vers **Mon compte**, sur la page **Connecter un terminal** (`/account/device`). Ouvrez le lien, connectez-vous au besoin, et vous revenez sur cette page. Sans le lien, ouvrez `/account/device` et saisissez le code.
+
+La page indique le code, le nom du programme, les accès demandés et la durée de vie du jeton.
+
+> **Attention** : ne confirmez que si vous venez de lancer cette connexion vous-même et que le code est bien celui qu'affiche votre terminal. N'importe qui peut lancer une demande et vous en envoyer le lien. Le nom du programme est donné par le terminal : FerrisGit ne peut pas le vérifier.
+
+- **Confirmer** demande à nouveau votre second facteur, même si vous êtes connecté : clé d'accès, code à 6 chiffres ou code de secours. Le terminal reçoit alors un jeton d'API, qui apparaît dans l'onglet **Jetons d'API** et s'y révoque comme les autres.
+- **Refuser** ne demande rien de plus : le terminal ne reçoit aucun jeton.
+
+Une demande vit 15 minutes et ne se traite qu'une fois. Passé ce délai, la page répond « Demande introuvable » : relancez `fgit auth login`.

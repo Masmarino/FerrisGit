@@ -121,9 +121,20 @@ pub trait RepositorySettingsStorePort: Send + Sync {
         update: RepositorySettingsUpdate,
     ) -> Result<RepositorySettings, DomainError>;
     async fn list_ci_variables(&self, repository_id: Uuid) -> Result<Vec<CiVariable>, DomainError>;
+    /// Creates or replaces. Refuses to turn a secret into a plain variable: a `Conflict`, leaving the secret as it was.
     async fn set_ci_variable(&self, new_variable: NewCiVariable)
     -> Result<CiVariable, DomainError>;
     async fn delete_ci_variable(&self, id: Uuid, repository_id: Uuid) -> Result<(), DomainError>;
+    /// A secret is a masked CI variable, in the same list. Creates or replaces one, and a `Conflict` if a plain variable
+    /// already has the name, which it leaves as it was.
+    async fn set_ci_secret(
+        &self,
+        repository_id: Uuid,
+        key: &str,
+        plaintext_value: &str,
+    ) -> Result<CiVariable, DomainError>;
+    /// A `NotFound` for a plain variable of that name, which stays.
+    async fn delete_ci_secret(&self, repository_id: Uuid, key: &str) -> Result<(), DomainError>;
     /// Decrypts a repository's CI variables to inject into a job's environment. The only place plaintext is rebuilt.
     async fn resolve_ci_variables_plaintext(
         &self,

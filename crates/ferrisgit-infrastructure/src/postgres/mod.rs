@@ -1,3 +1,4 @@
+pub mod access_token_repository;
 pub mod api_token_repository;
 pub mod backup_code_store;
 pub mod event_publisher;

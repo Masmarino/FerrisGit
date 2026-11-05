@@ -11,6 +11,7 @@ Côté technique, c'est un seul binaire Rust qui sert à la fois l'interface web
 | Héberger du code | Dépôts personnels ou rangés dans des groupes imbriqués, privés ou publics | [Dépôts et groupes](/docs/utilisation/depots-et-groupes) |
 | Donner accès | Rôles Lecteur, Contributeur et Mainteneur, sur un dépôt ou sur un groupe | [Rôles et permissions](/docs/utilisation/roles-et-permissions) |
 | Travailler avec Git | Clone, fetch et push en HTTP, avec un jeton Git | [Cloner et pousser](/docs/utilisation/cloner-et-pousser) |
+| Travailler depuis un terminal | `fgit`, le client en ligne de commande, pour les personnes, les scripts et les agents | [Ligne de commande](/docs/ligne-de-commande/presentation) |
 | Relire le code | Demandes de fusion avec commentaires en ligne, suggestions, approbations | [Demandes de fusion](/docs/utilisation/merge-requests) |
 | Suivre le travail | Tickets, étiquettes, jalons et tableau kanban | [Tickets, étiquettes et jalons](/docs/utilisation/tickets) |
 | Documenter | Un wiki par dépôt, stocké dans son propre dépôt Git | [Wikis](/docs/utilisation/wikis) |
